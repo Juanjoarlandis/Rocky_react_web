@@ -12,8 +12,10 @@ import { BrowserRouter as Router, Route, Link, Routes, useLocation } from 'react
 import { useState, useEffect } from 'react';
 import cartIcon from './images/cart.png';
 import iaIcon from './images/ia.png';
+import medidasIcon from './images/medidas.png';
 import loadingGif from './images/rocky035.gif';
 import ChatComponent from './components/ChatComponent';
+import Medidas from './components/Medidas';
 
 const products = [
   {
@@ -146,11 +148,16 @@ function App() {
               <img src={iaIcon} alt="Cart" className="ia-icon" />
             </Link>
 
+            <Link to="/medidas" className="medidas-icon-container">
+              <img src={medidasIcon} alt="Cart" className="medidas-icon" />
+            </Link>
+
             <Routes>
               <Route path="/" element={<ProductPage products={products} cart={cart} addToCart={addToCart} />} />
               <Route path="/cart" element={<Cart cart={cart} removeFromCart={removeFromCart} incrementQuantity={incrementQuantity} decrementQuantity={decrementQuantity} />} />
               <Route path="/product/:productId" element={<ProductDetail products={products} addToCart={addToCart} />} />
               <Route path="/rockyIA" element={<ChatComponent />} />
+              <Route path="/medidas" element={<Medidas />} />
               {/* Aquí puedes agregar otras rutas para About, Contact, etc. usando el mismo formato */}
             </Routes>
             <Footer />

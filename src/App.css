@@ -61,6 +61,19 @@
   z-index: 999; /* Asegúrate de que el ícono esté encima de otros elementos */
 }
 
+.medidas-icon-container {
+  position: fixed;
+  top: 520px;   /* Puedes ajustar este valor según lo desees */
+  left: 45px; /* Ajusta según dónde quieras que esté el icono */
+  cursor: pointer;
+  z-index: 999; /* Asegúrate de que el ícono esté encima de otros elementos */
+}
+
+.medidas-icon {
+  width: 65px;  /* Ajusta según el tamaño que desees para el ícono */
+  height: 75px;
+}
+
 @keyframes pulsate {
   0%, 100% {
     transform: scale(1);  /* Tamaño normal */
