@@ -12,9 +12,6 @@ import { BrowserRouter as Router, Route, Link, Routes, useLocation } from 'react
 import { useState, useEffect } from 'react';
 import cartIcon from './images/cart.png';
 import iaIcon from './images/ia.png';
-import img1 from './productsimg/1.webp';
-import img2 from './productsimg/2.webp';
-import img3 from './productsimg/3.webp';
 import loadingGif from './images/rocky035.gif';
 import ChatComponent from './components/ChatComponent';
 
@@ -22,14 +19,14 @@ const products = [
   {
     id: 1,
     title: 'Rocky KND',
-    image: img1,
+    image: "https://rockystorage.s3.us-east-1.amazonaws.com/1.webp",
     price: '$100',
     specifications: ['Camiseta Rocky, blah blah blha', 'Especificación 2', 'Especificación 3']
   },
   {
     id: 2,
     title: 'Producto 2',
-    image: img2,
+    image: "https://rockystorage.s3.us-east-1.amazonaws.com/1.webp",
     price: '$200',
     specifications: ['Camiseta Rocky, blah blah blha']
   },
@@ -37,7 +34,7 @@ const products = [
   {
     id: 3,
     title: 'Producto 3',
-    image: img3,
+    image: "https://rockystorage.s3.us-east-1.amazonaws.com/1.webp",
     price: '$200',
     specifications: ['Especificación 1', 'Especificación 2', 'Especificación 3']
   },
@@ -45,14 +42,14 @@ const products = [
   {
     id: 4,
     title: 'Producto 1',
-    image: img1,
+    image: "https://rockystorage.s3.us-east-1.amazonaws.com/1.webp",
     price: '$100',
     specifications: ['Especificación 1', 'Especificación 2', 'Especificación 3']
   },
   {
     id: 5,
     title: 'Producto 2',
-    image: img2,
+    image: "https://rockystorage.s3.us-east-1.amazonaws.com/1.webp",
     price: '$200',
     specifications: ['Especificación 1', 'Especificación 2', 'Especificación 3']
   },
@@ -60,7 +57,7 @@ const products = [
   {
     id: 6,
     title: 'Producto 3',
-    image: img3,
+    image: "https://rockystorage.s3.us-east-1.amazonaws.com/1.webp",
     price: '$200',
     specifications: ['Especificación 1', 'Especificación 2', 'Especificación 3']
   },
