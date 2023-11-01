@@ -1,0 +1,66 @@
+{
+    "ProductPage": [
+      {
+        "id": 101,
+        "name": "MANOLO",
+        "image": "url_imagen_AA",
+        "description": "Descripción del Producto AA.",
+        "price": 15.99
+      },
+      {
+        "id": 102,
+        "name": "Producto AB",
+        "image": "url_imagen_AB",
+        "description": "Descripción del Producto AB.",
+        "price": 17.49
+      },
+      {
+        "id": 103,
+        "name": "Producto AC",
+        "image": "url_imagen_AC",
+        "description": "Descripción del Producto AC.",
+        "price": 12.89
+      }
+    ],
+    "drops": [
+      {
+        "name": "Drop 1",
+        "products": [
+          {
+            "id": 1,
+            "name": "Producto A",
+            "image": "url_imagen_A",
+            "description": "Descripción del Producto A.",
+            "price": 10.99
+          },
+          {
+            "id": 2,
+            "name": "Producto B",
+            "image": "url_imagen_B",
+            "description": "Descripción del Producto B.",
+            "price": 13.49
+          }
+        ]
+      },
+      {
+        "name": "Drop 2",
+        "products": [
+          {
+            "id": 3,
+            "name": "Producto C",
+            "image": "url_imagen_C",
+            "description": "Descripción del Producto C.",
+            "price": 14.79
+          },
+          {
+            "id": 4,
+            "name": "Producto D",
+            "image": "url_imagen_D",
+            "description": "Descripción del Producto D.",
+            "price": 11.89
+          }
+        ]
+      }
+    ]
+  }
+  

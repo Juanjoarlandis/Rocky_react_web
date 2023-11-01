@@ -1,0 +1,100 @@
+.App {
+  text-align: center;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+/* Estilo para el contenedor principal de la App *
+
+/* Estilo para el video de carga */
+.loading-animation {
+  position: fixed;    /* Hace que el GIF esté en una posición fija */
+  top: 50%;           /* Centra el GIF verticalmente */
+  left: 50%;          /* Centra el GIF horizontalmente */
+  transform: translate(-50%, -50%);  /* Ajusta el GIF para que esté verdaderamente centrado */
+  width: 1000px;       /* Ajusta este valor según el tamaño que desees */
+  height: auto;       /* Mantiene el aspecto del GIF */
+  z-index: 1000;  
+  border: 4px solid black; /* Ajusta el "3px" para cambiar el grosor del borde según lo desees */  /* Asegura que el GIF esté encima de otros elementos */
+}
+
+
+.cart-icon-container {
+  position: fixed;
+  top: 290px;   /* Puedes ajustar este valor según lo desees */
+  left: 30px; /* Ajusta según dónde quieras que esté el icono */
+  cursor: pointer;
+  z-index: 999; /* Asegúrate de que el ícono esté encima de otros elementos */
+}
+
+.cart-icon {
+  width: 95px;  /* Ajusta según el tamaño que desees para el ícono */
+  height: 85px;
+}
+.cart-counter {
+  position: absolute;
+  top: -15px;        /* Puedes ajustar estos valores según la ubicación exacta que desees */
+  right: -15px;
+  background-color: rgb(253, 22, 22); /* Fondo blanco */
+  color: rgb(255, 255, 255); /* Texto negro */
+  border: 2px solid black; /* Borde negro */
+  border-radius: 3px;  /* Ligeramente redondeado, si lo deseas completamente cuadrado, puedes omitir esta línea o establecerla en 0 */
+  padding: 2px 5px;
+  font-size: 0.8em;
+  min-width: 18px;
+  text-align: center;
+  box-shadow: 0px 0px 5px rgba(0,0,0,0.2); /* Sombra opcional para darle un poco de profundidad */
+  animation: pulsate 1.5s infinite;
+}
+.ia-icon {
+  width: 105px;  /* Ajusta según el tamaño que desees para el ícono */
+  height: 95px;
+}
+
+.ia-icon-container {
+  position: fixed;
+  top: 400px;   /* Puedes ajustar este valor según lo desees */
+  left: 30px; /* Ajusta según dónde quieras que esté el icono */
+  cursor: pointer;
+  z-index: 999; /* Asegúrate de que el ícono esté encima de otros elementos */
+}
+
+@keyframes pulsate {
+  0%, 100% {
+    transform: scale(1);  /* Tamaño normal */
+  }
+  33% {
+    transform: scale(1.15);  /* Se agranda */
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

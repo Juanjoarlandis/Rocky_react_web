@@ -1,0 +1,81 @@
+/* Header.css */
+
+/* Estilos generales para el header */
+.header-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 30px;
+    margin-bottom: 100px;
+    background-color: #fff; /* Puedes cambiarlo al color que prefieras */
+    
+}
+  
+  /* Estilos para el contenedor del logo */
+  .logo-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  /* Estilos para la imagen del logo */
+  .logo-image {
+    width: 350%;
+    max-width: 450px; /* Puedes ajustar el tamaño máximo según prefieras */
+    height: auto;
+  }
+  
+
+/* Estilos para el contenedor del botón del menú */
+.menu-button-container {
+    position: absolute;
+    top: 10px;  /* Puedes ajustar la posición según prefieras */
+    right: 70px; /* Puedes ajustar la posición según prefieras */
+    cursor: pointer; /* Cambia el cursor a una mano al pasar el ratón */
+  }
+  
+  /* Estilos para el icono del menú */
+  .menu-icon {
+    width: 95px; /* Puedes ajustar el tamaño según prefieras */
+    height: 85px; /* Puedes ajustar el tamaño según prefieras */
+  }
+  
+
+  /* Media queries para adaptabilidad */
+
+/* Si es un dispositivo pequeño (ejemplo: smartphone) */
+@media only screen and (max-width: 480px) {
+    .logo-image {
+      max-width: 200px;
+      
+    }
+    .menu-icon {
+      width: 40px;
+      height: 35px;
+    }
+
+    .menu-button-container {
+        position: absolute;
+        top: 30px;  /* Puedes ajustar la posición según prefieras */
+        right: 20px; /* Puedes ajustar la posición según prefieras */
+        cursor: pointer; /* Cambia el cursor a una mano al pasar el ratón */
+      }
+  }
+  
+  /* Si es un dispositivo mediano (ejemplo: tablet) */
+  @media only screen and (min-width: 481px) and (max-width: 768px) {
+    .logo-image {
+      max-width: 380px;
+    }
+    .menu-icon {
+      width: 75px;
+      height: 70px;
+    }
+  }
+  
+  /* Si es un dispositivo grande (ejemplo: desktop) */
+  @media only screen and (min-width: 769px) {
+    .logo-image {
+      max-width: 500px;
+    }
+  }

@@ -1,0 +1,81 @@
+@import url('https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap');
+
+.main-container {
+    font-family: 'Patrick Hand', cursive;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    margin-top: -250px;
+    padding-top: 5%;
+    height: 50vh;
+    background-color: #ffffff;
+}
+
+h1 {
+    margin-bottom: 20px;
+    font-size: 2.5em;
+    text-align: center;
+}
+
+.chat-container {
+    max-width: 80vw;
+    width: 800px;
+    height: 600px;
+    border: 3px dashed #666;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    background-color: #EAE2D6;
+    overflow-y: scroll;
+}
+
+.chat-message {
+    margin: 5px;
+    padding: 8px;
+    border-radius: 8px;
+    border: 2px dashed #666;
+}
+
+.chat-message.user {
+    align-self: flex-end;
+    background-color: #B2DFDB;
+}
+
+.chat-message.ai {
+    align-self: flex-start;
+    background-color: #FFEBE5;
+}
+
+.chat-input-box {
+    display: flex;
+    margin-top: 20px;
+    align-items: center;
+}
+
+.chat-input-box input {
+    width: 80%;
+    padding: 10px;
+    border-radius: 15px;
+    border: 2px dashed #666;
+    font-size: 1.1em;
+    outline: none;
+}
+
+.chat-input-box button {
+    width: 15%;
+    background-color: #FEA82F;
+    color: white;
+    border: 2px dashed #666;
+    border-radius: 15px;
+    padding: 10px;
+    cursor: pointer;
+    margin-left: 5px;
+    font-size: 1.1em;
+    transition: background-color 0.3s;
+}
+
+.chat-input-box button:hover {
+    background-color: #ED8A00;
+}
