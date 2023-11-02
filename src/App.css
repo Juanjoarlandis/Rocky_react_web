@@ -14,10 +14,10 @@
   top: 50%;           /* Centra el GIF verticalmente */
   left: 50%;          /* Centra el GIF horizontalmente */
   transform: translate(-50%, -50%);  /* Ajusta el GIF para que esté verdaderamente centrado */
-  width: 1000px;       /* Ajusta este valor según el tamaño que desees */
+  width: 100%;       /* Ajusta este valor según el tamaño que desees */
   height: auto;       /* Mantiene el aspecto del GIF */
   z-index: 1000;  
-  border: 4px solid black; /* Ajusta el "3px" para cambiar el grosor del borde según lo desees */  /* Asegura que el GIF esté encima de otros elementos */
+   /* Ajusta el "3px" para cambiar el grosor del borde según lo desees */  /* Asegura que el GIF esté encima de otros elementos */
 }
 
 
