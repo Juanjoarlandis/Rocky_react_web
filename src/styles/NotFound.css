@@ -1,0 +1,44 @@
+.notfound-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh; /* Ocupará toda la altura de la ventana */
+    background-color: #f6f6f6; /* Un fondo gris claro */
+}
+
+.notfound-image {
+    max-width: 100%; /* Ajusta según lo grande que quieras que sea la imagen */
+    margin-bottom: 2rem; /* Espacio debajo de la imagen */
+}
+
+.notfound-text {
+    font-size: 1.5rem;
+    color: #333;
+    text-align: center;
+}
+
+.back-button-container {
+    margin-top: 50%; /* Espacio entre el texto y el botón */
+    display: flex;           /* Activa flexbox */
+    justify-content: center;
+}
+.back-button {
+    background-color: #da2929; /* Color de fondo del botón */
+    color: #fff; /* Color de texto del botón */
+    padding: 10px 20px; /* Espaciado interno del botón */
+    border: none; /* Sin bordes */
+    border-radius: 5px; /* Bordes redondeados */
+    cursor: pointer; /* El cursor cambiará a una mano cuando pases el ratón por encima */
+    transition: background-color 0.3s ease; /* Transición suave al cambiar el color de fondo */
+}
+
+.back-button:hover {
+    background-color: #555; /* Color de fondo cuando pasas el ratón por encima */
+}
+
+@media screen and (max-width: 768px) {
+    .notfound-image {
+        max-width: 100%;
+    }
+}

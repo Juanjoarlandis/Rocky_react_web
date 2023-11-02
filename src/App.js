@@ -15,6 +15,7 @@ import ChatComponent from './components/ChatComponent';
 import Medidas from './components/Medidas';
 import NavBar from './components/NavBar';
 import MenuDrop from './components/MenuDrop';
+import NotFound from './components/NotFound';
 
 const products = [
 
@@ -23,7 +24,7 @@ const products = [
     "drop": "Rocky PEPE",
     "title": "Microsoft Surface Laptop 4",
     "specifications": ["Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum"],
-    "price": 1499,
+    "price": "$1499",
     "image": "https://rockystorage.s3.us-east-1.amazonaws.com/1.webp"
   },
   {
@@ -163,6 +164,7 @@ function App() {
             <Route path="/product/:productId" element={<ProductDetail products={products} addToCart={addToCart} />} />
             <Route path="/rockyIA" element={<ChatComponent />} />
             <Route path="/medidas" element={<Medidas />} />
+            <Route path="*" element={<NotFound />} />
             {/* Aquí puedes agregar otras rutas para About, Contact, etc. usando el mismo formato */}
           </Routes>
           <Footer />
