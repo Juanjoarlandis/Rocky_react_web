@@ -182,6 +182,15 @@
 
 /* Puedes agregar más estilos específicos para pantallas más pequeñas si es necesario */
 @media (max-width: 390px) {
+    .navbar-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: fixed;
+        max-width: 100%;
+        background-color: white;
+        z-index: 1000;
+    }
     .logo {
         width: 60px;
         height: 50px;

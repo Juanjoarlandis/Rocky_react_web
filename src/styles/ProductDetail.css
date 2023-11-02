@@ -25,6 +25,17 @@
     object-fit: cover;
 }
 
+.eye-icon {
+    position: absolute;
+    bottom: 5%; /* Adjust as needed */
+    right: 12%;  /* Adjust as needed */
+    font-size: 1.5rem;  /* Adjust as needed */
+    color: #928f8f;
+    cursor: pointer;
+}
+
+
+
 .product-detail-info {
     flex: 1;
     padding: 10px;

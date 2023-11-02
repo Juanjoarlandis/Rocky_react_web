@@ -23,6 +23,23 @@
     object-fit: scale-down;
 }
 
+.image-container {
+    position: relative;
+    cursor: pointer; /* Encourage user interaction with a pointer cursor on hover */
+}
+
+
+
+
+.eye-icon-page {
+    position: absolute;
+    bottom: 9%; /* Adjust as needed */
+    right: 5%;  /* Adjust as needed */
+    font-size: 1.5rem;  /* Adjust as needed */
+    color: #928f8f;
+    cursor: pointer;
+}
+
 /* Estilo para tarjetas */
 .product-list .card {
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
@@ -43,10 +60,13 @@
 }
 
 .product-list .card-title {
-    font-size: 1.5em;
-    font-weight: bold;
-    color: #333;
+    font-size: 100%;
+    white-space: nowrap;  /* Mantener el contenido en una sola línea */
+    overflow: hidden;  /* Ocultar cualquier contenido que desborde */
+    text-overflow: ellipsis;  /* Agregar unipsis al final si el contenido desborda */
+    max-width: 100%;  /* Asegurarse de que el título no exceda su contenedor */
 }
+
 
 .product-list .card-text {
     font-size: 1.2em;
@@ -137,7 +157,10 @@
     }
     /* Reducir el tamaño de la fuente para el título y el precio */
     .product-list .card-title {
-        font-size: 1.0em;
+        white-space: nowrap;  /* Keep content on a single line */
+        overflow: hidden;  /* Hide any overflow content */
+        text-overflow: ellipsis;  /* Add an ellipsis at the end if the content overflows */
+        max-width: 100%;  /* Make sure the title doesn't exceed its container */
     }
     .product-list .card-text {
         font-size: 0.9em;
