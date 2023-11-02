@@ -36,7 +36,8 @@
     position: absolute;
     top: 33.5vw;  
     left: 40vw;  
-    z-index: 2;  
+    z-index: 2; 
+    pointer-events: none; 
    
     
 }
