@@ -214,7 +214,7 @@
     }
     .product-list {
         grid-template-columns: repeat(auto-fill, 1fr);
-        margin: 40%;
+        margin: 45%;
         justify-items: center;  /* Centrar horizontalmente */
         align-items: center;  
         padding: 0;
