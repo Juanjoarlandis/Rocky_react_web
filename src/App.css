@@ -74,14 +74,7 @@
   height: 75px;
 }
 
-@keyframes pulsate {
-  0%, 100% {
-    transform: scale(1);  /* Tamaño normal */
-  }
-  33% {
-    transform: scale(1.15);  /* Se agranda */
-  }
-}
+
 @media (prefers-reduced-motion: no-preference) {
   .App-logo {
     animation: App-logo-spin infinite 20s linear;

@@ -1,0 +1,28 @@
+/* MenuDrop.css */
+
+.menu-drop-container {
+    background-color: #f8f8f8;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    width: 80%;
+    max-width: 300px;
+    margin: 40% auto;
+    padding: 10px;
+}
+
+.menu-drop-link {
+    display: block;
+    padding: 10px 20px;
+    text-decoration: none;
+    color: #333;
+    border-bottom: 1px solid #e0e0e0;
+    transition: background-color 0.2s;
+}
+
+.menu-drop-link:last-child {
+    border-bottom: none;
+}
+
+.menu-drop-link:hover {
+    background-color: #f0f0f0;
+}

@@ -1,0 +1,179 @@
+/* NavBar.css */
+.navbar-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    align-items: center;
+    position: fixed;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: white;
+    z-index: 1000;
+}
+
+.main-logo {
+    width: 100%;
+    max-width: 600px;
+    margin-bottom: 20px;
+}
+
+.navbar {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    width: 100%;
+    padding-bottom: 10px;
+}
+
+.logo-container {
+    margin: 0 40px;
+    text-decoration: none;
+}
+
+.logo {
+    width: 80px;
+    transition: transform 0.3s ease;
+}
+
+.logo-container {
+    position: relative; /* Añade esta línea */
+    margin: 0 40px;
+    text-decoration: none;
+}
+
+.cart-counter {
+    position: absolute;
+    top: -10px;  /* Ajusta según la ubicación exacta que desees */
+    right: -15px; /* Ajusta según la ubicación exacta que desees */
+    background-color: rgb(253, 22, 22);
+    color: rgb(255, 255, 255);
+    border: 2px solid black;
+    border-radius: 3px;
+    padding: 2px 5px;
+    font-size: 0.8em;
+    min-width: 18px;
+    text-align: center;
+    box-shadow: 0px 0px 5px rgba(0,0,0,0.2);
+    animation: pulsate 1.5s infinite;
+}
+
+
+@keyframes pulsate {
+    0%, 100% {
+      transform: scale(1);  /* Tamaño normal */
+    }
+    33% {
+      transform: scale(1.15);  /* Se agranda */
+    }
+  }
+  
+
+@media (max-width: 1200px) {
+    .logo-container {
+      margin: 0 40px;
+    }
+
+    .logo-container:hover .logo {
+        transform: scale(1.1);
+    }
+}
+
+@media (max-width: 768px) {
+    .main-logo {
+        max-width: 350px;
+    }
+
+    .logo {
+        max-width: 70px;
+    }
+
+    .logo-container:hover .logo {
+        transform: scale(1.1);
+    }
+}
+
+@media (max-width: 480px) {
+    .navbar-container {
+        display: flex;
+        flex-direction: column;
+        
+        align-items: center;
+        position: fixed;
+        top: 0;
+        background-color: white;
+        z-index: 1000;
+    }
+    .logo {
+        width: 60px;
+        height: 50px;
+    }
+
+    .main-logo {
+        max-width: 350px;
+        margin-bottom: 0;
+    }
+
+    .logo-container {
+        margin: 0 10px;
+        text-decoration: none;
+    }
+
+    .logo-container:hover .logo {
+        transform: scale(1.1);
+    }
+
+    .cart-counter {
+        position: absolute;
+        top: -10px;  /* Ajusta según la ubicación exacta que desees */
+        right: -9px; /* Ajusta según la ubicación exacta que desees */
+        background-color: rgb(253, 22, 22);
+        color: rgb(255, 255, 255);
+        border: 2px solid black;
+        border-radius: 3px;
+        padding: 2px 5px;
+        font-size: 0.5em;
+        min-width: 18px;
+        text-align: center;
+        box-shadow: 0px 0px 5px rgba(0,0,0,0.2);
+        animation: pulsate 1.5s infinite;
+    }
+}
+
+/* Puedes agregar más estilos específicos para pantallas más pequeñas si es necesario */
+@media (max-width: 390px) {
+    .logo {
+        width: 60px;
+        height: 50px;
+    }
+
+    .main-logo {
+        max-width: 350px;
+        margin-bottom: 0;
+    }
+
+    .logo-container {
+        margin: 0 10px;
+        text-decoration: none;
+    }
+
+    .logo-container:hover .logo {
+        transform: scale(1.1);
+    }
+
+    .cart-counter {
+        position: absolute;
+        top: -10px;  /* Ajusta según la ubicación exacta que desees */
+        right: -9px; /* Ajusta según la ubicación exacta que desees */
+        background-color: rgb(253, 22, 22);
+        color: rgb(255, 255, 255);
+        border: 2px solid black;
+        border-radius: 3px;
+        padding: 2px 5px;
+        font-size: 0.5em;
+        min-width: 18px;
+        text-align: center;
+        box-shadow: 0px 0px 5px rgba(0,0,0,0.2);
+        animation: pulsate 1.5s infinite;
+    }
+}

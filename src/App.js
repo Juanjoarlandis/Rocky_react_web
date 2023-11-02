@@ -7,8 +7,8 @@ import ProductPage from './components/ProductPage';
 import ProductDetail from './components/ProductDetail';
 import Cart from './components/Cart';
 import { slide as Menu } from 'react-burger-menu';
-import menuicon from './images/menu-icon.png';
-import { BrowserRouter as Router, Route, Link, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Link, Routes, useLocation, useNavigate } from 'react-router-dom';
+
 import { useState, useEffect } from 'react';
 import cartIcon from './images/cart.png';
 import iaIcon from './images/ia.png';
@@ -16,17 +16,21 @@ import medidasIcon from './images/medidas.png';
 import loadingGif from './images/rocky035.gif';
 import ChatComponent from './components/ChatComponent';
 import Medidas from './components/Medidas';
+import NavBar from './components/NavBar';
+import MenuDrop from './components/MenuDrop';
 
 const products = [
   {
     id: 1,
+    drop: 'Rocky KND',
     title: 'Rocky KND',
     image: "https://rockystorage.s3.us-east-1.amazonaws.com/1.webp",
     price: '$100',
-    specifications: ['Camiseta Rocky, blah blah blha', 'Especificación 2', 'Especificación 3']
+    specifications: ['Camiseta Rocky, blah blah blha']
   },
   {
     id: 2,
+    drop: 'Rocky FIRE',
     title: 'Producto 2',
     image: "https://rockystorage.s3.us-east-1.amazonaws.com/1.webp",
     price: '$200',
@@ -35,6 +39,7 @@ const products = [
 
   {
     id: 3,
+    drop: 'Rocky WATER',
     title: 'Producto 3',
     image: "https://rockystorage.s3.us-east-1.amazonaws.com/1.webp",
     price: '$200',
@@ -43,6 +48,7 @@ const products = [
 
   {
     id: 4,
+    drop: 'Rocky WATER',
     title: 'Producto 1',
     image: "https://rockystorage.s3.us-east-1.amazonaws.com/1.webp",
     price: '$100',
@@ -50,6 +56,7 @@ const products = [
   },
   {
     id: 5,
+    drop: 'Rocky WATER',
     title: 'Producto 2',
     image: "https://rockystorage.s3.us-east-1.amazonaws.com/1.webp",
     price: '$200',
@@ -58,6 +65,7 @@ const products = [
 
   {
     id: 6,
+    drop: 'Rocky WATER',
     title: 'Producto 3',
     image: "https://rockystorage.s3.us-east-1.amazonaws.com/1.webp",
     price: '$200',
@@ -70,6 +78,8 @@ function App() {
   const [cart, setCart] = useState([]);
   const location = useLocation();
   const [showVideo, setShowVideo] = useState(true);
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     const videoDuration = 3000; // Duración del video en milisegundos (ajusta este valor según la duración real de tu video)
@@ -125,7 +135,18 @@ function App() {
     }
   }
 
+  const [filteredProducts, setFilteredProducts] = useState(products);
 
+  const handleCategoryChange = (drop) => {
+    if (drop === "all") {
+      setFilteredProducts(products);
+      navigate("/");  // Navega a la página principal de productos
+    } else {
+      const newFilteredProducts = products.filter(product => product.drop === drop);
+      setFilteredProducts(newFilteredProducts);
+      navigate("/products/" + drop);  // Navega a la página de productos de esa categoría
+    }
+  }
 
   return (
     <div className="App" id="outer-container">
@@ -133,35 +154,21 @@ function App() {
         <img src={loadingGif} alt="Loading..." className="loading-animation" />
       ) : (
         <>
-          <Menu customBurgerIcon={<img src={menuicon} />} width={'280px'} right pageWrapId={"page-wrap"} outerContainerId={"outer-container"}>
-            {/* Links del menú siguen igual */}
-          </Menu>
-          <main id="page-wrap">
-            <Header />
-            {location.pathname !== "/cart" && (
-              <Link to="/cart" className="cart-icon-container">
-                <img src={cartIcon} alt="Cart" className="cart-icon" />
-                {cart.length > 0 && <span className="cart-counter">{totalItems + " items"}</span>}
-              </Link>
-            )}
-            <Link to="/rockyIA" className="ia-icon-container">
-              <img src={iaIcon} alt="Cart" className="ia-icon" />
-            </Link>
 
-            <Link to="/medidas" className="medidas-icon-container">
-              <img src={medidasIcon} alt="Cart" className="medidas-icon" />
-            </Link>
+          <NavBar totalItems={totalItems} cart={cart} />
 
-            <Routes>
-              <Route path="/" element={<ProductPage products={products} cart={cart} addToCart={addToCart} />} />
-              <Route path="/cart" element={<Cart cart={cart} removeFromCart={removeFromCart} incrementQuantity={incrementQuantity} decrementQuantity={decrementQuantity} />} />
-              <Route path="/product/:productId" element={<ProductDetail products={products} addToCart={addToCart} />} />
-              <Route path="/rockyIA" element={<ChatComponent />} />
-              <Route path="/medidas" element={<Medidas />} />
-              {/* Aquí puedes agregar otras rutas para About, Contact, etc. usando el mismo formato */}
-            </Routes>
-            <Footer />
-          </main>
+          <Routes>
+            <Route path="/" element={<ProductPage products={filteredProducts} cart={cart} addToCart={addToCart} />} />
+            <Route path="/products/:category" element={<ProductPage products={filteredProducts} cart={cart} addToCart={addToCart} />} />
+            <Route path="/menudrop" element={<MenuDrop products={products} onCategoryChange={handleCategoryChange} />} />
+            <Route path="/cart" element={<Cart cart={cart} removeFromCart={removeFromCart} incrementQuantity={incrementQuantity} decrementQuantity={decrementQuantity} />} />
+            <Route path="/product/:productId" element={<ProductDetail products={products} addToCart={addToCart} />} />
+            <Route path="/rockyIA" element={<ChatComponent />} />
+            <Route path="/medidas" element={<Medidas />} />
+            {/* Aquí puedes agregar otras rutas para About, Contact, etc. usando el mismo formato */}
+          </Routes>
+          <Footer />
+
         </>
       )}
     </div>
