@@ -218,8 +218,8 @@
         justify-items: center;  /* Centrar horizontalmente */
         align-items: center;  
         padding: 0;
-        margin-left: 10%;
-        margin-right: 10%;
+        margin-left: 5%;
+        margin-right: 5%;
         gap: 0px  /* Centrar verticalmente */
     }
     .product-image {
