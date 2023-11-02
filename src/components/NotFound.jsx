@@ -5,12 +5,12 @@ import { Link } from 'react-router-dom';
 
 const NotFound = () => {
     return (
-        <div className="notfound-container">
+        <div className="notfound-container2">
             <img src={notFoundImage} alt="Not Found" className="notfound-image" />
             <p className="notfound-text">Lo sentimos, la página que estás buscando no existe.</p>
-            <div className="back-button-container">
+            <div className="back-button-container2">
                 <Link to="/">
-                    <button className="back-button">Volver al inicio</button>
+                    <button className="back-button2">Volver al inicio</button>
                 </Link>
             </div>
         </div>
