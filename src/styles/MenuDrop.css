@@ -44,7 +44,7 @@
 @media only screen and (min-width: 481px) and (max-width: 768px) {
     .man-tumbado {
         width: 35%;
-        top: 32.5vw;  
+        top: 32.7vw;  
         left: 45%;  
     }
 
@@ -61,8 +61,19 @@
 
 @media (min-width: 769px) and (max-width: 900px) {
     .man-tumbado {
-        top: 23vw;  
-        left: 30.5vw;  
+        width: 35%;
+        top: 32.7vw;  
+        left: 45%;  
+    }
+
+    .menu-drop-container {
+        background-color: #f8f8f8;
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+        width: 80%;
+        max-width: 90%;
+        margin: 55% auto;
+        padding: 10px;
     }
 }
 
