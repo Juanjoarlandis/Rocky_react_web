@@ -42,3 +42,9 @@
         max-width: 100%;
     }
 }
+
+@media screen and (max-width: 480px) {
+    .notfound-image {
+        max-width: 100%;
+    }
+}
