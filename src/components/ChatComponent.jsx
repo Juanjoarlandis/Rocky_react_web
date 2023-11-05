@@ -29,7 +29,7 @@ const ChatComponent = () => {
             },
             body: JSON.stringify({
                 "messages": messagesPayload,
-                "uids": [461],
+                "uids": [603],
                 "count": 1,
                 "return_all": true,
                 "exclude_unavailable": true // if you want to exclude unavailable UIDs
