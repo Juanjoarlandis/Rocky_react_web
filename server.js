@@ -20,7 +20,7 @@ app.post('/api/proxy', async (req, res) => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-API-KEY': '078d6dfe-d984-40c3-a061-6e7f5ababf9d' // Replace with your actual API key
+                'X-API-KEY': '6b337c13-24f2-4eb4-b180-c01a5fc9f622' // Replace with your actual API key
             },
             body: JSON.stringify(req.body)
         });
