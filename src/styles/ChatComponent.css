@@ -1,14 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap');
 
 .main-container {
-    font-family: 'Patrick Hand', cursive;
+    font-family: 'Patrick Hand', bold;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
-    margin-top: -250px;
+    margin-top: 30%;
     padding-top: 5%;
-    height: 50vh;
+    height: 80vh;
     background-color: #ffffff;
 }
 
@@ -41,7 +41,10 @@ h1 {
 .chat-message.user {
     align-self: flex-end;
     background-color: #B2DFDB;
+    width: 30%;
+    height: auto;
 }
+
 
 .chat-message.ai {
     align-self: flex-start;
@@ -64,7 +67,7 @@ h1 {
 }
 
 .chat-input-box button {
-    width: 15%;
+    width: auto;
     background-color: #FEA82F;
     color: white;
     border: 2px dashed #666;
@@ -78,4 +81,5 @@ h1 {
 
 .chat-input-box button:hover {
     background-color: #ED8A00;
+    width: auto;
 }

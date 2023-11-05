@@ -162,7 +162,7 @@ function App() {
             <Route path="/menudrop" element={<MenuDrop products={products} onCategoryChange={handleCategoryChange} />} />
             <Route path="/cart" element={<Cart cart={cart} removeFromCart={removeFromCart} incrementQuantity={incrementQuantity} decrementQuantity={decrementQuantity} />} />
             <Route path="/product/:productId" element={<ProductDetail products={products} addToCart={addToCart} />} />
-            <Route path="/rockyIA" element={<ChatComponent />} />
+            <Route path="/rockyIA" element={<ChatComponent apiEndpoint={"https://api.bitapai.io/text"} />} />
             <Route path="/medidas" element={<Medidas />} />
             <Route path="*" element={<NotFound />} />
             {/* Aquí puedes agregar otras rutas para About, Contact, etc. usando el mismo formato */}
