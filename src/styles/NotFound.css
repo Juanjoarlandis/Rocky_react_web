@@ -39,12 +39,29 @@
 
 @media screen and (max-width: 768px) {
     .notfound-image {
+        position: relative;
         max-width: 100%;
+
     }
 }
 
 @media screen and (max-width: 480px) {
     .notfound-image {
+        position: relative;
         max-width: 100%;
+        margin-top: 30%;
+        margin-bottom: auto;
+    }
+
+    .back-button-container2 {
+        margin-top: 10%; /* Espacio entre el texto y el botón */
+       
+    }
+
+    .notfound-text {
+        margin-top: 10%;
+        font-size: 1.5rem;
+        color: #333;
+        text-align: center;
     }
 }
