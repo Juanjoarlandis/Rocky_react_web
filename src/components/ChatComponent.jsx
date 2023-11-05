@@ -37,7 +37,7 @@ const ChatComponent = () => {
         };
 
         try {
-            const response = await fetch('https://www.rocky035.com:3001/api/proxy', requestOptions); // This is the endpoint in your server.js
+            const response = await fetch('https://www.rocky035.com:443/api/proxy', requestOptions); // This is the endpoint in your server.js
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }

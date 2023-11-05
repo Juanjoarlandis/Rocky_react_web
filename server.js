@@ -7,7 +7,7 @@ const app = express();
 
 // Use CORS middleware to allow requests from your React application domain
 app.use(cors({
-    origin: 'http://localhost:3000' // This should match the domain that your React app is served from
+    origin: 'https://www.rocky035.com' // This should match the domain that your React app is served from
 }));
 
 app.use(express.json());
@@ -36,7 +36,7 @@ app.post('/api/proxy', async (req, res) => {
     }
 });
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 443;
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
