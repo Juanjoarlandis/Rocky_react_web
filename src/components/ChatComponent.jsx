@@ -28,7 +28,6 @@ const ChatComponent = () => {
             headers: {
                 'Content-Type': 'application/json',
                 'X-API-KEY': '6b337c13-24f2-4eb4-b180-c01a5fc9f622',
-                'Authorization': 'Basic ' + btoa(`${process.env.REACT_APP_API_USER}:${process.env.REACT_APP_API_PASSWORD}`),
             },
             body: JSON.stringify({
                 "messages": messagesPayload,
