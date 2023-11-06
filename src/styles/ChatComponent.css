@@ -1,7 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap');
 
 .main-container {
-    font-family: 'Patrick Hand', bold;
+    font-family: 'Patrick Hand', cursive;
+    /* changed from bold to cursive to match the font */
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -32,23 +33,69 @@ h1 {
 }
 
 .chat-message {
-    margin: 5px;
-    padding: 8px;
-    border-radius: 8px;
-    border: 2px dashed #666;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    margin-bottom: 10px;
+}
+
+.message-logo {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    margin-right: 10px;
+}
+
+/* Estilos específicos para el logo del usuario */
+.user .message-logo {
+    border: 2px solid #4A90E2;
+    /* Borde azul para el logo del usuario */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    /* Sombra suave para dar profundidad */
+}
+
+/* Estilos específicos para el logo del bot */
+.ai .message-logo {
+    border: 2px solid #FFD700;
+    /* Borde dorado para el logo del bot */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+    /* Sombra suave para resaltar */
 }
 
 .chat-message.user {
     align-self: flex-end;
-    background-color: #B2DFDB;
-    width: 30%;
-    height: auto;
-}
 
+    border: none;
+    /* removing the dashed border for specific message */
+    width: auto;
+    /* to accommodate padding and logo */
+}
 
 .chat-message.ai {
     align-self: flex-start;
-    background-color: #FFEBE5;
+
+    border: none;
+    /* removing the dashed border for specific message */
+    width: auto;
+    /* to accommodate padding and logo */
+}
+
+
+
+.chat-message p {
+    flex: 1;
+    margin: 0;
+    padding: 5px 10px;
+    background: #f1f1f1;
+    border-radius: 15px;
+    text-align: justify;
+}
+
+/* Additional styles for loading message if needed */
+.loading {
+    justify-content: center;
 }
 
 .chat-input-box {
@@ -81,5 +128,4 @@ h1 {
 
 .chat-input-box button:hover {
     background-color: #ED8A00;
-    width: auto;
 }

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import '../styles/ChatComponent.css';
+import userLogo from '../images/menu.png';
+import botLogo from '../images/ia.png';
 
 const ChatComponent = () => {
     const [messages, setMessages] = useState([]);
@@ -27,7 +29,7 @@ const ChatComponent = () => {
             credentials: 'omit',
             headers: {
                 'Content-Type': 'application/json',
-                'X-API-KEY': '6b337c13-24f2-4eb4-b180-c01a5fc9f622',
+                'X-API-KEY': process.env.BITAPAI_API_KEY,
             },
             body: JSON.stringify({
                 "messages": messagesPayload,
@@ -73,6 +75,8 @@ const ChatComponent = () => {
             <div className="chat-container">
                 {messages.map((message, index) => (
                     <div key={index} className={`chat-message ${message.sender}`}>
+                        {/* Muestra el logo correspondiente al lado del mensaje */}
+                        <img src={message.sender === 'user' ? userLogo : botLogo} alt={`${message.sender} logo`} className="message-logo" />
                         <p>{message.content}</p>
                     </div>
                 ))}
