@@ -39,7 +39,7 @@ const ChatComponent = () => {
         };
 
         try {
-            const response = await fetch('/rockyIA', requestOptions);
+            const response = await fetch('/api/proxi', requestOptions);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
