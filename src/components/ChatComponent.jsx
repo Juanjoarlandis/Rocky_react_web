@@ -39,7 +39,7 @@ const ChatComponent = () => {
         };
 
         try {
-            const response = await fetch('https://www.rocky035.com:3001/api/proxy', requestOptions);
+            const response = await fetch('/rockyAI/', requestOptions);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
