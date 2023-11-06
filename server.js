@@ -1,28 +1,37 @@
+import dotenv from 'dotenv';
 import express from 'express';
-import fetch from 'node-fetch';
 import cors from 'cors';
+import fetch from 'node-fetch'; // make sure to install node-fetch if you haven't
+import rateLimit from 'express-rate-limit';
 
-// Create an instance of express
+dotenv.config();
+
 const app = express();
 
-// Use CORS middleware to allow requests from your React application domain
-app.use(cors({
-    origin: 'https://www.rocky035.com/rockyIA' // This should match the domain that your React app is served from
-}));
-
+app.use(cors());
 app.use(express.json());
 
+// Apply rate limiting to all requests
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100 // limit each IP to 100 requests per windowMs
+});
+
+//app.use(limiter);
+
+// Custom proxy endpoint
 app.post('/api/proxy', async (req, res) => {
-    const url = 'https://api.bitapai.io/text'; // Replace with your actual URL
+    const apiUrl = 'https://api.bitapai.io/text';
+    const body = JSON.stringify(req.body);
 
     try {
-        const apiResponse = await fetch(url, {
-            method: 'POST',
+        const apiResponse = await fetch(apiUrl, {
+            method: 'POST', // Explicitly set the method to POST
             headers: {
                 'Content-Type': 'application/json',
-                'X-API-KEY': '6b337c13-24f2-4eb4-b180-c01a5fc9f622' // Replace with your actual API key
+                'X-API-KEY': process.env.BITAPAI_API_KEY // Use the API key from environment variables
             },
-            body: JSON.stringify(req.body)
+            body: body
         });
 
         if (!apiResponse.ok) {
@@ -30,10 +39,17 @@ app.post('/api/proxy', async (req, res) => {
         }
 
         const data = await apiResponse.json();
-        res.status(apiResponse.status).json(data);
+        res.json(data); // Send the response from BitAPAI back to the client
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Error when proxying to BitAPAI:', error);
+        res.status(500).json({ message: 'Error when proxying the request.' });
     }
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).send('Something broke!');
 });
 
 const PORT = process.env.PORT || 3001;

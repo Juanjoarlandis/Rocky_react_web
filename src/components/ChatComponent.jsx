@@ -4,7 +4,7 @@ import '../styles/ChatComponent.css';
 const ChatComponent = () => {
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState('');
-    const [isLoading, setIsLoading] = useState(false); // state to handle loading indicator
+    const [isLoading, setIsLoading] = useState(false);
 
     const handleSubmit = async () => {
         if (!input.trim() || isLoading) {
@@ -15,39 +15,45 @@ const ChatComponent = () => {
 
         // Create the messages array including past messages and the new user input
         const messagesPayload = messages.map(msg => ({
-            role: msg.sender === 'user' ? 'user' : 'assistant', // Map 'user' or 'ai' to 'user' or 'assistant'
+            role: msg.sender === 'user' ? 'user' : 'assistant',
             content: msg.content
         })).concat({
             role: "user",
-            content: input // The user's input from the state
+            content: input
         });
 
         const requestOptions = {
             method: 'POST',
+            credentials: 'omit',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-API-KEY': '6b337c13-24f2-4eb4-b180-c01a5fc9f622'
             },
             body: JSON.stringify({
                 "messages": messagesPayload,
                 "uids": [603],
                 "count": 1,
                 "return_all": true,
-                "exclude_unavailable": true // if you want to exclude unavailable UIDs
+                "exclude_unavailable": true
             })
         };
 
         try {
-            const response = await fetch('https://www.rocky035.com:3001/api/proxy', requestOptions); // This is the endpoint in your server.js
+            const response = await fetch('/api/proxy', requestOptions);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const data = await response.json();
-            console.log(data);
 
-            // Assuming 'data.choices' contains the response from the AI with the latest message
+            // Check for the expected structure and existence of choices
+            if (!data.choices || !data.choices.length || !data.choices[0].message) {
+                console.error('AI response is not in the expected format', data);
+                throw new Error('AI response is not in the expected format');
+            }
+
+            // Extract the content from the first available message from the choices
             const aiResponseContent = data.choices[0].message.content;
 
-            // Add the new user message and AI response to the state
             setMessages(messages => [
                 ...messages,
                 { sender: 'user', content: input },
@@ -56,8 +62,8 @@ const ChatComponent = () => {
         } catch (error) {
             console.error('There was an error with the AI response', error);
         } finally {
-            setIsLoading(false); // Set loading to false after the request is done
-            setInput(''); // Clear the input field
+            setIsLoading(false);
+            setInput('');
         }
     };
 
