@@ -1,0 +1,58 @@
+.footer-container {
+    background-color: #3f3e3e;
+    /* Fondo oscuro para el footer */
+    padding: 10px;
+    /* Espacio entre el contenedor interno y los bordes del footer */
+    margin-top: -45%;
+}
+
+.footer-inner-container {
+    border: 3px solid #fff;
+    /* Borde blanco alrededor del contenedor interno */
+    padding: 10px;
+    /* Espacio entre el borde y el contenido interno */
+}
+
+
+.footer-image img {
+    max-width: 75%;
+    height: auto;
+    padding: 20px 0;
+}
+
+.footer-social-icons {
+    display: flex;
+    justify-content: center;
+    padding: 20px 0;
+}
+
+.social-icon {
+    width: 40px;
+    /* O el tamaño que prefieras */
+    height: auto;
+    margin: 0 10px;
+    /* Otros estilos que necesites */
+}
+
+p {
+    color: #ffffff;
+    text-decoration: none;
+    margin: 10px 0;
+
+}
+
+.footer-contact-info p {
+    color: #ffffff;
+    text-decoration: none;
+    margin: 5px 0;
+}
+
+.footer-contact-info p:hover {
+    text-decoration: underline;
+}
+
+.footer-credit {
+    color: #e9bebe;
+    font-style: italic;
+    font-size: 0.9em;
+}

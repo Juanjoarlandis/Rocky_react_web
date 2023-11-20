@@ -16,62 +16,8 @@ import Medidas from './components/Medidas';
 import NavBar from './components/NavBar';
 import MenuDrop from './components/MenuDrop';
 import NotFound from './components/NotFound';
+import products from './PRODUCTOS_ROCKY.json';
 
-const products = [
-
-  {
-    "id": 1,
-    "drop": "Rocky PEPE",
-    "title": "Microsoft Surface Laptop 4",
-    "specifications": ["Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum"],
-    "price": "$1499",
-    "image": "https://rockystorage.s3.us-east-1.amazonaws.com/1.webp"
-  },
-  {
-    id: 2,
-    drop: 'Rocky FIRE',
-    title: 'Producto 2',
-    image: "https://rockystorage.s3.us-east-1.amazonaws.com/1.webp",
-    price: '$200',
-    specifications: ['Camiseta Rocky, blah blah blha']
-  },
-
-  {
-    id: 3,
-    drop: 'Rocky WATER',
-    title: 'Producto 3',
-    image: "https://rockystorage.s3.us-east-1.amazonaws.com/1.webp",
-    price: '$200',
-    specifications: ['Especificación 1', 'Especificación 2', 'Especificación 3']
-  },
-
-  {
-    id: 4,
-    drop: 'Rocky WATER',
-    title: 'Producto 1',
-    image: "https://rockystorage.s3.us-east-1.amazonaws.com/1.webp",
-    price: '$100',
-    specifications: ['Especificación 1', 'Especificación 2', 'Especificación 3']
-  },
-  {
-    id: 5,
-    drop: 'Rocky WATER',
-    title: 'Producto 2',
-    image: "https://rockystorage.s3.us-east-1.amazonaws.com/1.webp",
-    price: '$200',
-    specifications: ['Especificación 1', 'Especificación 2', 'Especificación 3']
-  },
-
-  {
-    id: 6,
-    drop: 'Rocky WATER',
-    title: 'Producto 3',
-    image: "https://rockystorage.s3.us-east-1.amazonaws.com/1.webp",
-    price: '$200',
-    specifications: ['Especificación 1', 'Especificación 2', 'Especificación 3']
-  },
-  // ... Puedes agregar más productos aquí
-];
 
 function App() {
   const [cart, setCart] = useState([]);
