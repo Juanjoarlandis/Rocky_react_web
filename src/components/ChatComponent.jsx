@@ -33,7 +33,6 @@ const ChatComponent = () => {
             },
             body: JSON.stringify({
                 "messages": messagesPayload,
-                "uids": [603],
                 "count": 1,
                 "return_all": true,
                 "exclude_unavailable": true

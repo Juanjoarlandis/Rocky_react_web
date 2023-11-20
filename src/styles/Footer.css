@@ -1,8 +1,9 @@
 .footer-container {
     background-color: #3f3e3e;
+    /* Fondo oscuro para el footer */
     padding: 10px;
     /* Espacio entre el contenedor interno y los bordes del footer */
-    margin-top: 10%;
+
 }
 
 .footer-inner-container {
@@ -36,7 +37,7 @@
 p {
     color: #ffffff;
     text-decoration: none;
-    margin: 10px 0;
+    margin: 5px 0;
 
 }
 
