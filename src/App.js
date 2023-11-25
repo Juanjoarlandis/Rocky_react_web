@@ -1,22 +1,21 @@
-import './App.css';
-import logo from './images/Rockypng.png';
-import React from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
+import { BrowserRouter as Router, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+// Importaciones que no necesitan ser divididas
 import Header from './components/Header';
 import Footer from './components/Footer';
-import ProductPage from './components/ProductPage';
-import ProductDetail from './components/ProductDetail';
-import Cart from './components/Cart';
-import { slide as Menu } from 'react-burger-menu';
-import { BrowserRouter as Router, Route, Link, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
-
-import loadingGif from './images/rocky035.gif';
-import ChatComponent from './components/ChatComponent';
-import Medidas from './components/Medidas';
 import NavBar from './components/NavBar';
 import MenuDrop from './components/MenuDrop';
 import NotFound from './components/NotFound';
 import products from './PRODUCTOS_ROCKY.json';
+import loadingGif from './images/rocky035.gif';
+import './App.css';
+
+// Componentes dinámicos
+const ProductPage = React.lazy(() => import('./components/ProductPage'));
+const ProductDetail = React.lazy(() => import('./components/ProductDetail'));
+const Cart = React.lazy(() => import('./components/Cart'));
+const ChatComponent = React.lazy(() => import('./components/ChatComponent'));
+import ScrollToTop from './components/ScrollToTop';
 
 
 function App() {
@@ -98,10 +97,9 @@ function App() {
       {showVideo ? (
         <img src={loadingGif} alt="Loading..." className="loading-animation" />
       ) : (
-        <>
-
+        <Suspense fallback={<div>Cargando...</div>}> {/* Fallback mientras se cargan los componentes */}
           <NavBar totalItems={totalItems} cart={cart} />
-
+          <ScrollToTop />
           <Routes>
             <Route path="/" element={<ProductPage products={filteredProducts} cart={cart} addToCart={addToCart} />} />
             <Route path="/products/:category" element={<ProductPage products={filteredProducts} cart={cart} addToCart={addToCart} />} />
@@ -109,17 +107,13 @@ function App() {
             <Route path="/cart" element={<Cart cart={cart} removeFromCart={removeFromCart} incrementQuantity={incrementQuantity} decrementQuantity={decrementQuantity} />} />
             <Route path="/product/:productId" element={<ProductDetail products={products} addToCart={addToCart} />} />
             <Route path="/rockyIA" element={<ChatComponent apiEndpoint={"https://api.bitapai.io/text"} />} />
-            <Route path="/medidas" element={<Medidas />} />
-            <Route path="*" element={<NotFound />} />
-            {/* Aquí puedes agregar otras rutas para About, Contact, etc. usando el mismo formato */}
+            {/* Otras rutas */}
           </Routes>
           <Footer />
-
-        </>
+        </Suspense>
       )}
     </div>
   );
-
 }
 
 export default App;
