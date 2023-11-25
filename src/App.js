@@ -8,6 +8,7 @@ import MenuDrop from './components/MenuDrop';
 import NotFound from './components/NotFound';
 import products from './PRODUCTOS_ROCKY.json';
 import loadingGif from './images/rocky035.gif';
+import ScrollToTop from './components/ScrollToTop';
 import './App.css';
 
 // Componentes dinámicos
@@ -15,7 +16,6 @@ const ProductPage = React.lazy(() => import('./components/ProductPage'));
 const ProductDetail = React.lazy(() => import('./components/ProductDetail'));
 const Cart = React.lazy(() => import('./components/Cart'));
 const ChatComponent = React.lazy(() => import('./components/ChatComponent'));
-import ScrollToTop from './components/ScrollToTop';
 
 
 function App() {
