@@ -7,7 +7,8 @@
             "PROXIMAMENTE"
         ],
         "price": "??",
-        "image": "https://rockystorage.s3.us-east-1.amazonaws.com/DROP4_ROCKY/35%20RED.webp"
+        "image": "/products/placeholder-unreleased.webp",
+        "description": "Camiseta oversize \"35 RED\" del DROP 4 de ROCKY 035. Edición limitada, unidades numeradas."
     },
     {
         "id": 2,
@@ -17,7 +18,8 @@
             "PROXIMAMENTE"
         ],
         "price": "??",
-        "image": "https://rockystorage.s3.us-east-1.amazonaws.com/DROP4_ROCKY/35%20WHITE.webp"
+        "image": "/products/placeholder-unreleased.webp",
+        "description": "Camiseta oversize \"35 WHITE\" del DROP 4 de ROCKY 035. Edición limitada, unidades numeradas."
     },
     {
         "id": 3,
@@ -27,7 +29,8 @@
             "PROXIMAMENTE"
         ],
         "price": "??",
-        "image": "https://rockystorage.s3.us-east-1.amazonaws.com/DROP4_ROCKY/DAWG.webp"
+        "image": "/products/placeholder-unreleased.webp",
+        "description": "Camiseta oversize \"DWAG\" del DROP 4 de ROCKY 035. Edición limitada, unidades numeradas."
     },
     {
         "id": 4,
@@ -37,7 +40,8 @@
             "PROXIMAMENTE"
         ],
         "price": "??",
-        "image": "https://rockystorage.s3.us-east-1.amazonaws.com/DROP4_ROCKY/Danger%20Basic.webp"
+        "image": "/products/placeholder-unreleased.webp",
+        "description": "Camiseta oversize \"Danger Basic\" del DROP 4 de ROCKY 035. Edición limitada, unidades numeradas."
     },
     {
         "id": 5,
@@ -47,7 +51,8 @@
             "PROXIMAMENTE"
         ],
         "price": "??",
-        "image": "https://rockystorage.s3.us-east-1.amazonaws.com/DROP4_ROCKY/Danger%20Multi.webp"
+        "image": "/products/placeholder-unreleased.webp",
+        "description": "Camiseta oversize \"Danger Multi\" del DROP 4 de ROCKY 035. Edición limitada, unidades numeradas."
     },
     {
         "id": 6,
@@ -57,7 +62,8 @@
             "PROXIMAMENTE"
         ],
         "price": "??",
-        "image": "https://rockystorage.s3.us-east-1.amazonaws.com/DROP4_ROCKY/Danger.webp"
+        "image": "/products/placeholder-unreleased.webp",
+        "description": "Camiseta oversize \"Danger\" del DROP 4 de ROCKY 035. Edición limitada, unidades numeradas."
     },
     {
         "id": 7,
@@ -67,7 +73,8 @@
             "PROXIMAMENTE"
         ],
         "price": "??",
-        "image": "https://rockystorage.s3.us-east-1.amazonaws.com/DROP4_ROCKY/Dots.webp"
+        "image": "/products/placeholder-unreleased.webp",
+        "description": "Camiseta oversize \"Dots\" del DROP 4 de ROCKY 035. Edición limitada, unidades numeradas."
     },
     {
         "id": 8,
@@ -77,7 +84,8 @@
             "PROXIMAMENTE"
         ],
         "price": "??",
-        "image": "https://rockystorage.s3.us-east-1.amazonaws.com/DROP4_ROCKY/Flora%20Blue.webp"
+        "image": "/products/placeholder-unreleased.webp",
+        "description": "Camiseta oversize \"Flora Blue\" del DROP 4 de ROCKY 035. Edición limitada, unidades numeradas."
     },
     {
         "id": 9,
@@ -87,7 +95,8 @@
             "PROXIMAMENTE"
         ],
         "price": "??",
-        "image": "https://rockystorage.s3.us-east-1.amazonaws.com/DROP4_ROCKY/Flora%20Red.webp"
+        "image": "/products/placeholder-unreleased.webp",
+        "description": "Camiseta oversize \"Flora Red\" del DROP 4 de ROCKY 035. Edición limitada, unidades numeradas."
     },
     {
         "id": 10,
@@ -97,7 +106,8 @@
             "PROXIMAMENTE"
         ],
         "price": "??",
-        "image": "https://rockystorage.s3.us-east-1.amazonaws.com/DROP4_ROCKY/Hobby.webp"
+        "image": "/products/placeholder-unreleased.webp",
+        "description": "Camiseta oversize \"Hobby\" del DROP 4 de ROCKY 035. Edición limitada, unidades numeradas."
     },
     {
         "id": 11,
@@ -107,7 +117,8 @@
             "PROXIMAMENTE"
         ],
         "price": "??",
-        "image": "https://rockystorage.s3.us-east-1.amazonaws.com/DROP4_ROCKY/LEVEL%20BLUE.webp"
+        "image": "/products/placeholder-unreleased.webp",
+        "description": "Camiseta oversize \"LEVEL BLUE\" del DROP 4 de ROCKY 035. Edición limitada, unidades numeradas."
     },
     {
         "id": 12,
@@ -117,7 +128,8 @@
             "PROXIMAMENTE"
         ],
         "price": "??",
-        "image": "https://rockystorage.s3.us-east-1.amazonaws.com/DROP4_ROCKY/LEVEL%20ORANGE.webp"
+        "image": "/products/placeholder-unreleased.webp",
+        "description": "Camiseta oversize \"LEVEL ORANGE\" del DROP 4 de ROCKY 035. Edición limitada, unidades numeradas."
     },
     {
         "id": 13,
@@ -127,7 +139,8 @@
             "PROXIMAMENTE"
         ],
         "price": "??",
-        "image": "https://rockystorage.s3.us-east-1.amazonaws.com/DROP4_ROCKY/Mugshot.webp"
+        "image": "/products/placeholder-unreleased.webp",
+        "description": "Camiseta oversize \"Mugshot\" del DROP 4 de ROCKY 035. Edición limitada, unidades numeradas."
     },
     {
         "id": 14,
@@ -137,7 +150,8 @@
             "PROXIMAMENTE"
         ],
         "price": "??",
-        "image": "https://rockystorage.s3.us-east-1.amazonaws.com/DROP4_ROCKY/NoName.webp"
+        "image": "/products/placeholder-unreleased.webp",
+        "description": "Camiseta oversize \"NoName\" del DROP 4 de ROCKY 035. Edición limitada, unidades numeradas."
     },
     {
         "id": 15,
@@ -147,7 +161,8 @@
             "PROXIMAMENTE"
         ],
         "price": "??",
-        "image": "https://rockystorage.s3.us-east-1.amazonaws.com/DROP4_ROCKY/RockyRacing.webp"
+        "image": "/products/rocky-racing.webp",
+        "description": "Camiseta oversize ROCKY Racing Club en negro, serigrafía frontal con el coche del club. Edición limitada del DROP 4."
     },
     {
         "id": 16,
@@ -157,7 +172,8 @@
             "PROXIMAMENTE"
         ],
         "price": "??",
-        "image": "https://rockystorage.s3.us-east-1.amazonaws.com/DROP4_ROCKY/RockyStar.webp"
+        "image": "/products/placeholder-unreleased.webp",
+        "description": "Camiseta oversize \"RockyStar\" del DROP 4 de ROCKY 035. Edición limitada, unidades numeradas."
     },
     {
         "id": 17,
@@ -167,7 +183,8 @@
             "PROXIMAMENTE"
         ],
         "price": "??",
-        "image": "https://rockystorage.s3.us-east-1.amazonaws.com/DROP4_ROCKY/Rockydz%20black.webp"
+        "image": "/products/placeholder-unreleased.webp",
+        "description": "Camiseta oversize \"Rockydz black\" del DROP 4 de ROCKY 035. Edición limitada, unidades numeradas."
     },
     {
         "id": 18,
@@ -177,7 +194,8 @@
             "PROXIMAMENTE"
         ],
         "price": "??",
-        "image": "https://rockystorage.s3.us-east-1.amazonaws.com/DROP4_ROCKY/Rockydz%20boyz.webp"
+        "image": "/products/rockydz-boyz.webp",
+        "description": "Camiseta oversize Rockydz boyz en blanco, con los personajes de la casa dibujados a mano. Edición limitada del DROP 4."
     },
     {
         "id": 19,
@@ -187,7 +205,8 @@
             "PROXIMAMENTE"
         ],
         "price": "??",
-        "image": "https://rockystorage.s3.us-east-1.amazonaws.com/DROP4_ROCKY/Rockydz%20stars.webp"
+        "image": "/products/placeholder-unreleased.webp",
+        "description": "Camiseta oversize \"Rockydz stars\" del DROP 4 de ROCKY 035. Edición limitada, unidades numeradas."
     },
     {
         "id": 20,
@@ -197,7 +216,8 @@
             "PROXIMAMENTE"
         ],
         "price": "??",
-        "image": "https://rockystorage.s3.us-east-1.amazonaws.com/DROP4_ROCKY/Rockydz.webp"
+        "image": "/products/placeholder-unreleased.webp",
+        "description": "Camiseta oversize \"Rockydz\" del DROP 4 de ROCKY 035. Edición limitada, unidades numeradas."
     },
     {
         "id": 21,
@@ -207,7 +227,8 @@
             "PROXIMAMENTE"
         ],
         "price": "??",
-        "image": "https://rockystorage.s3.us-east-1.amazonaws.com/DROP4_ROCKY/SSTTAARR.webp"
+        "image": "/products/placeholder-unreleased.webp",
+        "description": "Camiseta oversize \"SSTTAARR\" del DROP 4 de ROCKY 035. Edición limitada, unidades numeradas."
     },
     {
         "id": 22,
@@ -217,6 +238,7 @@
             "PROXIMAMENTE"
         ],
         "price": "??",
-        "image": "https://rockystorage.s3.us-east-1.amazonaws.com/DROP4_ROCKY/Smoker%20Edition.webp"
+        "image": "/products/rocky35-camel.webp",
+        "description": "Camiseta oversize Smoker Edition en azul royal, con el camello ROCKY35 en amarillo. Edición limitada del DROP 4."
     }
 ]

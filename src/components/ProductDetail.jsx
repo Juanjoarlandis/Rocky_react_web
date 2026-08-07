@@ -1,58 +1,149 @@
 import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import Button from 'react-bootstrap/Button';
-import Lightbox from 'react-image-lightbox';
-import 'react-image-lightbox/style.css';
+import { useParams, Link } from 'react-router';
+import Lightbox from './Lightbox';
+import AddToCartButton from './AddToCartButton';
+import EyeIcon from './EyeIcon';
+import PlaceholderTee from './PlaceholderTee';
+import sentadoBordeBlanco from '../images/characters/sentado-borde-blanco.png';
+import { formatPrice } from '../utils/price';
 import '../styles/ProductDetail.css';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEye } from '@fortawesome/free-solid-svg-icons';
 
-function ProductDetail(props) {
+const PLACEHOLDER = '/products/placeholder-unreleased.webp';
+
+function ProductDetail({
+    products,
+    addToCart,
+    commerceMode = 'demo',
+    canAddToCart = true,
+}) {
     const { productId } = useParams();
-    const product = props.products.find(p => p.id === parseInt(productId));
+    const [zoomOpen, setZoomOpen] = useState(false);
 
-    // Estados para gestionar el modal Lightbox y la imagen actual
-    const [isOpen, setIsOpen] = useState(false);
-    const [currentImage, setCurrentImage] = useState('');
+    const product = products.find(
+        (candidate) => String(candidate.handle ?? candidate.id) === String(productId)
+    );
+    const [selectedVariantId, setSelectedVariantId] = useState(
+        () => product?.defaultVariantId || product?.variants?.[0]?.id || null
+    );
+
+    React.useEffect(() => {
+        setSelectedVariantId(
+            product?.defaultVariantId || product?.variants?.[0]?.id || null
+        );
+    }, [product]);
 
     if (!product) {
-        return <div>Producto no encontrado</div>;
+        return (
+            <div className="product-empty">
+                <h1 className="page-title">Producto no encontrado</h1>
+                <Link to="/" className="btn btn-ghost">Volver a la tienda</Link>
+            </div>
+        );
     }
 
+    const isPlaceholder = product.image === PLACEHOLDER;
+    const variants = product.variants || [];
+    const selectedVariant = variants.find((variant) => variant.id === selectedVariantId);
+    const price = formatPrice(selectedVariant?.price || product.price);
+    const selectionRequired = commerceMode === 'shopify';
+    const addDisabled = selectionRequired && (
+        !canAddToCart || !selectedVariant || !selectedVariant.availableForSale
+    );
+
     return (
-        <div className="product-detail-container">
-            <div className="back-button-container">
-                <Link to="/">
-                    <button className="back-button">Volver a inicio</button>
-                </Link>
+        <div className="detail">
+            <Link to="/" className="detail-back">← Volver a la tienda</Link>
+
+            <div className="detail-grid">
+                <div className="detail-media-wrap">
+                    {/* Un chaval de la banda vigila el producto desde el marco */}
+                    <img
+                        src={sentadoBordeBlanco}
+                        width="717"
+                        height="1186"
+                        decoding="async"
+                        alt=""
+                        className="detail-doodle"
+                    />
+                    <button
+                        type="button"
+                        className="detail-media"
+                        onClick={() => !isPlaceholder && setZoomOpen(true)}
+                        aria-label={`Ver ${product.title} en grande`}
+                        disabled={isPlaceholder}
+                    >
+                        {isPlaceholder ? (
+                            <PlaceholderTee title={product.title} />
+                        ) : (
+                            <img src={product.image} alt={product.title} className="detail-image" />
+                        )}
+                        {!isPlaceholder && (
+                            <span className="product-zoom" aria-hidden="true">
+                                <EyeIcon />
+                            </span>
+                        )}
+                    </button>
+                </div>
+
+                <div className="detail-info">
+                    <p className="detail-drop">{product.drop}</p>
+                    <h1 className="detail-title">{product.title}</h1>
+                    {product.description && (
+                        <p className="detail-description">{product.description}</p>
+                    )}
+                    {product.specifications?.length > 0 && (
+                        <ul className="detail-specs">
+                            {product.specifications.map((spec, index) => (
+                                <li key={index}>{spec}</li>
+                            ))}
+                        </ul>
+                    )}
+                    {variants.length > 1 && (
+                        <label className="detail-variant">
+                            <span>Variante</span>
+                            <select
+                                value={selectedVariantId || ''}
+                                onChange={(event) => setSelectedVariantId(event.target.value)}
+                            >
+                                {variants.map((variant) => {
+                                    const optionLabel = variant.selectedOptions?.length
+                                        ? variant.selectedOptions.map((option) => option.value).join(' / ')
+                                        : variant.title;
+                                    return (
+                                        <option
+                                            key={variant.id}
+                                            value={variant.id}
+                                            disabled={!variant.availableForSale}
+                                        >
+                                            {optionLabel}{variant.availableForSale ? '' : ' — agotada'}
+                                        </option>
+                                    );
+                                })}
+                            </select>
+                        </label>
+                    )}
+                    <div className="detail-buy">
+                        {price ? (
+                            <p className="detail-price">{price}</p>
+                        ) : (
+                            <p className="badge-soon">Próximamente</p>
+                        )}
+                        <AddToCartButton
+                            product={product}
+                            variantId={selectedVariantId}
+                            addToCart={addToCart}
+                            disabled={addDisabled}
+                            unavailableLabel={canAddToCart ? 'Agotado' : 'Carrito no disponible'}
+                        />
+                    </div>
+                </div>
             </div>
-            <div
-                className="image-container"
-                onClick={() => {
-                    setCurrentImage(product.image);
-                    setIsOpen(true);
-                }}
-            >
-                <img src={product.image} alt={product.title} className="product-detail-image" />
-                <span className="eye-icon">
-                    <FontAwesomeIcon icon={faEye} />
-                </span>
-            </div>
-            <div className="product-detail-info">
-                <h2>{product.title}</h2>
-                <p>{product.description}</p>
-                <p className="product-price">Precio: {product.price}</p>
-                <ul className="product-specs">
-                    {product.specifications.map((spec, index) => (
-                        <ul key={index}>{spec}</ul>
-                    ))}
-                </ul>
-                <Button variant="secondary" onClick={() => props.addToCart(product)}>Añadir al carrito</Button>
-            </div>
-            {isOpen && (
+
+            {zoomOpen && (
                 <Lightbox
-                    mainSrc={currentImage}
-                    onCloseRequest={() => setIsOpen(false)}
+                    src={product.image}
+                    alt={product.title}
+                    onClose={() => setZoomOpen(false)}
                 />
             )}
         </div>

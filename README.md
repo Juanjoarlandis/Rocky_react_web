@@ -1,70 +1,94 @@
-# Getting Started with Create React App
+# ROCKY 035 storefront
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Tienda React/Vite con un BFF Express de mismo origen. Puede funcionar como catálogo visual de prueba o usar Shopify como autoridad de productos, variantes, disponibilidad, precios, carrito y checkout.
 
-## Available Scripts
+## Requisitos
 
-In the project directory, you can run:
+- Node.js 24 (la versión esperada está en `.nvmrc`).
+- npm y un entorno Unix/macOS o Linux para los comandos de ejemplo.
+- Para el modo Shopify: una tienda `*.myshopify.com` y, según las funciones activadas, credenciales del Headless channel, Dev Dashboard y Customer Account API.
 
-### `npm start`
+## Arranque local
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+```bash
+cp .env.example .env
+npm install
+npm run dev
+```
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+La web queda en `http://localhost:3000` y Express en `http://localhost:3001`. Vite reenvía `/api` al BFF durante desarrollo. Si Shopify no está configurado, la interfaz muestra expresamente “Modo demo”; permite probar la presentación y un carrito local, pero no reserva stock ni habilita el pago.
 
-### `npm test`
+Para crear la clave que cifra sesiones, IDs completos de carrito, OAuth, tokens de cliente, idempotencia y deduplicación de webhooks:
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+```bash
+node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
+```
 
-### `npm run build`
+Copia el resultado a `APP_ENCRYPTION_KEY` en el gestor de secretos del entorno. No reutilices la clave entre desarrollo y producción y no la guardes en Git.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Comandos
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+```bash
+npm run dev             # Vite + Express con recarga
+npm run test:run        # suite Vitest una vez
+npm run build           # frontend de producción en dist/
+npm run security:check  # secretos locales y bundle
+npm run check           # pruebas + build + secret scan
+npm start               # sirve API y dist/ con Express
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+Para un smoke de producción:
 
-### `npm run eject`
+```bash
+NODE_ENV=production PUBLIC_ORIGIN=https://tienda.example.com PORT=3001 npm start
+```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+En producción, `PUBLIC_ORIGIN` y todos los `API_ALLOWED_ORIGINS` deben usar HTTPS. El proxy inverso debe terminar TLS, conservar `Host` y establecer `TRUST_PROXY_HOPS` al número exacto de proxies confiables; no uses un valor abierto.
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## Activación de Shopify
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+La configuración es progresiva y falla cerrada:
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+| Capacidad | Configuración mínima |
+| --- | --- |
+| Catálogo | `SHOPIFY_STORE_DOMAIN` |
+| Carrito y checkout | dominio + `APP_ENCRYPTION_KEY` |
+| Storefront privado | `SHOPIFY_STOREFRONT_ACCESS_TOKEN` + `SHOPIFY_STOREFRONT_TOKEN_TYPE=private` |
+| Cuenta de cliente | dominio + clave + `SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_ID` + `PUBLIC_ORIGIN` HTTPS |
+| Admin API | dominio + `SHOPIFY_CLIENT_ID` + `SHOPIFY_CLIENT_SECRET` |
+| Webhooks | dominio + clave + `SHOPIFY_CLIENT_SECRET` |
 
-## Learn More
+Usa `SHOPIFY_API_VERSION=2026-07`. Para cantidades exactas, activa `SHOPIFY_EXPOSE_QUANTITY=true` y concede el permiso Storefront `unauthenticated_read_product_inventory`; si no, la web sigue usando `availableForSale`. Para una futura lectura Admin de stock, solicita únicamente `read_products`, `read_inventory` y, si se consultan ubicaciones, `read_locations`. No concedas permisos de escritura si el servicio solo va a leer.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+Si el token Storefront es privado, el BFF lo envía con `Shopify-Storefront-Private-Token` y adjunta la IP del comprador validada. Si se configura deliberadamente un token público, cambia `SHOPIFY_STOREFRONT_TOKEN_TYPE=public`. Ninguno de los dos se compila dentro de React.
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+Registra estas URLs en Shopify usando el dominio HTTPS final:
 
-### Code Splitting
+- Callback Customer Account: `https://tu-dominio/api/shopify/account/callback`
+- Webhook: `https://tu-dominio/api/shopify/webhooks`
+- Post-logout/origen: el valor exacto de `PUBLIC_ORIGIN`
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+`SHOPIFY_CHECKOUT_HOSTS` solo es necesario cuando el checkout usa dominios adicionales al `*.myshopify.com` canónico. Introduce hostnames separados por comas, sin esquema, ruta ni puerto.
 
-### Analyzing the Bundle Size
+## Frontera de seguridad
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+El navegador solo recibe DTOs saneados y envía `variantId`, `lineId`, cantidad e identificador de operación. El ID Shopify completo del carrito —que incluye `?key=...`— permanece cifrado en el servidor. El checkout se obtiene de Shopify en el último momento y se acepta únicamente por HTTPS y contra la lista de hosts permitidos.
 
-### Making a Progressive Web App
+Las cuentas usan discovery HTTPS, Authorization Code + PKCE, `state` de un solo uso ligado a la cookie que inició el login, `nonce`, verificación criptográfica del ID token, rotación de sesión y tokens cifrados con retención limitada. Los webhooks se verifican sobre el cuerpo crudo mediante HMAC constante, tienda/topic/versión exactos y deduplicación persistente.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+Consulta [SECURITY.md](./SECURITY.md) para los controles de despliegue, rotación y limitaciones conocidas. La arquitectura detallada y la evidencia por tarea están en [docs/superpowers/plans/2026-08-07--shopify-security-readiness](./docs/superpowers/plans/2026-08-07--shopify-security-readiness/README.md).
 
-### Advanced Configuration
+## Almacenamiento y escalado
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+El estado se guarda como un único sobre AES-256-GCM con escrituras atómicas y permisos restrictivos. Está diseñado para una sola instancia Node con disco persistente. Antes de escalar horizontalmente o desplegar sobre disco efímero, migra las interfaces de sesión/idempotencia/webhooks a una base compartida con transacciones; no compartas el fichero entre procesos.
 
-### Deployment
+## Verificación antes de publicar
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+```bash
+npm ci
+npm run check
+npm audit --audit-level=moderate
+npm audit --omit=dev --audit-level=moderate
+```
 
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+La CI repite estos controles en cada push y pull request. Las pruebas locales usan respuestas Shopify simuladas; antes de abrir ventas debes completar el E2E con una development store, callback HTTPS, variante real, carrito, checkout, login/logout y webhook firmado.

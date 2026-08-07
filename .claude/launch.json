@@ -1,0 +1,14 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "rocky-react",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/juanjo/Rocky_react_web && PORT=3001 npm run dev"
+      ],
+      "port": 3000
+    }
+  ]
+}

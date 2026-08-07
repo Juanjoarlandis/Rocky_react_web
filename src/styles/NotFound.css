@@ -1,67 +1,44 @@
-.notfound-container {
+.notfound {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 48px 24px 72px;
+    text-align: center;
     display: flex;
     flex-direction: column;
     align-items: center;
+    gap: 14px;
+}
+
+.notfound-figures {
+    display: flex;
+    align-items: flex-end;
     justify-content: center;
-    height: 100vh; /* Ocupará toda la altura de la ventana */
-    background-color: #f6f6f6; /* Un fondo gris claro */
+    gap: 4px;
 }
 
 .notfound-image {
-    max-width: 100%; /* Ajusta según lo grande que quieras que sea la imagen */
-    margin-bottom: 2rem; /* Espacio debajo de la imagen */
+    width: min(48vw, 210px);
+    max-height: 390px;
+    object-fit: contain;
+    transform: rotate(-1deg);
+}
+
+.notfound-dog {
+    width: min(24vw, 108px);
+    transform: rotate(2.5deg);
+}
+
+.notfound-title {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(1.5rem, 4vw, 2.2rem);
+    text-transform: uppercase;
+    margin: 0;
 }
 
 .notfound-text {
-    font-size: 1.5rem;
-    color: #333;
-    text-align: center;
-}
-
-.back-button-container2 {
-    margin-top: 50%; /* Espacio entre el texto y el botón */
-    display: flex;           /* Activa flexbox */
-    justify-content: center;
-}
-.back-button2 {
-    background-color: #da2929; /* Color de fondo del botón */
-    color: #fff; /* Color de texto del botón */
-    padding: 10px 20px; /* Espaciado interno del botón */
-    border: none; /* Sin bordes */
-    border-radius: 5px; /* Bordes redondeados */
-    cursor: pointer; /* El cursor cambiará a una mano cuando pases el ratón por encima */
-    transition: background-color 0.3s ease; /* Transición suave al cambiar el color de fondo */
-}
-
-.back-button2:hover {
-    background-color: #555; /* Color de fondo cuando pasas el ratón por encima */
-}
-
-@media screen and (max-width: 768px) {
-    .notfound-image {
-        position: relative;
-        max-width: 100%;
-
-    }
-}
-
-@media screen and (max-width: 480px) {
-    .notfound-image {
-        position: relative;
-        max-width: 100%;
-        margin-top: 30%;
-        margin-bottom: auto;
-    }
-
-    .back-button-container2 {
-        margin-top: 10%; /* Espacio entre el texto y el botón */
-       
-    }
-
-    .notfound-text {
-        margin-top: 10%;
-        font-size: 1.5rem;
-        color: #333;
-        text-align: center;
-    }
+    margin: 0;
+    color: var(--muted);
+    font-family: var(--font-hand);
+    font-size: 1.2rem;
 }

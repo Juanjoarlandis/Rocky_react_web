@@ -1,0 +1,476 @@
+.studio {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 24px 72px;
+    /* Panal de La Colmena, muy sutil, solo en esta sección */
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='56' height='97' viewBox='0 0 56 97'><g fill='none' stroke='%231a1a1a' stroke-opacity='0.05' stroke-width='2'><path d='M28 1 L54 16 L54 48 L28 63 L2 48 L2 16 Z'/><path d='M28 63 L54 78 L54 97 M28 63 L2 78 L2 97'/></g></svg>");
+    background-size: 56px 97px;
+}
+
+.studio-head {
+    position: relative;
+}
+
+/* La abeja sobrevolando el título con su vuelo garabateado */
+.studio-bee {
+    position: absolute;
+    top: -26px;
+    right: clamp(0px, 8vw, 90px);
+    width: clamp(130px, 20vw, 190px);
+    height: auto;
+    pointer-events: none;
+    animation: bee-hover 3.4s ease-in-out infinite;
+}
+
+@keyframes bee-hover {
+    0%, 100% {
+        transform: translateY(0) rotate(0deg);
+    }
+    50% {
+        transform: translateY(-7px) rotate(-2deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .studio-bee {
+        animation: none;
+    }
+}
+
+.studio-subtitle {
+    margin: 12px 0 0;
+    color: var(--muted);
+    font-family: var(--font-hand);
+    font-size: 1.2rem;
+    transform: rotate(-0.5deg);
+}
+
+/* ---------- Player ---------- */
+
+.studio-player-wrap {
+    position: relative;
+    margin-top: clamp(96px, 13vw, 130px);
+}
+
+/* El productor cabeza-hexágono sentado en lo alto del radiocasete
+   (posa en cuclillas: la base de la imagen apoya plana en el borde) */
+.studio-doodle {
+    position: absolute;
+    bottom: calc(100% - 10px);
+    right: 7%;
+    height: clamp(130px, 16vw, 165px);
+    width: auto;
+    z-index: 2;
+    pointer-events: none;
+    user-select: none;
+}
+
+.studio-player {
+    position: relative;
+    background-color: var(--card);
+    border: 2px solid var(--ink);
+    border-radius: var(--wobble-md);
+    box-shadow: var(--shadow-ink);
+    padding: 26px 28px 24px;
+}
+
+/* Pegatina hexagonal de La Colmena en la esquina del player */
+.studio-sticker {
+    position: absolute;
+    top: -20px;
+    left: -18px;
+    width: clamp(74px, 9vw, 96px);
+    height: auto;
+    transform: rotate(-9deg);
+    filter: drop-shadow(3px 3px 0 rgba(26, 26, 26, 0.85));
+    z-index: 3;
+    pointer-events: none;
+}
+
+.bb-art {
+    display: block;
+    width: min(100%, 560px);
+    margin: 0 auto;
+    height: auto;
+}
+
+/* Giros: ruedas del casete y dianas de los altavoces */
+.bb-spool,
+.bb-diana {
+    transform-box: fill-box;
+    transform-origin: center;
+}
+
+.bb-art.playing .bb-spool {
+    animation: bb-spin 1.6s linear infinite;
+}
+
+.bb-art.playing .bb-diana {
+    animation: bb-spin 7s linear infinite;
+}
+
+@keyframes bb-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bb-art.playing .bb-spool,
+    .bb-art.playing .bb-diana {
+        animation: none;
+    }
+}
+
+.bb-now {
+    margin: 16px 0 10px;
+    text-align: center;
+    font-family: var(--font-hand);
+    font-size: 1.15rem;
+    color: var(--muted);
+}
+
+.bb-now strong {
+    color: var(--ink);
+    font-weight: 400;
+}
+
+/* Barra de progreso garabateada */
+.bb-progress {
+    height: 18px;
+    width: calc(100% - 16px);
+    margin: 0 8px;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.bb-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    margin-top: 18px;
+}
+
+.bb-time {
+    font-family: var(--font-hand);
+    font-size: 1.05rem;
+    color: var(--muted);
+    min-width: 44px;
+    text-align: center;
+}
+
+.player-btn {
+    width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--card);
+    color: var(--ink);
+    border: 2px solid var(--ink);
+    border-radius: var(--wobble-md);
+    box-shadow: var(--shadow-ink-sm);
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.2s ease, color 0.2s ease;
+}
+
+.player-btn:hover {
+    transform: translate(-1px, -1px) rotate(-2deg);
+    box-shadow: 4px 4px 0 var(--ink);
+}
+
+.player-btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: 0 0 0 var(--ink);
+}
+
+.player-btn-main {
+    width: 66px;
+    height: 66px;
+    background-color: var(--ink);
+    color: var(--card);
+    transform: rotate(2deg);
+}
+
+.player-btn-main:hover {
+    background-color: var(--accent);
+    color: #fff;
+}
+
+/* ---------- Setlist ---------- */
+
+.studio-section-title {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 1.5rem;
+    text-transform: uppercase;
+    margin: 56px 0 20px;
+    position: relative;
+    display: inline-block;
+}
+
+.studio-section-title::after {
+    content: '';
+    display: block;
+    height: 8px;
+    margin-top: 2px;
+    background-image: var(--squiggle);
+    background-repeat: repeat-x;
+    background-size: 48px 8px;
+}
+
+.setlist-wrap {
+    position: relative;
+    /* Hueco para el b-boy haciendo el freeze sobre la lista */
+    margin-top: clamp(92px, 12vw, 118px);
+}
+
+.setlist-breaker {
+    position: absolute;
+    bottom: calc(100% - 8px);
+    right: 5%;
+    height: clamp(110px, 15vw, 150px);
+    width: auto;
+    /* La mano queda plantada SOBRE la tarjeta */
+    z-index: 3;
+    pointer-events: none;
+    user-select: none;
+}
+
+.setlist-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    position: relative;
+    z-index: 2;
+    background-color: var(--card);
+    border: 2px solid var(--ink);
+    border-radius: var(--wobble-md);
+    box-shadow: var(--shadow-ink);
+    overflow: hidden;
+}
+
+.setlist-row {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    width: 100%;
+    padding: 14px 22px;
+    background: none;
+    border: none;
+    border-bottom: 2px dashed var(--line);
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.15s ease;
+}
+
+.setlist-list li:last-child .setlist-row {
+    border-bottom: none;
+}
+
+.setlist-row:hover {
+    background-color: var(--paper);
+}
+
+.setlist-row.active {
+    background-color: var(--paper);
+}
+
+.setlist-num {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    color: var(--muted);
+    flex-shrink: 0;
+}
+
+.setlist-row.active .setlist-num {
+    color: var(--accent);
+}
+
+.setlist-title {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--font-hand);
+    font-size: 1.15rem;
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+}
+
+.setlist-title em {
+    font-style: normal;
+    font-size: 0.92rem;
+    color: var(--muted);
+}
+
+.setlist-duration {
+    font-family: var(--font-hand);
+    font-size: 1rem;
+    color: var(--muted);
+}
+
+.setlist-spinner {
+    width: 26px;
+    height: 26px;
+    animation: crosshair-spin 1.4s linear infinite;
+}
+
+.setlist-note {
+    margin: 12px 4px 0;
+    font-family: var(--font-hand);
+    font-size: 0.98rem;
+    color: var(--muted);
+    transform: rotate(-0.6deg);
+}
+
+/* ---------- Escúchalo en serio (embed real) ---------- */
+
+.listen-wrap {
+    position: relative;
+}
+
+.listen {
+    /* Aire tras la sección para el colgado del borde */
+    margin-bottom: clamp(90px, 16vw, 150px);
+}
+
+.listen-hanger {
+    position: absolute;
+    top: calc(100% - 8px);
+    right: 7%;
+    height: clamp(150px, 21vw, 200px);
+    width: auto;
+    z-index: 2;
+    pointer-events: none;
+    user-select: none;
+}
+
+.listen-card {
+    background-color: var(--card);
+    border: 2px solid var(--ink);
+    border-radius: var(--wobble-md);
+    box-shadow: var(--shadow-ink);
+    padding: 12px;
+    overflow: hidden;
+}
+
+.listen-card iframe {
+    display: block;
+    border-radius: 14px;
+}
+
+.listen-links {
+    display: flex;
+    gap: 14px;
+    margin-top: 18px;
+    flex-wrap: wrap;
+}
+
+/* ---------- EPs ---------- */
+
+.eps-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 26px;
+}
+
+.ep-card {
+    width: clamp(180px, 24vw, 220px);
+    background-color: var(--card);
+    border: 2px solid var(--ink);
+    border-radius: var(--wobble-sm);
+    box-shadow: var(--shadow-ink);
+    padding: 14px 14px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    transform: rotate(-0.8deg);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.ep-card:nth-child(2n) {
+    transform: rotate(0.9deg);
+}
+
+.ep-card:hover {
+    transform: rotate(0deg) translate(-3px, -3px);
+    box-shadow: var(--shadow-ink-lg);
+}
+
+.ep-cover {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.ep-title {
+    margin: 4px 0 0;
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 1.02rem;
+    text-transform: uppercase;
+    text-align: center;
+}
+
+.ep-year {
+    margin: 0;
+    font-family: var(--font-hand);
+    font-size: 0.95rem;
+    color: var(--muted);
+}
+
+.ep-links {
+    display: flex;
+    gap: 10px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.ep-links .btn {
+    padding: 4px 14px;
+    font-size: 0.95rem;
+}
+
+@media (max-width: 640px) {
+    .studio {
+        padding: 24px 16px 56px;
+    }
+
+    .listen-hanger {
+        display: none;
+    }
+
+    .listen {
+        margin-bottom: 24px;
+    }
+
+    .studio-player {
+        padding: 18px 14px 16px;
+    }
+
+    .bb-controls {
+        gap: 10px;
+    }
+
+    .bb-time {
+        min-width: 38px;
+        font-size: 0.95rem;
+    }
+
+    .player-btn {
+        width: 46px;
+        height: 46px;
+    }
+
+    .player-btn-main {
+        width: 58px;
+        height: 58px;
+    }
+
+    .eps-grid {
+        justify-content: center;
+    }
+}

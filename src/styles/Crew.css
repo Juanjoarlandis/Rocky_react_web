@@ -1,0 +1,372 @@
+.crew {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 24px 72px;
+}
+
+.crew-head {
+    margin-bottom: 36px;
+}
+
+.crew-subtitle {
+    margin: 12px 0 0;
+    color: var(--muted);
+    font-family: var(--font-hand);
+    font-size: 1.2rem;
+    transform: rotate(-0.5deg);
+}
+
+.crew-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 30px;
+}
+
+/* ---------- El cromo ---------- */
+
+.crew-card {
+    perspective: 1200px;
+    height: 430px;
+    cursor: pointer;
+    outline: none;
+}
+
+.crew-card:focus-visible .crew-card-inner {
+    box-shadow: 0 0 0 3px var(--accent), var(--shadow-ink);
+}
+
+.crew-card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transition: transform 0.55s cubic-bezier(0.4, 1.4, 0.6, 1);
+    border-radius: var(--wobble-md);
+    box-shadow: var(--shadow-ink);
+}
+
+/* Rotaciones tipo pegatina, se enderezan al girar o pasar el ratón */
+.crew-card:nth-child(3n) .crew-card-inner {
+    transform: rotate(0.7deg);
+}
+
+.crew-card:nth-child(3n + 1) .crew-card-inner {
+    transform: rotate(-0.6deg);
+}
+
+.crew-card:hover:not(.girado) .crew-card-inner {
+    transform: rotate(0deg) translate(-3px, -3px);
+    box-shadow: var(--shadow-ink-lg);
+}
+
+.crew-card.girado .crew-card-inner {
+    transform: rotateY(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .crew-card-inner {
+        transition: none;
+    }
+}
+
+.crew-card-face {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 14px 16px;
+    background-color: var(--card);
+    border: 2px solid var(--ink);
+    border-radius: var(--wobble-md);
+    overflow: hidden;
+}
+
+.crew-card-back {
+    transform: rotateY(180deg);
+}
+
+/* ---------- Frente ---------- */
+
+.crew-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.crew-num {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    color: var(--muted);
+}
+
+.crew-rareza {
+    font-family: var(--font-hand);
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    padding: 1px 10px;
+    border: 2px dashed var(--accent);
+    border-radius: var(--wobble-md);
+    color: var(--accent);
+    transform: rotate(2deg);
+    white-space: nowrap;
+}
+
+.rareza-legendaria {
+    border-color: var(--ink);
+    color: var(--ink);
+    background-color: #f4b942;
+}
+
+.rareza-original {
+    border-color: var(--blue);
+    color: var(--blue);
+}
+
+.crew-card-media {
+    height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 8px 0 10px;
+    background-image: radial-gradient(circle, rgba(26, 26, 26, 0.06) 1.1px, transparent 1.1px);
+    background-size: 18px 18px;
+}
+
+.crew-card-media img {
+    max-height: 100%;
+    max-width: 82%;
+    object-fit: contain;
+}
+
+.crew-nombre {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 1.15rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.crew-rol {
+    margin: 2px 0 10px;
+    font-family: var(--font-hand);
+    font-size: 1rem;
+    color: var(--muted);
+}
+
+.crew-stats {
+    list-style: none;
+    margin: auto 0 6px;
+    padding: 8px 0 0;
+    border-top: 2px dashed var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.crew-stats li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.stat-label {
+    font-family: var(--font-hand);
+    font-size: 0.96rem;
+}
+
+.stat-dianas {
+    display: inline-flex;
+    gap: 3px;
+}
+
+.stat-diana {
+    width: 15px;
+    height: 15px;
+}
+
+.crew-girar {
+    margin-top: 8px;
+    align-self: flex-end;
+    font-family: var(--font-hand);
+    font-size: 0.9rem;
+    color: var(--muted);
+    transform: rotate(-1deg);
+}
+
+/* ---------- Reverso: expediente ---------- */
+
+.expediente-titulo {
+    margin: 0 0 10px;
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    display: inline-block;
+    border-bottom: 3px solid var(--accent);
+    align-self: flex-start;
+    transform: rotate(-1deg);
+}
+
+.expediente-datos {
+    margin: 6px 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.expediente-datos dt {
+    font-family: var(--font-hand);
+    font-size: 0.85rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.expediente-datos dd {
+    margin: 2px 0 0;
+    font-family: var(--font-hand);
+    font-size: 1.12rem;
+    line-height: 1.35;
+}
+
+.expediente-enlace {
+    color: var(--accent-dark);
+    text-decoration: underline wavy var(--accent);
+    text-underline-offset: 4px;
+}
+
+.expediente-enlace:hover {
+    color: var(--accent);
+}
+
+/* Sello de diana estampado en el expediente */
+.expediente-sello {
+    position: absolute;
+    right: 14px;
+    bottom: 40px;
+    width: 74px;
+    height: 74px;
+    opacity: 0.85;
+    transform: rotate(-14deg);
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'><circle cx='40' cy='40' r='30' fill='none' stroke='%23e63946' stroke-width='4'/><circle cx='40' cy='40' r='14' fill='none' stroke='%23e63946' stroke-width='3'/><path d='M40 4 L40 16 M40 64 L40 76 M4 40 L16 40 M64 40 L76 40' stroke='%23e63946' stroke-width='4' stroke-linecap='round'/><circle cx='40' cy='40' r='3.5' fill='%23e63946'/></svg>");
+    background-size: contain;
+    background-repeat: no-repeat;
+    pointer-events: none;
+}
+
+/* ---------- Cromo especial: LOS FUNDADORES ---------- */
+
+.crew-card.especial .crew-card-face {
+    background-color: var(--ink);
+    background-image: var(--spray-speckle);
+    color: #fff;
+}
+
+.crew-card.especial .crew-nombre {
+    color: #fff;
+}
+
+.crew-card.especial .crew-rol,
+.crew-card.especial .crew-num,
+.crew-card.especial .crew-girar {
+    color: #b3ada0;
+}
+
+.crew-card.especial .crew-rareza {
+    border-color: #f4b942;
+    color: #f4b942;
+}
+
+.crew-card.especial .crew-card-media {
+    background-image: none;
+    height: 210px;
+}
+
+.crew-card.especial .expediente-titulo {
+    color: #fff;
+}
+
+.crew-card.especial .expediente-datos dt {
+    color: #b3ada0;
+}
+
+.crew-card.especial .expediente-datos dd {
+    color: #fff;
+}
+
+.crew-card.especial .expediente-enlace {
+    color: #f4b942;
+    text-decoration-color: #f4b942;
+}
+
+/* ---------- Huecos por conseguir ---------- */
+
+.crew-hueco {
+    min-height: 430px;
+    border: 2px dashed var(--muted);
+    border-radius: var(--wobble-md);
+    background-color: transparent;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 20px;
+    text-align: center;
+}
+
+.crew-hueco-num {
+    font-family: var(--font-display);
+    font-size: 4rem;
+    color: var(--line);
+    line-height: 1;
+}
+
+.crew-hueco-nota {
+    margin: 0;
+    font-family: var(--font-hand);
+    font-size: 1rem;
+    color: var(--muted);
+}
+
+.crew-hueco-btn {
+    padding: 5px 16px;
+    font-size: 0.98rem;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 640px) {
+    .crew {
+        padding: 24px 16px 56px;
+    }
+
+    .crew-grid {
+        grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+        gap: 18px;
+    }
+
+    .crew-card,
+    .crew-hueco {
+        height: 400px;
+        min-height: 400px;
+    }
+
+    .crew-card-media {
+        height: 140px;
+    }
+
+    .crew-nombre {
+        font-size: 1rem;
+    }
+
+    .stat-diana {
+        width: 13px;
+        height: 13px;
+    }
+}

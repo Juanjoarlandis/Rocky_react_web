@@ -1,0 +1,147 @@
+.street-wall {
+    margin-top: 72px;
+}
+
+.street-wall-head {
+    position: relative;
+    display: flex;
+    align-items: baseline;
+    gap: 20px;
+    margin-bottom: 34px;
+}
+
+/* El fotógrafo agachado a la derecha, con su línea de suelo garabateada */
+.street-photographer {
+    position: absolute;
+    right: 2%;
+    bottom: -8px;
+    pointer-events: none;
+    user-select: none;
+}
+
+.street-photographer img {
+    display: block;
+    height: clamp(120px, 15vw, 158px);
+    width: auto;
+}
+
+.street-photographer::after {
+    content: '';
+    position: absolute;
+    left: -14%;
+    right: -14%;
+    bottom: -8px;
+    height: 3px;
+    background: repeating-linear-gradient(90deg, var(--ink) 0 12px, transparent 12px 20px);
+    border-radius: 2px;
+    opacity: 0.75;
+}
+
+@media (max-width: 640px) {
+    .street-photographer {
+        display: none;
+    }
+}
+
+.street-wall-handle {
+    font-family: var(--font-hand);
+    font-size: 1.05rem;
+    color: var(--muted);
+    text-decoration: none;
+    transform: rotate(-1deg);
+}
+
+.street-wall-handle:hover {
+    color: var(--accent);
+    text-decoration: underline wavy var(--accent);
+}
+
+.street-wall-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 34px 28px;
+}
+
+/* Polaroid pegada con celo */
+.street-photo {
+    position: relative;
+    margin: 0;
+    padding: 10px 10px 8px;
+    background-color: #fff;
+    border: 2px solid var(--ink);
+    box-shadow: var(--shadow-ink);
+    width: clamp(200px, 26vw, 260px);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.street-photo:nth-child(3n + 1) {
+    transform: rotate(-2deg);
+}
+
+.street-photo:nth-child(3n + 2) {
+    transform: rotate(1.4deg) translateY(10px);
+}
+
+.street-photo:nth-child(3n) {
+    transform: rotate(2.2deg);
+}
+
+.street-photo:hover {
+    transform: rotate(0deg) translateY(-4px);
+    box-shadow: var(--shadow-ink-lg);
+    z-index: 2;
+}
+
+/* Celo en la esquina superior */
+.street-photo::before {
+    content: '';
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%) rotate(-4deg);
+    width: 74px;
+    height: 22px;
+    background-color: rgba(234, 226, 205, 0.88);
+    border: 2px solid var(--ink);
+    z-index: 2;
+}
+
+.street-photo img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    /* Blanco y negro, como las fotos del insta */
+    filter: grayscale(1) contrast(1.06);
+    border: 1px solid var(--line);
+}
+
+.street-photo figcaption {
+    padding: 8px 2px 2px;
+    font-family: var(--font-hand);
+    font-size: 1.02rem;
+    text-align: center;
+    color: var(--ink-soft);
+}
+
+.street-wall-cta {
+    display: flex;
+    justify-content: center;
+    margin-top: 40px;
+}
+
+@media (max-width: 640px) {
+    .street-wall {
+        margin-top: 52px;
+    }
+
+    .street-wall-grid {
+        gap: 26px 18px;
+    }
+
+    .street-photo {
+        width: clamp(150px, 42vw, 200px);
+        padding: 7px 7px 5px;
+    }
+}

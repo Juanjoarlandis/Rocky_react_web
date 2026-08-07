@@ -1,122 +1,314 @@
+:root {
+  --ink: #1a1a1a;
+  --ink-soft: #3a3a3a;
+  --paper: #faf7f0;
+  --card: #fffdf8;
+  --line: #d8d2c4;
+  --muted: #7c7668;
+  --accent: #e63946;
+  --accent-dark: #c92f3c;
+  --blue: #2f6fdb;
+
+  /* Radios irregulares, como trazados a mano */
+  --wobble-sm: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  --wobble-md: 15px 255px 15px 225px / 225px 15px 255px 15px;
+  --wobble-lg: 325px 25px 355px 25px / 25px 355px 25px 325px;
+
+  /* Sombras duras, estilo pegatina/cómic */
+  --shadow-ink-sm: 3px 3px 0 var(--ink);
+  --shadow-ink: 5px 5px 0 var(--ink);
+  --shadow-ink-lg: 8px 8px 0 var(--ink);
+
+  --font-display: 'Permanent Marker', 'Arial Black', cursive;
+  --font-hand: 'Patrick Hand', 'Comic Sans MS', cursive;
+  --font-body: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', sans-serif;
+
+  /* Subrayado garabateado reutilizable */
+  --squiggle: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='8' viewBox='0 0 48 8'><path d='M2 5 Q 8 1 14 5 T 26 5 T 38 5 T 47 4' fill='none' stroke='%23e63946' stroke-width='3' stroke-linecap='round'/></svg>");
+
+  /* Moteado de spray para zonas oscuras (estilo póster fotocopiado) */
+  --spray-speckle: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'><g fill='white' fill-opacity='0.13'><circle cx='14' cy='22' r='1.6'/><circle cx='52' cy='9' r='1'/><circle cx='88' cy='30' r='2.2'/><circle cx='131' cy='14' r='1.2'/><circle cx='166' cy='38' r='1.7'/><circle cx='30' cy='62' r='1.1'/><circle cx='73' cy='71' r='1.5'/><circle cx='118' cy='58' r='0.9'/><circle cx='152' cy='83' r='2'/><circle cx='9' cy='104' r='1.9'/><circle cx='49' cy='118' r='1.2'/><circle cx='95' cy='106' r='1.4'/><circle cx='137' cy='124' r='1'/><circle cx='171' cy='142' r='1.5'/><circle cx='24' cy='152' r='1.3'/><circle cx='66' cy='165' r='2.1'/><circle cx='108' cy='148' r='1'/><circle cx='147' cy='168' r='1.6'/></g></svg>");
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::selection {
+  background-color: var(--accent);
+  color: #fff;
+}
+
+/* Scrollbar entintado */
+::-webkit-scrollbar {
+  width: 11px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--ink);
+  border-radius: 999px;
+  border: 3px solid var(--paper);
+}
+
+::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  overflow-x: clip;
+  font-family: var(--font-body);
+  background-color: var(--paper);
+  /* Papel de cuaderno: garabatos muy suaves + retícula de puntos */
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'><g fill='none' stroke='%231a1a1a' stroke-opacity='0.05' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M38 30 L41 42 L53 45 L41 48 L38 60 L35 48 L23 45 L35 42 Z'/><g><circle cx='195' cy='72' r='10'/><path d='M181 72 L209 72 M195 58 L195 86'/></g><path d='M52 190 q12 -10 24 0 q10 8 22 0 l-6 -5 m6 5 l-8 4'/><path d='M200 175 l-8 16 h9 l-10 18'/></g></svg>"),
+    radial-gradient(circle, rgba(26, 26, 26, 0.07) 1.2px, transparent 1.2px);
+  background-size: 260px 260px, 26px 26px;
+  color: var(--ink);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
-}
-/* Position and sizing of burger button */
-.bm-burger-button {
-  position: fixed;
-  width: 95px;
-  height: 85px;
-  left: 36px;
-  top: 180px;
+img {
+  max-width: 100%;
 }
 
-/* Color/shape of burger icon bars */
-.bm-burger-bars {
-  background: #373a47;
+a {
+  color: inherit;
 }
 
-/* Color/shape of burger icon bars on hover*/
-.bm-burger-bars-hover {
-  background: #a90000;
-}
+/* ---------- Tipografía común ---------- */
 
-/* Position and sizing of clickable cross button */
-.bm-cross-button {
-  height: 54px;
-  width: 24px;
-}
-
-/* Color/shape of close button cross */
-.bm-cross {
-  background: #bdc3c7;
-}
-
-/*
-Sidebar wrapper styles
-Note: Beware of modifying this element as it can break the animations - you should not need to touch it in most cases
-*/
-.bm-menu-wrap {
-  position: fixed;
-  height: 100%;
-}
-
-/* General sidebar styles */
-.bm-menu {
-  background: #373a47;
-  padding: 2.5em 1.5em 0;
-  font-size: 1.15em;
-}
-
-/* Morph shape necessary with bubble or elastic */
-.bm-morph-shape {
-  fill: #373a47;
-}
-
-/* Wrapper for item list */
-.bm-item-list {
-  color: #b8b7ad;
-  padding: 0.8em;
-}
-
-/* Individual item */
-.bm-item {
+.page-title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(1.9rem, 5vw, 2.8rem);
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  margin: 0;
+  position: relative;
   display: inline-block;
 }
 
-/* Styling of overlay */
-.bm-overlay {
-  background: rgba(0, 0, 0, 0.3);
+.page-title::after {
+  content: '';
+  display: block;
+  height: 8px;
+  margin-top: 2px;
+  background-image: var(--squiggle);
+  background-repeat: repeat-x;
+  background-size: 48px 8px;
 }
 
-@media only screen and (max-width: 480px) {
-  .logo-image {
-    max-width: 200px;
-    
-  }
-  .menu-icon {
-    width: 40px;
-    height: 35px;
-  }
-
-  .menu-button-container {
-      position: absolute;
-      top: 30px;  /* Puedes ajustar la posición según prefieras */
-      right: 20px; /* Puedes ajustar la posición según prefieras */
-      cursor: pointer; /* Cambia el cursor a una mano al pasar el ratón */
-    }
-    .bm-burger-button {
-      position: fixed;
-      width: 40px;
-    height: 35px;
-      left: 36px;
-      top: 36px;
-    }
+/* Estrella garabateada junto a los títulos */
+.page-title::before {
+  content: '';
+  position: absolute;
+  top: -14px;
+  right: -30px;
+  width: 26px;
+  height: 26px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 24 24'><path d='M12 2 L14.6 8.6 L21.5 9.2 L16.3 13.7 L18 20.5 L12 16.8 L6 20.5 L7.7 13.7 L2.5 9.2 L9.4 8.6 Z' fill='none' stroke='%23e63946' stroke-width='2' stroke-linejoin='round'/></svg>");
+  background-size: contain;
+  background-repeat: no-repeat;
+  transform: rotate(14deg);
 }
 
-/* Si es un dispositivo mediano (ejemplo: tablet) */
-@media only screen and (min-width: 481px) and (max-width: 768px) {
-  .logo-image {
-    max-width: 380px;
-  }
-  .menu-icon {
-    width: 75px;
-    height: 70px;
+.page-title.no-squiggle::after {
+  display: none;
+}
+
+/* ---------- Botones ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 20px;
+  border: 2px solid var(--ink);
+  border-radius: var(--wobble-sm);
+  background-color: var(--card);
+  color: var(--ink);
+  font-family: var(--font-hand);
+  font-size: 1.08rem;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: var(--shadow-ink-sm);
+  transition: transform 0.12s ease, box-shadow 0.12s ease,
+    background-color 0.2s ease, color 0.2s ease;
+}
+
+.btn:hover:not(:disabled) {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--ink);
+}
+
+.btn:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 var(--ink);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn-primary {
+  background-color: var(--ink);
+  color: var(--card);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--accent);
+  border-color: var(--ink);
+  color: #fff;
+}
+
+.btn-primary.btn-added {
+  background-color: #1d9e57;
+}
+
+.btn-ghost {
+  background-color: var(--card);
+}
+
+.btn-ghost:hover {
+  background-color: var(--paper);
+}
+
+.add-to-cart-control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.commerce-inline-error {
+  max-width: 240px;
+  color: var(--accent-dark);
+  font-family: var(--font-hand);
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
+/* ---------- Badges ---------- */
+
+.badge-soon {
+  display: inline-block;
+  margin: 0;
+  padding: 2px 14px;
+  border: 2px dashed var(--accent);
+  border-radius: var(--wobble-md);
+  color: var(--accent);
+  font-family: var(--font-hand);
+  font-size: 0.98rem;
+  letter-spacing: 0.06em;
+  transform: rotate(-2deg);
+}
+
+/* ---------- Estados de página ---------- */
+
+.page-loading {
+  padding: 120px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-family: var(--font-hand);
+  font-size: 1.2rem;
+}
+
+.page-loading-spinner {
+  width: 46px;
+  height: 46px;
+  animation: crosshair-spin 1.4s linear infinite;
+}
+
+@keyframes crosshair-spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
-/* Si es un dispositivo grande (ejemplo: desktop) */
-@media only screen and (min-width: 769px) {
-  .logo-image {
-    max-width: 400px;
-  }
+.product-empty {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 80px 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.product-empty p {
+  font-family: var(--font-hand);
+  font-size: 1.15rem;
+  margin: 0;
+}
+
+.product-empty-run {
+  width: min(52vw, 220px);
+  transform: rotate(-2deg);
+}
+/* Mockup fotográfico para diseños que todavía no se han revelado. */
+.placeholder-tee {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #f3ecdf;
+}
+
+.placeholder-tee__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+}
+
+.placeholder-tee__label {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(12px, 5%, 24px);
+  display: flex;
+  min-width: min(72%, 260px);
+  flex-direction: column;
+  gap: 2px;
+  padding: clamp(7px, 2.4%, 12px) clamp(10px, 3.2%, 18px);
+  border: 2px solid var(--ink);
+  background-color: var(--ink);
+  color: var(--paper);
+  box-shadow: 4px 4px 0 var(--accent);
+  font-family: var(--font-hand);
+  line-height: 1;
+  text-align: left;
+  transform: translateX(-50%) rotate(-1.5deg);
+  pointer-events: none;
+}
+
+.placeholder-tee__label span {
+  color: #d8d2c4;
+  font-size: clamp(0.58rem, 1.8vw, 0.78rem);
+  letter-spacing: 0.11em;
+}
+
+.placeholder-tee__label strong {
+  font-family: var(--font-display);
+  font-size: clamp(0.72rem, 2.6vw, 1.08rem);
+  font-weight: 400;
+  letter-spacing: 0.035em;
+  white-space: nowrap;
+}
+
+.placeholder-tee--compact .placeholder-tee__image {
+  object-fit: cover;
 }

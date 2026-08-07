@@ -1,20 +1,29 @@
 import React from 'react';
-import notFoundImage from '../images/notfound.png'; // Asegúrate de proporcionar la ruta correcta a tu imagen
+import { Link } from 'react-router';
+import perdidoMapa from '../images/characters/perdido-mapa.png';
+import perroRocky from '../images/characters/perro-rocky.png';
 import '../styles/NotFound.css';
-import { Link } from 'react-router-dom';
 
 const NotFound = () => {
     return (
-        <div className="notfound-container2">
-            <img src={notFoundImage} alt="Not Found" className="notfound-image" />
-            <p className="notfound-text">Lo sentimos, la página que estás buscando no existe.</p>
-            <div className="back-button-container2">
-                <Link to="/">
-                    <button className="back-button2">Volver al inicio</button>
-                </Link>
+        <div className="notfound">
+            <div className="notfound-figures">
+                <img
+                    src={perdidoMapa}
+                    width="614"
+                    height="1360"
+                    decoding="async"
+                    alt="Personaje ROCKY perdido, consultando un mapa"
+                    className="notfound-image"
+                />
+                {/* El perro de la banda, que sí sabe volver */}
+                <img src={perroRocky} alt="" className="notfound-dog" />
             </div>
+            <h1 className="notfound-title">Te has salido del mapa</h1>
+            <p className="notfound-text">La página que buscas no existe.</p>
+            <Link to="/" className="btn btn-primary">Volver a la tienda</Link>
         </div>
     );
-}
+};
 
 export default NotFound;

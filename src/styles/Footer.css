@@ -1,58 +1,141 @@
-.footer-container {
-    background-color: #3f3e3e;
-    /* Fondo oscuro para el footer */
-    padding: 10px;
-    /* Espacio entre el contenedor interno y los bordes del footer */
-
+/* Cinta de marquesina pintada a mano, justo antes del footer */
+.ticker {
+    margin-top: 64px;
+    margin-left: -10px;
+    margin-right: -10px;
+    background-color: var(--ink);
+    background-image: var(--spray-speckle);
+    color: #fff;
+    overflow: hidden;
+    transform: rotate(-1.1deg);
+    border-top: 3px solid var(--ink);
+    border-bottom: 3px solid var(--ink);
+    box-shadow: 0 4px 0 rgba(26, 26, 26, 0.18);
+    position: relative;
+    z-index: 1;
 }
 
-.footer-inner-container {
-    border: 3px solid #fff;
-    /* Borde blanco alrededor del contenedor interno */
-    padding: 10px;
-    /* Espacio entre el borde y el contenido interno */
-}
-
-
-.footer-image img {
-    max-width: 75%;
-    height: auto;
-    padding: 20px 0;
-}
-
-.footer-social-icons {
+.ticker-track {
     display: flex;
-    justify-content: center;
-    padding: 20px 0;
+    width: max-content;
+    padding: 9px 0;
+    animation: ticker-scroll 30s linear infinite;
 }
 
-.social-icon {
-    width: 40px;
-    /* O el tamaño que prefieras */
-    height: auto;
-    margin: 0 10px;
-    /* Otros estilos que necesites */
+.ticker-track span {
+    white-space: nowrap;
+    font-family: var(--font-display);
+    font-size: 0.95rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
 }
 
-p {
-    color: #ffffff;
+@keyframes ticker-scroll {
+    to {
+        transform: translateX(-50%);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ticker-track {
+        animation: none;
+    }
+}
+
+.footer {
+    position: relative;
+    background-color: var(--ink);
+    background-image: var(--spray-speckle);
+    color: #fff;
+    padding: 16px;
+    margin-top: -6px;
+}
+
+/* Katakana vertical, guiño Tokyo streetwear */
+.footer-katakana {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    writing-mode: vertical-rl;
+    font-size: 0.95rem;
+    letter-spacing: 0.4em;
+    color: rgba(255, 255, 255, 0.45);
+    user-select: none;
+    pointer-events: none;
+}
+
+@media (max-width: 640px) {
+    .footer-katakana {
+        display: none;
+    }
+}
+
+.footer-inner {
+    position: relative;
+    max-width: 1100px;
+    margin: 0 auto;
+    /* Espacio para los tres sentados encima del marco: la ilustración mide
+       ~0.63 veces su ancho, así que reservamos esa altura dentro del fondo oscuro */
+    margin-top: min(calc(min(60vw, 430px) * 0.63), 260px);
+    border: 2px solid rgba(255, 255, 255, 0.85);
+    border-radius: var(--wobble-md);
+    padding: 36px 24px 28px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    text-align: center;
+}
+
+/* Los tres chicos se sientan sobre el borde superior del marco */
+.footer-illustration {
+    position: absolute;
+    bottom: calc(100% - 14px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(60vw, 430px);
+    pointer-events: none;
+    user-select: none;
+}
+
+.footer-social {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
     text-decoration: none;
-    margin: 5px 0;
-
+    color: #fff;
+    font-family: var(--font-hand);
+    font-size: 1.1rem;
+    letter-spacing: 0.04em;
+    padding: 6px 20px;
+    border: 2px solid rgba(255, 255, 255, 0.85);
+    border-radius: var(--wobble-sm);
+    transition: transform 0.15s ease, background-color 0.2s ease;
 }
 
-.footer-contact-info p {
-    color: #ffffff;
-    text-decoration: none;
-    margin: 5px 0;
+.footer-social:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    transform: rotate(-2deg) scale(1.04);
 }
 
-.footer-contact-info p:hover {
-    text-decoration: underline;
+.footer-social-icon {
+    width: 22px;
+    height: 22px;
 }
 
-.footer-credit {
-    color: #e9bebe;
-    font-style: italic;
-    font-size: 0.9em;
+.footer-brand {
+    margin: 8px 0 0;
+    font-family: var(--font-display);
+    font-size: 1rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #fff;
+}
+
+.footer-legal {
+    margin: 0;
+    font-family: var(--font-hand);
+    font-size: 0.98rem;
+    color: #b3ada0;
 }

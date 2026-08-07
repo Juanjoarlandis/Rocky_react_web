@@ -1,32 +1,76 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, NavLink } from 'react-router';
 import '../styles/NavBar.css';
 
-import galleryIcon from "../images/gallery.png";
+import logo from '../images/Rockypng.png';
+import cartIcon from '../images/cart.png';
 
-const NavBar = (props) => {
+const NavBar = ({
+    totalItems,
+    accountEnabled = false,
+    account = { loggedIn: false, customer: null },
+    onLogout,
+}) => {
+    const handleLogout = async () => {
+        try {
+            const logoutUrl = await onLogout();
+            if (logoutUrl) window.location.assign(logoutUrl);
+        } catch {
+            // El aviso global comunica el error sin abandonar la página.
+        }
+    };
+
     return (
-        <div className="navbar-container">
-            <Link to="/" className="logo-container" aria-label="Inicio">
-                <img src="https://rockystorage.s3.us-east-1.amazonaws.com/icons/Rockypng.webp" alt="Logo Principal" className="main-logo" />
-            </Link>
-            <div className="navbar">
-                <Link to="/menudrop" className="logo-container" aria-label="Menú">
-                    <img src="https://rockystorage.s3.us-east-1.amazonaws.com/icons/menu.webp" alt="Menú" className="logo" />
+        <header className="navbar">
+            <div className="navbar-inner">
+                <Link to="/" className="navbar-brand" aria-label="Inicio">
+                    <img src={logo} alt="ROCKY 035" className="navbar-logo" />
                 </Link>
-                <Link to="/cart" className="logo-container" aria-label="Carrito">
-                    <img src="https://rockystorage.s3.us-east-1.amazonaws.com/icons/cart.webp" alt="Carrito" className="logo" />
-                    {props.cart.length > 0 && <span className="cart-counter">{props.totalItems + " items"}</span>}
-                </Link>
-                <Link to="/galeria" className="logo-container" aria-label="Galería">
-                    <img src={galleryIcon} alt="Galería" className="logo" />
-                </Link>
-                <Link to="/rockyIA" className="logo-container" aria-label="Rocky IA">
-                    <img src="https://rockystorage.s3.us-east-1.amazonaws.com/icons/ia.webp" alt="Rocky IA" className="logo" />
-                </Link>
+                <nav className="navbar-links" aria-label="Navegación principal">
+                    <NavLink to="/" end className="navbar-link">
+                        Tienda
+                    </NavLink>
+                    <NavLink to="/menudrop" className="navbar-link">
+                        Drops
+                    </NavLink>
+                    <NavLink to="/estudio" className="navbar-link">
+                        Estudio
+                    </NavLink>
+                    <NavLink to="/crew" className="navbar-link">
+                        Crew
+                    </NavLink>
+                    <NavLink to="/rockyIA" className="navbar-link">
+                        Rocky IA
+                    </NavLink>
+                    {accountEnabled && (
+                        account.loggedIn ? (
+                            <button
+                                type="button"
+                                className="navbar-account"
+                                onClick={handleLogout}
+                                title="Cerrar sesión"
+                            >
+                                {account.customer?.displayName || 'Salir'}
+                            </button>
+                        ) : (
+                            <a
+                                href="/api/shopify/account/login?returnPath=%2F"
+                                className="navbar-account"
+                            >
+                                Cuenta
+                            </a>
+                        )
+                    )}
+                    <NavLink to="/cart" className="navbar-cart" aria-label="Carrito">
+                        <img src={cartIcon} alt="" className="navbar-cart-icon" />
+                        {totalItems > 0 && (
+                            <span className="cart-counter">{totalItems}</span>
+                        )}
+                    </NavLink>
+                </nav>
             </div>
-        </div>
+        </header>
     );
-}
+};
 
 export default NavBar;

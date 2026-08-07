@@ -1,0 +1,94 @@
+/* Píldora flotante de la radio de la web */
+.mini-player {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 2500;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px 8px 14px;
+    background-color: var(--card);
+    border: 2px solid var(--ink);
+    border-radius: var(--wobble-sm);
+    box-shadow: var(--shadow-ink);
+    transform: rotate(-1deg);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mini-player:hover {
+    transform: rotate(0deg) translate(-2px, -2px);
+    box-shadow: var(--shadow-ink-lg);
+}
+
+.mini-player-disc {
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+}
+
+.mini-player.playing .mini-player-disc {
+    animation: crosshair-spin 1.6s linear infinite;
+}
+
+.mini-player-title {
+    font-family: var(--font-hand);
+    font-size: 1.05rem;
+    color: var(--ink);
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 170px;
+}
+
+.mini-player-title:hover {
+    color: var(--accent);
+    text-decoration: underline wavy var(--accent);
+}
+
+.mini-player-btn {
+    width: 42px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--ink);
+    color: var(--card);
+    border: 2px solid var(--ink);
+    border-radius: var(--wobble-md);
+    cursor: pointer;
+    box-shadow: var(--shadow-ink-sm);
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.2s ease;
+    flex-shrink: 0;
+}
+
+.mini-player-btn:hover {
+    background-color: var(--accent);
+    transform: translate(-1px, -1px) rotate(3deg);
+    box-shadow: 4px 4px 0 var(--ink);
+}
+
+.mini-player-btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: 0 0 0 var(--ink);
+}
+
+@media (max-width: 640px) {
+    .mini-player {
+        right: 12px;
+        bottom: 12px;
+        padding: 6px 8px 6px 10px;
+        gap: 8px;
+    }
+
+    .mini-player-title {
+        max-width: 96px;
+        font-size: 0.95rem;
+    }
+
+    .mini-player-btn {
+        width: 38px;
+        height: 38px;
+    }
+}
