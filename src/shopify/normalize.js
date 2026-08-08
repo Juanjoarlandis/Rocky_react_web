@@ -38,6 +38,7 @@ export function normalizeCart(cart) {
       productId: line.variant.product.handle,
       variantId: line.variant.id,
       variantTitle: line.variant.title,
+      availableForSale: Boolean(line.variant.availableForSale),
       title: line.variant.product.title,
       image: line.variant.image?.url || PRODUCT_PLACEHOLDER,
       imageAlt: line.variant.image?.alt || line.variant.product.title,

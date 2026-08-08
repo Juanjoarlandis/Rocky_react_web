@@ -48,11 +48,13 @@ describe('Shopify UI normalization', () => {
       totalQuantity: 2,
       lines: [
         {
-          id: 'gid://shopify/CartLine/1',
+          // Forma real de Shopify: UUID con guiones y token del carrito.
+          id: 'gid://shopify/CartLine/c1cc8c01-8339-4bf3-bbcf-f9ada9a4df4a?cart=hWNFNxSlWtmqSRT6',
           quantity: 2,
           variant: {
             id: 'gid://shopify/ProductVariant/2',
             title: 'M',
+            availableForSale: true,
             product: { handle: 'camiseta-rocky', title: 'Camiseta Rocky' },
             image: { url: 'https://cdn.shopify.com/tee.jpg', alt: 'Camiseta' },
             price: { amount: '35.00', currencyCode: 'EUR' },
@@ -67,11 +69,12 @@ describe('Shopify UI normalization', () => {
     });
 
     expect(cart.items[0]).toEqual({
-      id: 'gid://shopify/CartLine/1',
-      lineId: 'gid://shopify/CartLine/1',
+      id: 'gid://shopify/CartLine/c1cc8c01-8339-4bf3-bbcf-f9ada9a4df4a?cart=hWNFNxSlWtmqSRT6',
+      lineId: 'gid://shopify/CartLine/c1cc8c01-8339-4bf3-bbcf-f9ada9a4df4a?cart=hWNFNxSlWtmqSRT6',
       productId: 'camiseta-rocky',
       variantId: 'gid://shopify/ProductVariant/2',
       variantTitle: 'M',
+      availableForSale: true,
       title: 'Camiseta Rocky',
       image: 'https://cdn.shopify.com/tee.jpg',
       imageAlt: 'Camiseta',

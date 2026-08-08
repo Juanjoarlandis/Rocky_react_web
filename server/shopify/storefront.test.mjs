@@ -16,6 +16,12 @@ function jsonResponse(body, status = 200) {
   });
 }
 
+// Forma que devuelve Shopify de verdad: UUID con guiones y el token del
+// carrito colgando. Un fixture tipo .../CartLine/1 no existe en produccion y
+// deja pasar validadores que rechazan todos los ids reales.
+const REAL_LINE_ID =
+  'gid://shopify/CartLine/c1cc8c01-8339-4bf3-bbcf-f9ada9a4df4a?cart=hWNFNxSlWtmqSRT63RRjQGep';
+
 describe('Storefront client', () => {
   it('maps products and variants to a text-only commerce DTO', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(
@@ -96,7 +102,7 @@ describe('Storefront client', () => {
               lines: {
                 nodes: [
                   {
-                    id: 'gid://shopify/CartLine/1',
+                    id: REAL_LINE_ID,
                     quantity: 1,
                     cost: {
                       totalAmount: { amount: '35.00', currencyCode: 'EUR' },
@@ -142,5 +148,59 @@ describe('Storefront client', () => {
     expect(body.variables).toEqual({
       lines: [{ merchandiseId: 'gid://shopify/ProductVariant/2', quantity: 1 }],
     });
+  });
+
+  it('acepta el id de linea que Shopify devuelve de verdad', async () => {
+    const cart = {
+      id: 'gid://shopify/Cart/token?key=cart-secret',
+      totalQuantity: 2,
+      checkoutUrl: 'https://rocky-dev.myshopify.com/cart/c/checkout-secret',
+      lines: { nodes: [] },
+      cost: {
+        subtotalAmount: { amount: '70.00', currencyCode: 'EUR' },
+        totalAmount: { amount: '70.00', currencyCode: 'EUR' },
+      },
+    };
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ data: { cartLinesUpdate: { cart, userErrors: [], warnings: [] } } })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ data: { cartLinesRemove: { cart, userErrors: [], warnings: [] } } })
+      );
+    const client = createStorefrontClient({ config, fetchImpl });
+
+    await expect(
+      client.updateLines(cart.id, { lineId: REAL_LINE_ID, quantity: 2 })
+    ).resolves.toMatchObject({ cart: { totalQuantity: 2 } });
+    await expect(
+      client.removeLines(cart.id, { lineId: REAL_LINE_ID })
+    ).resolves.toMatchObject({ cart: { totalQuantity: 2 } });
+
+    expect(JSON.parse(fetchImpl.mock.calls[0][1].body).variables.lines).toEqual([
+      { id: REAL_LINE_ID, quantity: 2 },
+    ]);
+  });
+
+  it('sigue rechazando ids de linea imposibles sin llamar a Shopify', async () => {
+    const fetchImpl = vi.fn();
+    const client = createStorefrontClient({ config, fetchImpl });
+
+    for (const lineId of [
+      'gid://shopify/CartLine/abc?cart=token&extra=1',
+      'gid://shopify/CartLine/abc?key=secreto',
+      'gid://shopify/Product/1',
+      '',
+    ]) {
+      await expect(
+        client.updateLines('gid://shopify/Cart/t?key=k', { lineId, quantity: 1 })
+      ).rejects.toMatchObject({ code: 'INVALID_LINE' });
+      await expect(
+        client.removeLines('gid://shopify/Cart/t?key=k', { lineId })
+      ).rejects.toMatchObject({ code: 'INVALID_LINE' });
+    }
+
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 });

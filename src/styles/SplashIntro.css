@@ -1,0 +1,160 @@
+/* Splash de entrada: la crew se pega como stickers alrededor del logo,
+   las caras fichan en las esquinas y la cortina se recoge hacia arriba. */
+
+.splash-intro {
+  position: fixed;
+  inset: 0;
+  /* Por encima de todo lo flotante (el mini-player vive en 2500) */
+  z-index: 3000;
+  overflow: hidden;
+  background-color: var(--paper);
+  /* El mismo papel de cuaderno que el resto de la web */
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'><g fill='none' stroke='%231a1a1a' stroke-opacity='0.05' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M38 30 L41 42 L53 45 L41 48 L38 60 L35 48 L23 45 L35 42 Z'/><g><circle cx='195' cy='72' r='10'/><path d='M181 72 L209 72 M195 58 L195 86'/></g><path d='M52 190 q12 -10 24 0 q10 8 22 0 l-6 -5 m6 5 l-8 4'/><path d='M200 175 l-8 16 h9 l-10 18'/></g></svg>"),
+    radial-gradient(circle, rgba(26, 26, 26, 0.07) 1.2px, transparent 1.2px);
+  background-size: 260px 260px, 26px 26px;
+  animation: splash-exit 0.55s cubic-bezier(0.7, 0, 0.84, 0.2) 2.45s forwards;
+}
+
+/* Los tamaños del anillo se definen sobre un lienzo de referencia de 1080
+   y escalan con el lado corto de la pantalla, entre 0.45x y 1x. */
+.splash-anillo {
+  position: absolute;
+  inset: 0;
+}
+
+.splash-muneco {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  height: clamp(
+    calc(var(--size) * 0.45px),
+    calc(min(100vw, 100vh) * var(--size) / 1080),
+    calc(var(--size) * 1px)
+  );
+  width: auto;
+  translate: -50% -50%;
+  rotate: var(--rot);
+  filter: drop-shadow(4px 5px 0 rgba(26, 26, 26, 0.16));
+  opacity: 0;
+  animation: splash-pop 0.5s cubic-bezier(0.24, 1.44, 0.42, 1) var(--delay) forwards;
+}
+
+/* Las caras, pegadas en las esquinas de la pantalla */
+.splash-head {
+  position: absolute;
+  height: clamp(72px, 13vmin, 150px);
+  width: auto;
+  rotate: var(--rot);
+  filter: drop-shadow(5px 6px 0 rgba(26, 26, 26, 0.18));
+  opacity: 0;
+  animation: splash-pop 0.45s cubic-bezier(0.24, 1.44, 0.42, 1) var(--delay) forwards;
+  z-index: 3;
+}
+
+.splash-head--tl { top: 3vmin; left: 3.4vmin; }
+.splash-head--tr { top: 3vmin; right: 3.4vmin; }
+.splash-head--bl { bottom: 3vmin; left: 3.4vmin; }
+.splash-head--br { bottom: 3vmin; right: 3.4vmin; }
+
+/* Logo central: entra como un sello */
+.splash-centro {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.splash-logo {
+  width: min(56vw, 430px);
+  height: auto;
+  opacity: 0;
+  animation: splash-sello 0.55s cubic-bezier(0.2, 1.25, 0.4, 1) 0.5s forwards;
+}
+
+/* Subrayado garabateado que se dibuja solo */
+.splash-squiggle {
+  width: min(46vw, 340px);
+  height: auto;
+  overflow: visible;
+}
+
+.splash-squiggle path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-dasharray: 260;
+  stroke-dashoffset: 260;
+  animation: splash-trazo 0.55s ease-out 1.05s forwards;
+}
+
+.splash-lema {
+  margin: 2px 0 0;
+  font-family: var(--font-hand);
+  font-size: clamp(19px, 2.6vmin, 26px);
+  letter-spacing: 7px;
+  text-transform: uppercase;
+  color: var(--muted);
+  opacity: 0;
+  animation: splash-sube 0.45s ease-out 1.35s forwards;
+}
+
+@keyframes splash-pop {
+  0% { opacity: 0; scale: 0.2; }
+  62% { opacity: 1; scale: 1.09; }
+  100% { opacity: 1; scale: 1; }
+}
+
+@keyframes splash-sello {
+  0% { opacity: 0; scale: 2.1; rotate: 4deg; }
+  55% { opacity: 1; scale: 0.94; rotate: -1.5deg; }
+  100% { opacity: 1; scale: 1; rotate: 0deg; }
+}
+
+@keyframes splash-trazo {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes splash-sube {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Cortina final: el splash se recoge hacia arriba y revela la tienda */
+@keyframes splash-exit {
+  0% { clip-path: inset(0 0 0 0); }
+  100% { clip-path: inset(0 0 100% 0); }
+}
+
+/* Sin animaciones para quien las tiene desactivadas */
+@media (prefers-reduced-motion: reduce) {
+  .splash-muneco,
+  .splash-head,
+  .splash-logo,
+  .splash-lema {
+    animation: splash-fade 0.4s ease-out forwards;
+  }
+
+  .splash-squiggle path {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+
+  .splash-intro {
+    animation: splash-fade-out 0.4s ease-out 2.55s forwards;
+  }
+
+  @keyframes splash-fade {
+    to { opacity: 1; scale: 1; rotate: var(--rot, 0deg); }
+  }
+
+  @keyframes splash-fade-out {
+    to { opacity: 0; }
+  }
+}

@@ -220,19 +220,18 @@
     background-size: 48px 8px;
 }
 
-.setlist-wrap {
+.setlist-frame {
     position: relative;
-    /* Hueco para el b-boy haciendo el freeze sobre la lista */
-    margin-top: clamp(92px, 12vw, 118px);
+    /* Hueco para El Luna en cuclillas sobre la lista */
+    margin-top: clamp(96px, 13vw, 128px);
 }
 
-.setlist-breaker {
+.setlist-luna {
     position: absolute;
     bottom: calc(100% - 8px);
-    right: 5%;
-    height: clamp(110px, 15vw, 150px);
+    right: 6%;
+    height: clamp(96px, 13vw, 126px);
     width: auto;
-    /* La mano queda plantada SOBRE la tarjeta */
     z-index: 3;
     pointer-events: none;
     user-select: none;
@@ -324,10 +323,33 @@
     transform: rotate(-0.6deg);
 }
 
+/* ---------- La mesa de beats ---------- */
+
+.mesa-subtitle {
+    display: block;
+    margin-top: -8px;
+}
+
 /* ---------- Escúchalo en serio (embed real) ---------- */
 
 .listen-wrap {
     position: relative;
+    /* Hueco para El Tele sentado encima del reproductor */
+    margin-top: clamp(86px, 11vw, 112px);
+}
+
+/* El Tele sentado en el borde del reproductor de Spotify:
+   la línea de las manos está al 71% de su imagen (cuelga el 29%) */
+.listen-tele {
+    position: absolute;
+    bottom: 100%;
+    left: 7%;
+    height: clamp(120px, 15vw, 152px);
+    width: auto;
+    transform: translateY(29%);
+    z-index: 2;
+    pointer-events: none;
+    user-select: none;
 }
 
 .listen {

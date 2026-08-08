@@ -1,7 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router';
-import tumbado from '../images/tumbado.png';
-import skaterOllie from '../images/characters/skater-ollie.png';
+import tumbado from '../images/optimized/shell/tumbado-800.webp';
+import skaterOllie from '../images/optimized/characters/skater-ollie-600.webp';
+import dadoSentado from '../images/optimized/characters/dado-sentado-600.webp';
 import '../styles/MenuDrop.css';
 
 function MenuDrop({ products }) {
@@ -20,6 +21,8 @@ function MenuDrop({ products }) {
             <div className="drops-list-wrap">
                 {/* El tumbado descansa sobre la primera tarjeta de la lista */}
                 <img src={tumbado} alt="" className="drops-illustration" />
+                {/* El Dado se juega el próximo drop en la otra punta de la repisa */}
+                <img src={dadoSentado} alt="" className="drops-dado" />
                 {/* Y el skater vuela por encima */}
                 <img src={skaterOllie} alt="" className="drops-skater" />
                 <nav className="drops-list" aria-label="Categorías">

@@ -21,6 +21,7 @@ const DISABLED_CAPABILITIES = Object.freeze({
 });
 
 const EMPTY_CART = Object.freeze({ items: [], cost: null, totalQuantity: 0 });
+const EMPTY_PRODUCTS = Object.freeze([]);
 
 function errorMessage(error) {
   return error instanceof Error
@@ -28,11 +29,17 @@ function errorMessage(error) {
     : 'La tienda no ha podido completar la operación.';
 }
 
-export function useStorefront({ demoProducts = [] } = {}) {
+export function useStorefront({
+  demoProducts = EMPTY_PRODUCTS,
+  previewProducts = EMPTY_PRODUCTS,
+} = {}) {
   const [mode, setMode] = useState('checking');
   const [capabilities, setCapabilities] = useState(DISABLED_CAPABILITIES);
-  const [products, setProducts] = useState(demoProducts);
+  const [products, setProducts] = useState(EMPTY_PRODUCTS);
   const [cartState, setCartState] = useState(EMPTY_CART);
+  // Shopify avisa aqui de cosas como MERCHANDISE_OUT_OF_STOCK cuando la
+  // variante se agota entre que se pinta el catalogo y se pulsa anadir.
+  const [cartWarnings, setCartWarnings] = useState([]);
   const [account, setAccount] = useState({ loggedIn: false, customer: null });
   const [loading, setLoading] = useState(true);
   const [cartBusy, setCartBusy] = useState(false);
@@ -40,6 +47,7 @@ export function useStorefront({ demoProducts = [] } = {}) {
 
   useEffect(() => {
     let active = true;
+    let isShopifyConfirmed = false;
 
     async function initialize() {
       try {
@@ -50,34 +58,82 @@ export function useStorefront({ demoProducts = [] } = {}) {
           ...DISABLED_CAPABILITIES,
           ...status.capabilities,
         };
-        setCapabilities(nextCapabilities);
 
         if (status.mode !== 'shopify' || !nextCapabilities.catalog) {
+          setCapabilities(nextCapabilities);
+          setProducts(demoProducts);
           setMode('demo');
           return;
         }
 
-        const [catalogResponse, cartResponse, accountResponse] = await Promise.all([
-          listProducts(),
-          nextCapabilities.cart ? getCart() : Promise.resolve({ cart: null }),
-          nextCapabilities.customerAccounts
-            ? getCustomerAccount()
-            : Promise.resolve({ loggedIn: false, customer: null }),
-        ]);
+        isShopifyConfirmed = true;
+        setMode('shopify');
+        setProducts(EMPTY_PRODUCTS);
+        setCapabilities({
+          ...nextCapabilities,
+          cart: false,
+          customerAccounts: false,
+        });
+
+        const catalogResponse = await listProducts();
         if (!active) return;
 
-        setProducts(normalizeCatalog(catalogResponse.products));
-        setCartState(normalizeCart(cartResponse.cart));
-        setAccount(accountResponse);
-        setMode('shopify');
+        const liveProducts = normalizeCatalog(catalogResponse.products);
+        const liveHandles = new Set(liveProducts.map((product) => product.handle));
+        const localPreviews = previewProducts.filter(
+          (product) => !liveHandles.has(product.handle)
+        );
+        setProducts([...liveProducts, ...localPreviews]);
+
+        const unavailable = [];
+        function reportUnavailable(label) {
+          unavailable.push(label);
+          if (!active) return;
+          setError(
+            `El catálogo está disponible, pero no se pudieron cargar ${unavailable.join(' y ')}. Esas funciones siguen desactivadas.`
+          );
+        }
+
+        async function initializeCart() {
+          if (!nextCapabilities.cart) return;
+          try {
+            const response = await getCart();
+            if (!active) return;
+            setCartState(normalizeCart(response.cart));
+            setCapabilities((current) => ({ ...current, cart: true }));
+          } catch {
+            reportUnavailable('el carrito');
+          }
+        }
+
+        async function initializeAccount() {
+          if (!nextCapabilities.customerAccounts) return;
+          try {
+            const response = await getCustomerAccount();
+            if (!active) return;
+            setAccount(response);
+            setCapabilities((current) => ({ ...current, customerAccounts: true }));
+          } catch {
+            reportUnavailable('la cuenta');
+          }
+        }
+
+        await Promise.all([initializeCart(), initializeAccount()]);
       } catch (requestError) {
         if (!active) return;
-        setMode('demo');
         setCapabilities(DISABLED_CAPABILITIES);
-        setProducts(demoProducts);
-        setError(
-          `${errorMessage(requestError)} Se muestra el catálogo de prueba y el pago sigue desactivado.`
-        );
+        setProducts(EMPTY_PRODUCTS);
+        if (isShopifyConfirmed) {
+          setMode('shopify');
+          setError(
+            `${errorMessage(requestError)} No se pudo verificar el catálogo vivo y el pago sigue desactivado.`
+          );
+        } else {
+          setMode('unavailable');
+          setError(
+            `${errorMessage(requestError)} No se pudo determinar el modo de la tienda y el pago sigue desactivado.`
+          );
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -87,7 +143,7 @@ export function useStorefront({ demoProducts = [] } = {}) {
     return () => {
       active = false;
     };
-  }, [demoProducts]);
+  }, [demoProducts, previewProducts]);
 
   const applyServerCart = useCallback((cart) => {
     setCartState(normalizeCart(cart));
@@ -99,6 +155,13 @@ export function useStorefront({ demoProducts = [] } = {}) {
     try {
       const response = await mutation();
       applyServerCart(response.cart);
+      // Solo el texto: `target` lleva el id de linea con el token del carrito.
+      setCartWarnings(
+        (response.warnings || []).map((warning) => ({
+          code: warning.code || 'CART_WARNING',
+          message: warning.message,
+        }))
+      );
       return response;
     } catch (mutationError) {
       setError(errorMessage(mutationError));
@@ -218,6 +281,7 @@ export function useStorefront({ demoProducts = [] } = {}) {
     products,
     cartItems: cartState.items,
     cartCost: cartState.cost,
+    cartWarnings,
     totalItems,
     account,
     loading,

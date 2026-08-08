@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { createChatHandler } from './server/chat.mjs';
 import { createConfig } from './server/config.mjs';
+import { createCrewRewardsService } from './server/crew/rewards.mjs';
 import { EncryptedStore, MemoryStore } from './server/encrypted-store.mjs';
 import { createSessionManager } from './server/session.mjs';
 import {
@@ -16,18 +17,36 @@ import {
 } from './server/security.mjs';
 import { createShopifyConfig } from './server/shopify/config.mjs';
 import { createShopifyRouter } from './server/shopify/routes.mjs';
+import { createStorefrontClient } from './server/shopify/storefront.mjs';
 import { createWebhookHandler } from './server/shopify/webhooks.mjs';
+import previewProducts from './server/preview-products.mjs';
 
 dotenv.config({ quiet: true });
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const distDirectory = path.join(currentDirectory, 'dist');
+const IMMUTABLE_ASSET_CACHE = 'public, max-age=31536000, immutable';
+const IMMUTABLE_EDGE_CACHE = 'public, max-age=31536000';
+const REVALIDATED_PUBLIC_CACHE = 'public, max-age=14400, must-revalidate';
+const REVALIDATED_EDGE_CACHE = 'public, max-age=14400';
+const REVALIDATED_DOCUMENT_CACHE = 'public, max-age=0, must-revalidate';
+
+function setSpaDocumentHeaders(res) {
+  res.setHeader('Cache-Control', REVALIDATED_DOCUMENT_CACHE);
+  res.setHeader('Cloudflare-CDN-Cache-Control', 'no-store');
+}
+
+function setStablePublicHeaders(res) {
+  res.setHeader('Cache-Control', REVALIDATED_PUBLIC_CACHE);
+  res.setHeader('Cloudflare-CDN-Cache-Control', REVALIDATED_EDGE_CACHE);
+}
 
 export function createApp({
   env = process.env,
   fetchImpl = globalThis.fetch,
   logger = console,
   store,
+  staticDirectory = distDirectory,
 } = {}) {
   const config = createConfig(env);
   const shopifyConfig = createShopifyConfig(env, config);
@@ -41,6 +60,10 @@ export function createApp({
     store: stateStore,
     isProduction: config.isProduction,
   });
+  const storefront = shopifyConfig.capabilities.catalog
+    ? createStorefrontClient({ config: shopifyConfig, fetchImpl })
+    : null;
+  const crewRewards = createCrewRewardsService({ store: stateStore });
   const app = express();
 
   app.disable('x-powered-by');
@@ -55,11 +78,34 @@ export function createApp({
     res.json({ status: 'ok' });
   });
 
+  const shopify = createShopifyRouter({
+    config: shopifyConfig,
+    store: stateStore,
+    sessions,
+    requireOrigin: requireTrustedOrigin(config),
+    crewRewards,
+    storefront,
+    fetchImpl,
+  });
+
   if (shopifyConfig.capabilities.webhooks) {
     app.post(
       '/api/shopify/webhooks',
       express.raw({ type: 'application/json', limit: '256kb' }),
-      createWebhookHandler({ config: shopifyConfig, store: stateStore, logger })
+      createWebhookHandler({
+        config: shopifyConfig,
+        store: stateStore,
+        logger,
+        onDelivery: async ({ topic, payload }) => {
+          if (topic !== 'orders/paid') return;
+          const result = await crewRewards.creditPaidOrder(payload);
+          if (!result.credited) {
+            logger.info?.('Shopify order skipped for Crew rewards', {
+              reason: result.reason,
+            });
+          }
+        },
+      })
     );
   }
 
@@ -73,33 +119,78 @@ export function createApp({
 
   app.use(express.json({ limit: '16kb', strict: true }));
 
-  const shopify = createShopifyRouter({
-    config: shopifyConfig,
-    store: stateStore,
-    sessions,
-    requireOrigin: requireTrustedOrigin(config),
-    fetchImpl,
-  });
   app.use('/api/shopify', shopify.router);
 
   app.post(
     '/api/chat',
+    requireTrustedOrigin(config),
     createFixedWindowRateLimiter({
       max: config.chat.rateLimitMax,
       windowMs: config.chat.rateLimitWindowMs,
     }),
-    createChatHandler({ config, fetchImpl, logger })
+    createFixedWindowRateLimiter({
+      max: config.chat.globalDailyMax,
+      windowMs: config.chat.globalDailyWindowMs,
+      maxClients: 1,
+      keyForRequest: () => 'rocky-chat-global',
+    }),
+    createChatHandler({
+      config,
+      sessions,
+      storefront,
+      demoProducts: previewProducts,
+      customerAccounts: shopify.customerAccounts,
+      crewRewards,
+      fetchImpl,
+      logger,
+    })
   );
 
   app.all('/api/*', (req, res) => {
     res.status(404).json({ message: 'Ruta no encontrada.' });
   });
 
-  if (fs.existsSync(path.join(distDirectory, 'index.html'))) {
-    app.use(express.static(distDirectory, { index: false, fallthrough: true }));
+  const indexPath = path.join(staticDirectory, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    app.use(
+      '/assets',
+      express.static(path.join(staticDirectory, 'assets'), {
+        index: false,
+        fallthrough: true,
+        setHeaders(res) {
+          res.setHeader('Cache-Control', IMMUTABLE_ASSET_CACHE);
+          res.setHeader('Cloudflare-CDN-Cache-Control', IMMUTABLE_EDGE_CACHE);
+        },
+      })
+    );
+    app.use('/assets', (req, res) => {
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('Cloudflare-CDN-Cache-Control', 'no-store');
+      return res.status(404).type('text/plain').send('Asset not found.');
+    });
+    app.use(
+      express.static(staticDirectory, {
+        index: false,
+        fallthrough: true,
+        setHeaders(res, filePath) {
+          if (filePath === indexPath) {
+            setSpaDocumentHeaders(res);
+            return;
+          }
+          setStablePublicHeaders(res);
+        },
+      })
+    );
+    app.use('/products', (req, res, next) => {
+      if (!/\.(?:avif|jpe?g|png|webp)$/i.test(req.path)) return next();
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('Cloudflare-CDN-Cache-Control', 'no-store');
+      return res.status(404).type('text/plain').send('Product asset not found.');
+    });
     app.get('*', (req, res, next) => {
       if (req.method !== 'GET') return next();
-      return res.sendFile(path.join(distDirectory, 'index.html'));
+      setSpaDocumentHeaders(res);
+      return res.sendFile(indexPath);
     });
   }
 

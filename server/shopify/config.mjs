@@ -88,7 +88,11 @@ export function createShopifyConfig(env, appConfig) {
     encryptionKey,
     stateStorePath: path.resolve(env.STATE_STORE_PATH || '.data/rocky-state.enc'),
     webhookTopics: new Set(
-      readList(env.SHOPIFY_WEBHOOK_TOPICS, ['app/uninstalled', 'app/scopes_update'])
+      readList(env.SHOPIFY_WEBHOOK_TOPICS, [
+        'app/uninstalled',
+        'app/scopes_update',
+        'orders/paid',
+      ])
     ),
     checkoutHosts: new Set([
       ...(storeDomain ? [storeDomain] : []),

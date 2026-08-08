@@ -128,7 +128,22 @@
 .street-wall-cta {
     display: flex;
     justify-content: center;
+    align-items: flex-end;
+    gap: 20px;
     margin-top: 40px;
+}
+
+/* El Diana de pie junto al botón, con los pies a la altura de su base */
+.cta-diana {
+    height: clamp(104px, 13vw, 136px);
+    width: auto;
+    margin-bottom: -4px;
+    pointer-events: none;
+    user-select: none;
+}
+
+.street-wall-cta .btn {
+    margin-bottom: 8px;
 }
 
 @media (max-width: 640px) {

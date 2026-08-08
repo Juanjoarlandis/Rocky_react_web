@@ -5,8 +5,9 @@ import AddToCartButton from './AddToCartButton';
 import EyeIcon from './EyeIcon';
 import PlaceholderTee from './PlaceholderTee';
 import StreetWall from './StreetWall';
-import grafiteroSpray from '../images/characters/grafitero-spray.png';
-import corriendoBolsa from '../images/characters/corriendo-bolsa.png';
+import grafiteroSpray from '../images/optimized/splash/grafitero-spray.webp';
+import corriendoBolsa from '../images/optimized/splash/corriendo-bolsa.webp';
+import cruiserPatinando from '../images/optimized/splash/cruiser-patinando.webp';
 import { formatPrice } from '../utils/price';
 import '../styles/ProductPage.css';
 
@@ -17,6 +18,7 @@ function ProductPage({
     addToCart,
     commerceMode = 'demo',
     canAddToCart = true,
+    prioritizeFirstImage = false,
 }) {
     const { category } = useParams();
     const [zoomImage, setZoomImage] = useState(null);
@@ -26,12 +28,20 @@ function ProductPage({
             product.drop === category || product.dropHandle === category
         )
         : products;
+    const pageTitle = category ? visibleProducts[0]?.drop || category : 'ROCKY 035';
 
     if (category && visibleProducts.length === 0) {
         return (
             <div className="product-empty">
                 {/* Se lo han llevado todo corriendo */}
-                <img src={corriendoBolsa} alt="" className="product-empty-run" />
+                <img
+                    src={corriendoBolsa}
+                    width="344"
+                    height="350"
+                    decoding="async"
+                    alt=""
+                    className="product-empty-run"
+                />
                 <h1 className="page-title">Nada por aquí</h1>
                 <p>No hay productos en «{category}». Volaron.</p>
                 <Link to="/menudrop" className="btn btn-ghost">Ver drops</Link>
@@ -43,7 +53,7 @@ function ProductPage({
         <div className="product-page">
             <div className="product-page-head">
                 <div className="product-page-head-row">
-                    <h1 className="page-title no-squiggle">{category || 'ROCKY 035'}</h1>
+                    <h1 className="page-title no-squiggle">{pageTitle}</h1>
                     <p className="product-count">{visibleProducts.length} productos</p>
                 </div>
                 {/* El grafitero pinta la línea del título con su spray */}
@@ -60,23 +70,35 @@ function ProductPage({
                     </svg>
                     <img
                         src={grafiteroSpray}
-                        width="821"
-                        height="1356"
+                        width="255"
+                        height="420"
                         decoding="async"
                         alt=""
                         className="spray-guy"
+                    />
+                    {/* La Cruiser rueda por la línea recién pintada */}
+                    <img
+                        src={cruiserPatinando}
+                        width="291"
+                        height="350"
+                        decoding="async"
+                        alt=""
+                        className="spray-cruiser"
                     />
                 </div>
             </div>
 
             <div className="product-grid">
-                {visibleProducts.map((product) => {
+                {visibleProducts.map((product, index) => {
                     const isPlaceholder = product.image === PLACEHOLDER;
+                    const isPriorityImage = prioritizeFirstImage && index === 0;
                     const price = formatPrice(product.price);
                     const productPath = product.handle ?? product.id;
                     const variantId = product.defaultVariantId || null;
-                    const unavailable = commerceMode === 'shopify' && (
-                        !canAddToCart || !product.availableForSale || !variantId
+                    const unavailable = product.isPreview || (
+                        commerceMode === 'shopify' && (
+                            !canAddToCart || !product.availableForSale || !variantId
+                        )
                     );
                     return (
                         <article key={productPath} className="product-card">
@@ -88,13 +110,18 @@ function ProductPage({
                                 disabled={isPlaceholder}
                             >
                                 {isPlaceholder ? (
-                                    <PlaceholderTee title={product.title} />
+                                    <PlaceholderTee
+                                        title={product.title}
+                                        priority={isPriorityImage}
+                                    />
                                 ) : (
                                     <img
                                         src={product.image}
                                         alt={product.imageAlt || product.title}
                                         className="product-image"
-                                        loading="lazy"
+                                        loading={isPriorityImage ? 'eager' : 'lazy'}
+                                        decoding={isPriorityImage ? 'auto' : 'async'}
+                                        fetchPriority={isPriorityImage ? 'high' : undefined}
                                     />
                                 )}
                                 {!isPlaceholder && (
@@ -120,7 +147,11 @@ function ProductPage({
                                         addToCart={addToCart}
                                         disabled={unavailable}
                                         unavailableLabel={
-                                            canAddToCart ? 'Agotado' : 'Carrito no disponible'
+                                            product.isPreview
+                                                ? 'Vista previa'
+                                                : canAddToCart
+                                                    ? 'Agotado'
+                                                    : 'Carrito no disponible'
                                         }
                                     />
                                 </div>

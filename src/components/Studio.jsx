@@ -3,9 +3,11 @@ import Boombox from './Boombox';
 import { CrosshairSpinner } from './BrandDoodles';
 import { useMusic } from '../context/MusicContext';
 import { ARTIST, TRACKS, EPS } from '../data/studio';
-import auricularesSentado from '../images/characters/auriculares-sentado.png';
-import colgadoBorde from '../images/characters/colgado-borde.png';
-import breakdanceFreeze from '../images/characters/breakdance-freeze.png';
+import auricularesSentado from '../images/optimized/characters/auriculares-sentado-600.webp';
+import colgadoBorde from '../images/optimized/characters/colgado-borde-600.webp';
+import teleSentado from '../images/optimized/characters/tele-sentado-borde-600.webp';
+import lunaMovil from '../images/optimized/characters/luna-movil-600.webp';
+import BeatMachine from './BeatMachine';
 import '../styles/Studio.css';
 
 // Abeja garabateada de La Colmena, con su vuelo en trazos discontinuos.
@@ -107,9 +109,9 @@ function Studio() {
 
             <section className="setlist" aria-label="Lista de temas">
                 <h2 className="studio-section-title">Setlist</h2>
-                <div className="setlist-wrap">
-                {/* El b-boy clava el freeze con la mano en la setlist */}
-                <img src={breakdanceFreeze} alt="" className="setlist-breaker" />
+                <div className="setlist-frame">
+                {/* El Luna, de turno de noche, escucha con el móvil en cuclillas */}
+                <img src={lunaMovil} alt="" className="setlist-luna" />
                 <ol className="setlist-list">
                     {TRACKS.map((track, i) => {
                         const active = i === index;
@@ -141,9 +143,19 @@ function Studio() {
                 </p>
             </section>
 
+            <section className="mesa-section" aria-label="La mesa de beats">
+                <h2 className="studio-section-title">La mesa de beats</h2>
+                <p className="studio-subtitle mesa-subtitle">
+                    Deja tu ritmo en La Colmena. El Freeze lo baila.
+                </p>
+                <BeatMachine />
+            </section>
+
             <section className="listen" aria-label={`Escuchar a ${ARTIST.name}`}>
                 <h2 className="studio-section-title">Escúchalo en serio</h2>
                 <div className="listen-wrap">
+                    {/* El Tele viendo la tele que es él mismo, sentado en el reproductor */}
+                    <img src={teleSentado} alt="" className="listen-tele" />
                     <div className="listen-card">
                         <iframe
                             title={`${ARTIST.name} en Spotify`}

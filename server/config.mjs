@@ -3,6 +3,40 @@ function readPositiveInteger(value, fallback, { min = 1, max = Number.MAX_SAFE_I
   return Number.isInteger(parsed) && parsed >= min && parsed <= max ? parsed : fallback;
 }
 
+const DEFAULT_FREE_MODELS = [
+  'google/gemma-4-31b-it:free',
+  'nvidia/nemotron-3-ultra-550b-a55b:free',
+  'openai/gpt-oss-20b:free',
+];
+
+export function isFreeOpenRouterModel(model) {
+  return (
+    model === 'openrouter/free' ||
+    /^[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*:free$/.test(model)
+  );
+}
+
+function readFreeModels(env) {
+  const rawModels = Object.hasOwn(env, 'OPENROUTER_MODELS')
+    ? env.OPENROUTER_MODELS
+    : DEFAULT_FREE_MODELS.join(',');
+  const models = String(rawModels ?? '')
+    .split(',')
+    .map((model) => model.trim())
+    .filter(Boolean)
+    .slice(0, 3);
+
+  if (models.length === 0) {
+    throw new Error('OPENROUTER_MODELS necesita al menos un modelo gratuito.');
+  }
+  if (!models.every(isFreeOpenRouterModel)) {
+    throw new Error(
+      'OPENROUTER_MODELS sólo puede contener modelos gratuitos con :free u openrouter/free.'
+    );
+  }
+  return Object.freeze(models);
+}
+
 function normalizeOrigin(value, label) {
   let url;
   try {
@@ -44,15 +78,7 @@ export function createConfig(env = process.env) {
     throw new Error('PUBLIC_ORIGIN debe usar HTTPS en producción.');
   }
 
-  const models = (env.OPENROUTER_MODELS || [
-    'google/gemma-4-31b-it:free',
-    'nvidia/nemotron-3-ultra-550b-a55b:free',
-    'openai/gpt-oss-20b:free',
-  ].join(','))
-    .split(',')
-    .map((model) => model.trim())
-    .filter(Boolean)
-    .slice(0, 3);
+  const models = readFreeModels(env);
 
   return {
     nodeEnv,
@@ -64,12 +90,14 @@ export function createConfig(env = process.env) {
     chat: {
       apiKey: env.OPENROUTER_API_KEY || '',
       models,
-      rateLimitMax: readPositiveInteger(env.CHAT_RATE_LIMIT_MAX, 20, { max: 500 }),
-      rateLimitWindowMs: readPositiveInteger(env.CHAT_RATE_LIMIT_WINDOW_MS, 60_000, {
+      rateLimitMax: readPositiveInteger(env.CHAT_RATE_LIMIT_MAX, 5, { max: 50 }),
+      rateLimitWindowMs: readPositiveInteger(env.CHAT_RATE_LIMIT_WINDOW_MS, 600_000, {
         min: 1_000,
         max: 3_600_000,
       }),
-      maxConcurrent: readPositiveInteger(env.CHAT_MAX_CONCURRENT, 8, { max: 100 }),
+      globalDailyMax: readPositiveInteger(env.CHAT_GLOBAL_DAILY_MAX, 45, { max: 50 }),
+      globalDailyWindowMs: 24 * 60 * 60 * 1_000,
+      maxConcurrent: readPositiveInteger(env.CHAT_MAX_CONCURRENT, 4, { max: 20 }),
       timeoutMs: readPositiveInteger(env.CHAT_TIMEOUT_MS, 20_000, {
         min: 1_000,
         max: 60_000,

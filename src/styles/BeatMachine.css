@@ -1,0 +1,225 @@
+/* LA MESA DE BEATS — caja de ritmos dibujada */
+
+.mesa-wrap {
+    position: relative;
+    /* Hueco para El Freeze bailando encima de la mesa */
+    margin-top: clamp(92px, 12vw, 118px);
+}
+
+/* El Freeze baila tu beat: el balanceo va a la velocidad del BPM */
+.mesa-dancer {
+    position: absolute;
+    bottom: calc(100% - 8px);
+    right: 5%;
+    height: clamp(110px, 15vw, 150px);
+    width: auto;
+    z-index: 3;
+    pointer-events: none;
+    user-select: none;
+    transform-origin: 20% 95%;
+    animation-name: mesa-baile;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+}
+
+@keyframes mesa-baile {
+    0%, 100% {
+        transform: rotate(-3deg);
+    }
+    50% {
+        transform: rotate(5deg) translateY(-4px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mesa-dancer {
+        animation: none !important;
+    }
+}
+
+.mesa {
+    position: relative;
+    z-index: 2;
+    background-color: var(--card);
+    border: 2px solid var(--ink);
+    border-radius: var(--wobble-md);
+    box-shadow: var(--shadow-ink);
+    padding: 22px 24px 16px;
+}
+
+/* ---------- Rejilla ---------- */
+
+.mesa-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+}
+
+/* Pista para el dedo en móvil: la rejilla se desliza */
+.mesa-hint {
+    display: none;
+    margin: 8px 0 0;
+    font-family: var(--font-hand);
+    font-size: 0.92rem;
+    color: var(--muted);
+    text-align: right;
+}
+
+.mesa-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.mesa-label {
+    font-family: var(--font-hand);
+    font-size: 1.05rem;
+    width: 64px;
+    flex-shrink: 0;
+    transform: rotate(-1deg);
+}
+
+.mesa-cells {
+    display: flex;
+    gap: 6px;
+}
+
+.mesa-cell {
+    width: clamp(24px, 3.2vw, 34px);
+    height: clamp(24px, 3.2vw, 34px);
+    flex-shrink: 0;
+    border: 2px solid var(--ink);
+    border-radius: var(--wobble-sm);
+    background-color: var(--card);
+    cursor: pointer;
+    padding: 0;
+    transition: transform 0.08s ease, background-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+/* Marca visual de cada pulso (pasos 1, 5, 9, 13) */
+.mesa-cell.marca {
+    background-color: var(--paper);
+}
+
+.mesa-cell:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 2px 2px 0 var(--ink);
+}
+
+.mesa-cell.on {
+    background-color: var(--ink);
+    box-shadow: 2px 2px 0 rgba(26, 26, 26, 0.35);
+}
+
+.mesa-cell.on.roja {
+    background-color: var(--accent);
+}
+
+/* Columna que está sonando ahora mismo */
+.mesa-cell.actual {
+    transform: translateY(-2px);
+    border-color: var(--accent);
+    box-shadow: 0 3px 0 var(--accent);
+}
+
+/* ---------- Controles ---------- */
+
+.mesa-controls {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 2px dashed var(--line);
+}
+
+.mesa-play {
+    width: 58px;
+    height: 58px;
+}
+
+.mesa-bpm {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 190px;
+}
+
+.mesa-bpm-valor {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    white-space: nowrap;
+    transform: rotate(-1.5deg);
+    min-width: 74px;
+}
+
+.mesa-bpm input {
+    flex: 1;
+    accent-color: var(--accent);
+    cursor: pointer;
+    height: 16px;
+}
+
+.mesa-acciones {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.mesa-acciones .btn {
+    padding: 6px 16px;
+    font-size: 1rem;
+}
+
+.mesa-nota {
+    margin: 12px 2px 0;
+    font-family: var(--font-hand);
+    font-size: 0.95rem;
+    color: var(--muted);
+    transform: rotate(-0.5deg);
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 640px) {
+    .mesa {
+        padding: 14px 12px 12px;
+    }
+
+    .mesa-label {
+        width: 52px;
+        font-size: 0.92rem;
+    }
+
+    .mesa-cells {
+        gap: 4px;
+    }
+
+    .mesa-cell {
+        width: 26px;
+        height: 26px;
+    }
+
+    .mesa-hint {
+        display: block;
+    }
+
+    .mesa-controls {
+        gap: 12px;
+    }
+
+    .mesa-dancer {
+        height: 96px;
+        right: 3%;
+    }
+
+    .mesa-wrap {
+        margin-top: 84px;
+    }
+}

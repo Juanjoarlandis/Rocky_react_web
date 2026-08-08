@@ -27,6 +27,9 @@ describe('Shopify configuration', () => {
     expect(config.apiVersion).toBe('2026-07');
     expect(config.storeDomain).toBe('rocky-dev.myshopify.com');
     expect(config.storefrontTokenType).toBe('private');
+    expect(config.webhookTopics).toEqual(
+      new Set(['app/uninstalled', 'app/scopes_update', 'orders/paid'])
+    );
     expect(config.capabilities).toEqual({
       catalog: true,
       cart: true,

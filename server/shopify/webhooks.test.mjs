@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { MemoryStore } from '../encrypted-store.mjs';
 import { processWebhookDelivery, verifyWebhookHmac } from './webhooks.mjs';
 
@@ -79,5 +79,72 @@ describe('Shopify webhooks', () => {
     await expect(
       processWebhookDelivery({ input: { ...baseInput, apiVersion: '2025-01' }, config, store })
     ).rejects.toMatchObject({ status: 409 });
+  });
+
+  it('parses a paid order only after verification and retries business delivery safely', async () => {
+    const store = new MemoryStore();
+    const paidBody = Buffer.from(JSON.stringify({
+      admin_graphql_api_id: 'gid://shopify/Order/77',
+      current_total_price_set: {
+        shop_money: { amount: '34.99', currency_code: 'EUR' },
+      },
+      customer: { admin_graphql_api_id: 'gid://shopify/Customer/1' },
+    }));
+    const input = {
+      rawBody: paidBody,
+      hmac: sign(paidBody),
+      webhookId: 'delivery-paid-123',
+      eventId: 'event-paid-123',
+      topic: 'orders/paid',
+      shopDomain: 'rocky-dev.myshopify.com',
+      apiVersion: '2026-07',
+    };
+    const config = {
+      storeDomain: 'rocky-dev.myshopify.com',
+      apiVersion: '2026-07',
+      clientSecret: secret,
+      webhookTopics: new Set(['orders/paid']),
+    };
+    const onDelivery = vi.fn().mockResolvedValue(undefined);
+
+    await processWebhookDelivery({ input, config, store, onDelivery });
+    await processWebhookDelivery({ input, config, store, onDelivery });
+
+    expect(onDelivery).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      topic: 'orders/paid',
+      duplicate: false,
+      payload: expect.objectContaining({
+        admin_graphql_api_id: 'gid://shopify/Order/77',
+      }),
+    }));
+    expect(onDelivery).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      topic: 'orders/paid',
+      duplicate: true,
+    }));
+  });
+
+  it('never parses or dispatches an order with an invalid HMAC', async () => {
+    const onDelivery = vi.fn();
+    const config = {
+      storeDomain: 'rocky-dev.myshopify.com',
+      apiVersion: '2026-07',
+      clientSecret: secret,
+      webhookTopics: new Set(['orders/paid']),
+    };
+
+    await expect(processWebhookDelivery({
+      input: {
+        rawBody: Buffer.from('{not-json', 'utf8'),
+        hmac: 'bad',
+        webhookId: 'delivery-paid-bad',
+        topic: 'orders/paid',
+        shopDomain: 'rocky-dev.myshopify.com',
+        apiVersion: '2026-07',
+      },
+      config,
+      store: new MemoryStore(),
+      onDelivery,
+    })).rejects.toMatchObject({ status: 401 });
+    expect(onDelivery).not.toHaveBeenCalled();
   });
 });

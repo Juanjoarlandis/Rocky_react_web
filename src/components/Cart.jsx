@@ -2,9 +2,10 @@ import React from 'react';
 import { Link } from 'react-router';
 import { parsePrice, formatPrice } from '../utils/price';
 import PlaceholderTee from './PlaceholderTee';
-import emptyCartImage from '../images/tumbado.png';
-import asomadoBorde from '../images/characters/asomado-borde.png';
-import dormidoEsperando from '../images/characters/dormido-esperando.png';
+import emptyCartImage from '../images/optimized/shell/tumbado-800.webp';
+import asomadoBorde from '../images/optimized/characters/asomado-borde-600.webp';
+import dormidoEsperando from '../images/optimized/characters/dormido-esperando-600.webp';
+import bombillaEureka from '../images/optimized/characters/bombilla-eureka-600.webp';
 import '../styles/Cart.css';
 
 const PLACEHOLDER = '/products/placeholder-unreleased.webp';
@@ -12,6 +13,7 @@ const PLACEHOLDER = '/products/placeholder-unreleased.webp';
 function Cart({
     cart,
     cartCost = null,
+    warnings = [],
     commerceMode = 'demo',
     canCheckout = false,
     busy = false,
@@ -44,6 +46,8 @@ function Cart({
             <div className="cart-empty">
                 <div className="cart-empty-card">
                     <img src={emptyCartImage} alt="" className="cart-empty-illustration" />
+                    {/* El Bombilla ya sabe la solución: ¡a la tienda! */}
+                    <img src={bombillaEureka} alt="" className="cart-empty-idea" />
                     <h1 className="page-title">Tu carrito está vacío</h1>
                     <p>Échale un ojo al último drop.</p>
                     <Link to="/" className="btn btn-primary">Ver la tienda</Link>
@@ -58,6 +62,14 @@ function Cart({
                 <h1 className="page-title">Tu carrito</h1>
                 <Link to="/" className="btn btn-ghost">Seguir comprando</Link>
             </div>
+
+            {warnings.length > 0 && (
+                <ul className="cart-warnings" role="alert">
+                    {warnings.map((warning) => (
+                        <li key={`${warning.code}:${warning.message}`}>{warning.message}</li>
+                    ))}
+                </ul>
+            )}
 
             <div className="cart-list-wrap">
                 {/* Un curioso asomado tras el borde del carrito */}
@@ -91,6 +103,9 @@ function Cart({
                                     <p className="cart-item-price">{unitPrice} / ud.</p>
                                 ) : (
                                     <p className="badge-soon">Próximamente</p>
+                                )}
+                                {isShopify && product.availableForSale === false && (
+                                    <p className="cart-item-soldout">Agotado — quítalo del carrito</p>
                                 )}
                             </div>
                             <div className="cart-item-quantity" aria-label={`Cantidad de ${product.title}`}>

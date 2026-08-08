@@ -1,8 +1,9 @@
 import React from 'react';
 import '../styles/Footer.css';
 
-import instagramIcon from '../images/instagram.png';
-import guysSittingImage from '../images/Sentado.png';
+import instagramIcon from '../images/optimized/shell/instagram-64.webp';
+import guysSittingImage from '../images/optimized/shell/sentado-860.webp';
+import lataSpray from '../images/optimized/splash/lata-spray.webp';
 
 const TICKER_ITEMS = [
     'ROCKY 035',
@@ -23,9 +24,21 @@ const Footer = () => {
     return (
         <>
             <div className="ticker" aria-hidden="true">
-                <div className="ticker-track">
-                    <span>{tickerText}</span>
-                    <span>{tickerText}</span>
+                {/* El Lata, autor confeso de la marquesina, de pie sobre ella */}
+                <img
+                    src={lataSpray}
+                    width="133"
+                    height="300"
+                    loading="lazy"
+                    decoding="async"
+                    alt=""
+                    className="ticker-lata"
+                />
+                <div className="ticker-clip">
+                    <div className="ticker-track">
+                        <span>{tickerText}</span>
+                        <span>{tickerText}</span>
+                    </div>
                 </div>
             </div>
             <footer className="footer">
@@ -33,6 +46,10 @@ const Footer = () => {
             <div className="footer-inner">
                 <img
                     src={guysSittingImage}
+                    width="860"
+                    height="538"
+                    loading="lazy"
+                    decoding="async"
                     alt="Ilustración de tres chicos sentados con ropa ROCKY"
                     className="footer-illustration"
                 />
@@ -43,7 +60,15 @@ const Footer = () => {
                     className="footer-social"
                     aria-label="Instagram de ROCKY 035"
                 >
-                    <img src={instagramIcon} alt="" className="footer-social-icon" />
+                    <img
+                        src={instagramIcon}
+                        width="64"
+                        height="64"
+                        loading="lazy"
+                        decoding="async"
+                        alt=""
+                        className="footer-social-icon"
+                    />
                     <span>@rocky035</span>
                 </a>
                 <p className="footer-brand">ROCKY 035 — www.rocky035.com</p>

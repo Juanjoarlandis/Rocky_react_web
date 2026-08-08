@@ -91,3 +91,21 @@ export function getCustomerAccount() {
 export function logoutCustomerAccount() {
   return requestJson('/account/logout', { method: 'POST', body: {} });
 }
+
+export function getCrewProfile() {
+  return requestJson('/account/crew');
+}
+
+export function equipCrewReward(rewardId) {
+  return requestJson('/account/crew/avatar', {
+    method: 'PATCH',
+    body: { rewardId },
+  });
+}
+
+export function redeemCrewReward({ rewardId, operationId = createOperationId() }) {
+  return requestJson('/account/crew/redeem', {
+    method: 'POST',
+    body: { rewardId, operationId },
+  });
+}

@@ -6,9 +6,10 @@
       "runtimeExecutable": "sh",
       "runtimeArgs": [
         "-c",
-        "cd /Users/juanjo/Rocky_react_web && PORT=3001 npm run dev"
+        "cd /Users/juanjo/Rocky_react_web && PORT=3001 npx concurrently --kill-others \"npx vite --port 3100 --strictPort\" \"node --watch server.mjs\""
       ],
-      "port": 3000
+      "port": 3100,
+      "autoPort": false
     }
   ]
 }

@@ -35,9 +35,16 @@ marcan la posición; estas imágenes los sustituirán.
 
 ## Flujo de trabajo
 
-1. Leer un prompt de `01-*.md` … `10-*.md` (04, 05 y 10 son opcionales;
-   la segunda tanda 06–10 amplía la banda: skater, colgado, corriendo con la
-   bolsa, dormido esperando el drop y la propuesta de perro mascota).
+1. Leer un prompt de `01-*.md` … `24-*.md`:
+   - 01–05: la primera tanda (grafitero, sentados, asomado, perdido).
+   - 06–10: la segunda (skater, colgado, corriendo, dormido, perro).
+   - 11–15: material gráfico (stickers, corona) y La Colmena (productor,
+     rapero, abeja) — pendientes de generar.
+   - 16–24: la TERCERA TANDA — cabezas nuevas (estrella, dado, nube, tele,
+     lata de spray, media luna, diana, bombilla) y La Cruiser, la chica de la
+     crew. Cada una con su anclaje anotado para el sistema de "apoyados";
+     al generarlas, adjuntar también los cabezones geométricos ya hechos de
+     `salidas/` como referencia de la familia.
 2. Generar adjuntando como referencia visual las imágenes de `referencias/`
    (mínimo `tumbado.png` y `sentados-banco.png`).
 3. Guardar el PNG transparente en `salidas/` con el nombre exacto que indica

@@ -1,4 +1,5 @@
 import express from 'express';
+import { CrewRewardsError } from '../crew/rewards.mjs';
 import { createAdminClient } from './admin.mjs';
 import { createCustomerAccountClient, CustomerAccountError } from './customer-account.mjs';
 import { ShopifyGraphqlError } from './graphql.mjs';
@@ -58,16 +59,21 @@ export function createShopifyRouter({
   store,
   sessions,
   requireOrigin,
+  crewRewards = null,
+  customerAccounts: providedCustomerAccounts,
+  storefront: providedStorefront,
   fetchImpl = globalThis.fetch,
 }) {
   const router = express.Router();
   const withCartLock = createKeyedLock();
-  const storefront = config.capabilities.catalog
-    ? createStorefrontClient({ config, fetchImpl })
-    : null;
-  const customerAccounts = config.capabilities.customerAccounts
-    ? createCustomerAccountClient({ config, store, fetchImpl })
-    : null;
+  const storefront = providedStorefront || (
+    config.capabilities.catalog ? createStorefrontClient({ config, fetchImpl }) : null
+  );
+  const customerAccounts = providedCustomerAccounts || (
+    config.capabilities.customerAccounts
+      ? createCustomerAccountClient({ config, store, fetchImpl })
+      : null
+  );
   const admin = config.capabilities.admin
     ? createAdminClient({ config, fetchImpl })
     : null;
@@ -312,6 +318,67 @@ export function createShopifyRouter({
     })
   );
 
+  async function requireCrewCustomer(req) {
+    if (!customerAccounts || !crewRewards) {
+      throw new CrewRewardsError('El perfil Crew todavía no está disponible.', {
+        status: 503,
+        code: 'CREW_UNAVAILABLE',
+      });
+    }
+    const session = await sessions.read(req);
+    if (!session?.record.customerTokenId) {
+      throw new CrewRewardsError('Inicia sesión para entrar en tu perfil Crew.', {
+        status: 401,
+        code: 'CREW_AUTH_REQUIRED',
+      });
+    }
+    const customer = await customerAccounts.getCustomerProfile(
+      session.record.customerTokenId
+    );
+    return {
+      id: customer.id,
+      displayName: customer.displayName || customer.firstName || 'Miembro 035',
+    };
+  }
+
+  router.get(
+    '/account/crew',
+    asyncRoute(async (req, res) => {
+      const customer = await requireCrewCustomer(req);
+      const profile = await crewRewards.getProfile(customer.id, {
+        displayName: customer.displayName,
+      });
+      return res.json({ profile });
+    })
+  );
+
+  router.patch(
+    '/account/crew/avatar',
+    requireOrigin,
+    asyncRoute(async (req, res) => {
+      const customer = await requireCrewCustomer(req);
+      const profile = await crewRewards.equipReward(customer.id, {
+        rewardId: req.body?.rewardId,
+        displayName: customer.displayName,
+      });
+      return res.json({ profile });
+    })
+  );
+
+  router.post(
+    '/account/crew/redeem',
+    requireOrigin,
+    asyncRoute(async (req, res) => {
+      const customer = await requireCrewCustomer(req);
+      const profile = await crewRewards.redeemReward(customer.id, {
+        rewardId: req.body?.rewardId,
+        operationId: req.body?.operationId,
+        displayName: customer.displayName,
+      });
+      return res.json({ profile });
+    })
+  );
+
   router.post(
     '/account/logout',
     requireOrigin,
@@ -329,11 +396,15 @@ export function createShopifyRouter({
 
   router.use((error, req, res, next) => {
     if (res.headersSent) return next(error);
-    if (error instanceof ShopifyGraphqlError || error instanceof CustomerAccountError) {
+    if (
+      error instanceof ShopifyGraphqlError ||
+      error instanceof CustomerAccountError ||
+      error instanceof CrewRewardsError
+    ) {
       return res.status(error.status).json({ message: error.message, code: error.code });
     }
     return next(error);
   });
 
-  return { router, admin };
+  return { router, admin, customerAccounts };
 }

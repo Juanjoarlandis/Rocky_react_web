@@ -2,7 +2,7 @@ import React from 'react';
 
 const UNRELEASED_MOCKUP = '/products/placeholder-unreleased.webp';
 
-function PlaceholderTee({ title = '', compact = false }) {
+function PlaceholderTee({ title = '', compact = false, priority = false }) {
     return (
         <span
             role="img"
@@ -14,8 +14,9 @@ function PlaceholderTee({ title = '', compact = false }) {
                 alt=""
                 width="1254"
                 height="1254"
-                decoding="async"
-                loading="lazy"
+                decoding={priority ? 'auto' : 'async'}
+                loading={priority ? 'eager' : 'lazy'}
+                fetchPriority={priority ? 'high' : undefined}
                 draggable="false"
                 className="placeholder-tee__image"
             />

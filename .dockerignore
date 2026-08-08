@@ -1,0 +1,12 @@
+.git
+.claude
+.data
+.env
+.env.*
+!.env.example
+coverage
+dist
+docs
+node_modules
+prompts-munecos
+*.log

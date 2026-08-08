@@ -245,6 +245,28 @@
     text-transform: none;
 }
 
+.cart-item-soldout {
+    margin: 0.2rem 0 0;
+    color: var(--accent-dark);
+    font-family: var(--font-hand);
+    font-size: 0.95rem;
+}
+
+.cart-warnings {
+    list-style: none;
+    margin: 0 0 1.25rem;
+    padding: 0.9rem 1.1rem;
+    display: grid;
+    gap: 0.4rem;
+    border: 2px solid var(--accent);
+    border-radius: var(--wobble-sm);
+    background: var(--card);
+    color: var(--accent-dark);
+    font-family: var(--font-hand);
+    font-size: 1.05rem;
+    box-shadow: var(--shadow-ink);
+}
+
 .cart-summary-note {
     margin: 0;
     color: var(--accent-dark);
@@ -286,6 +308,18 @@
     width: clamp(180px, 42%, 250px);
     /* El costado apoya en el borde de la tarjeta, las piernas cuelgan por delante */
     transform: translateY(46.6%);
+    pointer-events: none;
+    user-select: none;
+    z-index: 1;
+}
+
+/* El Bombilla de pie en la otra punta de la tarjeta, con la idea clara */
+.cart-empty-idea {
+    position: absolute;
+    bottom: calc(100% - 6px);
+    left: 7%;
+    height: clamp(110px, 14vw, 148px);
+    width: auto;
     pointer-events: none;
     user-select: none;
     z-index: 1;

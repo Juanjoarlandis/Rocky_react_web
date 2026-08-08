@@ -184,4 +184,58 @@ describe('Shopify HTTP contracts', () => {
     expect(webhook.status).toBe(200);
     await expect(webhook.json()).resolves.toEqual({ accepted: true, duplicate: false });
   });
+
+  it('credits a signed paid order to Crew exactly once', async () => {
+    const secret = 'shopify-client-secret';
+    const store = new MemoryStore();
+    const baseUrl = await start({
+      env: {
+        ...configuredEnv(),
+        SHOPIFY_CLIENT_SECRET: secret,
+        SHOPIFY_WEBHOOK_TOPICS: 'orders/paid',
+      },
+      store,
+    });
+    const rawBody = Buffer.from(JSON.stringify({
+      admin_graphql_api_id: 'gid://shopify/Order/77',
+      name: '#1035',
+      processed_at: '2026-08-07T18:00:00Z',
+      current_total_price_set: {
+        shop_money: { amount: '34.99', currency_code: 'EUR' },
+      },
+      customer: { admin_graphql_api_id: 'gid://shopify/Customer/1' },
+      line_items: [{ title: 'Rockydz Boyz', quantity: 1 }],
+    }));
+    const hmac = crypto.createHmac('sha256', secret).update(rawBody).digest('base64');
+    const headers = {
+      'Content-Type': 'application/json',
+      'X-Shopify-Hmac-Sha256': hmac,
+      'X-Shopify-Webhook-Id': 'delivery-paid-123',
+      'X-Shopify-Event-Id': 'event-paid-123',
+      'X-Shopify-Topic': 'orders/paid',
+      'X-Shopify-Shop-Domain': 'rocky-dev.myshopify.com',
+      'X-Shopify-Api-Version': '2026-07',
+    };
+
+    const first = await fetch(`${baseUrl}/api/shopify/webhooks`, {
+      method: 'POST',
+      headers,
+      body: rawBody,
+    });
+    const second = await fetch(`${baseUrl}/api/shopify/webhooks`, {
+      method: 'POST',
+      headers,
+      body: rawBody,
+    });
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    const storedProfiles = Object.values(store.state.namespaces.crewProfiles || {});
+    expect(storedProfiles).toHaveLength(1);
+    expect(storedProfiles[0].value).toMatchObject({
+      xp: 34,
+      ticketBalanceTenths: 34,
+      creditedOrderIds: ['gid://shopify/Order/77'],
+    });
+  });
 });

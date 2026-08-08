@@ -16,6 +16,11 @@
     transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
+/* En la pantalla del chat sube para no tapar el botón de enviar */
+.app--chat .mini-player {
+    bottom: calc(104px + env(safe-area-inset-bottom, 0px));
+}
+
 .mini-player:hover {
     transform: rotate(0deg) translate(-2px, -2px);
     box-shadow: var(--shadow-ink-lg);
@@ -90,5 +95,11 @@
     .mini-player-btn {
         width: 38px;
         height: 38px;
+    }
+
+    /* En el chat de Rocky IA no cabe: taparía los chips y el compositor.
+       La radio se sigue controlando desde el resto de la web. */
+    .app--chat .mini-player {
+        display: none;
     }
 }

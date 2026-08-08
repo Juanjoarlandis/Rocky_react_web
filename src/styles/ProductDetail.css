@@ -197,12 +197,25 @@
 }
 
 .detail-buy {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 24px;
     flex-wrap: wrap;
     padding-top: 20px;
     border-top: 2px dashed var(--ink);
+    /* Aire para El Nube paseando por la línea de puntos */
+    margin-top: clamp(84px, 10vw, 108px);
+}
+
+.detail-nube {
+    position: absolute;
+    bottom: calc(100% - 4px);
+    right: 8%;
+    height: clamp(88px, 11vw, 112px);
+    width: auto;
+    pointer-events: none;
+    user-select: none;
 }
 
 .detail-price {

@@ -50,6 +50,18 @@
     pointer-events: none;
 }
 
+/* La Cruiser rodando sobre la línea, hacia el grafitero */
+.spray-cruiser {
+    position: absolute;
+    left: 4%;
+    bottom: 4px;
+    height: clamp(96px, 12vw, 132px);
+    width: auto;
+    z-index: 1;
+    pointer-events: none;
+    user-select: none;
+}
+
 .product-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -218,5 +230,10 @@
 
     .spray-guy {
         height: 148px;
+    }
+
+    .spray-cruiser {
+        height: 88px;
+        left: 1%;
     }
 }

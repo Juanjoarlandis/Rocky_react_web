@@ -9,6 +9,26 @@
   width: 100%;
 }
 
+/* Pantalla de chat (Rocky IA): la página queda clavada al viewport,
+   sin scroll exterior — solo se desplazan los mensajes por dentro. */
+.app--chat {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.app--chat .app-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.app--chat .commerce-notice {
+  flex-shrink: 0;
+  margin-top: 10px;
+}
+
 .commerce-notice {
   width: min(100% - 32px, 1120px);
   margin: 16px auto 0;
@@ -28,18 +48,4 @@
   color: var(--accent-dark);
 }
 
-/* Splash de entrada */
-.splash {
-  position: fixed;
-  inset: 0;
-  background-color: #000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-}
-
-.splash-gif {
-  width: min(70vw, 420px);
-  height: auto;
-}
+/* Splash de entrada: ver styles/SplashIntro.css */

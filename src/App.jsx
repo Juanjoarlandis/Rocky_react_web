@@ -1,5 +1,5 @@
 import React, { Suspense, useEffect, useState } from 'react';
-import { Route, Routes } from 'react-router';
+import { Route, Routes, useLocation } from 'react-router';
 import NavBar from './components/NavBar';
 import Footer from './components/Footer';
 import NotFound from './components/NotFound';
@@ -7,28 +7,36 @@ import ScrollToTop from './components/ScrollToTop';
 import MiniPlayer from './components/MiniPlayer';
 import { MusicProvider } from './context/MusicContext';
 import { CrosshairSpinner } from './components/BrandDoodles';
+import SplashIntro from './components/SplashIntro';
+import ProductPage from './components/ProductPage';
 import demoProducts from './PRODUCTOS_ROCKY.json';
+import previewProducts from '../server/preview-products.mjs';
 import { useStorefront } from './shopify/useStorefront';
-import loadingGif from './images/rocky035.gif';
 import './App.css';
 
 // Páginas cargadas bajo demanda
-const ProductPage = React.lazy(() => import('./components/ProductPage'));
 const ProductDetail = React.lazy(() => import('./components/ProductDetail'));
 const Cart = React.lazy(() => import('./components/Cart'));
 const ChatComponent = React.lazy(() => import('./components/ChatComponent'));
 const MenuDrop = React.lazy(() => import('./components/MenuDrop'));
 const Studio = React.lazy(() => import('./components/Studio'));
 const Crew = React.lazy(() => import('./components/Crew'));
+const CrewProfile = React.lazy(() => import('./components/CrewProfile'));
 
 const SPLASH_KEY = 'rocky-splash-seen';
-const SPLASH_MS = 2200;
+const SPLASH_MS = 3000;
+const DEMO_CATALOG = Object.freeze([...demoProducts, ...previewProducts]);
 
 function App() {
   const [showSplash, setShowSplash] = useState(
     () => !sessionStorage.getItem(SPLASH_KEY)
   );
-  const commerce = useStorefront({ demoProducts });
+  const commerce = useStorefront({
+    demoProducts: DEMO_CATALOG,
+    previewProducts,
+  });
+  // Rocky IA es una pantalla de chat a viewport completo: sin footer ni scroll de página
+  const esChat = useLocation().pathname === '/rockyIA';
 
   useEffect(() => {
     if (!showSplash) return;
@@ -39,33 +47,23 @@ function App() {
     return () => clearTimeout(timer);
   }, [showSplash]);
 
-  if (showSplash) {
-    return (
-      <div className="splash">
-        <img src={loadingGif} alt="Cargando ROCKY 035..." className="splash-gif" />
-      </div>
-    );
-  }
-
   return (
     <MusicProvider>
-    <div className="app">
+    {showSplash && <SplashIntro />}
+    <div className={`app ${esChat ? 'app--chat' : ''}`}>
       <NavBar
         totalItems={commerce.totalItems}
         accountEnabled={commerce.capabilities.customerAccounts}
         account={commerce.account}
-        onLogout={commerce.logout}
       />
       <ScrollToTop />
       <main className="app-main">
-        {(commerce.loading || commerce.mode === 'demo' || commerce.error) && (
+        {((!commerce.loading && commerce.mode === 'demo') || commerce.error) && (
           <div
             className={`commerce-notice ${commerce.error ? 'commerce-notice-error' : ''}`}
             role={commerce.error ? 'alert' : 'status'}
           >
-            {commerce.error || (commerce.loading
-              ? 'Comprobando conexión segura con la tienda…'
-              : 'Modo demo: catálogo de muestra, sin reserva de stock ni pagos.')}
+            {commerce.error || 'Modo demo: catálogo de muestra, sin reserva de stock ni pagos.'}
           </div>
         )}
         <Suspense
@@ -85,6 +83,7 @@ function App() {
                   addToCart={commerce.addToCart}
                   commerceMode={commerce.mode}
                   canAddToCart={commerce.mode !== 'shopify' || commerce.capabilities.cart}
+                  prioritizeFirstImage={!showSplash}
                 />
               }
             />
@@ -96,6 +95,7 @@ function App() {
                   addToCart={commerce.addToCart}
                   commerceMode={commerce.mode}
                   canAddToCart={commerce.mode !== 'shopify' || commerce.capabilities.cart}
+                  prioritizeFirstImage={!showSplash}
                 />
               }
             />
@@ -106,6 +106,7 @@ function App() {
                 <Cart
                   cart={commerce.cartItems}
                   cartCost={commerce.cartCost}
+                  warnings={commerce.cartWarnings}
                   commerceMode={commerce.mode}
                   canCheckout={commerce.canCheckout}
                   busy={commerce.cartBusy}
@@ -127,14 +128,33 @@ function App() {
                 />
               }
             />
-            <Route path="/rockyIA" element={<ChatComponent />} />
+            <Route
+              path="/rockyIA"
+              element={
+                <ChatComponent
+                  addToCart={commerce.addToCart}
+                  commerceMode={commerce.mode}
+                  canAddToCart={commerce.mode === 'shopify' && commerce.capabilities.cart}
+                />
+              }
+            />
             <Route path="/estudio" element={<Studio />} />
             <Route path="/crew" element={<Crew />} />
+            <Route
+              path="/mi-crew"
+              element={
+                <CrewProfile
+                  accountEnabled={commerce.capabilities.customerAccounts}
+                  account={commerce.account}
+                  onLogout={commerce.logout}
+                />
+              }
+            />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
       </main>
-      <Footer />
+      {!esChat && <Footer />}
       <MiniPlayer />
     </div>
     </MusicProvider>

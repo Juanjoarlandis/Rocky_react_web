@@ -1,0 +1,21 @@
+services:
+  rocky035:
+    image: ${ROCKY_IMAGE:-rocky035:local}
+    container_name: rocky035
+    restart: unless-stopped
+    init: true
+    env_file:
+      - /etc/rocky035/rocky.env
+    ports:
+      - "127.0.0.1:3100:3001"
+    volumes:
+      - /var/lib/rocky035:/app/.data
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    stop_grace_period: 20s

@@ -147,6 +147,12 @@ export function sanitizeCart(cart) {
   };
 }
 
+// Shopify entrega el id de linea como UUID y le cuelga el token del carrito:
+// gid://shopify/CartLine/<uuid>?cart=<token>. Esto solo descarta formas
+// imposibles; la pertenencia real la valida la ruta contra el carrito de la
+// sesion antes de llamar a la mutacion.
+const CART_LINE_ID = /^gid:\/\/shopify\/CartLine\/[A-Za-z0-9-]+(\?cart=[A-Za-z0-9_-]+)?$/;
+
 function validateVariantInput(input) {
   const variantId = input?.variantId;
   const quantity = Number.parseInt(input?.quantity, 10);
@@ -241,7 +247,7 @@ export function createStorefrontClient({ config, fetchImpl = globalThis.fetch })
     },
 
     async updateLines(fullCartId, { lineId, quantity }, { buyerIp } = {}) {
-      if (!/^gid:\/\/shopify\/CartLine\/[A-Za-z0-9]+$/.test(lineId || '')) {
+      if (!CART_LINE_ID.test(lineId || '')) {
         throw new ShopifyGraphqlError('La línea del carrito no es válida.', {
           status: 400,
           code: 'INVALID_LINE',
@@ -263,7 +269,7 @@ export function createStorefrontClient({ config, fetchImpl = globalThis.fetch })
     },
 
     async removeLines(fullCartId, { lineId }, { buyerIp } = {}) {
-      if (!/^gid:\/\/shopify\/CartLine\/[A-Za-z0-9]+$/.test(lineId || '')) {
+      if (!CART_LINE_ID.test(lineId || '')) {
         throw new ShopifyGraphqlError('La línea del carrito no es válida.', {
           status: 400,
           code: 'INVALID_LINE',

@@ -5,6 +5,20 @@ Object.defineProperty(window, 'scrollTo', {
   value: () => {},
 });
 
+Object.defineProperty(window, 'matchMedia', {
+  configurable: true,
+  value: (media) => ({
+    matches: false,
+    media,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  }),
+});
+
 Object.defineProperty(window.HTMLMediaElement.prototype, 'play', {
   configurable: true,
   value: () => Promise.resolve(),

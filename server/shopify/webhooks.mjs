@@ -22,7 +22,13 @@ export function verifyWebhookHmac(rawBody, providedHmac, secret) {
   return provided.length === expected.length && crypto.timingSafeEqual(provided, expected);
 }
 
-export async function processWebhookDelivery({ input, config, store, clock = () => Date.now() }) {
+export async function processWebhookDelivery({
+  input,
+  config,
+  store,
+  onDelivery,
+  clock = () => Date.now(),
+}) {
   if (!verifyWebhookHmac(input.rawBody, input.hmac, config.clientSecret)) {
     throw new WebhookError('Firma de webhook no válida.', 401);
   }
@@ -63,10 +69,25 @@ export async function processWebhookDelivery({ input, config, store, clock = () 
     });
   }
 
+  if (onDelivery) {
+    let payload;
+    try {
+      payload = JSON.parse(input.rawBody.toString('utf8'));
+    } catch {
+      throw new WebhookError('Payload de webhook no válido.', 400);
+    }
+    await onDelivery({
+      topic: input.topic,
+      payload,
+      duplicate: !result.inserted,
+      eventId: input.eventId || null,
+    });
+  }
+
   return { accepted: true, duplicate: !result.inserted };
 }
 
-export function createWebhookHandler({ config, store, logger = console }) {
+export function createWebhookHandler({ config, store, onDelivery, logger = console }) {
   return async (req, res) => {
     try {
       const result = await processWebhookDelivery({
@@ -81,6 +102,7 @@ export function createWebhookHandler({ config, store, logger = console }) {
         },
         config,
         store,
+        onDelivery,
       });
       return res.status(200).json(result);
     } catch (error) {

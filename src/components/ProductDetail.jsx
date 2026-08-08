@@ -4,7 +4,8 @@ import Lightbox from './Lightbox';
 import AddToCartButton from './AddToCartButton';
 import EyeIcon from './EyeIcon';
 import PlaceholderTee from './PlaceholderTee';
-import sentadoBordeBlanco from '../images/characters/sentado-borde-blanco.png';
+import sentadoBordeBlanco from '../images/optimized/characters/sentado-borde-blanco-600.webp';
+import nubePaseando from '../images/optimized/characters/nube-paseando-600.webp';
 import { formatPrice } from '../utils/price';
 import '../styles/ProductDetail.css';
 
@@ -46,8 +47,10 @@ function ProductDetail({
     const selectedVariant = variants.find((variant) => variant.id === selectedVariantId);
     const price = formatPrice(selectedVariant?.price || product.price);
     const selectionRequired = commerceMode === 'shopify';
-    const addDisabled = selectionRequired && (
-        !canAddToCart || !selectedVariant || !selectedVariant.availableForSale
+    const addDisabled = product.isPreview || (
+        selectionRequired && (
+            !canAddToCart || !selectedVariant || !selectedVariant.availableForSale
+        )
     );
 
     return (
@@ -123,6 +126,8 @@ function ProductDetail({
                         </label>
                     )}
                     <div className="detail-buy">
+                        {/* El Nube pasea por la línea de puntos con su paraguas */}
+                        <img src={nubePaseando} alt="" className="detail-nube" />
                         {price ? (
                             <p className="detail-price">{price}</p>
                         ) : (
@@ -133,7 +138,13 @@ function ProductDetail({
                             variantId={selectedVariantId}
                             addToCart={addToCart}
                             disabled={addDisabled}
-                            unavailableLabel={canAddToCart ? 'Agotado' : 'Carrito no disponible'}
+                            unavailableLabel={
+                                product.isPreview
+                                    ? 'Vista previa'
+                                    : canAddToCart
+                                        ? 'Agotado'
+                                        : 'Carrito no disponible'
+                            }
                         />
                     </div>
                 </div>

@@ -32,6 +32,19 @@
     z-index: 1;
 }
 
+/* El Dado sentado en la misma repisa, en la otra punta */
+.drops-dado {
+    position: absolute;
+    bottom: calc(100% - 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    height: clamp(72px, 9vw, 94px);
+    width: auto;
+    z-index: 1;
+    pointer-events: none;
+    user-select: none;
+}
+
 /* El skater volando sobre la zona izquierda */
 .drops-skater {
     position: absolute;

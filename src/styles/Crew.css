@@ -5,7 +5,11 @@
 }
 
 .crew-head {
-    margin-bottom: 36px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 28px;
+    margin-bottom: 26px;
 }
 
 .crew-subtitle {
@@ -16,10 +20,281 @@
     transform: rotate(-0.5deg);
 }
 
+/* ---------- El marcador del álbum ---------- */
+
+.crew-marcador {
+    flex: 0 0 auto;
+    margin-top: 10px;
+    padding: 14px 20px 16px;
+    background-color: var(--card);
+    border: 2px solid var(--ink);
+    border-radius: var(--wobble-sm);
+    box-shadow: var(--shadow-ink-sm);
+    transform: rotate(0.8deg);
+    max-width: 320px;
+}
+
+.marcador-titulo {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.02rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: inline-block;
+    border-bottom: 3px solid var(--accent);
+    transform: rotate(-1deg);
+}
+
+.marcador-club {
+    margin: 8px 0 0;
+    font-family: var(--font-hand);
+    font-size: 0.98rem;
+    color: var(--muted);
+}
+
+.marcador-club b {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 1.05rem;
+    color: var(--ink);
+}
+
+/* Una casilla por expediente: se entinta cuando lo abres */
+.marcador-casillas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin: 10px 0 0;
+    max-width: 272px;
+}
+
+.marcador-casillas span {
+    width: 15px;
+    height: 15px;
+    border: 2px solid var(--ink);
+    border-radius: 4px 7px 5px 8px;
+    background-color: transparent;
+    transition: background-color 0.25s ease, transform 0.25s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+.marcador-casillas span:nth-child(2n) {
+    transform: rotate(4deg);
+}
+
+.marcador-casillas span:nth-child(3n) {
+    transform: rotate(-4deg);
+}
+
+.marcador-casillas span.on {
+    background-color: var(--accent);
+    box-shadow: inset 0 0 0 2px var(--card);
+}
+
+.marcador-tuyo {
+    margin: 9px 0 0;
+    font-family: var(--font-hand);
+    font-size: 0.98rem;
+    color: var(--ink-soft);
+}
+
+.marcador-tuyo b {
+    font-family: var(--font-display);
+    font-weight: 400;
+    color: var(--accent-dark);
+}
+
+/* Álbum completo: el marcador se viste de gala */
+.crew-marcador.completo {
+    background-color: var(--ink);
+    background-image: var(--spray-speckle);
+    color: #fff;
+    transform: rotate(-0.8deg);
+    box-shadow: 5px 5px 0 var(--accent);
+}
+
+.crew-marcador.completo .marcador-titulo,
+.crew-marcador.completo .marcador-club b {
+    color: #fff;
+}
+
+.crew-marcador.completo .marcador-casillas span {
+    border-color: #f4b942;
+}
+
+.crew-marcador.completo .marcador-casillas span.on {
+    background-color: #f4b942;
+    box-shadow: inset 0 0 0 2px var(--ink);
+}
+
+.marcador-logro {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    color: #f4b942;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    display: inline-block;
+    transform: rotate(-1.5deg);
+}
+
+/* ---------- Desfile y contador del álbum ---------- */
+
+.crew-parade-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    margin: 26px 0 40px;
+    padding-bottom: 12px;
+    /* La línea sobre la que posa la banda */
+    background-image: var(--squiggle);
+    background-repeat: repeat-x;
+    background-position: left bottom;
+    background-size: 48px 8px;
+}
+
+.crew-parade {
+    display: flex;
+    align-items: flex-end;
+    gap: clamp(14px, 3vw, 34px);
+    padding-left: 6px;
+}
+
+.crew-parade img {
+    width: auto;
+    user-select: none;
+}
+
+/* ---------- Las láminas del álbum ---------- */
+
+.crew-lamina {
+    margin-bottom: 54px;
+}
+
+.crew-lamina:last-child {
+    margin-bottom: 0;
+}
+
+/* Separador: cinta pintada + nota + cuenta, sobre la línea garabateada */
+.lamina-sep {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin: 0 0 26px;
+    padding-bottom: 14px;
+    background-image: var(--squiggle);
+    background-repeat: repeat-x;
+    background-position: left bottom;
+    background-size: 48px 8px;
+}
+
+.lamina-cinta {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 7px 22px 9px;
+    background-color: var(--ink);
+    color: var(--paper);
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-radius: 4px 14px 6px 16px;
+    box-shadow: 4px 4px 0 rgba(230, 57, 70, 0.85);
+    transform: rotate(-1.2deg);
+}
+
+.crew-lamina:nth-child(2n) .lamina-cinta {
+    transform: rotate(0.9deg);
+    box-shadow: 4px 4px 0 rgba(47, 111, 219, 0.85);
+}
+
+.lamina-num {
+    font-family: var(--font-hand);
+    font-size: 0.85rem;
+    letter-spacing: 0.16em;
+    color: #b3ada0;
+}
+
+.lamina-nota {
+    font-family: var(--font-hand);
+    font-size: 1.05rem;
+    color: var(--muted);
+    transform: rotate(-0.6deg);
+}
+
+.lamina-cuenta {
+    margin-left: auto;
+    font-family: var(--font-hand);
+    font-size: 0.95rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border: 2px dashed var(--line);
+    border-radius: var(--wobble-md);
+    padding: 2px 12px;
+    transform: rotate(1deg);
+    white-space: nowrap;
+}
+
+/* La vitrina: un marco con celo en las esquinas para las rarezas */
+.crew-vitrina-marco {
+    position: relative;
+    padding: 26px 22px 22px;
+    border: 2px solid var(--ink);
+    border-radius: var(--wobble-lg);
+    background-color: rgba(26, 26, 26, 0.025);
+    background-image: radial-gradient(circle, rgba(26, 26, 26, 0.055) 1.2px, transparent 1.2px);
+    background-size: 22px 22px;
+    box-shadow: var(--shadow-ink-sm);
+}
+
+/* Tiras de celo sujetando el marco */
+.crew-vitrina-marco::before,
+.crew-vitrina-marco::after {
+    content: '';
+    position: absolute;
+    width: 92px;
+    height: 30px;
+    background-color: rgba(214, 205, 183, 0.85);
+    border: 1px solid rgba(26, 26, 26, 0.16);
+    top: -15px;
+}
+
+.crew-vitrina-marco::before {
+    left: 34px;
+    transform: rotate(-8deg);
+}
+
+.crew-vitrina-marco::after {
+    right: 34px;
+    transform: rotate(7deg);
+}
+
 .crew-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     gap: 30px;
+}
+
+.crew-grid--vitrina {
+    grid-template-columns: repeat(auto-fill, minmax(255px, 1fr));
+}
+
+/* ---------- Aparición escalonada al hacer scroll ----------
+   Por defecto todo visible; .oculto lo aplica JS solo cuando va a animar */
+
+.crew-card.oculto,
+.crew-hueco.oculto {
+    opacity: 0;
+    translate: 0 22px;
+}
+
+.crew-card.revelado,
+.crew-hueco.revelado {
+    opacity: 1;
+    translate: 0 0;
+    transition: opacity 0.45s ease, translate 0.55s cubic-bezier(0.3, 1.4, 0.5, 1);
+    transition-delay: calc(var(--orden, 0) * 70ms);
 }
 
 /* ---------- El cromo ---------- */
@@ -54,9 +329,14 @@
     transform: rotate(-0.6deg);
 }
 
+/* Tilt 3D: la carta se inclina siguiendo el ratón */
 .crew-card:hover:not(.girado) .crew-card-inner {
-    transform: rotate(0deg) translate(-3px, -3px);
+    transform: translate(-3px, -3px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
     box-shadow: var(--shadow-ink-lg);
+}
+
+.crew-card.tilting:not(.girado) .crew-card-inner {
+    transition: transform 0.09s ease-out;
 }
 
 .crew-card.girado .crew-card-inner {
@@ -123,6 +403,13 @@
 .rareza-original {
     border-color: var(--blue);
     color: var(--blue);
+}
+
+.rareza-la-marca {
+    border-style: solid;
+    border-color: var(--ink);
+    background-color: var(--accent);
+    color: #fff;
 }
 
 .crew-card-media {
@@ -198,6 +485,49 @@
     transform: rotate(-1deg);
 }
 
+/* Tampón de expediente abierto, estampado sobre la foto del cromo */
+.sello-fichado {
+    position: absolute;
+    top: 168px;
+    right: 10px;
+    z-index: 2;
+    font-family: var(--font-display);
+    font-size: 0.8rem;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+    border: 3px double var(--accent);
+    border-radius: 3px 8px 4px 9px;
+    padding: 2px 10px 3px;
+    transform: rotate(-11deg);
+    opacity: 0.85;
+    mix-blend-mode: multiply;
+    pointer-events: none;
+    animation: sello-estampar 0.35s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+.crew-card.especial .sello-fichado {
+    mix-blend-mode: normal;
+    color: #f4b942;
+    border-color: #f4b942;
+}
+
+@keyframes sello-estampar {
+    0% {
+        opacity: 0;
+        transform: rotate(-11deg) scale(2.1);
+    }
+    100% {
+        opacity: 0.85;
+        transform: rotate(-11deg) scale(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sello-fichado {
+        animation: none;
+    }
+}
+
 /* ---------- Reverso: expediente ---------- */
 
 .expediente-titulo {
@@ -244,19 +574,105 @@
     color: var(--accent);
 }
 
+/* Botón de compartir el cromo */
+.expediente-compartir {
+    margin-top: auto;
+    align-self: flex-start;
+    border: none;
+    background: none;
+    padding: 2px 0;
+    font-family: var(--font-hand);
+    font-size: 0.98rem;
+    color: var(--accent-dark);
+    text-decoration: underline wavy var(--accent);
+    text-underline-offset: 4px;
+    cursor: pointer;
+    transform: rotate(-1deg);
+}
+
+.expediente-compartir:hover {
+    color: var(--accent);
+}
+
+/* Número de serie y código de barras garabateado */
+.expediente-serie {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: 8px;
+    color: var(--muted);
+}
+
+.expediente-barcode {
+    width: 88px;
+    height: 13px;
+}
+
+.expediente-serie span {
+    font-family: var(--font-hand);
+    font-size: 0.72rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    /* Deja libre la esquina donde vive el "volver" */
+    padding-right: 56px;
+}
+
 /* Sello de diana estampado en el expediente */
+/* El sello vive arriba a la derecha, en el hueco que deja el título:
+   abajo estorbaba al botón de compartir. */
 .expediente-sello {
     position: absolute;
-    right: 14px;
-    bottom: 40px;
-    width: 74px;
-    height: 74px;
+    right: 12px;
+    top: 10px;
+    width: 66px;
+    height: 66px;
     opacity: 0.85;
     transform: rotate(-14deg);
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'><circle cx='40' cy='40' r='30' fill='none' stroke='%23e63946' stroke-width='4'/><circle cx='40' cy='40' r='14' fill='none' stroke='%23e63946' stroke-width='3'/><path d='M40 4 L40 16 M40 64 L40 76 M4 40 L16 40 M64 40 L76 40' stroke='%23e63946' stroke-width='4' stroke-linecap='round'/><circle cx='40' cy='40' r='3.5' fill='%23e63946'/></svg>");
     background-size: contain;
     background-repeat: no-repeat;
     pointer-events: none;
+}
+
+/* El "volver" del reverso, anclado abajo a la derecha */
+.crew-card-back .crew-girar {
+    position: absolute;
+    right: 16px;
+    bottom: 10px;
+    margin-top: 0;
+}
+
+/* ---------- Brillo foil en cartas con rareza ---------- */
+
+.crew-card.foil .crew-card-front::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    background: linear-gradient(
+        115deg,
+        transparent 40%,
+        rgba(255, 255, 255, 0.45) 50%,
+        transparent 60%
+    );
+    transform: translateX(-130%);
+    pointer-events: none;
+}
+
+.crew-card.foil:hover .crew-card-front::before {
+    animation: foil-sweep 0.9s ease;
+}
+
+@keyframes foil-sweep {
+    to {
+        transform: translateX(130%);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .crew-card.foil:hover .crew-card-front::before {
+        animation: none;
+    }
 }
 
 /* ---------- Cromo especial: LOS FUNDADORES ---------- */
@@ -282,9 +698,13 @@
     color: #f4b942;
 }
 
+/* Es el único cromo sin stats: que la ilustración llene ese hueco
+   en vez de dejar un vacío al final de la carta. */
 .crew-card.especial .crew-card-media {
     background-image: none;
-    height: 210px;
+    height: auto;
+    flex: 1;
+    min-height: 210px;
 }
 
 .crew-card.especial .expediente-titulo {
@@ -320,11 +740,9 @@
     text-align: center;
 }
 
-.crew-hueco-num {
-    font-family: var(--font-display);
-    font-size: 4rem;
-    color: var(--line);
-    line-height: 1;
+.hueco-silueta {
+    width: clamp(96px, 12vw, 128px);
+    height: auto;
 }
 
 .crew-hueco-nota {
@@ -341,6 +759,23 @@
 
 /* ---------- Responsive ---------- */
 
+@media (max-width: 900px) {
+    .crew-head {
+        flex-direction: column;
+        gap: 18px;
+    }
+
+    .crew-marcador {
+        margin-top: 0;
+        max-width: none;
+        align-self: stretch;
+    }
+
+    .marcador-casillas {
+        max-width: none;
+    }
+}
+
 @media (max-width: 640px) {
     .crew {
         padding: 24px 16px 56px;
@@ -351,14 +786,58 @@
         gap: 18px;
     }
 
+    .crew-lamina {
+        margin-bottom: 40px;
+    }
+
+    .lamina-sep {
+        flex-wrap: wrap;
+        gap: 10px;
+        row-gap: 6px;
+    }
+
+    .lamina-cinta {
+        font-size: 1.1rem;
+        padding: 6px 16px 8px;
+    }
+
+    .lamina-nota {
+        order: 3;
+        width: 100%;
+    }
+
+    .lamina-cuenta {
+        margin-left: auto;
+        font-size: 0.82rem;
+    }
+
+    .crew-vitrina-marco {
+        padding: 20px 14px 14px;
+        border-radius: var(--wobble-md);
+    }
+
+    .crew-vitrina-marco::before,
+    .crew-vitrina-marco::after {
+        width: 64px;
+        height: 24px;
+        top: -12px;
+    }
+
+    .sello-fichado {
+        top: 150px;
+        font-size: 0.72rem;
+    }
+
+    /* En una sola columna la carta es ancha: necesita alto para que el
+       expediente respire en vez de apelmazarse al final. */
     .crew-card,
     .crew-hueco {
-        height: 400px;
-        min-height: 400px;
+        height: 470px;
+        min-height: 470px;
     }
 
     .crew-card-media {
-        height: 140px;
+        height: 190px;
     }
 
     .crew-nombre {
@@ -368,5 +847,71 @@
     .stat-diana {
         width: 13px;
         height: 13px;
+    }
+
+    /* ----- Reverso: reparto del espacio en móvil ----- */
+
+    .crew-card-face {
+        padding: 16px 18px;
+    }
+
+    /* El sello sube al hueco libre junto al título y deja el pie despejado */
+    .expediente-sello {
+        top: 8px;
+        right: 12px;
+        bottom: auto;
+        width: 62px;
+        height: 62px;
+    }
+
+    .expediente-datos {
+        gap: 14px;
+    }
+
+    .expediente-compartir {
+        margin-top: auto;
+        margin-bottom: 10px;
+        font-size: 1.05rem;
+    }
+
+    .expediente-serie {
+        margin-top: 0;
+        margin-bottom: 22px;
+        gap: 5px;
+    }
+
+    .expediente-barcode {
+        width: 104px;
+        height: 15px;
+    }
+
+    .expediente-serie span {
+        font-size: 0.78rem;
+    }
+
+    .crew-card-back .crew-girar {
+        right: 18px;
+        bottom: 12px;
+    }
+
+    /* La silueta crece con la carta ancha de una columna */
+    .hueco-silueta {
+        width: 150px;
+    }
+
+    .crew-parade-row {
+        margin: 18px 0 30px;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
+    .crew-parade {
+        gap: 0;
+    }
+
+    .crew-parade img {
+        transform: scale(0.72);
+        transform-origin: bottom left;
+        margin-right: -14px;
     }
 }

@@ -4,7 +4,7 @@ const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
   "base-uri 'self'",
   "connect-src 'self'",
-  "font-src 'self' https://fonts.gstatic.com",
+  "font-src 'self'",
   "form-action 'self' https://*.myshopify.com",
   "frame-ancestors 'none'",
   "frame-src 'self' https://open.spotify.com",
@@ -12,7 +12,7 @@ const CONTENT_SECURITY_POLICY = [
   "media-src 'self'",
   "object-src 'none'",
   "script-src 'self'",
-  "style-src 'self' https://fonts.googleapis.com",
+  "style-src 'self'",
 ].join('; ');
 
 export function securityHeaders(config) {
@@ -74,12 +74,21 @@ export function requireTrustedOrigin(config) {
   };
 }
 
-export function createFixedWindowRateLimiter({ max, windowMs, maxClients = 10_000 }) {
+function requestClientKey(req) {
+  return req.ip || req.socket.remoteAddress || 'unknown';
+}
+
+export function createFixedWindowRateLimiter({
+  max,
+  windowMs,
+  maxClients = 10_000,
+  keyForRequest = requestClientKey,
+}) {
   const clients = new Map();
 
   return (req, res, next) => {
     const now = Date.now();
-    const key = req.ip || req.socket.remoteAddress || 'unknown';
+    const key = keyForRequest(req) || 'unknown';
     if (!clients.has(key) && clients.size >= maxClients) {
       for (const [clientKey, client] of clients) {
         if (client.resetAt <= now) clients.delete(clientKey);

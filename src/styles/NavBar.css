@@ -161,6 +161,9 @@
     }
 
     .navbar-account {
-        display: none;
+        display: inline-block;
+        max-width: 86px;
+        padding: 2px 0 4px;
+        font-size: 0.92rem;
     }
 }

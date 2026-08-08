@@ -21,3 +21,16 @@ test('muestra la tienda cuando el splash ya se ha visto', () => {
   );
   expect(screen.getByRole('link', { name: /inicio/i })).toBeInTheDocument();
 });
+
+test('no inserta un aviso temporal que desplace la portada mientras comprueba Shopify', () => {
+  sessionStorage.setItem('rocky-splash-seen', '1');
+  render(
+    <MemoryRouter>
+      <App />
+    </MemoryRouter>
+  );
+
+  expect(
+    screen.queryByText(/comprobando conexión segura con la tienda/i)
+  ).not.toBeInTheDocument();
+});

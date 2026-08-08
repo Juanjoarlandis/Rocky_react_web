@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useContext, useRef, useState } from 'react';
 import { TRACKS } from '../data/studio';
 
 // Radio global de la web: el <audio> vive aquí, por encima de las rutas,
@@ -9,9 +9,13 @@ const MusicContext = createContext(null);
 
 // audio.play() devuelve promesa en navegadores reales, pero no en jsdom (tests)
 function playSafely(audio, onBlocked) {
-    const result = audio.play();
-    if (result && typeof result.catch === 'function') {
-        result.catch(onBlocked || (() => {}));
+    try {
+        const result = audio.play();
+        if (result && typeof result.catch === 'function') {
+            result.catch(onBlocked || (() => {}));
+        }
+    } catch {
+        onBlocked?.();
     }
 }
 
@@ -21,29 +25,32 @@ export function MusicProvider({ children }) {
     const [playing, setPlaying] = useState(false);
     const [time, setTime] = useState(0);
     const [duration, setDuration] = useState(0);
+    const [source, setSource] = useState('');
     const track = TRACKS[index];
 
-    // Intento de autoplay al entrar; si el navegador lo bloquea,
-    // queda lista para arrancar con el primer clic en la píldora.
-    useEffect(() => {
+    const activateTrack = (nextIndex) => {
         const audio = audioRef.current;
-        if (audio) playSafely(audio);
-    }, []);
+        const nextTrack = TRACKS[nextIndex];
+        if (!audio || !nextTrack) return;
 
-    // Cambio de tema
-    useEffect(() => {
-        const audio = audioRef.current;
-        if (!audio) return;
-        setTime(0);
-        if (playing) {
-            playSafely(audio, () => setPlaying(false));
+        if (audio.getAttribute('src') !== nextTrack.src) {
+            audio.setAttribute('src', nextTrack.src);
+            audio.load();
+            setSource(nextTrack.src);
+            setTime(0);
+            setDuration(0);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [index]);
+        setIndex(nextIndex);
+        playSafely(audio, () => setPlaying(false));
+    };
 
     const toggle = () => {
         const audio = audioRef.current;
         if (!audio) return;
+        if (!audio.getAttribute('src')) {
+            activateTrack(index);
+            return;
+        }
         if (audio.paused) {
             playSafely(audio, () => setPlaying(false));
         } else {
@@ -51,12 +58,19 @@ export function MusicProvider({ children }) {
         }
     };
 
-    const select = (i) => {
-        setIndex(i);
-        setPlaying(true);
+    // Pausa explícita (la usa la Mesa de Beats para no solaparse con la radio)
+    const pause = () => {
+        const audio = audioRef.current;
+        if (audio && !audio.paused) {
+            audio.pause();
+        }
     };
 
-    const next = () => select((index + 1) % TRACKS.length);
+    const select = (i) => {
+        activateTrack(i);
+    };
+
+    const next = () => activateTrack((index + 1) % TRACKS.length);
 
     const prev = () => {
         const audio = audioRef.current;
@@ -64,7 +78,7 @@ export function MusicProvider({ children }) {
             audio.currentTime = 0;
             return;
         }
-        select((index - 1 + TRACKS.length) % TRACKS.length);
+        activateTrack((index - 1 + TRACKS.length) % TRACKS.length);
     };
 
     const seek = (frac) => {
@@ -82,7 +96,6 @@ export function MusicProvider({ children }) {
             playSafely(audio, () => setPlaying(false));
             return;
         }
-        setPlaying(true);
         next();
     };
 
@@ -94,6 +107,7 @@ export function MusicProvider({ children }) {
         time,
         duration,
         toggle,
+        pause,
         next,
         prev,
         select,
@@ -104,10 +118,11 @@ export function MusicProvider({ children }) {
         <MusicContext.Provider value={value}>
             <audio
                 ref={audioRef}
-                src={track.src}
-                preload="metadata"
+                src={source || undefined}
+                preload="none"
                 onPlay={() => setPlaying(true)}
                 onPause={() => setPlaying(false)}
+                onError={() => setPlaying(false)}
                 onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
                 onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
                 onEnded={handleEnded}
