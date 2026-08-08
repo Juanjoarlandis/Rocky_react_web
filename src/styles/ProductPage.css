@@ -68,6 +68,11 @@
     gap: 28px;
 }
 
+/* Mantiene el muro inferior fuera del viewport hasta que llega Shopify. */
+.product-grid--loading {
+    min-height: max(560px, 70vh);
+}
+
 .product-card {
     background-color: var(--card);
     border: 2px solid var(--ink);

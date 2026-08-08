@@ -19,6 +19,7 @@ function ProductPage({
     commerceMode = 'demo',
     canAddToCart = true,
     prioritizeFirstImage = false,
+    loading = false,
 }) {
     const { category } = useParams();
     const [zoomImage, setZoomImage] = useState(null);
@@ -30,7 +31,7 @@ function ProductPage({
         : products;
     const pageTitle = category ? visibleProducts[0]?.drop || category : 'ROCKY 035';
 
-    if (category && visibleProducts.length === 0) {
+    if (category && visibleProducts.length === 0 && !loading) {
         return (
             <div className="product-empty">
                 {/* Se lo han llevado todo corriendo */}
@@ -88,7 +89,10 @@ function ProductPage({
                 </div>
             </div>
 
-            <div className="product-grid">
+            <div
+                className={`product-grid${loading ? ' product-grid--loading' : ''}`}
+                aria-busy={loading || undefined}
+            >
                 {visibleProducts.map((product, index) => {
                     const isPlaceholder = product.image === PLACEHOLDER;
                     const isPriorityImage = prioritizeFirstImage && index === 0;

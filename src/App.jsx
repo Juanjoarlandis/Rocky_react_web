@@ -84,6 +84,7 @@ function App() {
                   commerceMode={commerce.mode}
                   canAddToCart={commerce.mode !== 'shopify' || commerce.capabilities.cart}
                   prioritizeFirstImage={!showSplash}
+                  loading={commerce.loading}
                 />
               }
             />
@@ -96,6 +97,7 @@ function App() {
                   commerceMode={commerce.mode}
                   canAddToCart={commerce.mode !== 'shopify' || commerce.capabilities.cart}
                   prioritizeFirstImage={!showSplash}
+                  loading={commerce.loading}
                 />
               }
             />

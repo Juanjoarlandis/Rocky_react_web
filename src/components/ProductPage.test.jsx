@@ -29,6 +29,23 @@ const previewProducts = [
 ];
 
 describe('ProductPage preview drops', () => {
+  it('reserves the catalog footprint while Shopify is loading', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <ProductPage
+          products={[]}
+          addToCart={vi.fn()}
+          commerceMode="checking"
+          loading
+        />
+      </MemoryRouter>
+    );
+
+    const productGrid = container.querySelector('.product-grid');
+    expect(productGrid).toHaveClass('product-grid--loading');
+    expect(productGrid).toHaveAttribute('aria-busy', 'true');
+  });
+
   it('shows the editorial drop title and keeps preview products out of the cart', () => {
     render(
       <MemoryRouter initialEntries={['/products/asphalt-afterdark']}>
