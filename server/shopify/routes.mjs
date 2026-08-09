@@ -54,6 +54,18 @@ function validateCheckoutUrl(value, allowedHosts) {
   return url.toString();
 }
 
+function getCanonicalAccountLoginUrl(req, config) {
+  const canonicalOrigin = new URL(config.publicOrigin);
+  const requestHost = req.get('host')?.toLowerCase();
+  if (requestHost === canonicalOrigin.host.toLowerCase()) return null;
+
+  const loginUrl = new URL('/api/shopify/account/login', canonicalOrigin);
+  if (typeof req.query.returnPath === 'string') {
+    loginUrl.searchParams.set('returnPath', req.query.returnPath);
+  }
+  return loginUrl.toString();
+}
+
 export function createShopifyRouter({
   config,
   store,
@@ -270,6 +282,9 @@ export function createShopifyRouter({
       if (!customerAccounts) {
         return res.status(503).json({ message: 'Las cuentas de cliente no están configuradas.' });
       }
+      const canonicalLoginUrl = getCanonicalAccountLoginUrl(req, config);
+      if (canonicalLoginUrl) return res.redirect(302, canonicalLoginUrl);
+
       const session = await sessions.open(req, res);
       const url = await customerAccounts.beginAuthentication({
         returnPath: req.query.returnPath || '/',

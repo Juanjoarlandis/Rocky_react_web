@@ -117,6 +117,32 @@ describe('Shopify HTTP contracts', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
+  it('starts customer login on the canonical host before creating OAuth state', async () => {
+    const fetchImpl = vi.fn();
+    const baseUrl = await start({
+      env: {
+        ...configuredEnv(),
+        SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_ID: 'customer-account-client-id',
+      },
+      fetchImpl,
+    });
+
+    const response = await fetch(
+      `${baseUrl}/api/shopify/account/login?returnPath=%2Fmi-crew`,
+      {
+        headers: { Host: 'www.rocky.test' },
+        redirect: 'manual',
+      }
+    );
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get('location')).toBe(
+      'https://rocky.test/api/shopify/account/login?returnPath=%2Fmi-crew'
+    );
+    expect(response.headers.get('set-cookie')).toBeNull();
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
   it('stores the full cart ID only server-side and replays an idempotent response', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(response(cartPayload()));
     const store = new MemoryStore();
