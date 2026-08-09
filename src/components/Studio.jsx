@@ -62,10 +62,10 @@ function ColmenaSticker(props) {
                 strokeWidth="3"
                 strokeDasharray="7 6"
             />
-            <text x="60" y="56" textAnchor="middle" fontFamily="'Permanent Marker', cursive" fontSize="17" fill="#1a1a1a">
+            <text x="60" y="56" textAnchor="middle" fontFamily="'Luckiest Guy', cursive" fontSize="17" fill="#1a1a1a">
                 LA
             </text>
-            <text x="60" y="78" textAnchor="middle" fontFamily="'Permanent Marker', cursive" fontSize="17" fill="#1a1a1a">
+            <text x="60" y="78" textAnchor="middle" fontFamily="'Luckiest Guy', cursive" fontSize="17" fill="#1a1a1a">
                 COLMENA
             </text>
         </svg>
@@ -80,7 +80,7 @@ function EpCover({ initials }) {
             <circle cx="100" cy="86" r="34" fill="none" stroke="#e63946" strokeWidth="5" />
             <path d="M100 44 L100 62 M100 110 L100 128 M58 86 L76 86 M124 86 L142 86" stroke="#e63946" strokeWidth="4.5" strokeLinecap="round" />
             <circle cx="100" cy="86" r="4" fill="#fffdf8" />
-            <text x="100" y="166" textAnchor="middle" fontFamily="'Permanent Marker', cursive" fontSize="34" fill="#fffdf8">
+            <text x="100" y="166" textAnchor="middle" fontFamily="'Luckiest Guy', cursive" fontSize="34" fill="#fffdf8">
                 {initials}
             </text>
         </svg>

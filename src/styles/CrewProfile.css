@@ -5,6 +5,34 @@
   padding: clamp(28px, 4vw, 64px) clamp(16px, 3.2vw, 48px) 96px;
 }
 
+/* El Larguirucho vive quieto en la esquina de Mi Crew. Su mano superior cae
+   sobre el comienzo de la página y la pierna larga marca el canto derecho; al
+   formar parte del documento se va con el contenido al hacer scroll, sin
+   perseguir al usuario ni tapar controles de forma permanente. */
+.crew-profile-page--with-corner {
+  position: relative;
+}
+
+.crew-corner-character {
+  display: block;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+}
+
+.crew-profile-corner-character {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  width: clamp(118px, 12vw, 176px);
+}
+
+.crew-profile-page--with-corner .crew-profile-header {
+  min-height: clamp(164px, 17vw, 218px);
+  padding-right: clamp(98px, 13vw, 188px);
+}
+
 .crew-kicker,
 .crew-section-label,
 .crew-reward-type,
@@ -22,6 +50,15 @@
   justify-content: space-between;
   gap: 30px;
   margin-bottom: clamp(24px, 4vw, 48px);
+}
+
+.crew-profile-header > div {
+  min-width: 0;
+}
+
+.crew-profile-header .page-title {
+  max-width: calc(100% - 34px);
+  overflow-wrap: anywhere;
 }
 
 .crew-profile-header p,
@@ -138,6 +175,7 @@
   font-family: var(--font-display);
   font-size: clamp(1.35rem, 2vw, 2rem);
   text-transform: uppercase;
+  overflow-wrap: anywhere;
 }
 
 .crew-id-card > p {
@@ -479,20 +517,17 @@
   margin-top: 26px;
 }
 
-.crew-gate-characters {
+.crew-gate-corner {
   position: relative;
-  min-height: 420px;
+  min-height: 419px;
 }
 
-.crew-gate-characters img {
+.crew-gate-corner-character {
   position: absolute;
-  width: min(64%, 250px);
-  filter: drop-shadow(7px 9px 0 rgba(26, 26, 26, 0.13));
+  top: 0;
+  right: 0;
+  width: min(100%, 300px);
 }
-
-.crew-gate-characters img:nth-child(1) { left: 0; top: 10%; transform: rotate(-10deg); }
-.crew-gate-characters img:nth-child(2) { right: 0; top: 34%; transform: rotate(8deg); }
-.crew-gate-characters img:nth-child(3) { left: 15%; bottom: 0; transform: rotate(5deg); }
 
 .crew-gate-preview {
   padding: clamp(20px, 3vw, 36px);
@@ -719,6 +754,11 @@
     gap: 10px;
   }
 
+  .crew-profile-page--with-corner .crew-profile-header {
+    min-height: 166px;
+    padding-right: 94px;
+  }
+
   .crew-section-heading > p {
     text-align: left;
   }
@@ -746,8 +786,13 @@
     grid-template-columns: 1fr;
   }
 
-  .crew-gate-characters {
-    min-height: 320px;
+  .crew-gate-corner {
+    min-height: 0;
+    height: min(78.22vw, 300px);
+  }
+
+  .crew-gate-corner-character {
+    width: min(56vw, 215px);
   }
 
   .crew-gate-preview-heading {
@@ -799,6 +844,14 @@
 }
 
 @media (max-width: 480px) {
+  .crew-gate-corner {
+    height: min(55.87vw, 223.5px);
+  }
+
+  .crew-gate-corner-character {
+    width: min(40vw, 160px);
+  }
+
   .crew-gate-preview {
     padding: 18px 12px;
   }

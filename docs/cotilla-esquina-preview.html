@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cotilla esquina · ROCKY 035</title>
+    <style>
+      :root {
+        color: #1a1a1a;
+        background: #faf7f0;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+        background: #faf7f0;
+      }
+
+      main {
+        width: min(1120px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 36px 0 64px;
+      }
+
+      h1,
+      h2,
+      p {
+        margin-top: 0;
+      }
+
+      h1 {
+        max-width: 760px;
+        margin-bottom: 10px;
+        font-size: clamp(28px, 5vw, 54px);
+        line-height: 0.95;
+        text-transform: uppercase;
+      }
+
+      h2 {
+        margin-bottom: 18px;
+        font-size: 18px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .intro {
+        max-width: 720px;
+        margin-bottom: 32px;
+        font-size: 16px;
+        line-height: 1.5;
+      }
+
+      .section {
+        margin-top: 32px;
+        padding: 24px;
+        border: 2px solid #1a1a1a;
+        border-radius: 22px;
+        background: #fffdf8;
+      }
+
+      .full-preview {
+        position: relative;
+        width: min(100%, 360px);
+        aspect-ratio: 620 / 820;
+        overflow: hidden;
+        border: 2px solid #1a1a1a;
+        background: #faf7f0;
+      }
+
+      .full-preview img {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      .guide {
+        position: absolute;
+        z-index: 2;
+        pointer-events: none;
+      }
+
+      .guide-x {
+        top: 0;
+        bottom: 0;
+        left: 58.064516%;
+        border-left: 2px dashed #e63946;
+      }
+
+      .guide-y {
+        right: 0;
+        bottom: 0;
+        left: 0;
+        border-top: 3px dashed #e63946;
+      }
+
+      .guide-label {
+        position: absolute;
+        z-index: 3;
+        padding: 3px 6px;
+        border: 1px solid #1a1a1a;
+        border-radius: 999px;
+        background: #fffdf8;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .guide-label-x {
+        top: 8px;
+        left: calc(58.064516% + 7px);
+      }
+
+      .guide-label-y {
+        right: 8px;
+        bottom: 7px;
+      }
+
+      .sizes {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 22px;
+      }
+
+      .sample {
+        min-width: 0;
+      }
+
+      .sample-label {
+        margin-bottom: 8px;
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .stage {
+        --art-width: 95px;
+        --card-left: 70px;
+        position: relative;
+        width: 100%;
+        min-width: 250px;
+        height: 188px;
+      }
+
+      .stage--75 {
+        --art-width: 75px;
+      }
+
+      .stage--95 {
+        --art-width: 95px;
+      }
+
+      .stage--115 {
+        --art-width: 115px;
+      }
+
+      .card {
+        position: absolute;
+        z-index: 3;
+        bottom: 0;
+        left: var(--card-left);
+        width: calc(100% - var(--card-left));
+        height: 150px;
+        padding: 18px;
+        overflow: hidden;
+        border: 2px solid #1a1a1a;
+        border-radius: 18px;
+        background: #fffdf8;
+      }
+
+      .card-kicker {
+        color: #e63946;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+      }
+
+      .card-title {
+        max-width: 150px;
+        margin-top: 8px;
+        font-size: 21px;
+        font-weight: 900;
+        line-height: 0.95;
+        text-transform: uppercase;
+      }
+
+      .card-line {
+        width: 78%;
+        height: 8px;
+        margin-top: 14px;
+        border-radius: 999px;
+        background: #1a1a1a;
+      }
+
+      .card-line:last-child {
+        width: 52%;
+        margin-top: 7px;
+        background: #e63946;
+      }
+
+      .peek-window {
+        position: absolute;
+        z-index: 2;
+        bottom: 0;
+        left: calc(var(--card-left) - (var(--art-width) * 360 / 620));
+        width: calc(var(--art-width) * 360 / 620);
+        height: calc(var(--art-width) * 820 / 620);
+        overflow: hidden;
+      }
+
+      .peek-window img {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        display: block;
+        width: var(--art-width);
+        max-width: none;
+        height: auto;
+      }
+
+      .mirror-stage {
+        --art-width: 115px;
+        --card-left: 12px;
+        --card-width: calc(100% - 82px);
+      }
+
+      .mirror-stage .card {
+        width: var(--card-width);
+      }
+
+      .mirror-stage .peek-window {
+        right: auto;
+        left: calc(var(--card-left) + var(--card-width));
+      }
+
+      .mirror-stage .peek-window img {
+        left: calc(var(--art-width) * -260 / 620);
+        transform: scaleX(-1);
+      }
+
+      .comparison {
+        display: flex;
+        align-items: flex-end;
+        gap: 36px;
+        min-height: 180px;
+      }
+
+      .comparison figure {
+        margin: 0;
+        text-align: center;
+      }
+
+      .comparison img {
+        display: block;
+        width: 115px;
+        height: 152px;
+        object-fit: contain;
+        object-position: center bottom;
+      }
+
+      .comparison figcaption {
+        margin-top: 8px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      @media (max-width: 560px) {
+        main {
+          width: min(100% - 20px, 1120px);
+          padding-top: 22px;
+        }
+
+        .section {
+          padding: 16px;
+        }
+
+        .stage {
+          --card-left: 68px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Cotilla de esquina</h1>
+      <p class="intro">
+        La línea vertical coincide con el lateral de la tarjeta y la línea inferior con
+        su base. Las ventanas sólo enseñan el tramo exterior del PNG generado con ImageGen.
+      </p>
+
+      <section class="section">
+        <h2>PNG completo · salida ImageGen</h2>
+        <div class="full-preview">
+          <img src="../src/images/characters/cotilla-esquina.png" alt="Mascota cotilla completa" />
+          <span class="guide guide-x"></span>
+          <span class="guide guide-y"></span>
+          <span class="guide-label guide-label-x">x = 360</span>
+          <span class="guide-label guide-label-y">y = 820</span>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Esquina inferior izquierda · 75, 95 y 115 px</h2>
+        <div class="sizes">
+          <div class="sample">
+            <div class="sample-label">75 px</div>
+            <div class="stage stage--75">
+              <div class="peek-window"><img src="../src/images/characters/cotilla-esquina.png" alt="" /></div>
+              <div class="card">
+                <div class="card-kicker">ROCKY DROP</div>
+                <div class="card-title">Desde el barrio</div>
+                <div class="card-line"></div><div class="card-line"></div>
+              </div>
+            </div>
+          </div>
+          <div class="sample">
+            <div class="sample-label">95 px</div>
+            <div class="stage stage--95">
+              <div class="peek-window"><img src="../src/images/characters/cotilla-esquina.png" alt="" /></div>
+              <div class="card">
+                <div class="card-kicker">ROCKY DROP</div>
+                <div class="card-title">Desde el barrio</div>
+                <div class="card-line"></div><div class="card-line"></div>
+              </div>
+            </div>
+          </div>
+          <div class="sample">
+            <div class="sample-label">115 px</div>
+            <div class="stage stage--115">
+              <div class="peek-window"><img src="../src/images/characters/cotilla-esquina.png" alt="" /></div>
+              <div class="card">
+                <div class="card-kicker">ROCKY DROP</div>
+                <div class="card-title">Desde el barrio</div>
+                <div class="card-line"></div><div class="card-line"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Espejado · esquina inferior derecha</h2>
+        <div class="stage mirror-stage">
+          <div class="peek-window"><img src="../src/images/characters/cotilla-esquina.png" alt="" /></div>
+          <div class="card">
+            <div class="card-kicker">ROCKY DROP</div>
+            <div class="card-title">Desde el barrio</div>
+            <div class="card-line"></div><div class="card-line"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Comparativa de tinta</h2>
+        <div class="comparison">
+          <figure>
+            <img src="../src/images/characters/asomado-borde.png" alt="Mascota original asomada" />
+            <figcaption>Asomado original</figcaption>
+          </figure>
+          <figure>
+            <img src="../src/images/characters/cotilla-esquina.png" alt="Nueva mascota cotilla" />
+            <figcaption>Cotilla nueva</figcaption>
+          </figure>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

@@ -492,12 +492,13 @@
     right: 10px;
     z-index: 2;
     font-family: var(--font-display);
-    font-size: 0.8rem;
-    letter-spacing: 0.14em;
+    /* Luckiest Guy monta más ancho que la display anterior: menos cuerpo y tracking */
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
     color: var(--accent);
     border: 3px double var(--accent);
     border-radius: 3px 8px 4px 9px;
-    padding: 2px 10px 3px;
+    padding: 3px 9px 2px;
     transform: rotate(-11deg);
     opacity: 0.85;
     mix-blend-mode: multiply;
@@ -825,7 +826,7 @@
 
     .sello-fichado {
         top: 150px;
-        font-size: 0.72rem;
+        font-size: 0.62rem;
     }
 
     /* En una sola columna la carta es ancha: necesita alto para que el

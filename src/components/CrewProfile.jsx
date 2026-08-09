@@ -6,6 +6,7 @@ import {
 } from '../shopify/api.js';
 import { CREW } from '../data/crew.js';
 import { getCrewAvatarImage } from '../data/crewAvatarImages.js';
+import larguiruchoEsquina from '../images/optimized/characters/larguirucho-esquina-600.webp';
 import { CrewCard } from './Crew.jsx';
 import '../styles/CrewProfile.css';
 
@@ -33,6 +34,21 @@ function errorText(error) {
   return error instanceof Error ? error.message : 'La Crew no ha podido completar la operación.';
 }
 
+function CrewCornerCharacter({ className = '' }) {
+  return (
+    <img
+      className={`crew-corner-character ${className}`.trim()}
+      src={larguiruchoEsquina}
+      width="600"
+      height="838"
+      decoding="async"
+      alt=""
+      aria-hidden="true"
+      data-testid="crew-corner-character"
+    />
+  );
+}
+
 function CrewGate({ accountEnabled }) {
   return (
     <section className="crew-profile-page crew-profile-gate">
@@ -57,10 +73,8 @@ function CrewGate({ accountEnabled }) {
             </p>
           )}
         </div>
-        <div className="crew-gate-characters" aria-hidden="true">
-          <img src={getCrewAvatarImage('dormido-head')} alt="" />
-          <img src={getCrewAvatarImage('skater-head')} alt="" />
-          <img src={getCrewAvatarImage('bolsa-head')} alt="" />
+        <div className="crew-gate-corner" aria-hidden="true">
+          <CrewCornerCharacter className="crew-gate-corner-character" />
         </div>
       </div>
 
@@ -210,6 +224,7 @@ export default function CrewProfile({
   accountEnabled = false,
   account = { loggedIn: false, customer: null },
   onLogout,
+  onAvatarChange,
 }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -228,7 +243,9 @@ export default function CrewProfile({
     setError('');
     getCrewProfile()
       .then((response) => {
-        if (active) setProfile(response.profile);
+        if (!active) return;
+        setProfile(response.profile);
+        onAvatarChange?.(response.profile.equippedAvatarId);
       })
       .catch((requestError) => {
         if (active) setError(errorText(requestError));
@@ -239,7 +256,7 @@ export default function CrewProfile({
     return () => {
       active = false;
     };
-  }, [isLoggedIn]);
+  }, [isLoggedIn, onAvatarChange]);
 
   const currentAvatar = useMemo(
     () => profile?.rewards.find((reward) => reward.id === profile.equippedAvatarId),
@@ -252,6 +269,7 @@ export default function CrewProfile({
     try {
       const response = await action();
       setProfile(response.profile);
+      onAvatarChange?.(response.profile.equippedAvatarId);
     } catch (requestError) {
       setError(errorText(requestError));
     } finally {
@@ -290,7 +308,8 @@ export default function CrewProfile({
   const nextXp = profile.level.nextXp;
 
   return (
-    <div className="crew-profile-page">
+    <div className="crew-profile-page crew-profile-page--with-corner">
+      <CrewCornerCharacter className="crew-profile-corner-character" />
       <header className="crew-profile-header">
         <div>
           <span className="crew-kicker">CARNET OFICIAL · ROCKY 035</span>

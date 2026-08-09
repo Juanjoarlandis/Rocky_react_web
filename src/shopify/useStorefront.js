@@ -3,6 +3,7 @@ import {
   addCartLine,
   beginCheckout,
   getCart,
+  getCrewProfile,
   getCustomerAccount,
   getShopifyStatus,
   listProducts,
@@ -22,6 +23,7 @@ const DISABLED_CAPABILITIES = Object.freeze({
 
 const EMPTY_CART = Object.freeze({ items: [], cost: null, totalQuantity: 0 });
 const EMPTY_PRODUCTS = Object.freeze([]);
+const DEFAULT_CREW_AVATAR_ID = 'skater-head';
 
 function errorMessage(error) {
   return error instanceof Error
@@ -41,6 +43,7 @@ export function useStorefront({
   // variante se agota entre que se pinta el catalogo y se pulsa anadir.
   const [cartWarnings, setCartWarnings] = useState([]);
   const [account, setAccount] = useState({ loggedIn: false, customer: null });
+  const [crewAvatarId, setCrewAvatarId] = useState(DEFAULT_CREW_AVATAR_ID);
   const [loading, setLoading] = useState(true);
   const [cartBusy, setCartBusy] = useState(false);
   const [error, setError] = useState('');
@@ -144,6 +147,34 @@ export function useStorefront({
       active = false;
     };
   }, [demoProducts, previewProducts]);
+
+  useEffect(() => {
+    if (!capabilities.customerAccounts || !account.loggedIn) {
+      setCrewAvatarId(DEFAULT_CREW_AVATAR_ID);
+      return undefined;
+    }
+
+    let active = true;
+    getCrewProfile()
+      .then((response) => {
+        if (active && response.profile?.equippedAvatarId) {
+          setCrewAvatarId(response.profile.equippedAvatarId);
+        }
+      })
+      .catch(() => {
+        // La cuenta sigue siendo util aunque el perfil Crew no responda.
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [account.loggedIn, capabilities.customerAccounts]);
+
+  const updateCrewAvatar = useCallback((avatarId) => {
+    if (typeof avatarId === 'string' && avatarId.trim()) {
+      setCrewAvatarId(avatarId);
+    }
+  }, []);
 
   const applyServerCart = useCallback((cart) => {
     setCartState(normalizeCart(cart));
@@ -284,6 +315,7 @@ export function useStorefront({
     cartWarnings,
     totalItems,
     account,
+    crewAvatarId,
     loading,
     cartBusy,
     error,
@@ -294,5 +326,6 @@ export function useStorefront({
     decrementQuantity,
     checkout,
     logout,
+    updateCrewAvatar,
   };
 }

@@ -99,7 +99,7 @@ function SiluetaHueco({ id }) {
         <svg viewBox="0 0 120 150" className="hueco-silueta" aria-hidden="true">
             <circle cx="60" cy="40" r="26" {...trazo} />
             <path d="M28 138 Q28 84 60 82 Q92 84 92 138" {...trazo} />
-            <text x="60" y="122" textAnchor="middle" fontFamily="'Permanent Marker', cursive" fontSize="34" fill="#b9b2a2">?</text>
+            <text x="60" y="122" textAnchor="middle" fontFamily="'Luckiest Guy', cursive" fontSize="34" fill="#b9b2a2">?</text>
         </svg>
     );
 }

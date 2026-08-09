@@ -92,6 +92,42 @@
     white-space: nowrap;
 }
 
+.navbar-account.navbar-account--avatar {
+    width: 42px;
+    height: 42px;
+    max-width: none;
+    padding: 2px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 42px;
+    overflow: hidden;
+    border: 2px solid var(--ink);
+    border-radius: 50%;
+    background: var(--paper);
+    box-shadow: 2px 2px 0 var(--accent);
+    line-height: 0;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.navbar-account--avatar:hover,
+.navbar-account--avatar.active {
+    transform: rotate(-4deg) scale(1.06);
+    box-shadow: 3px 3px 0 var(--accent);
+}
+
+.navbar-account--avatar:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 3px;
+}
+
+.navbar-account-avatar {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
+    transform: scale(1.12);
+}
+
 .navbar-cart {
     position: relative;
     display: flex;
@@ -165,5 +201,12 @@
         max-width: 86px;
         padding: 2px 0 4px;
         font-size: 0.92rem;
+    }
+
+    .navbar-account.navbar-account--avatar {
+        width: 36px;
+        height: 36px;
+        flex-basis: 36px;
+        padding: 1px;
     }
 }

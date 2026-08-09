@@ -74,7 +74,7 @@ function BoomboxArt({ playing }) {
             {/* Cinta entre ruedas */}
             <path d="M299 200 L341 200" stroke="#1a1a1a" strokeWidth="3" strokeDasharray="5 5" />
             {/* Marca */}
-            <text x="320" y="168" textAnchor="middle" fontFamily="'Permanent Marker', cursive" fontSize="21" fill="#1a1a1a">
+            <text x="320" y="168" textAnchor="middle" fontFamily="'Luckiest Guy', cursive" fontSize="21" fill="#1a1a1a">
                 ROCKY SOUND
             </text>
             {/* Patas */}

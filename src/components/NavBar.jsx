@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, NavLink } from 'react-router';
 import '../styles/NavBar.css';
 
+import { getCrewAvatarImage } from '../data/crewAvatarImages.js';
 import logo from '../images/Rockypng.png';
 import cartIcon from '../images/optimized/shell/cart-96.webp';
 
@@ -9,6 +10,7 @@ const NavBar = ({
     totalItems,
     accountEnabled = false,
     account = { loggedIn: false, customer: null },
+    crewAvatarId = 'skater-head',
 }) => {
     return (
         <header className="navbar">
@@ -42,10 +44,18 @@ const NavBar = ({
                     {accountEnabled && account.loggedIn ? (
                         <NavLink
                             to="/mi-crew"
-                            className="navbar-account"
-                            title="Abrir mi perfil Crew"
+                            className="navbar-account navbar-account--avatar"
+                            aria-label="Abrir MiCrew"
+                            title="Abrir MiCrew"
                         >
-                            {account.customer?.displayName || 'Mi Crew'}
+                            <img
+                                src={getCrewAvatarImage(crewAvatarId)}
+                                width="96"
+                                height="96"
+                                decoding="async"
+                                alt=""
+                                className="navbar-account-avatar"
+                            />
                         </NavLink>
                     ) : accountEnabled ? (
                         <a

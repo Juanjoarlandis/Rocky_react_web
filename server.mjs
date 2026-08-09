@@ -86,6 +86,7 @@ export function createApp({
     crewRewards,
     storefront,
     fetchImpl,
+    logger,
   });
 
   if (shopifyConfig.capabilities.webhooks) {

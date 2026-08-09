@@ -9,6 +9,7 @@ import { MusicProvider } from './context/MusicContext';
 import { CrosshairSpinner } from './components/BrandDoodles';
 import SplashIntro from './components/SplashIntro';
 import ProductPage from './components/ProductPage';
+import CuriousPeeker from './components/CuriousPeeker';
 import demoProducts from './PRODUCTOS_ROCKY.json';
 import previewProducts from '../server/preview-products.mjs';
 import { useStorefront } from './shopify/useStorefront';
@@ -35,8 +36,9 @@ function App() {
     demoProducts: DEMO_CATALOG,
     previewProducts,
   });
+  const location = useLocation();
   // Rocky IA es una pantalla de chat a viewport completo: sin footer ni scroll de página
-  const esChat = useLocation().pathname === '/rockyIA';
+  const esChat = location.pathname === '/rockyIA';
 
   useEffect(() => {
     if (!showSplash) return;
@@ -55,8 +57,10 @@ function App() {
         totalItems={commerce.totalItems}
         accountEnabled={commerce.capabilities.customerAccounts}
         account={commerce.account}
+        crewAvatarId={commerce.crewAvatarId}
       />
       <ScrollToTop />
+      <CuriousPeeker pathname={location.pathname} disabled={showSplash} />
       <main className="app-main">
         {((!commerce.loading && commerce.mode === 'demo') || commerce.error) && (
           <div
@@ -149,6 +153,7 @@ function App() {
                   accountEnabled={commerce.capabilities.customerAccounts}
                   account={commerce.account}
                   onLogout={commerce.logout}
+                  onAvatarChange={commerce.updateCrewAvatar}
                 />
               }
             />

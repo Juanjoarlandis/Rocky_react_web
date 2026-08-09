@@ -66,6 +66,33 @@ function isValidTokenLifetime(value) {
   return Number.isSafeInteger(value) && value > 0 && value <= MAX_TOKEN_LIFETIME_SECONDS;
 }
 
+function normalizeCustomerSubject(value) {
+  if (typeof value === 'string' && value.length > 0 && value.length <= 1_000) {
+    return value;
+  }
+  if (Number.isSafeInteger(value) && value > 0) {
+    return String(value);
+  }
+  return null;
+}
+
+function cleanCustomerText(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function getCustomerDisplayName(customer) {
+  const firstName = cleanCustomerText(customer?.firstName);
+  const lastName = cleanCustomerText(customer?.lastName);
+  const fullName = [firstName, lastName].filter(Boolean).join(' ');
+  if (fullName) return fullName;
+
+  const displayName = cleanCustomerText(customer?.displayName);
+  const email = cleanCustomerText(customer?.emailAddress?.emailAddress);
+  return displayName && displayName.toLocaleLowerCase() !== email.toLocaleLowerCase()
+    ? displayName
+    : '';
+}
+
 async function fetchJson(url, fetchImpl) {
   requireHttpsUrl(url);
   let response;
@@ -113,7 +140,7 @@ function parseJwt(token) {
   }
 }
 
-async function verifyIdToken({ token, nonce, clientId, discovery, fetchImpl, clock }) {
+async function verifyIdToken({ token, nonce, clientId, discovery, fetchImpl, clock, logger }) {
   const parsed = parseJwt(token);
   if (!['ES256', 'RS256'].includes(parsed.header.alg) || !parsed.header.kid) {
     throw new CustomerAccountError('Algoritmo de ID token no permitido.', 401, 'INVALID_ID_TOKEN');
@@ -155,21 +182,35 @@ async function verifyIdToken({ token, nonce, clientId, discovery, fetchImpl, clo
   const notBeforeIsValid =
     parsed.payload.nbf === undefined ||
     (Number.isSafeInteger(parsed.payload.nbf) && parsed.payload.nbf <= nowSeconds + 60);
-  if (
-    !verified ||
-    parsed.payload.iss !== discovery.issuer ||
-    !audienceIsValid ||
-    !expirationIsValid ||
-    !issuedAtIsValid ||
-    !notBeforeIsValid ||
-    parsed.payload.nonce !== nonce ||
-    typeof parsed.payload.sub !== 'string' ||
-    parsed.payload.sub.length === 0 ||
-    parsed.payload.sub.length > 1_000
-  ) {
+  const customerSubject = normalizeCustomerSubject(parsed.payload.sub);
+  const validationChecks = {
+    signature: verified,
+    issuer: parsed.payload.iss === discovery.issuer,
+    audience: audienceIsValid,
+    expiration: expirationIsValid,
+    issuedAt: issuedAtIsValid,
+    notBefore: notBeforeIsValid,
+    nonce: parsed.payload.nonce === nonce,
+    subject: customerSubject !== null,
+  };
+  const failedChecks = Object.entries(validationChecks)
+    .filter(([, isValid]) => !isValid)
+    .map(([name]) => name);
+  if (failedChecks.length > 0) {
+    logger?.error?.('Shopify ID token claim validation failed', {
+      failedChecks,
+      audienceCount: audiences.length,
+      audienceType: Array.isArray(parsed.payload.aud) ? 'array' : typeof parsed.payload.aud,
+      hasAuthorizedParty: parsed.payload.azp !== undefined,
+      expirationType: typeof parsed.payload.exp,
+      issuedAtType: typeof parsed.payload.iat,
+      hasNotBefore: parsed.payload.nbf !== undefined,
+      notBeforeType: typeof parsed.payload.nbf,
+      subjectType: typeof parsed.payload.sub,
+    });
     throw new CustomerAccountError('Las claims del ID token no son válidas.', 401, 'INVALID_ID_TOKEN');
   }
-  return parsed.payload;
+  return { ...parsed.payload, sub: customerSubject };
 }
 
 export function createCustomerAccountClient({
@@ -177,6 +218,7 @@ export function createCustomerAccountClient({
   store,
   fetchImpl = globalThis.fetch,
   clock = () => Date.now(),
+  logger = null,
 }) {
   let openIdDiscovery = null;
   let apiDiscovery = null;
@@ -339,6 +381,7 @@ export function createCustomerAccountClient({
         discovery,
         fetchImpl,
         clock,
+        logger,
       });
       const tokenId = crypto.randomBytes(24).toString('base64url');
       const record = {
@@ -369,12 +412,13 @@ export function createCustomerAccountClient({
         headers: { Authorization: token.accessToken },
         fetchImpl,
       });
+      const customer = data.customer;
       return {
-        id: data.customer.id,
-        displayName: data.customer.displayName || '',
-        firstName: data.customer.firstName || '',
-        lastName: data.customer.lastName || '',
-        email: data.customer.emailAddress?.emailAddress || '',
+        id: customer.id,
+        displayName: getCustomerDisplayName(customer),
+        firstName: cleanCustomerText(customer.firstName),
+        lastName: cleanCustomerText(customer.lastName),
+        email: cleanCustomerText(customer.emailAddress?.emailAddress),
       };
     },
 

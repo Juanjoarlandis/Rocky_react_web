@@ -26,7 +26,7 @@ function ChatProductCard({
     const [selectedVariantId, setSelectedVariantId] = useState(
         () => firstAvailableVariant(variants)?.id || ''
     );
-    const [hasImageError, setHasImageError] = useState(false);
+    const [failedImageUrl, setFailedImageUrl] = useState(null);
 
     useEffect(() => {
         setSelectedVariantId(firstAvailableVariant(variants)?.id || '');
@@ -34,6 +34,7 @@ function ChatProductCard({
 
     const selectedVariant = variants.find((variant) => variant.id === selectedVariantId) || null;
     const productImage = selectedVariant?.image || product.image;
+    const hasImageError = Boolean(productImage?.url && failedImageUrl === productImage.url);
     const price = formatPrice(selectedVariant?.price || product.price);
     const productPath = `/product/${encodeURIComponent(product.handle)}`;
     const canUseCart = commerceMode === 'shopify' && canAddToCart && !product.isPreview;
@@ -44,10 +45,6 @@ function ChatProductCard({
         imageAlt: productImage?.alt || product.title,
         defaultVariantId: selectedVariant?.id || null,
     };
-
-    useEffect(() => {
-        setHasImageError(false);
-    }, [productImage?.url]);
 
     return (
         <article className="chat-product-card">
@@ -61,7 +58,7 @@ function ChatProductCard({
                         src={productImage.url}
                         alt={productImage.alt || product.title}
                         loading="lazy"
-                        onError={() => setHasImageError(true)}
+                        onError={() => setFailedImageUrl(productImage.url)}
                     />
                 ) : (
                     <PlaceholderTee title={product.title} compact />

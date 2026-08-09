@@ -63,6 +63,7 @@ export function createShopifyRouter({
   customerAccounts: providedCustomerAccounts,
   storefront: providedStorefront,
   fetchImpl = globalThis.fetch,
+  logger = console,
 }) {
   const router = express.Router();
   const withCartLock = createKeyedLock();
@@ -71,7 +72,7 @@ export function createShopifyRouter({
   );
   const customerAccounts = providedCustomerAccounts || (
     config.capabilities.customerAccounts
-      ? createCustomerAccountClient({ config, store, fetchImpl })
+      ? createCustomerAccountClient({ config, store, fetchImpl, logger })
       : null
   );
   const admin = config.capabilities.admin

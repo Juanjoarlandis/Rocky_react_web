@@ -259,4 +259,168 @@ describe('Customer Account OAuth', () => {
       sessionBinding: 'session-binding-for-tests',
     })).rejects.toMatchObject({ status: 401, code: 'INVALID_ID_TOKEN' });
   });
+
+  it('normalizes the numeric subject returned by Shopify', async () => {
+    const { publicKey, privateKey } = crypto.generateKeyPairSync('ec', {
+      namedCurve: 'P-256',
+    });
+    const publicJwk = publicKey.export({ format: 'jwk' });
+    const kid = 'shopify-key-with-numeric-subject';
+    const discovery = {
+      authorization_endpoint: 'https://shopify.com/authorize',
+      token_endpoint: 'https://shopify.com/token',
+      jwks_uri: 'https://shopify.com/jwks',
+      issuer: 'https://shopify.com/authentication/1',
+    };
+    const fetchImpl = vi.fn().mockResolvedValueOnce(response(discovery));
+    const store = new MemoryStore({ clock: () => 1_000_000 });
+    const client = createCustomerAccountClient({
+      config,
+      store,
+      fetchImpl,
+      clock: () => 1_000_000,
+    });
+    const authorizationUrl = new URL(await client.beginAuthentication({
+      sessionBinding: 'session-binding-for-tests',
+    }));
+    const state = authorizationUrl.searchParams.get('state');
+    const transaction = await store.get('oauthTransactions', hash(state));
+    const idToken = signIdToken({
+      privateKey,
+      kid,
+      payload: {
+        iss: discovery.issuer,
+        aud: config.customerClientId,
+        sub: 123456789,
+        exp: 2_000,
+        iat: 900,
+        nonce: transaction.nonce,
+      },
+    });
+    fetchImpl
+      .mockResolvedValueOnce(response({
+        access_token: 'customer-access-token',
+        refresh_token: 'customer-refresh-token',
+        id_token: idToken,
+        expires_in: 600,
+      }))
+      .mockResolvedValueOnce(response({ keys: [{ ...publicJwk, kid, alg: 'ES256' }] }));
+
+    const completed = await client.completeAuthentication({
+      state,
+      code: 'authorization-code',
+      sessionBinding: 'session-binding-for-tests',
+    });
+
+    expect(completed.customerSubject).toBe('123456789');
+    expect(await store.get('customerTokens', completed.tokenId)).toMatchObject({
+      customerSubject: '123456789',
+    });
+  });
+
+  it('uses the customer name when Shopify repeats the email as displayName', async () => {
+    const clock = () => 1_000_000;
+    const store = new MemoryStore({ clock });
+    await store.set('customerTokens', 'customer-token-id', {
+      accessToken: 'customer-access-token',
+      refreshToken: 'customer-refresh-token',
+      expiresAt: clock() + 60_000,
+    });
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(response({
+        graphql_api: 'https://shopify.com/customer-account/graphql',
+      }))
+      .mockResolvedValueOnce(response({
+        data: {
+          customer: {
+            id: 'gid://shopify/Customer/1',
+            displayName: 'juanjo.rocky035@example.com',
+            firstName: ' Juanjo ',
+            lastName: ' Rocky ',
+            emailAddress: { emailAddress: 'JUANJO.ROCKY035@example.com' },
+          },
+        },
+      }));
+    const client = createCustomerAccountClient({ config, store, fetchImpl, clock });
+
+    await expect(client.getCustomerProfile('customer-token-id')).resolves.toMatchObject({
+      displayName: 'Juanjo Rocky',
+      firstName: 'Juanjo',
+      lastName: 'Rocky',
+      email: 'JUANJO.ROCKY035@example.com',
+    });
+  });
+
+  it('logs only safe validation metadata when ID token claims are rejected', async () => {
+    const { publicKey, privateKey } = crypto.generateKeyPairSync('ec', {
+      namedCurve: 'P-256',
+    });
+    const publicJwk = publicKey.export({ format: 'jwk' });
+    const kid = 'shopify-key-for-diagnostics';
+    const discovery = {
+      authorization_endpoint: 'https://shopify.com/authorize',
+      token_endpoint: 'https://shopify.com/token',
+      jwks_uri: 'https://shopify.com/jwks',
+      issuer: 'https://shopify.com/authentication/1',
+    };
+    const fetchImpl = vi.fn().mockResolvedValueOnce(response(discovery));
+    const store = new MemoryStore({ clock: () => 1_000_000 });
+    const logger = { error: vi.fn() };
+    const client = createCustomerAccountClient({
+      config,
+      store,
+      fetchImpl,
+      logger,
+      clock: () => 1_000_000,
+    });
+    const authorizationUrl = new URL(await client.beginAuthentication({
+      sessionBinding: 'session-binding-for-tests',
+    }));
+    const state = authorizationUrl.searchParams.get('state');
+    const transaction = await store.get('oauthTransactions', hash(state));
+    const idToken = signIdToken({
+      privateKey,
+      kid,
+      payload: {
+        iss: discovery.issuer,
+        aud: config.customerClientId,
+        sub: 'gid://shopify/Customer/sensitive-customer-id',
+        iat: 900,
+        nonce: transaction.nonce,
+        email: 'private@example.com',
+      },
+    });
+    fetchImpl
+      .mockResolvedValueOnce(response({
+        access_token: 'customer-access-token',
+        refresh_token: 'customer-refresh-token',
+        id_token: idToken,
+        expires_in: 600,
+      }))
+      .mockResolvedValueOnce(response({ keys: [{ ...publicJwk, kid, alg: 'ES256' }] }));
+
+    await expect(client.completeAuthentication({
+      state,
+      code: 'authorization-code',
+      sessionBinding: 'session-binding-for-tests',
+    })).rejects.toMatchObject({ status: 401, code: 'INVALID_ID_TOKEN' });
+
+    expect(logger.error).toHaveBeenCalledWith(
+      'Shopify ID token claim validation failed',
+      {
+        failedChecks: ['expiration'],
+        audienceCount: 1,
+        audienceType: 'string',
+        hasAuthorizedParty: false,
+        expirationType: 'undefined',
+        issuedAtType: 'number',
+        hasNotBefore: false,
+        notBeforeType: 'undefined',
+        subjectType: 'string',
+      }
+    );
+    expect(JSON.stringify(logger.error.mock.calls)).not.toContain('private@example.com');
+    expect(JSON.stringify(logger.error.mock.calls)).not.toContain('sensitive-customer-id');
+  });
 });

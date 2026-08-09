@@ -122,6 +122,7 @@ describe('CrewProfile', () => {
     expect(screen.getByRole('img', {
       name: /vista previa del avatar el dormido/i,
     })).toBeInTheDocument();
+    expect(screen.getByTestId('crew-corner-character')).toBeInTheDocument();
     expect(api.getCrewProfile).not.toHaveBeenCalled();
   });
 
@@ -181,22 +182,27 @@ describe('CrewProfile', () => {
     api.equipCrewReward.mockResolvedValue({ profile: equipped });
     api.redeemCrewReward.mockResolvedValue({ profile: redeemed });
     const user = userEvent.setup();
+    const onAvatarChange = vi.fn();
 
     render(
       <CrewProfile
         accountEnabled
         account={{ loggedIn: true, customer: { displayName: 'Juanjo' } }}
         onLogout={vi.fn()}
+        onAvatarChange={onAvatarChange}
       />
     );
 
     expect(await screen.findByRole('heading', { name: /juanjo/i })).toBeInTheDocument();
+    expect(screen.getByTestId('crew-corner-character')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Del Barrio' })).toBeInTheDocument();
     expect(screen.getByText(/120 \/ 300 XP/i)).toBeInTheDocument();
     expect(screen.getByText(/10 Crew Tickets/i)).toBeInTheDocument();
+    expect(onAvatarChange).toHaveBeenLastCalledWith('skater-head');
 
     await user.click(screen.getByRole('button', { name: /equipar el dormido/i }));
     await waitFor(() => expect(api.equipCrewReward).toHaveBeenCalledWith('dormido-head'));
+    expect(onAvatarChange).toHaveBeenLastCalledWith('dormido-head');
 
     await user.click(screen.getByRole('button', { name: /canjear marco trazo rojo/i }));
     await waitFor(() => expect(api.redeemCrewReward).toHaveBeenCalledWith({

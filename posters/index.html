@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pósters ROCKY 035</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Fredoka:wght@300..700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1a1a; --paper: #faf7f0; --card: #fffdf8;
+    --muted: #7c7668; --accent: #e63946; --blue: #2f6fdb;
+    --fd: 'Luckiest Guy', 'Arial Black', cursive;
+    --fh: 'Fredoka', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: var(--fh); color: var(--ink); background-color: var(--paper);
+    background-image:
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'><g fill='none' stroke='%231a1a1a' stroke-opacity='0.05' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M38 30 L41 42 L53 45 L41 48 L38 60 L35 48 L23 45 L35 42 Z'/><g><circle cx='195' cy='72' r='10'/><path d='M181 72 L209 72 M195 58 L195 86'/></g><path d='M52 190 q12 -10 24 0 q10 8 22 0 l-6 -5 m6 5 l-8 4'/><path d='M200 175 l-8 16 h9 l-10 18'/></g></svg>"),
+      radial-gradient(circle, rgba(26,26,26,.07) 1.2px, transparent 1.2px);
+    background-size: 260px 260px, 26px 26px;
+    padding: 48px 32px 80px;
+  }
+  header { max-width: 1400px; margin: 0 auto 44px; }
+  h1 {
+    font-family: var(--fd); font-size: clamp(38px, 6vw, 76px);
+    text-transform: uppercase; line-height: 1.04;
+  }
+  h1 span { color: var(--accent); }
+  .squig { display: block; width: min(360px, 60%); margin: 8px 0 18px; }
+  .intro { font-size: clamp(17px, 2vw, 21px); color: var(--muted); max-width: 62ch; }
+  .intro b { font-weight: 500; color: var(--ink); }
+  .conteo {
+    display: inline-block; margin-top: 18px;
+    font-family: var(--fd); font-size: 19px; letter-spacing: 1px;
+    background: var(--ink); color: var(--paper);
+    padding: 8px 20px 10px; border-radius: 4px 12px 6px 14px;
+    box-shadow: 4px 4px 0 rgba(230,57,70,.85); transform: rotate(-1.2deg);
+  }
+  .grid {
+    max-width: 1400px; margin: 0 auto;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 42px 32px;
+  }
+  .card {
+    background: var(--card); border: 3px solid var(--ink);
+    border-radius: 18px 24px 16px 22px; box-shadow: 9px 9px 0 var(--ink);
+    overflow: hidden; transition: transform .18s ease, box-shadow .18s ease;
+  }
+  .card:nth-child(3n) { transform: rotate(.5deg); }
+  .card:nth-child(3n+1) { transform: rotate(-.5deg); }
+  .card:hover { transform: translate(-3px, -3px) rotate(0deg); box-shadow: 14px 14px 0 var(--ink); }
+  .card img, .card video { width: 100%; height: auto; display: block; border-bottom: 3px solid var(--ink); }
+  .seccion {
+    max-width: 1400px; margin: 68px auto 26px;
+    font-family: var(--fd); font-size: 34px; text-transform: uppercase;
+    display: inline-block; border-bottom: 5px solid var(--accent);
+    transform: rotate(-.8deg);
+  }
+  figcaption { padding: 16px 20px 20px; position: relative; }
+  .num {
+    position: absolute; top: -20px; right: 14px;
+    font-family: var(--fd); font-size: 15px; color: #fff;
+    background: var(--accent); padding: 5px 11px;
+    border: 2px solid var(--ink); border-radius: 4px 9px 5px 10px;
+    transform: rotate(3deg);
+  }
+  figcaption h2 {
+    font-family: var(--fd); font-size: 22px; font-weight: 400;
+    text-transform: uppercase; letter-spacing: .02em; margin-bottom: 5px;
+  }
+  figcaption p { font-size: 15.5px; color: var(--muted); line-height: 1.45; }
+  .meta {
+    margin-top: 10px; font-size: 13px; letter-spacing: .04em;
+    text-transform: uppercase; color: #a49d8d;
+  }
+  .meta a, figcaption a { color: var(--accent); }
+  footer {
+    max-width: 1400px; margin: 60px auto 0; padding-top: 22px;
+    border-top: 3px dashed #d8d2c4; color: var(--muted); font-size: 15px;
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Pósters <span>ROCKY 035</span></h1>
+    <svg class="squig" viewBox="0 0 240 12" aria-hidden="true"><path d="M4 7 Q 22 1 40 7 T 76 7 T 112 7 T 148 7 T 184 7 T 236 6" fill="none" stroke="#e63946" stroke-width="5" stroke-linecap="round"/></svg>
+    <p class="intro">
+      Piezas para Instagram en <b>1080×1350</b> (aquí guardadas al doble, 2160×2700).
+      Cada una enseña una zona real de la web dentro de un navegador dibujado, con los
+      muñecos de la casa alrededor. La dirección va censurada a propósito: <b>el proyecto sigue en secreto</b>.
+      Pincha cualquiera para verla a tamaño completo.
+    </p>
+    <span class="conteo">16 piezas</span>
+  </header>
+  <div class="grid">
+    <figure class="card" id="01-ya-tenemos-casa">
+      <a href="img/01-ya-tenemos-casa.png" target="_blank" rel="noopener">
+        <img src="miniaturas/01-ya-tenemos-casa.png" alt="Ya tenemos casa" loading="lazy" width="900" height="1125">
+      </a>
+      <figcaption>
+        <span class="num">01</span>
+        <h2>Ya tenemos casa</h2>
+        <p>El anuncio de que la tienda existe: el catálogo entero tapado con cinta y el Spray firmando la esquina.</p>
+        <p class="meta">La tienda · 1757 KB · <a href="img/01-ya-tenemos-casa.png" target="_blank" rel="noopener">abrir a tamaño completo</a></p>
+      </figcaption>
+    </figure>
+    <figure class="card" id="02-todo-puesto-nada-visto">
+      <a href="img/02-todo-puesto-nada-visto.png" target="_blank" rel="noopener">
+        <img src="miniaturas/02-todo-puesto-nada-visto.png" alt="Todo puesto, nada visto" loading="lazy" width="900" height="1125">
+      </a>
+      <figcaption>
+        <span class="num">02</span>
+        <h2>Todo puesto, nada visto</h2>
+        <p>El escaparate al completo con cada diseño bajo llave. El Paquetes y el Recadero cargan el género.</p>
+        <p class="meta">La tienda · 2068 KB · <a href="img/02-todo-puesto-nada-visto.png" target="_blank" rel="noopener">abrir a tamaño completo</a></p>
+      </figcaption>
+    </figure>
+    <figure class="card" id="03-el-drop-4-existe">
+      <a href="img/03-el-drop-4-existe.png" target="_blank" rel="noopener">
+        <img src="miniaturas/03-el-drop-4-existe.png" alt="El drop 4 existe" loading="lazy" width="900" height="1125">
+      </a>
+      <figcaption>
+        <span class="num">03</span>
+        <h2>El drop 4 existe</h2>
+        <p>Teaser puro: candado gigante, el Vigía sentado en el marco y el Dormilón esperando abajo.</p>
+        <p class="meta">Ficha de producto · 1257 KB · <a href="img/03-el-drop-4-existe.png" target="_blank" rel="noopener">abrir a tamaño completo</a></p>
+      </figcaption>
+    </figure>
+    <figure class="card" id="04-miralo-de-cerca">
+      <a href="img/04-miralo-de-cerca.png" target="_blank" rel="noopener">
+        <img src="miniaturas/04-miralo-de-cerca.png" alt="Míralo de cerca" loading="lazy" width="900" height="1125">
+      </a>
+      <figcaption>
+        <span class="num">04</span>
+        <h2>Míralo de cerca</h2>
+        <p>Material, gramaje y precio: la prueba de que la tienda es de verdad y no una maqueta.</p>
+        <p class="meta">Ficha de producto · 1661 KB · <a href="img/04-miralo-de-cerca.png" target="_blank" rel="noopener">abrir a tamaño completo</a></p>
+      </figcaption>
+    </figure>
+    <figure class="card" id="05-que-llevas-ahi">
+      <a href="img/05-que-llevas-ahi.png" target="_blank" rel="noopener">
+        <img src="miniaturas/05-que-llevas-ahi.png" alt="¿Qué llevas ahí?" loading="lazy" width="900" height="1125">
+      </a>
+      <figcaption>
+        <span class="num">05</span>
+        <h2>¿Qué llevas ahí?</h2>
+        <p>El Curioso, auditor oficial de carritos, se asoma a ver qué te llevas.</p>
+        <p class="meta">Carrito · 1162 KB · <a href="img/05-que-llevas-ahi.png" target="_blank" rel="noopener">abrir a tamaño completo</a></p>
+      </figcaption>
+    </figure>
+    <figure class="card" id="06-el-album-de-la-crew">
+      <a href="img/06-el-album-de-la-crew.png" target="_blank" rel="noopener">
+        <img src="miniaturas/06-el-album-de-la-crew.png" alt="El álbum de la crew" loading="lazy" width="900" height="1125">
+      </a>
+      <figcaption>
+        <span class="num">06</span>
+        <h2>El álbum de la crew</h2>
+        <p>Los 25 cromos con su marcador y el tampón FICHADO cruzando el navegador.</p>
+        <p class="meta">Crew · 1510 KB · <a href="img/06-el-album-de-la-crew.png" target="_blank" rel="noopener">abrir a tamaño completo</a></p>
+      </figcaption>
+    </figure>
+    <figure class="card" id="07-faltan-tres-cromos">
+      <a href="img/07-faltan-tres-cromos.png" target="_blank" rel="noopener">
+        <img src="miniaturas/07-faltan-tres-cromos.png" alt="Faltan tres cromos" loading="lazy" width="900" height="1125">
+      </a>
+      <figcaption>
+        <span class="num">07</span>
+        <h2>Faltan tres cromos</h2>
+        <p>La cuenta atrás del álbum en chapa roja, sobre fondo noche.</p>
+        <p class="meta">Crew · 1532 KB · <a href="img/07-faltan-tres-cromos.png" target="_blank" rel="noopener">abrir a tamaño completo</a></p>
+      </figcaption>
+    </figure>
+    <figure class="card" id="08-cada-uno-tiene-ficha">
+      <a href="img/08-cada-uno-tiene-ficha.png" target="_blank" rel="noopener">
+        <img src="miniaturas/08-cada-uno-tiene-ficha.png" alt="Cada uno tiene ficha" loading="lazy" width="900" height="1125">
+      </a>
+      <figcaption>
+        <span class="num">08</span>
+        <h2>Cada uno tiene ficha</h2>
+        <p>Detrás de cada cromo hay un expediente: alias, oficio, una frase suya y dónde vive en la web.</p>
+        <p class="meta">Crew · 1584 KB · <a href="img/08-cada-uno-tiene-ficha.png" target="_blank" rel="noopener">abrir a tamaño completo</a></p>
+      </figcaption>
+    </figure>
+    <figure class="card" id="09-quedan-tres-sitios">
+      <a href="img/09-quedan-tres-sitios.png" target="_blank" rel="noopener">
+        <img src="miniaturas/09-quedan-tres-sitios.png" alt="Quedan tres sitios" loading="lazy" width="900" height="1125">
+      </a>
+      <figcaption>
+        <span class="num">09</span>
+        <h2>Quedan tres sitios</h2>
+        <p>El banquillo del álbum: el Rapero, la Abeja y un hueco con tu nombre.</p>
+        <p class="meta">Crew · 1178 KB · <a href="img/09-quedan-tres-sitios.png" target="_blank" rel="noopener">abrir a tamaño completo</a></p>
+      </figcaption>
+    </figure>
+    <figure class="card" id="10-tu-sitio-en-la-colmena">
+      <a href="img/10-tu-sitio-en-la-colmena.png" target="_blank" rel="noopener">
+        <img src="miniaturas/10-tu-sitio-en-la-colmena.png" alt="Tu sitio en la colmena" loading="lazy" width="900" height="1125">
+      </a>
+      <figcaption>
+        <span class="num">10</span>
+        <h2>Tu sitio en la colmena</h2>
+        <p>El carnet de miembro y los escalones de XP: Del Barrio, Crew Member, Leyenda 035.</p>
+        <p class="meta">Mi Crew · 1395 KB · <a href="img/10-tu-sitio-en-la-colmena.png" target="_blank" rel="noopener">abrir a tamaño completo</a></p>
+      </figcaption>
+    </figure>
+    <figure class="card" id="11-la-tienda-tiene-cerebro">
+      <a href="img/11-la-tienda-tiene-cerebro.png" target="_blank" rel="noopener">
+        <img src="miniaturas/11-la-tienda-tiene-cerebro.png" alt="La tienda tiene cerebro" loading="lazy" width="900" height="1125">
+      </a>
+      <figcaption>
+        <span class="num">11</span>
+        <h2>La tienda tiene cerebro</h2>
+        <p>Un chat que se sabe el catálogo, las tallas y quién firma cada rincón de la casa.</p>
+        <p class="meta">Rocky IA · 1093 KB · <a href="img/11-la-tienda-tiene-cerebro.png" target="_blank" rel="noopener">abrir a tamaño completo</a></p>
+      </figcaption>
+    </figure>
+    <figure class="card" id="12-la-colmena-ya-suena">
+      <a href="img/12-la-colmena-ya-suena.png" target="_blank" rel="noopener">
+        <img src="miniaturas/12-la-colmena-ya-suena.png" alt="La colmena ya suena" loading="lazy" width="900" height="1125">
+      </a>
+      <figcaption>
+        <span class="num">12</span>
+        <h2>La colmena ya suena</h2>
+        <p>El estudio de la casa: maquetas, EPs y humo, con el Productor y la Luna.</p>
+        <p class="meta">Estudio · 1478 KB · <a href="img/12-la-colmena-ya-suena.png" target="_blank" rel="noopener">abrir a tamaño completo</a></p>
+      </figcaption>
+    </figure>
+    <figure class="card" id="13-la-web-suena">
+      <a href="img/13-la-web-suena.png" target="_blank" rel="noopener">
+        <img src="miniaturas/13-la-web-suena.png" alt="La web suena" loading="lazy" width="900" height="1125">
+      </a>
+      <figcaption>
+        <span class="num">13</span>
+        <h2>La web suena</h2>
+        <p>Un boombox dibujado que suena de verdad mientras compras. Ahora mismo, BARRO.</p>
+        <p class="meta">Estudio · 1172 KB · <a href="img/13-la-web-suena.png" target="_blank" rel="noopener">abrir a tamaño completo</a></p>
+      </figcaption>
+    </figure>
+    <figure class="card" id="14-cuando-vuelan-vuelan">
+      <a href="img/14-cuando-vuelan-vuelan.png" target="_blank" rel="noopener">
+        <img src="miniaturas/14-cuando-vuelan-vuelan.png" alt="Cuando vuelan, vuelan" loading="lazy" width="900" height="1125">
+      </a>
+      <figcaption>
+        <span class="num">14</span>
+        <h2>Cuando vuelan, vuelan</h2>
+        <p>Las colecciones limitadas esperando turno: Asphalt Afterdark, Colmena Signal, Costa 035.</p>
+        <p class="meta">Drops · 1189 KB · <a href="img/14-cuando-vuelan-vuelan.png" target="_blank" rel="noopener">abrir a tamaño completo</a></p>
+      </figcaption>
+    </figure>
+    <figure class="card" id="15-te-has-salido-del-mapa">
+      <a href="img/15-te-has-salido-del-mapa.png" target="_blank" rel="noopener">
+        <img src="miniaturas/15-te-has-salido-del-mapa.png" alt="Te has salido del mapa" loading="lazy" width="900" height="1125">
+      </a>
+      <figcaption>
+        <span class="num">15</span>
+        <h2>Te has salido del mapa</h2>
+        <p>Hasta perderse tiene su gracia: la página de error con el Turista y el perro.</p>
+        <p class="meta">Error 404 · 1259 KB · <a href="img/15-te-has-salido-del-mapa.png" target="_blank" rel="noopener">abrir a tamaño completo</a></p>
+      </figcaption>
+    </figure>
+    <figure class="card" id="16-desde-el-banco-lo-vimos-todo">
+      <a href="img/16-desde-el-banco-lo-vimos-todo.png" target="_blank" rel="noopener">
+        <img src="miniaturas/16-desde-el-banco-lo-vimos-todo.png" alt="Desde el banco lo vimos todo" loading="lazy" width="900" height="1125">
+      </a>
+      <figcaption>
+        <span class="num">16</span>
+        <h2>Desde el banco lo vimos todo</h2>
+        <p>La pieza de firma: los tres fundadores en el banco, sobre negro y con dorado.</p>
+        <p class="meta">Marca · 1491 KB · <a href="img/16-desde-el-banco-lo-vimos-todo.png" target="_blank" rel="noopener">abrir a tamaño completo</a></p>
+      </figcaption>
+    </figure>
+  </div>
+
+  <h2 class="seccion">En movimiento</h2>
+  <div class="grid">
+    <figure class="card card--video">
+      <video src="video/reel-album.mp4" muted loop playsinline autoplay preload="metadata"></video>
+      <figcaption>
+        <h2>El álbum, en movimiento</h2>
+        <p>Bucle de 14 s: el navegador recorre el álbum entero y el tampón FICHADO se estampa a mitad.</p>
+        <p class="meta">MP4 1080×1350 · 9.7 MB · <a href="video/reel-album.mp4" target="_blank" rel="noopener">abrir</a></p>
+      </figcaption>
+    </figure>
+    <figure class="card card--video">
+      <video src="video/apertura.mp4" muted loop playsinline autoplay preload="metadata"></video>
+      <figcaption>
+        <h2>Así abre la web</h2>
+        <p>La intro real grabada: los doce muñecos se pegan en cascada y la cortina descubre la tienda.</p>
+        <p class="meta">MP4 1080×1350 · 0.7 MB · <a href="video/apertura.mp4" target="_blank" rel="noopener">abrir</a></p>
+      </figcaption>
+    </figure>
+  </div>
+
+  <footer>
+    Generado desde las capturas reales de la web · tipografías Luckiest Guy + Fredoka · @rocky.tres.cinco
+  </footer>
+</body>
+</html>

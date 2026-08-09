@@ -6,6 +6,7 @@ const api = vi.hoisted(() => ({
   addCartLine: vi.fn(),
   beginCheckout: vi.fn(),
   getCart: vi.fn(),
+  getCrewProfile: vi.fn(),
   getCustomerAccount: vi.fn(),
   getShopifyStatus: vi.fn(),
   listProducts: vi.fn(),
@@ -160,6 +161,35 @@ describe('useStorefront', () => {
       quantity: 1,
     });
     expect(result.current.totalItems).toBe(1);
+  });
+
+  it('loads the equipped Crew avatar for a signed-in customer and keeps it in sync', async () => {
+    api.getShopifyStatus.mockResolvedValue({
+      mode: 'shopify',
+      capabilities: {
+        catalog: true,
+        cart: false,
+        customerAccounts: true,
+        admin: false,
+        webhooks: false,
+      },
+    });
+    api.listProducts.mockResolvedValue({ products: [] });
+    api.getCustomerAccount.mockResolvedValue({
+      loggedIn: true,
+      customer: { displayName: 'Juanjo' },
+    });
+    api.getCrewProfile.mockResolvedValue({
+      profile: { equippedAvatarId: 'dormido-head' },
+    });
+
+    const { result } = renderHook(() => useStorefront({ demoProducts }));
+
+    await waitFor(() => expect(result.current.crewAvatarId).toBe('dormido-head'));
+    expect(api.getCrewProfile).toHaveBeenCalledOnce();
+
+    act(() => result.current.updateCrewAvatar('colgado-head'));
+    expect(result.current.crewAvatarId).toBe('colgado-head');
   });
 
   it('layers non-live previews after Shopify products and lets Shopify win handle collisions', async () => {
