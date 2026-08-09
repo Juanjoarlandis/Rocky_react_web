@@ -122,7 +122,11 @@ describe('CrewProfile', () => {
     expect(screen.getByRole('img', {
       name: /vista previa del avatar el dormido/i,
     })).toBeInTheDocument();
-    expect(screen.getByTestId('crew-corner-character')).toBeInTheDocument();
+    // Va colgado del panel, no suelto en la página: es lo que le da el canto
+    // sobre el que se apoya. Suelto parece un muñeco flotando.
+    expect(screen.getByTestId('crew-corner-character').parentElement).toHaveClass(
+      'crew-gate-preview'
+    );
     expect(api.getCrewProfile).not.toHaveBeenCalled();
   });
 
@@ -194,7 +198,9 @@ describe('CrewProfile', () => {
     );
 
     expect(await screen.findByRole('heading', { name: /juanjo/i })).toBeInTheDocument();
-    expect(screen.getByTestId('crew-corner-character')).toBeInTheDocument();
+    expect(screen.getByTestId('crew-corner-character').parentElement).toHaveClass(
+      'crew-progress-panel'
+    );
     expect(screen.getByRole('heading', { name: 'Del Barrio' })).toBeInTheDocument();
     expect(screen.getByText(/120 \/ 300 XP/i)).toBeInTheDocument();
     expect(screen.getByText(/10 Crew Tickets/i)).toBeInTheDocument();
