@@ -5,32 +5,23 @@
   padding: clamp(28px, 4vw, 64px) clamp(16px, 3.2vw, 48px) 96px;
 }
 
-/* El Larguirucho vive quieto en la esquina de Mi Crew. Su mano superior cae
-   sobre el comienzo de la página y la pierna larga marca el canto derecho; al
-   formar parte del documento se va con el contenido al hacer scroll, sin
-   perseguir al usuario ni tapar controles de forma permanente. */
-.crew-profile-page--with-corner {
-  position: relative;
-}
-
+/* El Larguirucho está doblado como si no cupiera en ningún sitio, así que sólo
+   se lee si tiene un canto de verdad debajo: en el aire parece un muñeco
+   flotando. Se le pone en cuclillas sobre el borde superior de un panel,
+   arrimado a su esquina derecha. El `bottom: 100%` es lo que garantiza que
+   apoya: su base es exactamente la línea de tinta del panel, y el dibujo llega
+   hasta la última fila del lienzo con la suela. Va dentro del panel para que lo
+   acompañe si cambia de sitio, pero se pinta por fuera, encima del borde. */
 .crew-corner-character {
+  position: absolute;
+  right: clamp(26px, 4vw, 60px);
+  bottom: 100%;
+  z-index: 2;
   display: block;
+  width: clamp(132px, 14vw, 210px);
   height: auto;
   pointer-events: none;
   user-select: none;
-}
-
-.crew-profile-corner-character {
-  position: absolute;
-  top: 0;
-  right: 0;
-  z-index: 2;
-  width: clamp(118px, 12vw, 176px);
-}
-
-.crew-profile-page--with-corner .crew-profile-header {
-  min-height: clamp(164px, 17vw, 218px);
-  padding-right: clamp(98px, 13vw, 188px);
 }
 
 .crew-kicker,
@@ -202,6 +193,7 @@
 }
 
 .crew-progress-panel {
+  position: relative;
   background: var(--ink);
   color: #fff;
   background-image: var(--spray-speckle);
@@ -517,19 +509,8 @@
   margin-top: 26px;
 }
 
-.crew-gate-corner {
-  position: relative;
-  min-height: 419px;
-}
-
-.crew-gate-corner-character {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: min(100%, 300px);
-}
-
 .crew-gate-preview {
+  position: relative;
   padding: clamp(20px, 3vw, 36px);
   border: 3px solid var(--ink);
   border-radius: var(--wobble-lg);
@@ -754,11 +735,6 @@
     gap: 10px;
   }
 
-  .crew-profile-page--with-corner .crew-profile-header {
-    min-height: 166px;
-    padding-right: 94px;
-  }
-
   .crew-section-heading > p {
     text-align: left;
   }
@@ -786,13 +762,10 @@
     grid-template-columns: 1fr;
   }
 
-  .crew-gate-corner {
-    min-height: 0;
-    height: min(78.22vw, 300px);
-  }
-
-  .crew-gate-corner-character {
-    width: min(56vw, 215px);
+  /* En una columna el texto llega hasta el panel y no queda banda donde
+     agacharse: antes que taparlo, el Larguirucho se retira. */
+  .crew-corner-character {
+    display: none;
   }
 
   .crew-gate-preview-heading {
@@ -844,14 +817,6 @@
 }
 
 @media (max-width: 480px) {
-  .crew-gate-corner {
-    height: min(55.87vw, 223.5px);
-  }
-
-  .crew-gate-corner-character {
-    width: min(40vw, 160px);
-  }
-
   .crew-gate-preview {
     padding: 18px 12px;
   }

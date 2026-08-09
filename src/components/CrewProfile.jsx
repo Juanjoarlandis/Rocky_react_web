@@ -73,12 +73,10 @@ function CrewGate({ accountEnabled }) {
             </p>
           )}
         </div>
-        <div className="crew-gate-corner" aria-hidden="true">
-          <CrewCornerCharacter className="crew-gate-corner-character" />
-        </div>
       </div>
 
       <div className="crew-gate-preview" aria-labelledby="crew-preview-title">
+        <CrewCornerCharacter />
         <div className="crew-gate-preview-heading">
           <div>
             <span className="crew-section-label">VISTA PREVIA · SIN DATOS REALES</span>
@@ -308,8 +306,7 @@ export default function CrewProfile({
   const nextXp = profile.level.nextXp;
 
   return (
-    <div className="crew-profile-page crew-profile-page--with-corner">
-      <CrewCornerCharacter className="crew-profile-corner-character" />
+    <div className="crew-profile-page">
       <header className="crew-profile-header">
         <div>
           <span className="crew-kicker">CARNET OFICIAL · ROCKY 035</span>
@@ -339,6 +336,7 @@ export default function CrewProfile({
 
         <div className="crew-profile-content">
           <section className="crew-progress-panel" aria-labelledby="crew-progress-title">
+            <CrewCornerCharacter />
             <div className="crew-progress-copy">
               <div>
                 <span className="crew-section-label">TU ESCALÓN</span>
