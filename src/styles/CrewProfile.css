@@ -18,10 +18,27 @@
   bottom: 100%;
   z-index: 2;
   display: block;
-  width: clamp(132px, 14vw, 210px);
+  width: clamp(132px, 13vw, 184px);
   height: auto;
   pointer-events: none;
   user-select: none;
+}
+
+/* Con la sesión abierta lo que tiene encima es la cabecera, y a su derecha vive
+   el botón de salir: se arrima hacia dentro para dejarlo despejado. Por debajo
+   de 1080 px el párrafo del encabezado llega hasta ahí y ya no hay banda libre,
+   así que se retira. */
+.crew-progress-panel > .crew-corner-character {
+  right: clamp(120px, 12vw, 150px);
+  /* Más bajito que en el gate: encima sólo tiene el alto de la cabecera, y de
+     pasarse asomaría por detrás de la barra de navegación. */
+  width: clamp(116px, 10vw, 156px);
+}
+
+@media (max-width: 1080px) {
+  .crew-progress-panel > .crew-corner-character {
+    display: none;
+  }
 }
 
 .crew-kicker,
