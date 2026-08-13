@@ -41,16 +41,20 @@
     animation: lata-patrulla var(--lata-patrulla) linear infinite;
 }
 
-/* El vídeo ya trae el movimiento corporal y el alfa; su caja conserva la misma
-   altura visual que el sprite anterior para no alterar la marquesina. */
-.ticker-lata-video {
+/* El APNG ya trae la marcha acelerada a 1,5× y un alfa compatible con PNG; su
+   caja conserva la altura anterior para no alterar la marquesina. */
+.ticker-lata-picture,
+.ticker-lata-image {
     display: block;
+}
+
+.ticker-lata-image {
     height: clamp(84px, 10vw, 110px);
     width: auto;
     max-width: none;
 }
 
-/* El vídeo camina hacia la izquierda, por eso la primera pasada nace en el
+/* La animación camina hacia la izquierda, por eso la primera pasada nace en el
    extremo derecho. Al llegar al izquierdo se voltea y regresa. Los altos duran
    sólo el instante necesario para girar;
    antes ocupaban hasta un 10 % de la vuelta y parecían un bloqueo. El volteo
