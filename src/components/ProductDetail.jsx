@@ -58,36 +58,6 @@ function ProductDetail({
             <Link to="/" className="detail-back">← Volver a la tienda</Link>
 
             <div className="detail-grid">
-                <div className="detail-media-wrap">
-                    {/* Un chaval de la banda vigila el producto desde el marco */}
-                    <img
-                        src={sentadoBordeBlanco}
-                        width="717"
-                        height="1186"
-                        decoding="async"
-                        alt=""
-                        className="detail-doodle"
-                    />
-                    <button
-                        type="button"
-                        className="detail-media"
-                        onClick={() => !isPlaceholder && setZoomOpen(true)}
-                        aria-label={`Ver ${product.title} en grande`}
-                        disabled={isPlaceholder}
-                    >
-                        {isPlaceholder ? (
-                            <PlaceholderTee title={product.title} />
-                        ) : (
-                            <img src={product.image} alt={product.title} className="detail-image" />
-                        )}
-                        {!isPlaceholder && (
-                            <span className="product-zoom" aria-hidden="true">
-                                <EyeIcon />
-                            </span>
-                        )}
-                    </button>
-                </div>
-
                 <div className="detail-info">
                     <p className="detail-drop">{product.drop}</p>
                     <h1 className="detail-title">{product.title}</h1>
@@ -147,6 +117,36 @@ function ProductDetail({
                             }
                         />
                     </div>
+                </div>
+
+                <div className="detail-media-wrap">
+                    {/* Un chaval de la banda vigila el producto desde el marco */}
+                    <img
+                        src={sentadoBordeBlanco}
+                        width="717"
+                        height="1186"
+                        decoding="async"
+                        alt=""
+                        className="detail-doodle"
+                    />
+                    <button
+                        type="button"
+                        className="detail-media"
+                        onClick={() => !isPlaceholder && setZoomOpen(true)}
+                        aria-label={`Ver ${product.title} en grande`}
+                        disabled={isPlaceholder}
+                    >
+                        {isPlaceholder ? (
+                            <PlaceholderTee title={product.title} />
+                        ) : (
+                            <img src={product.image} alt={product.title} className="detail-image" />
+                        )}
+                        {!isPlaceholder && (
+                            <span className="product-zoom" aria-hidden="true">
+                                <EyeIcon />
+                            </span>
+                        )}
+                    </button>
                 </div>
             </div>
 

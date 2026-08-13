@@ -142,3 +142,154 @@
 - Evidence: 221 tests en verde. Medido en `.studio-player` (sombra 5px 5px):
   canto pintado 794, fin de sombra 799, canto de la ventana 797 — dentro de los
   2 px de mordida del agarre y por fuera de la sombra.
+
+## Task 07 — los muñecos estaban huecos (2026-08-11)
+
+- Status: completed locally.
+- Files: `src/images/characters/cotilla-esquina.png`,
+  `src/images/characters/larguirucho-esquina.png` y sus derivados en
+  `src/images/optimized/characters/`.
+- Symptom: se veía el fondo de la web a través del cuerpo de los muñecos.
+- Root cause: los PNG salidos de ImageGen sólo traen la tinta y los rojos. En
+  `cotilla-esquina` no había NI UN píxel blanco opaco: cara, pantalón, suelas y
+  corbata estaban a alfa 0 (11,5% del lienzo hueco). En `larguirucho-esquina`,
+  un 2,9%. `asomado-borde`, el original, tenía 0 huecos: por eso el fallo sólo
+  aparecía con los personajes nuevos, y sobre papel casi no se notaba.
+- Fix: relleno por inundación desde el borde para separar el lienzo de fuera del
+  interior; todo lo vacío que no se alcanza desde fuera se pinta de blanco
+  opaco. El contorno exterior no se toca para no comerse su suavizado; el
+  degradado de dentro del trazo sí se compone sobre blanco. En el Cotilla se
+  sella el canto de abajo, que es por donde el dibujo se sale a propósito.
+- Evidence: los tres sobre `--ink` puro sin transparencias. De paso pesan menos
+  (cotilla 47 -> 27 kB, larguirucho 47 -> 43,5 kB): el relleno sólido comprime
+  mejor que el degradado de alfa. 237 tests en verde y build correcto.
+
+## Task 08 — variedad y escala de los escondites (2026-08-11)
+
+- Status: completed locally.
+- Files: `src/components/CuriousPeeker.jsx`, `src/components/CuriousPeeker.test.jsx`.
+- Symptom 1: en la tienda, de scroll 800 en adelante el reparto era 100%
+  "entra por el filo de abajo de la pantalla", en todas las posiciones.
+- Root cause 1: dentro de la rejilla, el canto de arriba de cada tarjeta lo tapa
+  la fila anterior (solape 0,75) y las esquinas no caben en los 12 px de hueco
+  entre columnas. No quedaba ningún canto libre.
+- Fix 1: se aceptan las franjas interiores como escondite —`.product-body` y
+  equivalentes—, que no pintan fondo pero tienen el canto de arriba dibujado
+  (el borde de abajo del hermano que llevan encima) y detrás un bloque opaco que
+  las contiene. Van marcadas `soloArriba`: sus laterales no están pintados, así
+  que ahí no se hace la esquina. Y pisar el bloque que contiene a tu escondite
+  deja de contar como invasión, porque estás dentro de él.
+- Symptom 2: se escondía detrás de cosas más pequeñas que él: el botón "VER
+  DROP 4" (240x64), la píldora de la radio (175x67) y cromos de 145 px.
+- Root cause 2: los mínimos eran fijos (170x44) y no tenían nada que ver con el
+  tamaño al que se dibuja el muñeco.
+- Fix 2: los mínimos se calculan del propio dibujo — el bloque tiene que ser más
+  alto que él y vez y media más ancho — y para la esquina, además, tres veces
+  más ancho que lo que él saca por el canto. Escala solo con el viewport.
+- Evidence: en la tienda, de 100% pantalla a ~90% tarjetas en todas las
+  posiciones de scroll, también en móvil. Estudio (52-69% esquinas) y Crew
+  (hasta 97%) sin cambios. Ningún control tapado: los botones de las tarjetas
+  quedan 100 px por debajo de la ventana. 242 tests en verde y build correcto.
+
+## Task 09 — El Lata anda de verdad (2026-08-11)
+
+- Status: completed locally.
+- Files: `src/components/Footer.jsx`, `src/styles/Footer.css`,
+  `src/images/characters/lata-spray-walk-cycle.png` (rejilla 2x2 de ImageGen),
+  `src/images/characters/lata-spray-walk-strip.png` (tira alineada y rellenada),
+  `src/images/optimized/characters/lata-spray-walk-592.webp` (la que se sirve).
+- Antes: un PNG estático con balanceo y bote fingidos. No movía las piernas.
+- Ahora: ciclo de marcha de cuatro fotogramas con `steps(4)` sobre una tira.
+- Del material recibido: la línea de pisada venía clavada a y=1150 en las cuatro
+  celdas, perfecto. Dos arreglos antes de montar:
+  1. **Baile horizontal.** Los torsos no estaban alineados. Se midió por
+     correlación del perfil de tinta en la banda del peto (y 560-720) y se
+     corrigió cada fotograma: F2 -13 px, F3 -6 px, F4 -12 px.
+  2. **Huecos otra vez.** ~3.200 px por celda, esta vez sólo el interior del
+     puño levantado, no el cuerpo. Rellenados con el mismo relleno por
+     inundación de la Task 07.
+- La cadencia no va a ojo: se midió la zancada entre centros de pisada (465
+  unidades de un lienzo de 1110 de alto). Cada ciclo son dos pasos, o sea 0,84
+  veces su altura de avance. A la velocidad a la que patrulla eso da 1,3 s por
+  ciclo. Desfase medido: 3,7% en escritorio y 1% en móvil — no patina.
+- Como la velocidad depende del ancho de la cinta, la cadencia lleva tres
+  tramos (1,3 / 1,55 / 1,75 s) y por encima de 1600 px se alarga la patrulla a
+  60 s, que si no le salía un paso de atleta.
+- La tira servida mide 592x224 (celda 148x224, el doble exacto del tamaño en
+  pantalla para retina) y pesa 39,7 kB, en línea con el resto de personajes.
+- Se quitó el balanceo fingido: el bote y el vaivén ya vienen dentro de los
+  fotogramas. Con movimiento reducido se queda en el fotograma de piernas
+  juntas, que es el que parece de pie.
+- Evidence: 243 tests en verde, build correcto, y comprobado a 1280 y 375 px
+  que la mirilla enseña un fotograma limpio, sin asomo del vecino.
+
+## Task 10 — repaso de las tres animaciones (2026-08-11)
+
+- Status: completed locally.
+- Files: `src/styles/Footer.css`, `src/styles/ProductPage.css`,
+  `src/components/ProductPage.jsx`, `src/components/ProductPage.test.jsx`,
+  `src/images/optimized/characters/grafitero-sin-chorro-420.webp` (nuevo).
+
+**El Lata andaba a cámara lenta.** La cadencia la fija la zancada, así que a
+0,62 alturas de cuerpo por segundo salían tres fotogramas por segundo y parecía
+un pase de diapositivas. Se acelera la patrulla (44s -> 28s, y sus tramos) hasta
+0,97 alturas/s —lo que anda una persona— y el ciclo cae en 0,85 s: 4,7
+fotogramas por segundo, con 1% de desfase.
+
+**El grafitero caminaba en contra de su propio dibujo.** El PNG lo tiene
+rociando hacia abajo y a su izquierda, y estaba puesto a caminar hacia la
+derecha, así que la pintura salía por detrás y en dirección contraria. Ahora no
+se mueve: la línea se revela desde su bote hacia la izquierda, que es a donde
+apunta. La curva termina en x=91 en vez de 98 para que su punta caiga en la
+boquilla: medido, 1 px de diferencia.
+
+**El chorro no se movía** porque los puntos venían pintados en el PNG. Se sacó
+una variante sin ellos (`grafitero-sin-chorro-420.webp`, 21 kB) y el chorro pasa
+a ser tres gotas escalonadas que salen de la boquilla con el mismo recorrido que
+traían los puntos del dibujo. La boquilla y las gotas cuelgan de
+`--spray-guy-alto`, así que no se despegan al cambiar de tamaño.
+
+**La línea salía a rayas.** El montaje anterior usaba `pathLength="100"` con
+guiones cortos, pero el trazo lleva `non-scaling-stroke` y entonces el guion se
+mide en píxeles de pantalla: el patrón se repetía once veces. Ahora el guion y
+el hueco valen `100cqw`, más largos que la pista, y sale continuo.
+
+**La Cruiser botaba seis veces sobre una sola onda.** Las seis ondas están
+repartidas por todo el ancho de la cinta, pero de su entrada sólo se ve algo más
+de una. Bota una vez, el recorrido pasa a lineal (con `ease-out` los botes no
+caían donde las ondas) y entra después de que la línea esté pintada.
+
+- Los tests que dejó el montaje anterior fijaban el CSS carácter a carácter con
+  expresiones regulares; se reescribieron sobre lo que importa: qué dibujo usa,
+  que el guion sea más largo que la pista, que la escena no se repita, que la
+  Cruiser tenga un único sitio de reposo y que con movimiento reducido quede
+  quieta y con la línea entera.
+- Evidence: 247 tests en verde, build y `security:check` correctos.
+
+## Task 11 — El Lata pasa a ocho fotogramas (2026-08-12)
+
+- Status: completed locally.
+- Files: `src/components/Footer.jsx`, `src/styles/Footer.css`,
+  `src/images/characters/lata-spray-walk-8-verde.png` (rejilla 4x2 de ImageGen),
+  `src/images/optimized/characters/lata-spray-walk8-1312.webp` (la que se sirve).
+  Se borran los derivados del ciclo de cuatro, ya sin uso.
+- **El fondo verde resolvió los huecos de raíz.** Los tres personajes anteriores
+  llegaron con el cuerpo hueco pidiendo fondo transparente: el modelo trataba lo
+  blanco como ausencia de tinta. Sobre verde croma tiene que pintarlo para
+  distinguirlo del fondo, y este pliego llegó con **cero huecos interiores**.
+- Croma con quita-derrame y desmultiplicado, no un "borra el verde" a lo bruto:
+  el alfa sale de cuánto verde queda en cada píxel, se le resta el tinte y se
+  desmultiplica. Resultado medido: **0 píxeles con resto verdoso** de 664.984
+  visibles, y 0 huecos interiores.
+- Del material recibido: la línea de suelo venía clavada en 705 en las ocho
+  celdas, y el sube y baja en su sitio (2 y 6 abajo, 4 y 8 arriba). La cadera
+  bailaba 25 px; se alineó por correlación del perfil del torso, ajustes
+  [0, -12, -11, -5, 32, -14, -8, 40].
+- Zancada nueva: 245,5 unidades sobre una figura de 593, o sea 0,414 veces su
+  altura — la misma proporción que el pliego de cuatro (0,422), así que la
+  cadencia se sostiene: 0,83 s por ciclo con 2% de desfase medido.
+- **De 4,7 a 9,6 fotogramas por segundo**, que era el objetivo.
+- La tira servida mide 1312x225 (celda 164x225, el doble exacto del tamaño en
+  pantalla) y pesa 74,9 kB frente a los 39,7 kB de cuatro fotogramas.
+- Evidence: 247 tests en verde, build correcto, saltos de fotograma exactos de
+  una celda y comprobación visual de dos fotogramas sin asomo del vecino.

@@ -30,6 +30,7 @@ function ChatComponent({
     addToCart = unavailableCart,
     commerceMode = 'demo',
     canAddToCart = false,
+    headerPlayer = null,
 }) {
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState('');
@@ -130,6 +131,11 @@ function ChatComponent({
                             <span aria-hidden="true">●</span>
                             {storeStatus(commerceMode, canAddToCart)}
                         </p>
+                        {headerPlayer && (
+                            <div className="chat-header-player">
+                                {headerPlayer}
+                            </div>
+                        )}
                     </header>
 
                     <div

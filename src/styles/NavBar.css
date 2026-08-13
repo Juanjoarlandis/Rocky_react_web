@@ -22,6 +22,7 @@
 .navbar-brand {
     display: flex;
     align-items: center;
+    min-height: 44px;
     flex-shrink: 0;
     transition: transform 0.15s ease;
 }
@@ -44,6 +45,9 @@
 
 .navbar-link {
     position: relative;
+    display: flex;
+    align-items: center;
+    min-height: 44px;
     font-family: var(--font-hand);
     font-size: 1.18rem;
     letter-spacing: 0.03em;
@@ -77,6 +81,10 @@
 }
 
 .navbar-account {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    flex-shrink: 0;
     border: 0;
     border-bottom: 2px dashed var(--accent);
     padding: 3px 1px;
@@ -93,13 +101,13 @@
 }
 
 .navbar-account.navbar-account--avatar {
-    width: 42px;
-    height: 42px;
+    width: 44px;
+    height: 44px;
     max-width: none;
     padding: 2px;
     display: grid;
     place-items: center;
-    flex: 0 0 42px;
+    flex: 0 0 44px;
     overflow: hidden;
     border: 2px solid var(--ink);
     border-radius: 50%;
@@ -132,8 +140,21 @@
     position: relative;
     display: flex;
     align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    flex: 0 0 auto;
     padding: 4px;
     transition: transform 0.15s ease;
+}
+
+.navbar-brand:focus-visible,
+.navbar-link:focus-visible,
+.navbar-account:focus-visible,
+.navbar-cart:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: var(--wobble-sm);
 }
 
 .navbar-cart:hover {
@@ -166,8 +187,20 @@
     transform: rotate(6deg);
 }
 
-/* En móvil, la navbar pasa a dos filas: marca arriba, enlaces debajo */
-@media (max-width: 560px) {
+/* Última franja horizontal: comprime el ritmo sin recortar destinos. */
+@media (min-width: 721px) and (max-width: 800px) {
+    .navbar-inner {
+        padding-inline: 16px;
+        gap: 12px;
+    }
+
+    .navbar-links {
+        gap: clamp(10px, 1.5vw, 12px);
+    }
+}
+
+/* En tablet estrecha y móvil, la navbar pasa a dos filas estables. */
+@media (max-width: 720px) {
     .navbar-inner {
         flex-direction: column;
         height: auto;
@@ -197,16 +230,12 @@
     }
 
     .navbar-account {
-        display: inline-block;
         max-width: 86px;
         padding: 2px 0 4px;
         font-size: 0.92rem;
     }
 
     .navbar-account.navbar-account--avatar {
-        width: 36px;
-        height: 36px;
-        flex-basis: 36px;
         padding: 1px;
     }
 }

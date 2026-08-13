@@ -13,6 +13,10 @@
     box-shadow: 0 4px 0 rgba(26, 26, 26, 0.18);
     position: relative;
     z-index: 1;
+    /* Para que El Lata sepa cuánto mide la marquesina y la recorra entera:
+       `cqw` es un 1% de este ancho, y así el paseo se ajusta solo a la
+       pantalla en vez de ir a ojo con unidades de viewport. */
+    container-type: inline-size;
 }
 
 /* El recorte del texto en marcha vive aquí, para que El Lata pueda asomar */
@@ -20,16 +24,64 @@
     overflow: hidden;
 }
 
-/* El Lata de pie sobre la marquesina que él mismo pintó (gira con ella) */
+/* El Lata patrulla la marquesina que él mismo pintó, de una punta a la otra y
+   vuelta, con una parada en cada extremo. Va dentro de la cinta, así que se
+   inclina con ella y camina siguiendo su pendiente. Los cinco píxeles de
+   solape son los que le dejan los pies apoyados en el canto. */
 .ticker-lata {
+    --lata-patrulla: 28s;
+
     position: absolute;
-    right: 4%;
+    left: 0;
     bottom: calc(100% - 5px);
-    height: clamp(84px, 10vw, 110px);
-    width: auto;
     z-index: 2;
+    display: block;
     pointer-events: none;
     user-select: none;
+    animation: lata-patrulla var(--lata-patrulla) linear infinite;
+}
+
+/* El vídeo ya trae el movimiento corporal y el alfa; su caja conserva la misma
+   altura visual que el sprite anterior para no alterar la marquesina. */
+.ticker-lata-video {
+    display: block;
+    height: clamp(84px, 10vw, 110px);
+    width: auto;
+    max-width: none;
+}
+
+/* El vídeo camina hacia la izquierda, por eso la primera pasada nace en el
+   extremo derecho. Al llegar al izquierdo se voltea y regresa. Los altos duran
+   sólo el instante necesario para girar;
+   antes ocupaban hasta un 10 % de la vuelta y parecían un bloqueo. El volteo
+   cae entre dos keyframes pegados —una
+   centésima de la vuelta— porque interpolando de 1 a -1 el `scale` pasa por cero
+   y el muñeco se aplasta hasta desaparecer. Así es un corte seco. */
+@keyframes lata-patrulla {
+    0% {
+        translate: calc(100cqw - 100%) 0;
+        scale: 1 1;
+    }
+
+    48% {
+        translate: 0 0;
+        scale: 1 1;
+    }
+
+    48.01%, 50% {
+        translate: 0 0;
+        scale: -1 1;
+    }
+
+    98% {
+        translate: calc(100cqw - 100%) 0;
+        scale: -1 1;
+    }
+
+    98.01%, 100% {
+        translate: calc(100cqw - 100%) 0;
+        scale: 1 1;
+    }
 }
 
 .ticker-track {
@@ -54,8 +106,15 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .ticker-track {
+    .ticker-track,
+    .ticker-lata {
         animation: none;
+    }
+
+    /* Sin paseo se queda quieto donde estaba antes, y no pegado al canto. */
+    .ticker-lata {
+        left: auto;
+        right: 4%;
     }
 }
 
@@ -83,10 +142,12 @@
 }
 
 @media (max-width: 640px) {
+    /* Sin `overflow: hidden`: recortaba a El Lata entero, que va por encima del
+       canto. El texto ya lo recorta `.ticker-clip`, y sin la inclinación no hay
+       nada que se salga —comprobado a 375 px, el documento no se ensancha—. */
     .ticker {
         margin-left: 0;
         margin-right: 0;
-        overflow: hidden;
         transform: none;
     }
 
@@ -163,4 +224,32 @@
     font-family: var(--font-hand);
     font-size: 0.98rem;
     color: #b3ada0;
+}
+
+/* La duración del recorrido mantiene una velocidad tranquila en los anchos
+   pequeños; el ciclo corporal ya viene temporizado dentro del vídeo. */
+@media (max-width: 440px) {
+    .ticker-lata {
+        --lata-patrulla: 14s;
+    }
+}
+
+@media (min-width: 441px) and (max-width: 540px) {
+    .ticker-lata {
+        --lata-patrulla: 18s;
+    }
+}
+
+@media (min-width: 541px) and (max-width: 640px) {
+    .ticker-lata {
+        --lata-patrulla: 22s;
+    }
+}
+
+/* En pantallas muy anchas el recorrido se alarga con la misma duración, y le
+   salía un paso de atleta: se le da más tiempo para cruzarla. */
+@media (min-width: 1600px) {
+    .ticker-lata {
+        --lata-patrulla: 42s;
+    }
 }

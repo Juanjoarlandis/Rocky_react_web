@@ -1,22 +1,28 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router';
+import { Link } from 'react-router';
 import { useMusic } from '../context/MusicContext';
 import { CrosshairSpinner } from './BrandDoodles';
 import { IconPlay, IconPause } from './Boombox';
 import '../styles/MiniPlayer.css';
 
-// Píldora flotante de la radio: visible en toda la web menos en La Colmena
-// (allí ya está el radiocasete grande). El título lleva al estudio.
-function MiniPlayer() {
+// App decide dónde se monta; este componente solo presenta el mando de la radio.
+function MiniPlayer({ variant = 'content' }) {
     const { track, playing, toggle } = useMusic();
-    const location = useLocation();
-
-    if (location.pathname === '/estudio') return null;
+    const variantClass = variant === 'chat' ? 'mini-player--chat' : 'mini-player--content';
 
     return (
-        <div className={`mini-player ${playing ? 'playing' : ''}`}>
+        <div
+            className={`mini-player ${variantClass} ${playing ? 'playing' : ''}`}
+            role="group"
+            aria-label="Reproductor de Rocky 035"
+        >
             <CrosshairSpinner className="mini-player-disc" />
-            <Link to="/estudio" className="mini-player-title" title="Ir a La Colmena">
+            <Link
+                to="/estudio"
+                className="mini-player-title"
+                aria-label={`Ir a La Colmena: ${track.title}`}
+                title={track.title}
+            >
                 {track.title}
             </Link>
             <button

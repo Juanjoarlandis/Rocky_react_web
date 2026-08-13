@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useState } from 'react';
 import { Route, Routes, useLocation } from 'react-router';
 import NavBar from './components/NavBar';
 import Footer from './components/Footer';
@@ -10,6 +10,7 @@ import { CrosshairSpinner } from './components/BrandDoodles';
 import SplashIntro from './components/SplashIntro';
 import ProductPage from './components/ProductPage';
 import CuriousPeeker from './components/CuriousPeeker';
+import CartRunner from './components/CartRunner';
 import demoProducts from './PRODUCTOS_ROCKY.json';
 import previewProducts from '../server/preview-products.mjs';
 import { useStorefront } from './shopify/useStorefront';
@@ -36,9 +37,25 @@ function App() {
     demoProducts: DEMO_CATALOG,
     previewProducts,
   });
+  const [carreras, setCarreras] = useState(0);
   const location = useLocation();
+
+  /* Un único envoltorio sobre el `addToCart` de la tienda para no repetirlo en
+     cada página. Sólo cuenta la carrera si el añadido ha salido bien: si la
+     mutación revienta, el error sube tal cual al botón y no sale nadie
+     corriendo a celebrar algo que no ha pasado. */
+  const addToCart = useCallback(
+    async (...args) => {
+      const resultado = await commerce.addToCart(...args);
+      setCarreras((n) => n + 1);
+      return resultado;
+    },
+    [commerce.addToCart]
+  );
   // Rocky IA es una pantalla de chat a viewport completo: sin footer ni scroll de página
   const esChat = location.pathname === '/rockyIA';
+  const esEstudio = location.pathname === '/estudio';
+  const muestraPlayerDeContenido = !esChat && !esEstudio;
 
   useEffect(() => {
     if (!showSplash) return;
@@ -59,8 +76,14 @@ function App() {
         account={commerce.account}
         crewAvatarId={commerce.crewAvatarId}
       />
+      {muestraPlayerDeContenido && (
+        <div className="mini-player-slot mini-player-slot--content">
+          <MiniPlayer />
+        </div>
+      )}
       <ScrollToTop />
       <CuriousPeeker pathname={location.pathname} disabled={showSplash} />
+      <CartRunner runId={carreras} disabled={showSplash} />
       <main className="app-main">
         {((!commerce.loading && commerce.mode === 'demo') || commerce.error) && (
           <div
@@ -84,7 +107,7 @@ function App() {
               element={
                 <ProductPage
                   products={commerce.products}
-                  addToCart={commerce.addToCart}
+                  addToCart={addToCart}
                   commerceMode={commerce.mode}
                   canAddToCart={commerce.mode !== 'shopify' || commerce.capabilities.cart}
                   prioritizeFirstImage={!showSplash}
@@ -97,7 +120,7 @@ function App() {
               element={
                 <ProductPage
                   products={commerce.products}
-                  addToCart={commerce.addToCart}
+                  addToCart={addToCart}
                   commerceMode={commerce.mode}
                   canAddToCart={commerce.mode !== 'shopify' || commerce.capabilities.cart}
                   prioritizeFirstImage={!showSplash}
@@ -128,7 +151,7 @@ function App() {
               element={
                 <ProductDetail
                   products={commerce.products}
-                  addToCart={commerce.addToCart}
+                  addToCart={addToCart}
                   commerceMode={commerce.mode}
                   canAddToCart={commerce.mode !== 'shopify' || commerce.capabilities.cart}
                 />
@@ -138,9 +161,10 @@ function App() {
               path="/rockyIA"
               element={
                 <ChatComponent
-                  addToCart={commerce.addToCart}
+                  addToCart={addToCart}
                   commerceMode={commerce.mode}
                   canAddToCart={commerce.mode === 'shopify' && commerce.capabilities.cart}
+                  headerPlayer={<MiniPlayer variant="chat" />}
                 />
               }
             />
@@ -162,7 +186,6 @@ function App() {
         </Suspense>
       </main>
       {!esChat && <Footer />}
-      <MiniPlayer />
     </div>
     </MusicProvider>
   );

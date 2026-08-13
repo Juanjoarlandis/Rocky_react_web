@@ -30,7 +30,7 @@ const product = {
   ],
 };
 
-describe('ProductDetail Shopify variants', () => {
+describe('ProductDetail', () => {
   it('changes the trusted variant price and adds the selected variant ID', async () => {
     const addToCart = vi.fn().mockResolvedValue(null);
     render(
@@ -63,5 +63,32 @@ describe('ProductDetail Shopify variants', () => {
         'gid://shopify/ProductVariant/2'
       )
     );
+  });
+
+  it('places product identity and purchase controls before media in source order', () => {
+    render(
+      <MemoryRouter initialEntries={['/product/rocky-tee']}>
+        <Routes>
+          <Route
+            path="/product/:productId"
+            element={
+              <ProductDetail
+                products={[product]}
+                addToCart={vi.fn().mockResolvedValue(null)}
+                commerceMode="shopify"
+                canAddToCart
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const title = screen.getByRole('heading', { name: 'Rocky Tee' });
+    const addButton = screen.getByRole('button', { name: /añadir al carrito/i });
+    const mediaButton = screen.getByRole('button', { name: /ver rocky tee en grande/i });
+
+    expect(title.compareDocumentPosition(addButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(addButton.compareDocumentPosition(mediaButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

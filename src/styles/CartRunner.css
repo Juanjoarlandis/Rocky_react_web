@@ -1,0 +1,85 @@
+/* El repartidor cruza por encima de la barra y se mete en el icono del carrito.
+   Es un gesto de un segundo: no ocupa sitio en la maquetación, no recibe clics y
+   no lo cantan los lectores de pantalla, porque el contador del carrito ya dice
+   lo que ha pasado y no hace falta decirlo dos veces. */
+.cart-runner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    /* Por encima de la barra (1000) para que se le vea llegar hasta el icono en
+       vez de pasarle por debajo, y por debajo del splash (3000). */
+    z-index: 1100;
+    pointer-events: none;
+    user-select: none;
+    will-change: transform, opacity;
+    animation: cart-runner-cruza var(--cruce) linear forwards;
+}
+
+.cart-runner-art {
+    display: block;
+    width: 100%;
+    height: 100%;
+    /* La zancada va en su propio bucle, sobre la imagen: así el recorrido del
+       envoltorio puede ser una recta larga y el trote una oscilación corta, sin
+       tener que escribir el bote dentro de cada keyframe del cruce. */
+    animation: cart-runner-trote 0.3s linear infinite;
+}
+
+@keyframes cart-runner-cruza {
+    /* Entra ya lanzado por el carril de debajo de la barra. Casi recta: un
+       corredor no acelera a mitad de calle, sólo frena al final. */
+    0% {
+        transform: translate3d(var(--desde-x), var(--corre-y), 0) scale(1);
+        opacity: 1;
+        animation-timing-function: cubic-bezier(0.2, 0.4, 0.4, 1);
+    }
+
+    /* Llega debajo del carrito y clava el pie: se aplasta un poco. */
+    72% {
+        transform: translate3d(var(--hasta-x), var(--corre-y), 0) scale(1);
+        opacity: 1;
+        animation-timing-function: ease-out;
+    }
+
+    82% {
+        transform: translate3d(var(--hasta-x), var(--corre-y), 0) scale(1.06, 0.94);
+        opacity: 1;
+        animation-timing-function: ease-in;
+    }
+
+    /* Y salta hacia arriba metiéndose en el icono. Encoge hacia su propio
+       centro, que en ese punto cae justo sobre el centro del carrito, así que
+       parece que entra por la boca de la bolsa. */
+    100% {
+        transform: translate3d(var(--hasta-x), var(--salto-y), 0) scale(0.16);
+        opacity: 0;
+    }
+}
+
+/* Dos zancadas por vuelta: sube y baja el cuerpo y lo balancea un pelín. Sin
+   esto el dibujo cruzaría plano, como una pegatina que se desliza. */
+@keyframes cart-runner-trote {
+    0%,
+    100% {
+        translate: 0 0;
+        rotate: -4deg;
+    }
+
+    50% {
+        translate: 0 -6px;
+        rotate: 2deg;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cart-runner,
+    .cart-runner-art {
+        animation: none;
+    }
+
+    /* Aquí el gesto ES el recorrido: quieto en mitad de la pantalla no cuenta
+       nada y encima tapa la barra. Que no salga; el contador ya cambia solo. */
+    .cart-runner {
+        display: none;
+    }
+}

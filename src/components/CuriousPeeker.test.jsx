@@ -4,8 +4,10 @@ import CuriousPeeker, {
   artBox,
   biteEdge,
   choosePlacement,
+  collectSpots,
   placeAtCorner,
   placeOnEdge,
+  readBlockedZones,
   readViewport,
   shadowExtents,
   topEdgeOf,
@@ -146,6 +148,16 @@ describe('CuriousPeeker: dónde se agarra', () => {
     expect(topEdgeOf(rect, sombra).line).toBe(rect.top);
   });
 
+  it('descarta una esquina en un bloque estrecho', () => {
+    // Al lado de algo poco más ancho que lo que él saca, se rompe la escala.
+    const art = artBox(1, 'esquina');
+    const estrecho = { top: 200, bottom: 620, left: 400, right: 400 + art.cut * 2.5 };
+    expect(placeAtCorner(estrecho, 'izq', VIEW, 1)).toBeNull();
+
+    const holgado = { top: 200, bottom: 620, left: 400, right: 400 + art.cut * 3.2 };
+    expect(placeAtCorner(holgado, 'izq', VIEW, 1)).not.toBeNull();
+  });
+
   it('descarta una esquina en un bloque más bajo que el dibujo', () => {
     const bajo = { top: 500, bottom: 620, left: 400, right: 800 };
     expect(placeAtCorner(bajo, 'izq', VIEW, 1)).toBeNull();
@@ -201,12 +213,120 @@ describe('CuriousPeeker: dónde se agarra', () => {
     expect(choosePlacement({ view: VIEW, scale: 1, spots, zones, avoidKey: null })).toBeNull();
   });
 
+  it('reserva la composición editorial de la portada para que no tape su CTA', () => {
+    document.body.innerHTML = '<section class="product-page-head--home"></section>';
+    const hero = document.querySelector('.product-page-head--home');
+    hero.getBoundingClientRect = () => ({
+      top: 120,
+      bottom: 560,
+      left: 40,
+      right: 984,
+      width: 944,
+      height: 440,
+    });
+
+    expect(readBlockedZones()).toContainEqual({
+      top: 120,
+      bottom: 560,
+      left: 40,
+      right: 984,
+    });
+
+    document.body.innerHTML = '';
+  });
+
   it('siempre puede entrar por el filo de abajo de la pantalla', () => {
     const chosen = choosePlacement({ view: VIEW, scale: 1, spots: [], zones: [], avoidKey: null });
 
     expect(chosen.key).toBe('pantalla');
     expect(chosen.element).toBeNull();
     expect(chosen.top + chosen.height).toBe(VIEW.height);
+  });
+});
+
+describe('CuriousPeeker: qué vale de escondite', () => {
+  const PAPEL = 'background-color: rgb(255, 253, 248)';
+
+  function conCaja(el, [left, top, width, height]) {
+    el.getBoundingClientRect = () => ({
+      left, top, width, height, right: left + width, bottom: top + height,
+    });
+    return el;
+  }
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('pide que el bloque sea más grande que el muñeco', () => {
+    const art = artBox(1);
+    document.body.innerHTML = `
+      <section class="grande" style="${PAPEL}"></section>
+      <section class="chato" style="${PAPEL}"></section>
+      <section class="angosto" style="${PAPEL}"></section>`;
+    // Más alto y vez y media más ancho que él: vale.
+    conCaja(document.querySelector('.grande'), [100, 200, art.width * 2, art.height * 2]);
+    // Del alto de un botón: por detrás de eso no se esconde nadie.
+    conCaja(document.querySelector('.chato'), [100, 200, art.width * 2, art.height - 6]);
+    // Justo de su ancho: tampoco.
+    conCaja(document.querySelector('.angosto'), [100, 200, art.width * 1.2, art.height * 2]);
+
+    expect(collectSpots(VIEW, 1).map((s) => s.element.className)).toEqual(['grande']);
+  });
+
+  it('acepta una franja interior con línea encima y algo opaco detrás', () => {
+    document.body.innerHTML = `
+      <article class="tarjeta" style="${PAPEL}">
+        <div class="foto" style="border-bottom: 2px solid rgb(26, 26, 26)"></div>
+        <div class="franja"></div>
+      </article>`;
+    conCaja(document.querySelector('.tarjeta'), [100, 200, 260, 420]);
+    conCaja(document.querySelector('.foto'), [100, 200, 260, 260]);
+    conCaja(document.querySelector('.franja'), [100, 460, 260, 160]);
+
+    const spots = collectSpots(VIEW, 1);
+    const franja = spots.find((s) => s.element.className === 'franja');
+    // La franja no pinta fondo, pero el canto por el que asoma sí está dibujado
+    // —es el borde de abajo de la foto— y detrás tiene la tarjeta opaca.
+    expect(franja).toBeDefined();
+    // Sus laterales no están pintados, así que ahí no puede hacer la esquina.
+    expect(franja.soloArriba).toBe(true);
+    expect(spots.find((s) => s.element.className === 'tarjeta').soloArriba).toBe(false);
+  });
+
+  it('descarta una franja interior sin línea encima', () => {
+    document.body.innerHTML = `
+      <article class="tarjeta" style="${PAPEL}">
+        <div class="foto"></div>
+        <div class="franja"></div>
+      </article>`;
+    conCaja(document.querySelector('.tarjeta'), [100, 200, 260, 420]);
+    conCaja(document.querySelector('.foto'), [100, 200, 260, 260]);
+    conCaja(document.querySelector('.franja'), [100, 460, 260, 160]);
+
+    expect(collectSpots(VIEW, 1).map((s) => s.element.className)).toEqual(['tarjeta']);
+  });
+
+  it('salir por encima de la tarjeta que contiene su franja no cuenta como pisarla', () => {
+    // La tarjeta llega hasta arriba del todo (no le cabe asomarse por su canto)
+    // y es estrecha para las esquinas, así que el único escondite es la franja.
+    const tarjeta = { top: VIEW.top, bottom: 620, left: 100, right: 280 };
+    const franja = { top: 460, bottom: 620, left: 100, right: 280 };
+    const spots = [
+      { element: { id: 'tarjeta' }, rect: tarjeta, bulto: tarjeta, soloArriba: false },
+      { element: { id: 'franja' }, rect: franja, bulto: franja, soloArriba: true },
+    ];
+
+    const elegidos = new Set();
+    for (let intento = 0; intento < 40; intento += 1) {
+      const p = choosePlacement({ view: VIEW, scale: 1, spots, zones: [], avoidKey: null });
+      elegidos.add(p.element ? p.element.id : 'pantalla');
+      if (p.element) {
+        expect(p.element.id).toBe('franja');
+        expect(p.top + p.height).toBe(franja.top);
+      }
+    }
+    expect(elegidos.has('franja')).toBe(true);
   });
 });
 

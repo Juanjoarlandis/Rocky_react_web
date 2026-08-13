@@ -42,7 +42,8 @@ const SPOT_SELECTOR =
   'ul[class], ol[class], li[class], a[class], div[class]';
 
 // Elementos flotantes que no debe tapar aunque queden por encima de él.
-const BLOCKED_SELECTOR = '.navbar, .mini-player, .chat-composer';
+const BLOCKED_SELECTOR =
+  '.navbar, .mini-player, .chat-composer, .product-page-head--home';
 
 const MAX_SPOT_NODES = 500;
 const SAFE_GAP = 6;
@@ -117,6 +118,14 @@ export function shadowExtents(boxShadow) {
   }, nada);
 }
 
+/* ¿El primer rectángulo se traga al segundo? */
+function contiene(fuera, dentro) {
+  return (
+    fuera.left <= dentro.left + 1 && fuera.right >= dentro.right - 1 &&
+    fuera.top <= dentro.top + 1 && fuera.bottom >= dentro.bottom - 1
+  );
+}
+
 /* El bloque más su sombra: es lo que hay que respetar para no pisarlo. */
 function inflate(rect, shadow) {
   return {
@@ -127,23 +136,67 @@ function inflate(rect, shadow) {
   };
 }
 
-/* Devuelve la sombra del bloque si sirve de escondite, o null si no. */
-function surfaceOf(element) {
+function tieneFondoPropio(style) {
+  if (style.backgroundImage !== 'none') return true;
+  const canales = style.backgroundColor.match(/[\d.]+/g);
+  return Boolean(canales) && (canales.length < 4 || Number(canales[3]) >= 0.9);
+}
+
+/* Una franja interior no pinta fondo, pero si vive dentro de un bloque opaco
+   que la contiene entera, ahí no se transparenta nada. */
+function estaSobreAlgoOpaco(element, rect) {
+  let padre = element.parentElement;
+  for (let salto = 0; padre && salto < 6; salto += 1) {
+    const caja = padre.getBoundingClientRect();
+    if (
+      tieneFondoPropio(window.getComputedStyle(padre)) &&
+      caja.left <= rect.left + 1 && caja.right >= rect.right - 1 &&
+      caja.top <= rect.top + 1 && caja.bottom >= rect.bottom - 1
+    ) {
+      return true;
+    }
+    padre = padre.parentElement;
+  }
+  return false;
+}
+
+/* ¿Hay una línea dibujada en su canto de arriba? Puede ser su propio borde o el
+   de abajo del hermano que tiene justo encima —así es como están hechos los
+   separadores de las tarjetas de ROCKY—. Sin línea no hay nada a lo que
+   agarrarse y el muñeco quedaría colgado de un canto invisible. */
+function tieneLineaArriba(element, rect) {
+  const propio = parseFloat(window.getComputedStyle(element).borderTopWidth);
+  if (propio >= 1) return true;
+  const anterior = element.previousElementSibling;
+  if (!anterior) return false;
+  const arriba = anterior.getBoundingClientRect();
+  if (Math.abs(arriba.bottom - rect.top) > 2) return false;
+  return parseFloat(window.getComputedStyle(anterior).borderBottomWidth) >= 1;
+}
+
+/* Devuelve cómo sirve de escondite el bloque, o null si no sirve.
+   `soloArriba` marca las franjas interiores: valen para asomarse por su canto
+   superior, pero no para las esquinas, porque sus laterales no están pintados. */
+function surfaceOf(element, rect) {
   const style = window.getComputedStyle(element);
   if (style.visibility === 'hidden' || Number(style.opacity) < 0.9) return null;
-  const channels = style.backgroundColor.match(/[\d.]+/g);
-  const opaco =
-    style.backgroundImage !== 'none' ||
-    (channels && (channels.length < 4 || Number(channels[3]) >= 0.9));
-  return opaco ? shadowExtents(style.boxShadow) : null;
+  const shadow = shadowExtents(style.boxShadow);
+
+  if (tieneFondoPropio(style)) return { shadow, soloArriba: false };
+  if (tieneLineaArriba(element, rect) && estaSobreAlgoOpaco(element, rect)) {
+    return { shadow, soloArriba: true };
+  }
+  return null;
 }
 
 /* Sólo sirven de escondite los bloques opacos: si se transparentan se le vería
-   el recorte. El alto pedido es el de una franja con cuerpo, no el del dibujo;
-   cada colocación ya comprueba después si le cabe. */
-export function collectSpots(view) {
-  const minWidth = view.width < 640 ? 140 : 170;
-  const minHeight = view.width < 640 ? 38 : 44;
+   el recorte. Y tienen que ser más grandes que él —más altos y vez y media más
+   anchos—, porque detrás de un botón o de la píldora de la radio no se esconde
+   nadie: se lee como que está delante, no detrás. */
+export function collectSpots(view, scale) {
+  const art = artBox(scale);
+  const minWidth = Math.round(art.width * 1.5);
+  const minHeight = art.height;
   const nodes = document.querySelectorAll(SPOT_SELECTOR);
   const spots = [];
 
@@ -157,16 +210,22 @@ export function collectSpots(view) {
     if (rect.width > view.width * 0.99 && rect.height > view.height * 0.85) continue;
     if (rect.bottom < view.top + 24 || rect.top > view.bottom - 24) continue;
 
-    const shadow = surfaceOf(element);
-    if (!shadow) continue;
+    const surface = surfaceOf(element, rect);
+    if (!surface) continue;
 
-    spots.push({ element, rect, shadow, bulto: inflate(rect, shadow) });
+    spots.push({
+      element,
+      rect,
+      shadow: surface.shadow,
+      soloArriba: surface.soloArriba,
+      bulto: inflate(rect, surface.shadow),
+    });
   }
 
   return spots;
 }
 
-function readBlockedZones() {
+export function readBlockedZones() {
   return [...document.querySelectorAll(BLOCKED_SELECTOR)]
     .map((element) => {
       const rect = element.getBoundingClientRect();
@@ -226,6 +285,10 @@ export function placeAtCorner(rect, side, view, scale, shadow = NO_SHADOW) {
 
   // El canto por el que sale es el de fuera de la sombra, no el del borde: la
   // sombra es parte del bloque y tiene que taparlo igual que él.
+  // Y tiene que ser bastante más ancho que lo que él saca por el canto: al lado
+  // de un cromo de 145 px, un señor asomándose rompe la escala.
+  if (rect.right - rect.left < art.cut * 3) return null;
+
   const left =
     side === 'izq'
       ? Math.round(rect.left - shadow.left) - width
@@ -355,11 +418,16 @@ export function choosePlacement({ view, scale, spots, zones, avoidKey }) {
     // Si se le echa encima a otro bloque deja de parecer que está escondido.
     // Trepando por el filo de la pantalla no pasa: ahí está por delante de todo
     // y su recorte queda fuera de cuadro, así que no se le ve la costura.
+    // Pisar otro bloque delata que no está escondido. No cuenta el bloque que
+    // contiene a su escondite —si se asoma por la franja interior de una
+    // tarjeta, salir por encima de esa tarjeta es justo lo que toca—.
     const invades =
       !screen &&
-      bultos.some(
-        (bulto, i) => spots[i] !== spot && overlapRatio(placement, bulto) > MAX_SPOT_OVERLAP
-      );
+      bultos.some((bulto, i) => {
+        if (spots[i] === spot) return false;
+        if (spot && contiene(spots[i].rect, spot.rect)) return false;
+        return overlapRatio(placement, bulto) > MAX_SPOT_OVERLAP;
+      });
     if (invades) return;
 
     candidates.push({
@@ -375,6 +443,8 @@ export function choosePlacement({ view, scale, spots, zones, avoidKey }) {
     const alongRatio = Math.random();
     const arriba = placeOnEdge(topEdgeOf(spot.rect, spot.shadow), view, scale, alongRatio);
     if (arriba) consider({ ...arriba, alongRatio }, spot, `${index}:arriba`, false);
+    // Las franjas interiores sólo tienen pintado el canto de arriba.
+    if (spot.soloArriba) return;
     consider(placeAtCorner(spot.rect, 'izq', view, scale, spot.shadow), spot, `${index}:izq`, false);
     consider(placeAtCorner(spot.rect, 'der', view, scale, spot.shadow), spot, `${index}:der`, false);
   });
@@ -448,7 +518,7 @@ export default function CuriousPeeker({ pathname, disabled = false }) {
       const next = choosePlacement({
         view,
         scale,
-        spots: collectSpots(view),
+        spots: collectSpots(view, scale),
         zones: readBlockedZones(),
         avoidKey: lastKeyRef.current,
       });

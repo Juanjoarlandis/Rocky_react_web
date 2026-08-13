@@ -315,6 +315,12 @@
     animation: crosshair-spin 1.4s linear infinite;
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .setlist-spinner {
+        animation: none;
+    }
+}
+
 .setlist-note {
     margin: 12px 4px 0;
     font-family: var(--font-hand);

@@ -298,6 +298,12 @@ a {
   animation: crosshair-spin 1.4s linear infinite;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .page-loading-spinner {
+    animation: none;
+  }
+}
+
 @keyframes crosshair-spin {
   to {
     transform: rotate(360deg);

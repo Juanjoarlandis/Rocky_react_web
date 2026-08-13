@@ -5,7 +5,9 @@ import AddToCartButton from './AddToCartButton';
 import EyeIcon from './EyeIcon';
 import PlaceholderTee from './PlaceholderTee';
 import StreetWall from './StreetWall';
-import grafiteroSpray from '../images/optimized/splash/grafitero-spray.webp';
+import { CrosshairSpinner } from './BrandDoodles';
+// Variante sin los puntos de spray pintados: el chorro se anima aparte.
+import grafiteroSpray from '../images/optimized/characters/grafitero-sin-chorro-420.webp';
 import corriendoBolsa from '../images/optimized/splash/corriendo-bolsa.webp';
 import cruiserPatinando from '../images/optimized/splash/cruiser-patinando.webp';
 import { formatPrice } from '../utils/price';
@@ -29,6 +31,7 @@ function ProductPage({
             product.drop === category || product.dropHandle === category
         )
         : products;
+    const isHome = !category;
     const pageTitle = category ? visibleProducts[0]?.drop || category : 'ROCKY 035';
 
     if (category && visibleProducts.length === 0 && !loading) {
@@ -52,16 +55,35 @@ function ProductPage({
 
     return (
         <div className="product-page">
-            <div className="product-page-head">
-                <div className="product-page-head-row">
-                    <h1 className="page-title no-squiggle">{pageTitle}</h1>
-                    <p className="product-count">{visibleProducts.length} productos</p>
+            <div className={`product-page-head${isHome ? ' product-page-head--home' : ''}`}>
+                <div className="product-page-head-copy">
+                    <div className="product-page-head-row">
+                        <h1 className="page-title no-squiggle">{pageTitle}</h1>
+                        {!isHome && (
+                            <p className="product-count">{visibleProducts.length} productos</p>
+                        )}
+                    </div>
+                    {isHome && (
+                        <>
+                            <p className="product-page-tagline">HECHO DESDE LA COLMENA</p>
+                            <div className="product-page-hero-meta">
+                                <div className="product-page-hero-count">
+                                    <CrosshairSpinner className="product-page-hero-count-mark" />
+                                    <p className="product-count">{visibleProducts.length} productos</p>
+                                </div>
+                                <a href="#productos" className="btn btn-primary product-page-hero-cta">
+                                    <span>Ver Drop 4</span>
+                                    <span className="product-page-hero-cta-arrow" aria-hidden="true">→</span>
+                                </a>
+                            </div>
+                        </>
+                    )}
                 </div>
                 {/* El grafitero pinta la línea del título con su spray */}
                 <div className="spray-line-wrap" aria-hidden="true">
                     <svg className="spray-line" viewBox="0 0 100 10" preserveAspectRatio="none">
                         <path
-                            d="M2 6 Q 10 2 18 6 T 34 6 T 50 6 T 66 6 T 82 6 T 98 5"
+                            d="M2 6 Q 10 2 18 6 T 34 6 T 50 6 T 66 6 T 82 6 T 91 5"
                             fill="none"
                             stroke="#e63946"
                             strokeWidth="3"
@@ -71,12 +93,19 @@ function ProductPage({
                     </svg>
                     <img
                         src={grafiteroSpray}
-                        width="255"
+                        width="254"
                         height="420"
                         decoding="async"
                         alt=""
                         className="spray-guy"
                     />
+                    {/* El chorro va aparte para poder moverlo: el personaje usa
+                        la variante sin los puntos pintados encima. */}
+                    <span className="spray-chorro">
+                        <i />
+                        <i />
+                        <i />
+                    </span>
                     {/* La Cruiser rueda por la línea recién pintada */}
                     <img
                         src={cruiserPatinando}
@@ -91,6 +120,7 @@ function ProductPage({
 
             <div
                 className={`product-grid${loading ? ' product-grid--loading' : ''}`}
+                id={isHome ? 'productos' : undefined}
                 aria-busy={loading || undefined}
             >
                 {visibleProducts.map((product, index) => {
