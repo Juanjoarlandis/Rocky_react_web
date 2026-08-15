@@ -1,6 +1,61 @@
-# ROCKY 035 storefront
+# ROCKY 035
 
-Tienda React/Vite con un BFF Express de mismo origen. Puede funcionar como catálogo visual de prueba o usar Shopify como autoridad de productos, variantes, disponibilidad, precios, carrito y checkout.
+Storefront full-stack para una marca de streetwear que mezcla tienda, música, personajes y comunidad en una experiencia con identidad propia. El frontend está construido con React y Vite; un BFF Express mantiene Shopify, las sesiones y Rocky IA fuera del navegador.
+
+<p align="center">
+  <a href="https://rocky035.com/"><strong>Ver la web</strong></a>
+  ·
+  <a href="https://www.instagram.com/rocky035/"><strong>Instagram</strong></a>
+</p>
+
+<p align="center">
+  <img src="./docs/images/rocky-storefront.webp" alt="Portada de la tienda ROCKY 035" width="100%" />
+</p>
+
+## El proyecto
+
+- **Storefront responsive:** catálogo, variantes, stock, carrito y checkout preparados para Shopify, con un modo demo completo para desarrollo.
+- **Rocky IA:** asistente conectado al catálogo que puede orientar sobre productos, tallas y disponibilidad sin exponer secretos en el cliente.
+- **La Colmena:** reproductor musical, setlist y una mesa de beats de 16 pasos que se ejecuta en el navegador.
+- **Crew Rewards:** perfiles con XP, niveles, Crew Tickets, avatares y cromos coleccionables.
+- **Backend seguro:** sesiones cifradas, OAuth con PKCE, webhooks verificados e idempotencia para las operaciones sensibles.
+
+## Capturas
+
+<table>
+  <tr>
+    <td width="50%">
+      <img src="./docs/images/rocky-product-detail.webp" alt="Detalle de producto de ROCKY 035" />
+      <br />
+      <strong>Producto y drops</strong><br />
+      Fichas visuales, variantes, disponibilidad y avisos de próximos lanzamientos.
+    </td>
+    <td width="50%">
+      <img src="./docs/images/rocky-studio.webp" alt="Estudio musical La Colmena" />
+      <br />
+      <strong>La Colmena</strong><br />
+      Música, narrativa de marca y herramientas interactivas dentro de la misma experiencia.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="./docs/images/rocky-crew-rewards.webp" alt="Vista previa del programa Crew Rewards" />
+      <br />
+      <strong>Crew Rewards</strong><br />
+      Un sistema de fidelidad con progresión, tickets, personajes y coleccionables.
+    </td>
+    <td width="50%">
+      <img src="./docs/images/rocky-ai-assistant.webp" alt="Interfaz del asistente Rocky IA" />
+      <br />
+      <strong>Rocky IA</strong><br />
+      Asistente de compra contextual con acceso controlado al catálogo y al stock.
+    </td>
+  </tr>
+</table>
+
+## Stack
+
+`React 19` · `Vite 8` · `Express 4` · `Shopify APIs` · `OpenRouter` · `Vitest`
 
 ## Requisitos
 
