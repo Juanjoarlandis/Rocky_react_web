@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM node:24.14.0-bookworm-slim@sha256:d8e448a56fc63242f70026718378bd4b00f8c82e78d20eefb199224a4d8e33d8 AS build
+FROM node:24.19.0-bookworm-slim@sha256:3638d9a6fe4030bd716be989438248074489337ba3275657f93595428be4fc03 AS build
 
 WORKDIR /app
 
@@ -16,7 +16,7 @@ COPY src ./src
 RUN npm run test:run && npm run build
 RUN npm prune --omit=dev
 
-FROM node:24.14.0-bookworm-slim@sha256:d8e448a56fc63242f70026718378bd4b00f8c82e78d20eefb199224a4d8e33d8 AS runtime
+FROM node:24.19.0-bookworm-slim@sha256:3638d9a6fe4030bd716be989438248074489337ba3275657f93595428be4fc03 AS runtime
 
 ENV NODE_ENV=production \
     PORT=3001
