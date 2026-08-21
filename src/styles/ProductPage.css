@@ -213,11 +213,20 @@
     }
 }
 
-/* La Cruiser entra cuando la línea ya está pintada. Va lineal porque el bote
-   tiene que caer en la onda que cruza: la cinta tiene seis ondas repartidas por
-   todo el ancho, pero de su entrada sólo se ve algo más de una, así que bota una
-   vez, no seis como estaba. */
+/* La Cruiser no aparca: un patinador parado en la postura de ir rodando se
+   lee como un vídeo en pausa. Cuando la línea ya está pintada cruza la cinta
+   entera, pasa por delante del grafitero y se va por la derecha. Una sola
+   pasada, como el resto de la escena —quien vuelve a la home la ve pasar de
+   nuevo—. El cruce va lineal, y el bote cae tres veces, en las ondas. */
 .spray-cruiser {
+    /* La carrerilla: de dónde arranca y hasta dónde se va. Tiene que caer
+       fuera del monitor, no sólo fuera del hero: durante la espera está
+       plantada ahí, y si el punto queda dentro de pantalla se la ve parada
+       aguantando su turno. Con 8vw quedaba al ras (a 1280px asomaban 2px de
+       rueda); en monitores anchos el hero es una caja centrada con mucho
+       margen y hace falta medio monitor (ver la media query). */
+    --cruiser-carrerilla: 12vw;
+
     position: absolute;
     left: 4%;
     bottom: 4px;
@@ -226,28 +235,45 @@
     z-index: 1;
     pointer-events: none;
     user-select: none;
+    /* `both`: en los 2,2s de espera rige el primer keyframe —fuera de
+       pantalla por la izquierda— y al acabar se queda en el último —fuera
+       por la derecha—. Sin fill se la vería plantada en su sitio natural. */
     animation:
-        spray-cruiser-entra 1.5s linear 2.2s both,
-        spray-cruiser-bote 1.5s ease-in-out 2.2s 1 both;
+        spray-cruiser-cruza 3.2s linear 2.2s both,
+        spray-cruiser-tanda-botes 3.2s ease-in-out 2.2s both;
 }
 
-@keyframes spray-cruiser-entra {
+@media (min-width: 1500px) {
+    .spray-cruiser {
+        --cruiser-carrerilla: 55vw;
+    }
+}
+
+/* De fuera de pantalla por la izquierda a fuera de pantalla por la derecha:
+   100cqw es la cinta entera, y la carrerilla el canto de monitor que hay que
+   ganar por cada lado. */
+@keyframes spray-cruiser-cruza {
     from {
-        translate: calc(-100% - 8vw) 0;
+        translate: calc(-100% - var(--cruiser-carrerilla)) 0;
     }
 
     to {
-        translate: 0 0;
+        translate: calc(100cqw + var(--cruiser-carrerilla)) 0;
     }
 }
 
-@keyframes spray-cruiser-bote {
+/* Tres botes repartidos por el cruce. */
+@keyframes spray-cruiser-tanda-botes {
     0%,
+    33.3%,
+    66.6%,
     100% {
         transform: translateY(0) rotate(0deg);
     }
 
-    50% {
+    16.7%,
+    50%,
+    83.3% {
         transform: translateY(-3px) rotate(-1.5deg);
     }
 }

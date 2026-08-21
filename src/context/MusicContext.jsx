@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { TRACKS } from '../data/studio';
 
 // Radio global de la web: el <audio> vive aquí, por encima de las rutas,
@@ -25,8 +25,22 @@ export function MusicProvider({ children }) {
     const [playing, setPlaying] = useState(false);
     const [time, setTime] = useState(0);
     const [duration, setDuration] = useState(0);
-    const [source, setSource] = useState('');
     const track = TRACKS[index];
+
+    /* Mientras suena la radio, el body lleva el pulso: `data-groove` enciende
+       el cabeceo de los muñecos estáticos (la clase `al-ritmo`) y `--bpm` les
+       marca el tempo del tema. Vive aquí y no en cada página porque el único
+       que sabe si hay música, y a cuánto va, es el radiocasete. */
+    useEffect(() => {
+        if (!playing) return undefined;
+        const body = document.body;
+        body.dataset.groove = '1';
+        body.style.setProperty('--bpm', String(track?.bpm ?? 92));
+        return () => {
+            delete body.dataset.groove;
+            body.style.removeProperty('--bpm');
+        };
+    }, [playing, track]);
 
     const activateTrack = (nextIndex) => {
         const audio = audioRef.current;
@@ -36,7 +50,6 @@ export function MusicProvider({ children }) {
         if (audio.getAttribute('src') !== nextTrack.src) {
             audio.setAttribute('src', nextTrack.src);
             audio.load();
-            setSource(nextTrack.src);
             setTime(0);
             setDuration(0);
         }
@@ -116,9 +129,12 @@ export function MusicProvider({ children }) {
 
     return (
         <MusicContext.Provider value={value}>
+            {/* El `src` se gobierna sólo a mano en activateTrack, nunca como
+               prop: si React lo re-escribe al re-renderizar, la spec dispara
+               una carga nueva que aborta el play() en vuelo y el primer click
+               en el radiocasete se queda mudo. */}
             <audio
                 ref={audioRef}
-                src={source || undefined}
                 preload="none"
                 onPlay={() => setPlaying(true)}
                 onPause={() => setPlaying(false)}

@@ -45,9 +45,9 @@ function Cart({
         return (
             <div className="cart-empty">
                 <div className="cart-empty-card">
-                    <img src={emptyCartImage} alt="" className="cart-empty-illustration" />
+                    <img src={emptyCartImage} alt="" className="cart-empty-illustration al-ritmo al-ritmo--suave" style={{ '--fase': '0.1' }} />
                     {/* El Bombilla ya sabe la solución: ¡a la tienda! */}
-                    <img src={bombillaEureka} alt="" className="cart-empty-idea" />
+                    <img src={bombillaEureka} alt="" className="cart-empty-idea al-ritmo" style={{ '--fase': '0.6' }} />
                     <h1 className="page-title">Tu carrito está vacío</h1>
                     <p>Échale un ojo al último drop.</p>
                     <Link to="/" className="btn btn-primary">Ver la tienda</Link>
@@ -73,7 +73,7 @@ function Cart({
 
             <div className="cart-list-wrap">
                 {/* Un curioso asomado tras el borde del carrito */}
-                <img src={asomadoBorde} alt="" className="cart-peeker" />
+                <img src={asomadoBorde} alt="" className="cart-peeker al-ritmo" style={{ '--fase': '0.3' }} />
                 <ul className="cart-list">
                 {cart.map((product) => {
                     const unitPrice = formatPrice(product.price);
@@ -148,8 +148,9 @@ function Cart({
             </div>
 
             <div className="cart-summary-wrap">
-            {/* Dormido esperando a que abra el pago del drop */}
-            <img src={dormidoEsperando} alt="" className="cart-sleeper" />
+            {/* Dormido esperando a que abra el pago del drop; cabecea flojito,
+                bastante hace con seguir el ritmo en sueños */}
+            <img src={dormidoEsperando} alt="" className="cart-sleeper al-ritmo al-ritmo--suave" style={{ '--fase': '0.8' }} />
             <div className="cart-summary">
                 <div className="cart-summary-row">
                     <span>Total</span>

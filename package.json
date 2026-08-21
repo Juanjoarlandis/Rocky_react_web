@@ -29,6 +29,7 @@
     "test": "vitest",
     "test:run": "vitest run",
     "security:check": "node scripts/check-secrets.mjs",
+    "avisos:exportar": "node scripts/exportar-avisos.mjs",
     "check": "npm run test:run && npm run build && npm run security:check",
     "dev:client": "vite",
     "dev:server": "node --watch server.mjs",

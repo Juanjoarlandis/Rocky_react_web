@@ -37,6 +37,102 @@
     opacity: 0.75;
 }
 
+/* El disparo del Paparazzi, primera mitad: el chispazo pegado al objetivo.
+   Las dos animaciones duran lo que DISPARO_MS en StreetWall.jsx: si cambia
+   una, cambian las tres. */
+.street-photographer-flash {
+    position: absolute;
+    left: 35%;
+    top: 40%;
+    width: 58%;
+    aspect-ratio: 1 / 1;
+    color: var(--ink);
+    pointer-events: none;
+    animation: paparazzi-chispazo 600ms cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+
+.street-photographer-flash svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+/* Revienta desde el objetivo y se apaga con un pelín de giro, como un trazo
+   suelto y no como un icono que aparece. */
+@keyframes paparazzi-chispazo {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.3) rotate(-16deg);
+    }
+
+    14% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.06) rotate(0deg);
+    }
+
+    34% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(0.92) rotate(5deg);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(1.16) rotate(9deg);
+    }
+}
+
+/* Segunda mitad: el fogonazo que llega hasta el espectador. Cubre la ventana
+   entera pero la luz nace donde está la cámara —las coordenadas las pone el
+   componente al disparar—, no del techo. */
+.street-flash-blink {
+    position: fixed;
+    inset: 0;
+    /* Por encima de la barra (1000) y del repartidor (1100): a un flash no se
+       le pone nadie delante. El splash (3000) ni se entera: con él puesto el
+       muro queda fuera de cuadro y no se dispara. */
+    z-index: 1200;
+    pointer-events: none;
+    background: radial-gradient(
+        circle at var(--flash-x, 50%) var(--flash-y, 45%),
+        rgba(255, 255, 255, 0.95) 0%,
+        rgba(255, 255, 255, 0.78) 18%,
+        rgba(255, 255, 255, 0.3) 48%,
+        rgba(255, 255, 255, 0) 75%
+    );
+    opacity: 0;
+    animation: paparazzi-fogonazo 600ms ease-out forwards;
+}
+
+/* Un único golpe de luz por foto: sube de golpe y se va enseguida. Nada de
+   parpadear varias veces, que esto va directo a los ojos. */
+@keyframes paparazzi-fogonazo {
+    0% {
+        opacity: 0;
+    }
+
+    12% {
+        opacity: 0.85;
+    }
+
+    40% {
+        opacity: 0.25;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    /* Sin movimiento no hay sesión de fotos: el JS ya no dispara, y esto
+       remata por si algo llegara a montarse igualmente. */
+    .street-photographer-flash,
+    .street-flash-blink {
+        display: none;
+    }
+}
+
 @media (max-width: 640px) {
     .street-photographer {
         display: none;

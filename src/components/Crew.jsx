@@ -198,7 +198,16 @@ export function CrewCard({ miembro, autoGirado = false, linkEnabled = true, abie
                         )}
                     </div>
                     <div className="crew-card-media">
-                        <img src={miembro.img} alt="" loading="lazy" />
+                        {/* Cada cromo cabecea con su propia fase —sale del
+                            número de ficha, que es estable— y El Productor
+                            más fuerte que nadie, que para eso es lo suyo. */}
+                        <img
+                            src={miembro.img}
+                            alt=""
+                            loading="lazy"
+                            className={`al-ritmo${miembro.id === 'productor' ? ' al-ritmo--fuerte' : ''}`}
+                            style={{ '--fase': `${((Number(miembro.numero) || 0) % 7) * 0.31}` }}
+                        />
                     </div>
                     {abierto && (
                         <span className="sello-fichado" aria-hidden="true">

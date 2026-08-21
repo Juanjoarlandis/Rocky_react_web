@@ -112,7 +112,8 @@ function ChatComponent({
                     height="1598"
                     decoding="async"
                     alt=""
-                    className="chat-lean"
+                    className="chat-lean al-ritmo"
+                    style={{ '--fase': '0.5' }}
                 />
 
                 <section className="chat-card" aria-label="Conversación con Rocky IA">
@@ -154,7 +155,8 @@ function ChatComponent({
                                     height="1187"
                                     decoding="async"
                                     alt=""
-                                    className="chat-welcome-doodle"
+                                    className="chat-welcome-doodle al-ritmo"
+                                    style={{ '--fase': '0.9' }}
                                 />
                                 <div className="chat-welcome">
                                 <p className="chat-welcome-tag">ROCKY 035 · EN LÍNEA</p>

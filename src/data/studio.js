@@ -18,6 +18,10 @@ export const TRACKS = [
         tag: 'ASAKO KACO · 2026',
         src: '/music/barro.m4a',
         duration: '1:53',
+        // Pulso al que cabecean los muñecos mientras suena (golpes por minuto).
+        // El tema corre a ~154 BPM medidos sobre el audio, pero en trap la
+        // cabeza va a medio tiempo: se apunta el golpe de cabeza, no el tempo.
+        bpm: 77,
     },
 ];
 

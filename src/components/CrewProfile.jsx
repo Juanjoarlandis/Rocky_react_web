@@ -37,7 +37,8 @@ function errorText(error) {
 function CrewCornerCharacter({ className = '' }) {
   return (
     <img
-      className={`crew-corner-character ${className}`.trim()}
+      className={`crew-corner-character al-ritmo ${className}`.trim()}
+      style={{ '--fase': '0.7' }}
       src={larguiruchoEsquina}
       width="600"
       height="838"

@@ -4,6 +4,7 @@ import Lightbox from './Lightbox';
 import AddToCartButton from './AddToCartButton';
 import EyeIcon from './EyeIcon';
 import PlaceholderTee from './PlaceholderTee';
+import DropAviso from './DropAviso';
 import sentadoBordeBlanco from '../images/optimized/characters/sentado-borde-blanco-600.webp';
 import nubePaseando from '../images/optimized/characters/nube-paseando-600.webp';
 import { formatPrice } from '../utils/price';
@@ -97,7 +98,7 @@ function ProductDetail({
                     )}
                     <div className="detail-buy">
                         {/* El Nube pasea por la línea de puntos con su paraguas */}
-                        <img src={nubePaseando} alt="" className="detail-nube" />
+                        <img src={nubePaseando} alt="" className="detail-nube al-ritmo" style={{ '--fase': '0.4' }} />
                         {price ? (
                             <p className="detail-price">{price}</p>
                         ) : (
@@ -116,6 +117,11 @@ function ProductDetail({
                                         : 'Carrito no disponible'
                             }
                         />
+                        {/* Sin precio no hay compra, pero sí recado: el aviso
+                            usa la misma identidad con la que se llegó aquí. */}
+                        {!price && (
+                            <DropAviso producto={String(product.handle ?? product.id)} />
+                        )}
                     </div>
                 </div>
 
@@ -127,7 +133,8 @@ function ProductDetail({
                         height="1186"
                         decoding="async"
                         alt=""
-                        className="detail-doodle"
+                        className="detail-doodle al-ritmo"
+                        style={{ '--fase': '1' }}
                     />
                     <button
                         type="button"

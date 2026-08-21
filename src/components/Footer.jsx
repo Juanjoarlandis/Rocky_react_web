@@ -3,8 +3,8 @@ import '../styles/Footer.css';
 
 import instagramIcon from '../images/optimized/shell/instagram-64.webp';
 import guysSittingImage from '../images/optimized/shell/sentado-860.webp';
-import lataPaseo from '../images/optimized/characters/lata-spray-walk-seedance-alpha.png';
-import lataPaseoQuieto from '../images/optimized/characters/lata-spray-walk-seedance-poster.png';
+import lataPaseo from '../images/optimized/characters/lata-spray-walk-seedance-224.webp';
+import lataPaseoQuieto from '../images/optimized/characters/lata-spray-walk-seedance-poster-224.webp';
 
 const TICKER_ITEMS = [
     'ROCKY 035',
@@ -25,8 +25,10 @@ const Footer = () => {
     return (
         <>
             <div className="ticker" aria-hidden="true">
-                {/* APNG conserva la transparencia también donde WebM muestra el
-                    croma; CSS sigue controlando recorrido, dirección y extremos. */}
+                {/* WebP animado con alfa: mismo paseo que el APNG original pero
+                    a tamaño de pantalla (663 kB frente a 7,3 MB). CSS sigue
+                    controlando recorrido, dirección y extremos, y el póster
+                    quieto atiende al movimiento reducido. */}
                 <span className="ticker-lata">
                     <picture className="ticker-lata-picture">
                         <source
@@ -35,8 +37,9 @@ const Footer = () => {
                         />
                         <img
                             src={lataPaseo}
-                            width="656"
-                            height="881"
+                            width="166"
+                            height="224"
+                            loading="lazy"
                             decoding="async"
                             alt=""
                             className="ticker-lata-image"
@@ -60,7 +63,8 @@ const Footer = () => {
                     loading="lazy"
                     decoding="async"
                     alt="Ilustración de tres chicos sentados con ropa ROCKY"
-                    className="footer-illustration"
+                    className="footer-illustration al-ritmo al-ritmo--suave"
+                    style={{ '--fase': '0.2' }}
                 />
                 <a
                     href="https://www.instagram.com/"

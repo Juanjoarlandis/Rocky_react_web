@@ -115,10 +115,41 @@
     }
 }
 
+/* La señal de la antena: en reposo no emite; sonando, late suave. */
+.bb-senal {
+    opacity: 0;
+}
+
+.bb-art.playing .bb-senal {
+    animation: bb-senal-late 1.8s ease-in-out infinite;
+}
+
+@keyframes bb-senal-late {
+    0%,
+    100% {
+        opacity: 0.25;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+/* El piloto se enciende con la música. Fijo, sin parpadeo: es un piloto. */
+.bb-art.playing .bb-luz {
+    fill: #e63946;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .bb-art.playing .bb-spool,
-    .bb-art.playing .bb-diana {
+    .bb-art.playing .bb-diana,
+    .bb-art.playing .bb-senal {
         animation: none;
+    }
+
+    /* Sin latido, la señal se queda encendida quieta mientras suena. */
+    .bb-art.playing .bb-senal {
+        opacity: 0.9;
     }
 }
 

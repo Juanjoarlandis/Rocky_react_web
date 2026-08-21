@@ -41,8 +41,8 @@
     animation: lata-patrulla var(--lata-patrulla) linear infinite;
 }
 
-/* El APNG ya trae la marcha acelerada a 1,5× y un alfa compatible con PNG; su
-   caja conserva la altura anterior para no alterar la marquesina. */
+/* El WebP animado ya trae la marcha acelerada a 1,5× y su alfa; su caja
+   conserva la altura anterior para no alterar la marquesina. */
 .ticker-lata-picture,
 .ticker-lata-image {
     display: block;

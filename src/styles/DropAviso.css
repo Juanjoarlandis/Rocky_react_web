@@ -1,0 +1,127 @@
+/* El mostrador de avisos del drop: papel, tinta y sello de rotulador, como el
+   resto de la papelería de ROCKY. */
+.drop-aviso {
+    margin-top: 16px;
+    max-width: 440px;
+    padding: 14px 16px;
+    background-color: var(--card);
+    border: 3px solid var(--ink);
+    border-radius: var(--wobble-sm);
+    box-shadow: 4px 4px 0 rgba(26, 26, 26, 0.18);
+    transform: rotate(-0.4deg);
+}
+
+.drop-aviso-titulo {
+    margin: 0 0 10px;
+    font-family: var(--font-hand);
+    font-size: 1.2rem;
+    color: var(--ink);
+}
+
+.drop-aviso-fila {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.drop-aviso-email {
+    flex: 1 1 180px;
+    min-width: 0;
+    padding: 10px 12px;
+    font: inherit;
+    color: var(--ink);
+    background-color: #fff;
+    border: 2px solid var(--ink);
+    border-radius: 10px 12px 10px 14px;
+}
+
+.drop-aviso-email:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* El campo trampa vive fuera del papel: los bots lo ven, la gente no. */
+.drop-aviso-apodo {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.drop-aviso-permiso {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    margin-top: 10px;
+    font-size: 0.82rem;
+    color: var(--muted);
+    line-height: 1.35;
+}
+
+.drop-aviso-permiso input {
+    margin-top: 2px;
+    accent-color: var(--accent);
+}
+
+.drop-aviso-fallo {
+    margin: 10px 0 0;
+    font-family: var(--font-hand);
+    color: var(--accent-dark);
+}
+
+/* El recibo: sello torcido y el Recadero llevándose el recado. */
+.drop-aviso--listo {
+    position: relative;
+    padding-right: 96px;
+}
+
+.drop-aviso-sello {
+    display: inline-block;
+    margin: 0;
+    padding: 6px 12px;
+    font-family: var(--font-display);
+    font-size: 1rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent-dark);
+    border: 3px solid var(--accent-dark);
+    border-radius: 8px 10px 8px 12px;
+    transform: rotate(-3deg);
+    animation: drop-aviso-estampa 0.35s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+
+.drop-aviso-nota {
+    margin: 10px 0 0;
+    font-family: var(--font-hand);
+    color: var(--ink-soft);
+}
+
+.drop-aviso-recadero {
+    position: absolute;
+    right: 8px;
+    bottom: 6px;
+    width: 78px;
+    height: auto;
+    pointer-events: none;
+    user-select: none;
+}
+
+@keyframes drop-aviso-estampa {
+    from {
+        opacity: 0;
+        transform: rotate(-3deg) scale(1.6);
+    }
+
+    to {
+        opacity: 1;
+        transform: rotate(-3deg) scale(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .drop-aviso-sello {
+        animation: none;
+    }
+}

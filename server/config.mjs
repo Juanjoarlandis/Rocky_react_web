@@ -111,5 +111,14 @@ export function createConfig(env = process.env) {
         { min: 1_000, max: 3_600_000 }
       ),
     },
+    // Apuntarse al aviso de un drop es cosa de una vez: con unas pocas altas
+    // por ventana sobra, y el resto son bots probando.
+    avisos: {
+      rateLimitMax: readPositiveInteger(env.AVISOS_RATE_LIMIT_MAX, 6, { max: 100 }),
+      rateLimitWindowMs: readPositiveInteger(env.AVISOS_RATE_LIMIT_WINDOW_MS, 600_000, {
+        min: 1_000,
+        max: 3_600_000,
+      }),
+    },
   };
 }

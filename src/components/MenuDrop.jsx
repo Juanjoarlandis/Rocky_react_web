@@ -20,11 +20,11 @@ function MenuDrop({ products }) {
             <p className="drops-subtitle">Colecciones limitadas. Cuando vuelan, vuelan.</p>
             <div className="drops-list-wrap">
                 {/* El tumbado descansa sobre la primera tarjeta de la lista */}
-                <img src={tumbado} alt="" className="drops-illustration" />
+                <img src={tumbado} alt="" className="drops-illustration al-ritmo al-ritmo--suave" style={{ '--fase': '0.35' }} />
                 {/* El Dado se juega el próximo drop en la otra punta de la repisa */}
-                <img src={dadoSentado} alt="" className="drops-dado" />
+                <img src={dadoSentado} alt="" className="drops-dado al-ritmo" style={{ '--fase': '0.55' }} />
                 {/* Y el skater vuela por encima */}
-                <img src={skaterOllie} alt="" className="drops-skater" />
+                <img src={skaterOllie} alt="" className="drops-skater al-ritmo" style={{ '--fase': '1.1' }} />
                 <nav className="drops-list" aria-label="Categorías">
                     <Link className="drops-link" to="/">
                         <span>Todo el catálogo</span>

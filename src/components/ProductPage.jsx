@@ -44,7 +44,8 @@ function ProductPage({
                     height="350"
                     decoding="async"
                     alt=""
-                    className="product-empty-run"
+                    className="product-empty-run al-ritmo"
+                    style={{ '--fase': '0.5' }}
                 />
                 <h1 className="page-title">Nada por aquí</h1>
                 <p>No hay productos en «{category}». Volaron.</p>

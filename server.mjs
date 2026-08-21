@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import dotenv from 'dotenv';
 import express from 'express';
+import { createAvisosHandler } from './server/avisos.mjs';
 import { createChatHandler } from './server/chat.mjs';
 import { createConfig } from './server/config.mjs';
 import { createCrewRewardsService } from './server/crew/rewards.mjs';
@@ -145,6 +146,16 @@ export function createApp({
       fetchImpl,
       logger,
     })
+  );
+
+  app.post(
+    '/api/avisos',
+    requireTrustedOrigin(config),
+    createFixedWindowRateLimiter({
+      max: config.avisos.rateLimitMax,
+      windowMs: config.avisos.rateLimitWindowMs,
+    }),
+    createAvisosHandler({ store: stateStore, logger })
   );
 
   app.all('/api/*', (req, res) => {

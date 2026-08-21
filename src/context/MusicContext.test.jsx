@@ -42,6 +42,31 @@ describe('MusicProvider network activation', () => {
     expect(play).toHaveBeenCalledTimes(1);
   });
 
+  it('marks the body with the beat while music plays and cleans up on pause', () => {
+    vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockResolvedValue();
+    vi.spyOn(window.HTMLMediaElement.prototype, 'load').mockImplementation(() => {});
+    const { container } = render(
+      <MusicProvider>
+        <MusicProbe />
+      </MusicProvider>
+    );
+    const audio = container.querySelector('audio');
+
+    // Sin música no hay pulso que marcar.
+    expect(document.body.dataset.groove).toBeUndefined();
+
+    fireEvent.click(screen.getByRole('button', { name: 'toggle' }));
+    fireEvent.play(audio);
+
+    // BARRO se cabecea a 77 golpes por minuto (medio tiempo del tema).
+    expect(document.body.dataset.groove).toBe('1');
+    expect(document.body.style.getPropertyValue('--bpm')).toBe('77');
+
+    fireEvent.pause(audio);
+    expect(document.body.dataset.groove).toBeUndefined();
+    expect(document.body.style.getPropertyValue('--bpm')).toBe('');
+  });
+
   it('derives the playing state from media events instead of optimistic selection', () => {
     vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockResolvedValue();
     vi.spyOn(window.HTMLMediaElement.prototype, 'load').mockImplementation(() => {});

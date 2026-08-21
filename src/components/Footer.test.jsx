@@ -5,14 +5,19 @@ import { describe, expect, it } from 'vitest';
 import Footer from './Footer';
 
 describe('Footer: patrulla de El Lata', () => {
-    it('usa una animación PNG con alfa sin depender del croma de WebM', () => {
+    it('usa el WebP animado con alfa, sin vídeo ni APNG gigante', () => {
         const { container } = render(<Footer />);
 
         const image = container.querySelector('.ticker-lata-image');
         expect(image).toHaveAttribute(
             'src',
-            expect.stringContaining('lata-spray-walk-seedance-alpha.png'),
+            expect.stringContaining('lata-spray-walk-seedance-224.webp'),
         );
+        // Se sirve a tamaño de pantalla, no al del render original.
+        expect(image).toHaveAttribute('width', '166');
+        expect(image).toHaveAttribute('height', '224');
+        // La marquesina vive al fondo de la página: no debe cargar de entrada.
+        expect(image).toHaveAttribute('loading', 'lazy');
         expect(container.querySelector('.ticker-lata video')).not.toBeInTheDocument();
     });
 
@@ -24,7 +29,7 @@ describe('Footer: patrulla de El Lata', () => {
         );
         expect(reducedMotionSource).toHaveAttribute(
             'srcset',
-            expect.stringContaining('lata-spray-walk-seedance-poster.png'),
+            expect.stringContaining('lata-spray-walk-seedance-poster-224.webp'),
         );
     });
 });
