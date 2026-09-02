@@ -3,9 +3,9 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import BeatMachine from './BeatMachine.jsx';
-import { MusicProvider } from '../context/MusicContext.jsx';
-import { PAD_TECLAS, TRACKS } from '../data/mesa';
-import { STEP_COUNT } from '../utils/beatCodec';
+import { MusicProvider } from '../../context/MusicContext.jsx';
+import { PAD_TECLAS, TRACKS } from '../../data/mesa';
+import { STEP_COUNT } from '../../utils/beatCodec';
 
 // Cada pista es un fieldset con su nombre por leyenda; las celdas, botones «X, paso N».
 const filas = () =>

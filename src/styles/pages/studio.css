@@ -1,5 +1,8 @@
 @layer pages {
   .studio {
+    /* La miel de La Colmena: la abeja y la pegatina la toman por currentColor */
+    --honey: var(--gold);
+
     --container: 900px;
     /* Panal de La Colmena, muy sutil, solo en esta sección */
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='56' height='97' viewBox='0 0 56 97'><g fill='none' stroke='%231a1a1a' stroke-opacity='0.05' stroke-width='2'><path d='M28 1 L54 16 L54 48 L28 63 L2 48 L2 16 Z'/><path d='M28 63 L54 78 L54 97 M28 63 L2 78 L2 97'/></g></svg>");
@@ -12,6 +15,7 @@
 
   /* La abeja sobrevolando el título con su vuelo garabateado */
   .studio-bee {
+    color: var(--honey);
     position: absolute;
     top: -26px;
     right: clamp(0px, 8vw, 90px);
@@ -61,6 +65,7 @@
 
   /* Pegatina hexagonal de La Colmena en la esquina del player */
   .studio-sticker {
+    color: var(--honey);
     position: absolute;
     top: -20px;
     left: -18px;
