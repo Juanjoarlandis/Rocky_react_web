@@ -26,14 +26,14 @@ function MenuDrop({ products }) {
                 {/* Y el skater vuela por encima */}
                 <img src={skaterOllie} alt="" className="doodle drops-skater neon-art al-ritmo" style={{ '--fase': '1.1' }} />
                 <nav className="drops-list" aria-label="Categorías">
-                    <Link className="paper-card drops-link" to="/">
+                    <Link className="paper-card lift drops-link" to="/">
                         <span>Todo el catálogo</span>
                         <span className="drops-arrow" aria-hidden="true">→</span>
                     </Link>
                     {uniqueDrops.map((drop) => (
                         <Link
                             key={drop.handle}
-                            className="paper-card drops-link"
+                            className="paper-card lift drops-link"
                             to={`/products/${encodeURIComponent(drop.handle)}`}
                         >
                             <span>{drop.title}</span>

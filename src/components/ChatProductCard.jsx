@@ -115,7 +115,7 @@ function ChatProductCard({
                         unavailableLabel="Agotado"
                     />
                 ) : (
-                    <Link to={productPath} className="btn btn-ghost chat-product-add">
+                    <Link to={productPath} className="btn btn--ghost chat-product-add">
                         Ver producto
                     </Link>
                 )}

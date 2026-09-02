@@ -2,7 +2,7 @@
 .navbar {
     position: sticky;
     top: 0;
-    z-index: 1000;
+    z-index: var(--z-nav);
     background-color: rgba(var(--paper-rgb), 0.92);
     backdrop-filter: blur(8px) saturate(1.3);
     -webkit-backdrop-filter: blur(8px) saturate(1.3);
@@ -13,7 +13,7 @@
     max-width: 1200px;
     margin: 0 auto;
     padding: 0 24px;
-    height: 66px;
+    height: var(--nav-h);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -25,7 +25,7 @@
     align-items: center;
     min-height: 44px;
     flex-shrink: 0;
-    transition: transform 0.15s ease;
+    transition: transform var(--dur-fast) ease;
 }
 
 .navbar-brand:hover {
@@ -69,15 +69,15 @@
     background-repeat: repeat-x;
     background-size: 48px 8px;
     opacity: 0;
-    transition: opacity 0.15s ease;
+    transition: opacity var(--dur-fast) ease;
 }
 
 .navbar-link:hover::after,
-.navbar-link.active::after {
+.navbar-link.is-active::after {
     opacity: 1;
 }
 
-.navbar-link.active {
+.navbar-link.is-active {
     color: var(--accent);
 }
 
@@ -113,15 +113,15 @@
     border: 2px solid var(--ink);
     border-radius: 50%;
     background: var(--paper);
-    box-shadow: 2px 2px 0 var(--accent);
+    box-shadow: var(--shadow-accent-xs);
     line-height: 0;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    transition: transform var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
 }
 
 .navbar-account--avatar:hover,
-.navbar-account--avatar.active {
+.navbar-account--avatar.is-active {
     transform: rotate(-4deg) scale(1.06);
-    box-shadow: 3px 3px 0 var(--accent);
+    box-shadow: var(--shadow-accent-sm);
 }
 
 .navbar-account-avatar {
@@ -141,7 +141,7 @@
     min-height: 44px;
     flex: 0 0 auto;
     padding: 4px;
-    transition: transform 0.15s ease;
+    transition: transform var(--dur-fast) ease;
 }
 
 .navbar-brand:focus-visible,
@@ -177,7 +177,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 2px 2px 0 var(--ink);
+    box-shadow: var(--shadow-ink-xs);
     transform: rotate(6deg);
 }
 
@@ -248,7 +248,7 @@
     background: transparent;
     color: var(--ink);
     cursor: pointer;
-    transition: transform 0.15s ease, color 0.2s ease;
+    transition: transform var(--dur-fast) ease, color var(--dur-base) ease;
 }
 
 .navbar-theme:hover {
@@ -262,7 +262,7 @@
 /* Los rayitos duermen hasta que alguien da al interruptor. */
 .navbar-theme-rays {
     opacity: 0;
-    transition: opacity 0.2s ease;
+    transition: opacity var(--dur-base) ease;
 }
 
 .navbar-theme--on {

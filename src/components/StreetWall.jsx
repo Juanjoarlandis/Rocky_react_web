@@ -233,7 +233,7 @@ function StreetWall() {
                     className="cta-diana neon-art al-ritmo"
                     style={{ '--fase': '0.45' }}
                 />
-                <Link to="/crew" className="btn btn-primary">
+                <Link to="/crew" className="btn btn--primary">
                     Conoce a la crew →
                 </Link>
             </div>

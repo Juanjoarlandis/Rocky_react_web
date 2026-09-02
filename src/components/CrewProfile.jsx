@@ -63,7 +63,7 @@ function CrewGate({ accountEnabled }) {
           </p>
           {accountEnabled ? (
             <a
-              className="btn btn-primary crew-gate-button"
+              className="btn btn--primary crew-gate-button"
               href="/api/shopify/account/login?returnPath=%2Fmi-crew"
             >
               Entrar en la Crew
@@ -169,7 +169,7 @@ function RewardCard({ reward, ticketBalance, busy, onEquip, onRedeem }) {
     action = (
       <button
         type="button"
-        className="btn btn-ghost crew-reward-button"
+        className="btn btn--ghost crew-reward-button"
         disabled={busy}
         onClick={() => onEquip(reward.id)}
         aria-label={`Equipar ${reward.name}`}
@@ -186,7 +186,7 @@ function RewardCard({ reward, ticketBalance, busy, onEquip, onRedeem }) {
     action = (
       <button
         type="button"
-        className="btn btn-primary crew-reward-button"
+        className="btn btn--primary crew-reward-button"
         disabled={busy || !canAfford}
         onClick={() => onRedeem(reward.id)}
         aria-label={`Canjear ${reward.name}`}
@@ -348,7 +348,7 @@ export default function CrewProfile({
               <strong>{nextXp ? `${profile.xp} / ${nextXp} XP` : `${profile.xp} XP · MÁXIMO`}</strong>
             </div>
             <div className="crew-progress-track" aria-label={`${profile.level.progress}% completado`}>
-              <span style={{ '--crew-progress': `${profile.level.progress}%` }} />
+              <span style={{ '--crew-progress-ratio': profile.level.progress / 100 }} />
             </div>
             <p>
               {profile.level.nextLevelName

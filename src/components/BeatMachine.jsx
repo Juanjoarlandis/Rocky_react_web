@@ -453,7 +453,7 @@ function BeatMachine() {
                         </div>
                         <div className="lcd-pasos">
                             {Array.from({ length: STEP_COUNT }, (_, i) => (
-                                <i key={i} className={i === uiStep ? 'on' : ''} />
+                                <i key={i} className={i === uiStep ? 'is-on' : ''} />
                             ))}
                         </div>
                     </div>
@@ -476,7 +476,7 @@ function BeatMachine() {
                     </button>
                     <button
                         type="button"
-                        className={`mesa-rec ${grabando ? 'on' : ''}`}
+                        className={`mesa-rec ${grabando ? 'is-on' : ''}`}
                         onClick={() => setGrabando((g) => !g)}
                         aria-pressed={grabando}
                         title="Graba en la rejilla lo que toques en los pads"
@@ -542,7 +542,7 @@ function BeatMachine() {
                         <button
                             key={preset.id}
                             type="button"
-                            className={`chip ${presetActivo === preset.id ? 'on' : ''}`}
+                            className={`chip ${presetActivo === preset.id ? 'is-on' : ''}`}
                             onClick={() => cargarPreset(preset)}
                         >
                             {preset.label}
@@ -586,7 +586,7 @@ function BeatMachine() {
                                         </button>
                                         <button
                                             type="button"
-                                            className={`pista-solo ${solos[indice] ? 'on' : ''}`}
+                                            className={`pista-solo ${solos[indice] ? 'is-on' : ''}`}
                                             onClick={() =>
                                                 setSolos((prev) =>
                                                     prev.map((s, i) => (i === indice ? !s : s))
@@ -627,7 +627,7 @@ function BeatMachine() {
                                                     vel ? `v${vel}` : '',
                                                     track.acento ? 'acento' : '',
                                                     paso % 4 === 0 ? 'marca' : '',
-                                                    paso === uiStep ? 'actual' : '',
+                                                    paso === uiStep ? 'is-current' : '',
                                                 ].join(' ')}
                                                 aria-pressed={Boolean(vel)}
                                                 aria-label={`${track.label}, paso ${paso + 1}`}
@@ -657,7 +657,7 @@ function BeatMachine() {
                                 <button
                                     key={b.id}
                                     type="button"
-                                    className={`chip ${banco === b.id ? 'on' : ''}`}
+                                    className={`chip ${banco === b.id ? 'is-on' : ''}`}
                                     onClick={() => setBanco(b.id)}
                                     aria-pressed={banco === b.id}
                                 >
@@ -694,13 +694,13 @@ function BeatMachine() {
 
                 <footer className="mesa-pie">
                     <div className="mesa-acciones">
-                        <button type="button" className="btn btn-ghost" onClick={limpiar}>
+                        <button type="button" className="btn btn--ghost btn--sm" onClick={limpiar}>
                             Limpiar
                         </button>
-                        <button type="button" className="btn btn-ghost" onClick={aleatorio}>
+                        <button type="button" className="btn btn--ghost btn--sm" onClick={aleatorio}>
                             Sorpréndeme
                         </button>
-                        <button type="button" className="btn btn-primary" onClick={compartir}>
+                        <button type="button" className="btn btn--primary btn--sm" onClick={compartir}>
                             {copiado ? '¡Copiado!' : 'Compartir beat'}
                         </button>
                     </div>

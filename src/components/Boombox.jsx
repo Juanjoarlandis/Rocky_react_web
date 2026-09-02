@@ -22,7 +22,7 @@ function BoomboxArt({ playing }) {
         <svg
             viewBox="0 0 640 340"
             xmlns="http://www.w3.org/2000/svg"
-            className={`bb-art ${playing ? 'playing' : ''}`}
+            className={`bb-art ${playing ? 'is-playing' : ''}`}
             role="img"
             aria-label="Radiocasete de ROCKY SOUND"
         >

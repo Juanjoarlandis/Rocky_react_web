@@ -55,7 +55,7 @@
     flex-shrink: 0;
     background-color: var(--paper);
     transform: rotate(-2deg);
-    transition: transform 0.15s ease;
+    transition: transform var(--dur-fast) ease;
 }
 
 .cart-item-media:hover {
@@ -136,7 +136,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background-color 0.15s ease, color 0.15s ease;
+    transition: background-color var(--dur-fast) ease, color var(--dur-fast) ease;
 }
 
 .quantity-btn:hover {
@@ -174,14 +174,15 @@
     font-size: 1.35rem;
     line-height: 1;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: border-color var(--dur-fast) ease, background-color var(--dur-fast) ease, color var(--dur-fast) ease,
+        box-shadow var(--dur-fast) ease, transform var(--dur-fast) ease;
 }
 
 .cart-item-remove:hover {
     border-color: var(--ink);
     background-color: var(--accent);
     color: var(--white);
-    box-shadow: 2px 2px 0 var(--ink);
+    box-shadow: var(--shadow-ink-xs);
     transform: rotate(6deg);
 }
 

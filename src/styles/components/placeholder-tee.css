@@ -29,7 +29,7 @@
   border: 2px solid var(--ink-block);
   background-color: var(--ink-block);
   color: var(--ink-block-text);
-  box-shadow: 4px 4px 0 var(--accent);
+  box-shadow: var(--shadow-accent);
   font-family: var(--font-hand);
   line-height: 1;
   text-align: left;

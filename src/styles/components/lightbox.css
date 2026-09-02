@@ -2,7 +2,7 @@
 .lightbox {
     position: fixed;
     inset: 0;
-    z-index: 3000;
+    z-index: var(--z-overlay);
     background-color: rgba(var(--black-rgb), 0.85);
     display: flex;
     align-items: center;
@@ -46,12 +46,22 @@
     line-height: 1;
     cursor: pointer;
     box-shadow: 3px 3px 0 rgba(var(--black-rgb), 0.5);
-    transition: transform 0.15s ease, background-color 0.2s ease, color 0.2s ease;
+    transition: transform var(--dur-fast) ease, background-color var(--dur-base) ease, color var(--dur-base) ease;
 }
 
 .lightbox-close:hover {
     background-color: var(--accent);
     color: var(--white);
     transform: rotate(8deg) scale(1.06);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lightbox {
+        animation: none;
+    }
+
+    .lightbox-close {
+        transition: none;
+    }
 }
 }

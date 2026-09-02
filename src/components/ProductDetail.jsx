@@ -39,7 +39,7 @@ function ProductDetail({
         return (
             <div className="product-empty">
                 <h1 className="page-title">Producto no encontrado</h1>
-                <Link to="/" className="btn btn-ghost">Volver a la tienda</Link>
+                <Link to="/" className="btn btn--ghost">Volver a la tienda</Link>
             </div>
         );
     }

@@ -12,7 +12,7 @@ function MiniPlayer({ variant = 'content' }) {
 
     return (
         <div
-            className={`mini-player ${variantClass} ${playing ? 'playing' : ''}`}
+            className={`mini-player ${variantClass} ${playing ? 'is-playing' : ''}`}
             role="group"
             aria-label="Reproductor de Rocky 035"
         >

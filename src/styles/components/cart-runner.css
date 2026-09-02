@@ -9,7 +9,7 @@
     left: 0;
     /* Por encima de la barra (1000) para que se le vea llegar hasta el icono en
        vez de pasarle por debajo, y por debajo del splash (3000). */
-    z-index: 1100;
+    z-index: var(--z-runner);
     pointer-events: none;
     user-select: none;
     will-change: transform, opacity;

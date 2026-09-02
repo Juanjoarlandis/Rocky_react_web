@@ -89,7 +89,7 @@
     /* Por encima de la barra (1000) y del repartidor (1100): a un flash no se
        le pone nadie delante. El splash (3000) ni se entera: con él puesto el
        muro queda fuera de cuadro y no se dispara. */
-    z-index: 1200;
+    z-index: var(--z-overlay);
     pointer-events: none;
     background: radial-gradient(
         circle at var(--flash-x, 50%) var(--flash-y, 45%),
@@ -169,7 +169,7 @@
     border: 2px solid var(--ink);
     box-shadow: var(--shadow-ink);
     width: clamp(200px, 26vw, 260px);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform var(--dur-base) ease, box-shadow var(--dur-base) ease;
 }
 
 .street-photo:nth-child(3n + 1) {

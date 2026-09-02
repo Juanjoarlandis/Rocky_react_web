@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import ProductPage from './ProductPage.jsx';
 
 const productPageCss = readFileSync('src/styles/pages/home.css', 'utf8');
+const buttonsCss = readFileSync('src/styles/04-buttons.css', 'utf8');
 
 const previewProducts = [
   {
@@ -188,9 +189,8 @@ describe('ProductPage card anatomy', () => {
     expect(productPageCss).toMatch(
       /\.product-actions\s*>\s*\.add-to-cart-control\s*\{[\s\S]*?width:\s*100%;/
     );
-    expect(productPageCss).toMatch(
-      /\.product-actions\s+\.btn\s*\{[\s\S]*?width:\s*100%;[\s\S]*?min-height:\s*44px;/
-    );
+    expect(buttonsCss).toMatch(/\.btn\s*\{[\s\S]*?min-height:\s*44px;/);
+    expect(buttonsCss).toMatch(/\.btn--block\s*\{[\s\S]*?width:\s*100%;/);
     expect(productPageCss).toMatch(
       /@media \(max-width:\s*640px\)[\s\S]*?\.product-actions\s*\{[\s\S]*?grid-template-columns:\s*1fr;/
     );

@@ -25,7 +25,7 @@ describe('reduced motion contract', () => {
   // sigue emitiendo aunque no haya movimiento.
   it('keeps the boombox antenna signal steady instead of pulsing', () => {
     expect(boomboxCss).toMatch(
-      /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.bb-art\.playing \.bb-senal\s*\{[\s\S]*?animation:\s*none;/
+      /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.bb-art\.is-playing \.bb-senal\s*\{[\s\S]*?animation:\s*none;/
     );
   });
 

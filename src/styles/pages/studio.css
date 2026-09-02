@@ -114,7 +114,7 @@
     border-bottom: 2px dashed var(--line);
     cursor: pointer;
     text-align: left;
-    transition: background-color 0.15s ease;
+    transition: background-color var(--dur-fast) ease;
 }
 
 .setlist-list li:last-child .setlist-row {
@@ -125,7 +125,7 @@
     background-color: var(--paper);
 }
 
-.setlist-row.active {
+.setlist-row.is-active {
     background-color: var(--paper);
 }
 
@@ -136,7 +136,7 @@
     flex-shrink: 0;
 }
 
-.setlist-row.active .setlist-num {
+.setlist-row.is-active .setlist-num {
     color: var(--accent);
 }
 
@@ -257,7 +257,7 @@
     align-items: center;
     gap: 8px;
     transform: rotate(-0.8deg);
-    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    transition: transform var(--dur-fast) ease;
 }
 
 .ep-card:nth-child(2n) {
@@ -266,7 +266,6 @@
 
 .ep-card:hover {
     transform: rotate(0deg) translate(-3px, -3px);
-    box-shadow: var(--shadow-ink-lg);
 }
 
 .ep-cover {
@@ -296,11 +295,6 @@
     margin-top: 4px;
     flex-wrap: wrap;
     justify-content: center;
-}
-
-.ep-links .btn {
-    padding: 4px 14px;
-    font-size: var(--text-sm);
 }
 
 @media (max-width: 640px) {

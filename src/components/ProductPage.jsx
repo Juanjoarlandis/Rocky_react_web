@@ -50,7 +50,7 @@ function ProductPage({
                 />
                 <h1 className="page-title">Nada por aquí</h1>
                 <p>No hay productos en «{category}». Volaron.</p>
-                <Link to="/menudrop" className="btn btn-ghost">Ver drops</Link>
+                <Link to="/menudrop" className="btn btn--ghost">Ver drops</Link>
             </div>
         );
     }
@@ -73,7 +73,7 @@ function ProductPage({
                                     <CrosshairSpinner className="product-page-hero-count-mark" />
                                     <p className="product-count">{visibleProducts.length} productos</p>
                                 </div>
-                                <a href="#productos" className="btn btn-primary product-page-hero-cta">
+                                <a href="#productos" className="btn btn--primary product-page-hero-cta">
                                     <span>Ver Drop 4</span>
                                     <span className="product-page-hero-cta-arrow" aria-hidden="true">→</span>
                                 </a>
@@ -174,13 +174,14 @@ function ProductPage({
                                     <p className="badge badge--dashed">Próximamente</p>
                                 )}
                                 <div className="product-actions">
-                                    <Link to={`/product/${encodeURIComponent(productPath)}`} className="btn btn-ghost">
+                                    <Link to={`/product/${encodeURIComponent(productPath)}`} className="btn btn--ghost btn--sm btn--block">
                                         Detalles
                                     </Link>
                                     <AddToCartButton
                                         product={product}
                                         variantId={variantId}
                                         addToCart={addToCart}
+                                        className="btn--sm btn--block"
                                         disabled={unavailable}
                                         unavailableLabel={
                                             product.isPreview

@@ -328,7 +328,7 @@
     object-fit: cover;
     background: var(--white);
     transform: rotate(-3deg);
-    box-shadow: 2px 2px 0 var(--ink);
+    box-shadow: var(--shadow-ink-xs);
 }
 
 .chat-message.user .chat-avatar {
@@ -341,7 +341,7 @@
     border: 2px solid var(--ink);
     border-radius: 8px 15px 12px 13px;
     background: var(--card);
-    box-shadow: 3px 3px 0 var(--ink);
+    box-shadow: var(--shadow-ink-sm);
     font-family: var(--font-body);
     font-size: var(--text-md);
     line-height: 1.4;
@@ -436,7 +436,7 @@
 
 .chat-input-wrap textarea:focus {
     border-color: var(--accent);
-    box-shadow: 3px 3px 0 var(--ink);
+    box-shadow: var(--shadow-ink-sm);
 }
 
 /* El foco ya se ve en el borde rojo y la sombra: sin anillo encima. */
@@ -474,7 +474,7 @@
     font-family: var(--font-hand);
     font-size: var(--text-base);
     cursor: pointer;
-    box-shadow: 3px 3px 0 var(--ink);
+    box-shadow: var(--shadow-ink-sm);
     transition: transform 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
 }
 
@@ -492,7 +492,7 @@
 .chat-send:focus-visible {
     background: var(--ink-block);
     transform: translate(-1px, -1px);
-    box-shadow: 4px 4px 0 var(--accent);
+    box-shadow: var(--shadow-accent);
 }
 
 .chat-send:disabled {
@@ -596,7 +596,7 @@
     .chat-welcome {
         margin: 4px auto;
         padding: 24px 20px;
-        box-shadow: 3px 3px 0 var(--ink);
+        box-shadow: var(--shadow-ink-sm);
     }
 
     .chat-welcome-copy {

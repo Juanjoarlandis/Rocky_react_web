@@ -35,7 +35,7 @@ function AddToCartButton({
         <div className="add-to-cart-control">
             <button
                 type="button"
-                className={`btn btn-primary ${added ? 'btn-added' : ''} ${className}`}
+                className={`btn btn--primary ${added ? 'btn--added' : ''} ${className}`}
                 onClick={handleClick}
                 disabled={disabled || pending}
             >

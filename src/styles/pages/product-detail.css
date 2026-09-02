@@ -11,7 +11,7 @@
     font-size: var(--text-md);
     text-decoration: none;
     color: var(--muted);
-    transition: color 0.2s ease, transform 0.15s ease;
+    transition: color var(--dur-base) ease, transform var(--dur-fast) ease;
 }
 
 .detail-back:hover {
@@ -81,7 +81,7 @@
     overflow: hidden;
     cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'><circle cx='14' cy='14' r='7' fill='none' stroke='%231a1a1a' stroke-width='2.5'/><path d='M1 14 L7 14 M21 14 L27 14 M14 1 L14 7 M14 21 L14 27' stroke='%23e63946' stroke-width='2.5' stroke-linecap='round'/><circle cx='14' cy='14' r='2' fill='%231a1a1a'/></svg>") 14 14, zoom-in;
     transform: rotate(-0.6deg);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform var(--dur-base) ease, box-shadow var(--dur-base) ease;
 }
 
 .detail-media:hover {
@@ -113,10 +113,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 2px 2px 0 var(--ink);
+    box-shadow: var(--shadow-ink-xs);
     opacity: 0;
     transform: rotate(-4deg);
-    transition: opacity 0.2s ease;
+    transition: opacity var(--dur-base) ease;
 }
 
 .detail-media:hover .product-zoom,
@@ -205,10 +205,6 @@
     margin: 0;
     font-family: var(--font-display);
     font-size: 1.7rem;
-}
-
-.detail-buy .btn {
-    min-height: 44px;
 }
 
 @media (max-width: 900px) {

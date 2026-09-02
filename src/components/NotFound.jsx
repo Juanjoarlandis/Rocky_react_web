@@ -22,7 +22,7 @@ const NotFound = () => {
             </div>
             <h1 className="notfound-title">Te has salido del mapa</h1>
             <p className="notfound-text">La página que buscas no existe.</p>
-            <Link to="/" className="btn btn-primary">Volver a la tienda</Link>
+            <Link to="/" className="btn btn--primary">Volver a la tienda</Link>
         </div>
     );
 };

@@ -115,7 +115,7 @@
     color: rgba(var(--card-rgb), 0.5);
 }
 
-.lcd-rec.on {
+.lcd-rec.is-on {
     color: var(--accent);
     text-shadow: 0 0 10px rgba(var(--accent-rgb), 0.6);
     animation: lcd-latido 1s steps(2, end) infinite;
@@ -142,7 +142,7 @@
     background-color: rgba(var(--gold-rgb), 0.5);
 }
 
-.lcd-pasos i.on {
+.lcd-pasos i.is-on {
     background-color: var(--gold);
     box-shadow: 0 0 8px rgba(var(--gold-rgb), 0.8);
 }
@@ -199,7 +199,7 @@
     letter-spacing: 0.06em;
     cursor: pointer;
     box-shadow: 3px 3px 0 rgba(var(--black-rgb), 0.55);
-    transition: transform 0.08s ease, background-color 0.15s ease, box-shadow 0.08s ease;
+    transition: transform 0.08s ease, background-color var(--dur-fast) ease, box-shadow 0.08s ease;
 }
 
 .mesa-play {
@@ -241,7 +241,7 @@
     box-shadow: none;
 }
 
-.mesa-rec.on {
+.mesa-rec.is-on {
     background-color: var(--accent);
     color: var(--white);
 }
@@ -254,7 +254,7 @@
     background-color: rgba(var(--accent-rgb), 0.35);
 }
 
-.mesa-rec.on .mesa-led {
+.mesa-rec.is-on .mesa-led {
     background-color: var(--white);
     box-shadow: 0 0 8px var(--white);
     animation: lcd-latido 1s steps(2, end) infinite;
@@ -312,7 +312,7 @@
     font-family: var(--font-hand);
     font-size: var(--text-sm);
     cursor: pointer;
-    transition: transform 0.08s ease, background-color 0.15s ease, color 0.15s ease;
+    transition: transform 0.08s ease, background-color var(--dur-fast) ease, color var(--dur-fast) ease;
 }
 
 .chip:hover {
@@ -320,7 +320,7 @@
     border-color: var(--gold);
 }
 
-.chip.on {
+.chip.is-on {
     background-color: var(--gold);
     border-color: var(--gold);
     /* Tinta a fuego: sobre la miel hace falta trazo oscuro también con el
@@ -437,7 +437,7 @@
     cursor: pointer;
 }
 
-.pista-solo.on {
+.pista-solo.is-on {
     background-color: var(--gold);
     border-color: var(--gold);
     color: var(--ink);
@@ -466,7 +466,7 @@
     border-radius: 7px;
     background-color: rgba(var(--card-rgb), 0.05);
     cursor: pointer;
-    transition: transform 0.08s ease, border-color 0.12s ease;
+    transition: transform 0.08s ease, border-color var(--dur-fast) ease;
 }
 
 /* Marca de cada pulso: los cuatro cuadros fuertes */
@@ -499,7 +499,7 @@
 }
 
 /* Columna que está sonando ahora mismo */
-.celda.actual {
+.celda.is-current {
     border-color: var(--ink-block-text);
     box-shadow: 0 0 0 2px rgba(var(--card-rgb), 0.18);
 }
@@ -593,7 +593,7 @@
         0 4px 0 rgba(var(--black-rgb), 0.6),
         inset 0 -4px 0 var(--fam),
         inset 0 1px 0 rgba(var(--white-rgb), 0.09);
-    transition: transform 0.07s ease, box-shadow 0.07s ease, background-color 0.12s ease;
+    transition: transform 0.07s ease, box-shadow 0.07s ease, background-color var(--dur-fast) ease;
 }
 
 .pad-tecla {
@@ -680,11 +680,6 @@
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
-}
-
-.mesa-acciones .btn {
-    padding: 6px 16px;
-    font-size: var(--text-base);
 }
 
 .mesa-nota {
@@ -777,9 +772,9 @@
 
 @media (prefers-reduced-motion: reduce) {
     .mesa-dancer,
-    .lcd-rec.on,
-    .mesa-rec.on .mesa-led {
-        animation: none !important;
+    .lcd-rec.is-on,
+    .mesa-rec.is-on .mesa-led {
+        animation: none;
     }
 }
 }

@@ -93,7 +93,7 @@ export default function DropAviso({ producto }) {
                 />
                 <button
                     type="submit"
-                    className="btn btn-primary drop-aviso-boton"
+                    className="btn btn--primary drop-aviso-boton"
                     disabled={estado === 'enviando'}
                 >
                     {estado === 'enviando' ? 'Apuntando…' : 'Avísame'}

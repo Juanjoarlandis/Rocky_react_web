@@ -139,7 +139,7 @@ export function CrewCard({ miembro, autoGirado = false, linkEnabled = true, abie
         const r = card.getBoundingClientRect();
         const px = (e.clientX - r.left) / r.width - 0.5;
         const py = (e.clientY - r.top) / r.height - 0.5;
-        card.classList.add('tilting');
+        card.classList.add('is-tilting');
         card.style.setProperty('--tilt-x', `${(py * -7).toFixed(2)}deg`);
         card.style.setProperty('--tilt-y', `${(px * 9).toFixed(2)}deg`);
     };
@@ -147,7 +147,7 @@ export function CrewCard({ miembro, autoGirado = false, linkEnabled = true, abie
     const alSalir = () => {
         const card = cardRef.current;
         if (!card) return;
-        card.classList.remove('tilting');
+        card.classList.remove('is-tilting');
         card.style.removeProperty('--tilt-x');
         card.style.removeProperty('--tilt-y');
     };
@@ -171,7 +171,7 @@ export function CrewCard({ miembro, autoGirado = false, linkEnabled = true, abie
         <div
             ref={cardRef}
             id={`cromo-${miembro.id}`}
-            className={`crew-card ${girado ? 'girado' : ''} ${miembro.especial ? 'especial' : ''} ${esFoil ? 'foil' : ''}`}
+            className={`crew-card ${girado ? 'is-flipped' : ''} ${miembro.especial ? 'especial' : ''} ${esFoil ? 'foil' : ''}`}
             role="button"
             tabIndex={0}
             aria-pressed={girado}
@@ -338,7 +338,7 @@ function Crew() {
             return undefined;
         }
 
-        piezas.forEach((pieza) => pieza.classList.add('oculto'));
+        piezas.forEach((pieza) => pieza.classList.add('is-hidden'));
         const pendientes = new Set(piezas);
 
         const revisar = () => {
@@ -346,8 +346,8 @@ function Crew() {
             pendientes.forEach((pieza) => {
                 const r = pieza.getBoundingClientRect();
                 if (r.top < limite && r.bottom > -40) {
-                    pieza.classList.add('revelado');
-                    pieza.classList.remove('oculto');
+                    pieza.classList.add('is-revealed');
+                    pieza.classList.remove('is-hidden');
                     pendientes.delete(pieza);
                 }
             });
@@ -387,7 +387,7 @@ function Crew() {
                 </div>
 
                 {/* El marcador del álbum: lo que ficha el club y lo que llevas tú */}
-                <aside className={`crew-marcador ${albumCompleto ? 'completo' : ''}`} aria-label="Progreso del álbum">
+                <aside className={`crew-marcador ${albumCompleto ? 'is-complete' : ''}`} aria-label="Progreso del álbum">
                     <p className="marcador-titulo">El álbum · ed. {TOTAL_CROMOS}</p>
                     <p className="marcador-club">
                         <b>{CREW.length}/{TOTAL_CROMOS}</b> fichados — faltan {TOTAL_CROMOS - CREW.length}
@@ -398,7 +398,7 @@ function Crew() {
                         aria-label={`Has abierto ${abiertos.size} de ${CREW.length} expedientes`}
                     >
                         {CREW.map((m) => (
-                            <span key={m.id} className={abiertos.has(m.id) ? 'on' : ''} />
+                            <span key={m.id} className={abiertos.has(m.id) ? 'is-on' : ''} />
                         ))}
                     </div>
                     <p className="marcador-tuyo">
@@ -491,7 +491,7 @@ function Crew() {
                                 <p className="crew-hueco-nota">{hueco.nota}</p>
                                 {hueco.enlace && (
                                     <a
-                                        className="btn btn-ghost crew-hueco-btn"
+                                        className="btn btn--ghost crew-hueco-btn"
                                         href={hueco.enlace}
                                         target="_blank"
                                         rel="noopener noreferrer"

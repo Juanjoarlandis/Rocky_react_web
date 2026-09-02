@@ -75,7 +75,7 @@
     padding: 6px 20px;
     border: 2px solid rgba(var(--white-rgb), 0.85);
     border-radius: var(--wobble-sm);
-    transition: transform 0.15s ease, background-color 0.2s ease;
+    transition: transform var(--dur-fast) ease, background-color var(--dur-base) ease;
 }
 
 .footer-social:hover {

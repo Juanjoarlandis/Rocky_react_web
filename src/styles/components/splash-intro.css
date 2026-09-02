@@ -5,8 +5,8 @@
 .splash-intro {
   position: fixed;
   inset: 0;
-  /* Por encima de todo lo flotante (el mini-player vive en 2500) */
-  z-index: 3000;
+  /* Por encima de todo lo flotante: navbar, corredor del carrito y lightbox */
+  z-index: var(--z-splash);
   overflow: hidden;
   background-color: var(--paper);
   /* El mismo papel de cuaderno que el body, de día y de noche */

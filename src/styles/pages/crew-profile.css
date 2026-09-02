@@ -147,12 +147,7 @@
 
 .crew-current-avatar--frame-red-squiggle {
   border: 8px double var(--accent);
-  box-shadow: 0 0 0 3px var(--ink);
-}
-
-.crew-current-avatar--frame-blue-ink {
-  border: 8px double var(--blue);
-  box-shadow: 0 0 0 3px var(--ink);
+  box-shadow: var(--ring-ink);
 }
 
 .crew-current-avatar img {
@@ -247,13 +242,17 @@
   transform: rotate(-0.3deg);
 }
 
+/* La barra crece con transform, que no fuerza layout: el ancho es siempre el
+   100 % y --crew-progress-ratio (0–1) la escala desde la izquierda. */
 .crew-progress-track span {
   display: block;
-  width: var(--crew-progress);
+  width: 100%;
   height: 100%;
   border-radius: inherit;
   background: var(--accent);
-  transition: width 0.35s ease;
+  transform: scaleX(var(--crew-progress-ratio, 0));
+  transform-origin: left center;
+  transition: transform var(--dur-slow) ease;
 }
 
 .crew-progress-panel p {
@@ -275,7 +274,7 @@
   border: 2px solid var(--ink);
   border-radius: var(--wobble-sm);
   background: var(--card);
-  box-shadow: 3px 3px 0 var(--ink);
+  box-shadow: var(--shadow-ink-sm);
 }
 
 .crew-stat--tickets {
@@ -328,7 +327,7 @@
   border: 2px solid var(--ink);
   border-radius: var(--wobble-sm);
   background: var(--card);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: transform var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
 }
 
 .crew-reward-card:hover {
@@ -431,12 +430,7 @@
 
 .crew-frame-sample--frame-red-squiggle {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--ink);
-}
-
-.crew-frame-sample--frame-blue-ink {
-  border-color: var(--blue);
-  box-shadow: 0 0 0 3px var(--ink);
+  box-shadow: var(--ring-ink);
 }
 
 .crew-ticket-shop {
@@ -509,7 +503,7 @@
 }
 
 .crew-profile-gate {
-  min-height: min(760px, calc(100dvh - 66px));
+  min-height: min(760px, calc(100dvh - var(--nav-h)));
 }
 
 .crew-gate-hero {

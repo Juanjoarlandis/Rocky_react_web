@@ -95,6 +95,29 @@
   box-shadow: var(--shadow-ink);
 }
 
+/* La sombra grande del hover vive en un pseudo-elemento y sólo se anima su
+   opacidad; el desplazamiento lo pone cada tarjeta con transform. */
+.lift {
+  position: relative;
+  isolation: isolate;
+}
+
+.lift::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  box-shadow: var(--shadow-ink-lg);
+  opacity: 0;
+  transition: opacity var(--dur-base) var(--ease-out);
+  pointer-events: none;
+}
+
+.lift:hover::after {
+  opacity: 1;
+}
+
 /* ---------- Pegatina ----------
    Un rótulo pegado torcido: la usan las cintas, contadores y sellos. */
 

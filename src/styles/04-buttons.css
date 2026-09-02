@@ -6,6 +6,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
+  min-height: 44px;
   padding: 8px 20px;
   border: 2px solid var(--ink);
   border-radius: var(--wobble-sm);
@@ -18,13 +19,13 @@
   text-decoration: none;
   cursor: pointer;
   box-shadow: var(--shadow-ink-sm);
-  transition: transform 0.12s ease, box-shadow 0.12s ease,
-    background-color 0.2s ease, color 0.2s ease;
+  transition: transform var(--dur-fast) ease, box-shadow var(--dur-fast) ease,
+    background-color var(--dur-base) ease, color var(--dur-base) ease;
 }
 
 .btn:hover:not(:disabled) {
   transform: translate(-1px, -1px);
-  box-shadow: 4px 4px 0 var(--ink);
+  box-shadow: var(--shadow-ink-md);
 }
 
 .btn:active:not(:disabled) {
@@ -38,26 +39,38 @@
   box-shadow: none;
 }
 
-.btn-primary {
+.btn--primary {
   background-color: var(--ink);
   color: var(--card);
 }
 
-.btn-primary:hover:not(:disabled) {
+.btn--primary:hover:not(:disabled) {
   background-color: var(--accent);
   border-color: var(--ink);
   color: var(--white);
 }
 
-.btn-primary.btn-added {
+.btn--primary.btn--added {
   background-color: var(--ok);
 }
 
-.btn-ghost {
+.btn--ghost {
   background-color: var(--card);
 }
 
-.btn-ghost:hover {
+.btn--ghost:hover {
   background-color: var(--paper);
+}
+
+/* Variantes de tamaño y de caja: en vez de retocar .btn desde cada página. */
+.btn--sm {
+  padding: 5px 14px;
+  font-size: var(--text-base);
+}
+
+.btn--block {
+  width: 100%;
+  min-width: 0;
+  white-space: nowrap;
 }
 }

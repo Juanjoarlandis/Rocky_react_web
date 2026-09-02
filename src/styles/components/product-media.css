@@ -24,7 +24,7 @@
     height: 100%;
     object-fit: cover;
     display: block;
-    transition: transform 0.35s ease;
+    transition: transform var(--dur-slow) ease;
 }
 
 .product-zoom {
@@ -41,10 +41,10 @@
     align-items: center;
     justify-content: center;
     font-size: var(--text-sm);
-    box-shadow: 2px 2px 0 var(--ink);
+    box-shadow: var(--shadow-ink-xs);
     opacity: 0;
     transform: rotate(-4deg);
-    transition: opacity 0.2s ease;
+    transition: opacity var(--dur-base) ease;
 }
 
 .product-media:hover .product-zoom,

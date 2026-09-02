@@ -15,11 +15,11 @@
     transform-origin: center;
 }
 
-.bb-art.playing .bb-spool {
+.bb-art.is-playing .bb-spool {
     animation: crosshair-spin 1.6s linear infinite;
 }
 
-.bb-art.playing .bb-diana {
+.bb-art.is-playing .bb-diana {
     animation: crosshair-spin 7s linear infinite;
 }
 
@@ -28,7 +28,7 @@
     opacity: 0;
 }
 
-.bb-art.playing .bb-senal {
+.bb-art.is-playing .bb-senal {
     animation: bb-senal-late 1.8s ease-in-out infinite;
 }
 
@@ -44,19 +44,19 @@
 }
 
 /* El piloto se enciende con la música. Fijo, sin parpadeo: es un piloto. */
-.bb-art.playing .bb-luz {
+.bb-art.is-playing .bb-luz {
     fill: var(--accent);
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .bb-art.playing .bb-spool,
-    .bb-art.playing .bb-diana,
-    .bb-art.playing .bb-senal {
+    .bb-art.is-playing .bb-spool,
+    .bb-art.is-playing .bb-diana,
+    .bb-art.is-playing .bb-senal {
         animation: none;
     }
 
     /* Sin latido, la señal se queda encendida quieta mientras suena. */
-    .bb-art.playing .bb-senal {
+    .bb-art.is-playing .bb-senal {
         opacity: 0.9;
     }
 }
@@ -111,12 +111,12 @@
     border-radius: var(--wobble-md);
     box-shadow: var(--shadow-ink-sm);
     cursor: pointer;
-    transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.2s ease, color 0.2s ease;
+    transition: transform var(--dur-fast) ease, box-shadow var(--dur-fast) ease, background-color var(--dur-base) ease, color var(--dur-base) ease;
 }
 
 .player-btn:hover {
     transform: translate(-1px, -1px) rotate(-2deg);
-    box-shadow: 4px 4px 0 var(--ink);
+    box-shadow: var(--shadow-ink-md);
 }
 
 .player-btn:active {

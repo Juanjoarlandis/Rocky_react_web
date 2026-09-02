@@ -124,8 +124,10 @@
   /* ---------- Sombras duras, estilo pegatina/cómic ---------- */
   --shadow-ink-xs: 2px 2px 0 var(--ink);
   --shadow-ink-sm: 3px 3px 0 var(--ink);
+  --shadow-ink-md: 4px 4px 0 var(--ink);
   --shadow-ink: 5px 5px 0 var(--ink);
   --shadow-ink-lg: 8px 8px 0 var(--ink);
+  --shadow-accent-xs: 2px 2px 0 var(--accent);
   --shadow-accent-sm: 3px 3px 0 var(--accent);
   --shadow-accent: 4px 4px 0 var(--accent);
   /* Aro de tinta o de acento alrededor de un elemento (foco, selección). */
@@ -141,7 +143,7 @@
   --z-splash: 3000;
 
   /* ---------- Tiempos y curvas ---------- */
-  --dur-fast: 0.12s;
+  --dur-fast: 0.15s;
   --dur-base: 0.2s;
   --dur-slow: 0.35s;
   --ease-out: ease;

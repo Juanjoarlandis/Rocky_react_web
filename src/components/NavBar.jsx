@@ -30,6 +30,10 @@ const BombillaIcon = () => (
     </svg>
 );
 
+// react-router marca el destino actual con `active`; aquí se traduce al
+// prefijo de estado de la casa.
+const navLinkClass = ({ isActive }) => `navbar-link${isActive ? ' is-active' : ''}`;
+
 const NavBar = ({
     totalItems,
     accountEnabled = false,
@@ -55,25 +59,25 @@ const NavBar = ({
                     />
                 </Link>
                 <nav className="navbar-links" aria-label="Navegación principal">
-                    <NavLink to="/" end className="navbar-link">
+                    <NavLink to="/" end className={navLinkClass}>
                         Tienda
                     </NavLink>
-                    <NavLink to="/menudrop" className="navbar-link">
+                    <NavLink to="/menudrop" className={navLinkClass}>
                         Drops
                     </NavLink>
-                    <NavLink to="/estudio" className="navbar-link">
+                    <NavLink to="/estudio" className={navLinkClass}>
                         Estudio
                     </NavLink>
-                    <NavLink to="/crew" className="navbar-link">
+                    <NavLink to="/crew" className={navLinkClass}>
                         Crew
                     </NavLink>
-                    <NavLink to="/rockyIA" className="navbar-link">
+                    <NavLink to="/rockyIA" className={navLinkClass}>
                         Rocky IA
                     </NavLink>
                     {accountEnabled && account.loggedIn ? (
                         <NavLink
                             to="/mi-crew"
-                            className="navbar-account navbar-account--avatar"
+                            className={({ isActive }) => `navbar-account navbar-account--avatar${isActive ? ' is-active' : ''}`}
                             aria-label="Abrir MiCrew"
                             title="Abrir MiCrew"
                         >

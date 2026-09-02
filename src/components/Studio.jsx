@@ -120,7 +120,7 @@ function Studio() {
                             <li key={track.src}>
                                 <button
                                     type="button"
-                                    className={`setlist-row ${active ? 'active' : ''}`}
+                                    className={`setlist-row ${active ? 'is-active' : ''}`}
                                     onClick={() => select(i)}
                                 >
                                     <span className="setlist-num">{String(i + 1).padStart(2, '0')}</span>
@@ -172,10 +172,10 @@ function Studio() {
                     <img src={colgadoBorde} alt="" className="doodle listen-hanger neon-art al-ritmo" style={{ '--fase': '1.25' }} />
                 </div>
                 <div className="listen-links">
-                    <a className="btn btn-primary" href={ARTIST.spotify} target="_blank" rel="noopener noreferrer">
+                    <a className="btn btn--primary" href={ARTIST.spotify} target="_blank" rel="noopener noreferrer">
                         {ARTIST.name} en Spotify
                     </a>
-                    <a className="btn btn-ghost" href={ARTIST.youtube} target="_blank" rel="noopener noreferrer">
+                    <a className="btn btn--ghost" href={ARTIST.youtube} target="_blank" rel="noopener noreferrer">
                         BARRO en YouTube
                     </a>
                 </div>
@@ -185,18 +185,18 @@ function Studio() {
                 <h2 className="studio-section-title squiggle-underline">EPs</h2>
                 <div className="eps-grid">
                     {EPS.map((ep) => (
-                        <article key={ep.title} className="ep-card">
+                        <article key={ep.title} className="ep-card lift">
                             <EpCover initials={ep.initials} />
                             <h3 className="ep-title">{ep.title}</h3>
                             <p className="ep-year">{ep.year}</p>
                             <div className="ep-links">
                                 {ep.links.spotify && (
-                                    <a className="btn btn-ghost" href={ep.links.spotify} target="_blank" rel="noopener noreferrer">
+                                    <a className="btn btn--ghost btn--sm" href={ep.links.spotify} target="_blank" rel="noopener noreferrer">
                                         Spotify
                                     </a>
                                 )}
                                 {ep.links.youtube && (
-                                    <a className="btn btn-ghost" href={ep.links.youtube} target="_blank" rel="noopener noreferrer">
+                                    <a className="btn btn--ghost btn--sm" href={ep.links.youtube} target="_blank" rel="noopener noreferrer">
                                         YouTube
                                     </a>
                                 )}

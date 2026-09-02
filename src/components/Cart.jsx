@@ -50,7 +50,7 @@ function Cart({
                     <img src={bombillaEureka} alt="" className="doodle cart-empty-idea neon-art al-ritmo" style={{ '--fase': '0.6' }} />
                     <h1 className="page-title">Tu carrito está vacío</h1>
                     <p>Échale un ojo al último drop.</p>
-                    <Link to="/" className="btn btn-primary">Ver la tienda</Link>
+                    <Link to="/" className="btn btn--primary">Ver la tienda</Link>
                 </div>
             </div>
         );
@@ -60,7 +60,7 @@ function Cart({
         <div className="page-container cart">
             <div className="cart-head">
                 <h1 className="page-title">Tu carrito</h1>
-                <Link to="/" className="btn btn-ghost">Seguir comprando</Link>
+                <Link to="/" className="btn btn--ghost">Seguir comprando</Link>
             </div>
 
             {warnings.length > 0 && (
@@ -174,7 +174,7 @@ function Cart({
                 )}
                 <button
                     type="button"
-                    className="btn btn-primary cart-checkout"
+                    className="btn btn--primary cart-checkout"
                     disabled={!canCheckout || busy}
                     onClick={handleCheckout}
                 >

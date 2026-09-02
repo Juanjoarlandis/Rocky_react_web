@@ -15,7 +15,7 @@
     border: 2px solid var(--ink);
     border-radius: 9px 17px 11px 14px;
     background: var(--card);
-    box-shadow: 4px 4px 0 var(--ink);
+    box-shadow: var(--shadow-ink-md);
 }
 
 .chat-product-media {
@@ -57,7 +57,7 @@
     font-family: var(--font-body);
     font-size: var(--text-base);
     font-weight: 800;
-    box-shadow: 2px 2px 0 var(--ink);
+    box-shadow: var(--shadow-ink-xs);
 }
 
 .chat-product-copy {
