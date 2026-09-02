@@ -67,6 +67,17 @@ function App() {
     return () => clearTimeout(timer);
   }, [showSplash]);
 
+  const catalogPage = (
+    <ProductPage
+      products={commerce.products}
+      addToCart={addToCart}
+      commerceMode={commerce.mode}
+      canAddToCart={commerce.mode !== 'shopify' || commerce.capabilities.cart}
+      prioritizeFirstImage={!showSplash}
+      loading={commerce.loading}
+    />
+  );
+
   return (
     <MusicProvider>
       {showSplash && <SplashIntro />}
@@ -103,32 +114,10 @@ function App() {
             }
           >
             <Routes>
-              <Route
-                path="/"
-                element={
-                  <ProductPage
-                    products={commerce.products}
-                    addToCart={addToCart}
-                    commerceMode={commerce.mode}
-                    canAddToCart={commerce.mode !== 'shopify' || commerce.capabilities.cart}
-                    prioritizeFirstImage={!showSplash}
-                    loading={commerce.loading}
-                  />
-                }
-              />
-              <Route
-                path="/products/:category"
-                element={
-                  <ProductPage
-                    products={commerce.products}
-                    addToCart={addToCart}
-                    commerceMode={commerce.mode}
-                    canAddToCart={commerce.mode !== 'shopify' || commerce.capabilities.cart}
-                    prioritizeFirstImage={!showSplash}
-                    loading={commerce.loading}
-                  />
-                }
-              />
+              {/* La portada y las categorías son la misma página; /products/:category?
+                  cubre la lista con y sin categoría, y / es la portada. */}
+              <Route path="/" element={catalogPage} />
+              <Route path="/products/:category?" element={catalogPage} />
               <Route path="/menudrop" element={<MenuDrop products={commerce.products} />} />
               <Route
                 path="/cart"

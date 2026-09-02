@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { equipCrewReward, redeemCrewReward } from '../shopify/api.js';
 import { useCrewProfile } from '../shopify/useCrewProfile.js';
+import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
 import { CREW } from '../data/crew.js';
-import { getCrewAvatarImage } from '../data/crewAvatarImages.js';
+import { getCrewAvatarImage, getCrewAvatarSize } from '../data/crewAvatarImages.js';
 import { ROUTES, accountLoginUrl } from '../config/routes.js';
 import larguiruchoEsquina from '../images/optimized/characters/larguirucho-esquina-600.webp';
 import { CrewCard } from './Crew.jsx';
@@ -87,6 +88,7 @@ function CrewGate({ accountEnabled }) {
             <div className="crew-current-avatar crew-current-avatar--frame-red-squiggle">
               <img
                 src={getCrewAvatarImage('dormido-head')}
+                {...getCrewAvatarSize('dormido-head')}
                 alt="Vista previa del avatar El Dormido"
                 className="neon-art"
               />
@@ -156,7 +158,14 @@ function RewardVisual({ reward }) {
       </div>
     );
   }
-  return <img src={getCrewAvatarImage(reward.id)} alt="" className="neon-art" />;
+  return (
+    <img
+      src={getCrewAvatarImage(reward.id)}
+      {...getCrewAvatarSize(reward.id)}
+      alt=""
+      className="neon-art"
+    />
+  );
 }
 
 function RewardCard({ reward, ticketBalance, busy, onEquip, onRedeem }) {
@@ -223,6 +232,7 @@ export default function CrewProfile({
   const [error, setError] = useState('');
 
   const isLoggedIn = accountEnabled && account.loggedIn;
+  useDocumentTitle('Mi Crew');
 
   /* El perfil lo trae la tienda (un solo fetch por sesión); si nadie lo pasa,
      esta página lo pide ella misma. */
@@ -305,6 +315,7 @@ export default function CrewProfile({
           >
             <img
               src={getCrewAvatarImage(profile.equippedAvatarId)}
+              {...getCrewAvatarSize(profile.equippedAvatarId)}
               alt={`Avatar ${currentAvatar?.name || 'ROCKY'}`}
               className="neon-art"
             />
@@ -328,7 +339,12 @@ export default function CrewProfile({
             </div>
             <div
               className="crew-progress-track"
-              aria-label={`${profile.level.progress}% completado`}
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={profile.level.progress}
+              aria-valuetext={`${profile.level.progress}% completado`}
+              aria-labelledby="crew-progress-title"
             >
               <span style={{ '--crew-progress-ratio': profile.level.progress / 100 }} />
             </div>

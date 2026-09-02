@@ -20,6 +20,8 @@ import corriendoBolsa from '../images/optimized/splash/corriendo-bolsa.webp';
 import cruiserPatinando from '../images/optimized/splash/cruiser-patinando.webp';
 import { formatPrice } from '../utils/price';
 import '../styles/components/product-media.css';
+import { ROUTES } from '../config/routes.js';
+import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
 import '../styles/pages/home.css';
 
 /* El catálogo se lee por drops, en el orden en que aparecen: dentro de cada
@@ -85,6 +87,7 @@ function ProductPage({
   const catalogItems = useMemo(() => groupByDrop(visibleProducts), [visibleProducts]);
   const isHome = !category;
   const pageTitle = category ? visibleProducts[0]?.drop || category : 'ROCKY 035';
+  useDocumentTitle(isHome ? '' : pageTitle);
 
   if (category && visibleProducts.length === 0 && !loading) {
     return (
@@ -216,6 +219,8 @@ function ProductPage({
                 ) : (
                   <img
                     src={product.image}
+                    width={product.imageWidth ?? 1254}
+                    height={product.imageHeight ?? 1254}
                     alt={product.imageAlt || product.title}
                     className="product-image"
                     loading={isPriorityImage ? 'eager' : 'lazy'}
@@ -240,14 +245,14 @@ function ProductPage({
                 )}
                 <div className="product-actions">
                   <Link
-                    to={`/product/${encodeURIComponent(productPath)}`}
+                    to={ROUTES.product(productPath)}
                     className="btn btn--ghost btn--sm btn--block"
                   >
                     Detalles
                   </Link>
                   {state === PURCHASE_STATES.NOTIFY ? (
                     <Link
-                      to={`/product/${encodeURIComponent(productPath)}#aviso`}
+                      to={`${ROUTES.product(productPath)}#aviso`}
                       className="btn btn--primary btn--sm btn--block"
                     >
                       Avísame

@@ -5,9 +5,10 @@ import emptyCartImage from '../images/optimized/shell/tumbado-800.webp';
 import asomadoBorde from '../images/optimized/characters/asomado-borde-600.webp';
 import dormidoEsperando from '../images/optimized/characters/dormido-esperando-600.webp';
 import bombillaEureka from '../images/optimized/characters/bombilla-eureka-600.webp';
-import { PLACEHOLDER_IMAGE } from '../config/commerce.js';
+import { MAX_LINE_QUANTITY, PLACEHOLDER_IMAGE } from '../config/commerce.js';
+import { ROUTES } from '../config/routes.js';
+import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
 import '../styles/pages/cart.css';
-
 
 function Cart({
   cart,
@@ -21,6 +22,7 @@ function Cart({
   incrementQuantity,
   decrementQuantity,
 }) {
+  useDocumentTitle('Carrito');
   const isShopify = commerceMode === 'shopify';
   const knownSubtotal = cart.reduce((acc, product) => {
     const price = parsePrice(product.price);
@@ -46,6 +48,8 @@ function Cart({
         <div className="paper-card cart-empty-card">
           <img
             src={emptyCartImage}
+            width="800"
+            height="539"
             alt=""
             className="doodle cart-empty-illustration neon-art al-ritmo al-ritmo--suave"
             style={{ '--fase': '0.1' }}
@@ -53,13 +57,15 @@ function Cart({
           {/* El Bombilla ya sabe la solución: ¡a la tienda! */}
           <img
             src={bombillaEureka}
+            width="334"
+            height="600"
             alt=""
             className="doodle cart-empty-idea neon-art al-ritmo"
             style={{ '--fase': '0.6' }}
           />
           <h1 className="page-title">Tu carrito está vacío</h1>
           <p>Échale un ojo al último drop.</p>
-          <Link to="/" className="btn btn--primary">
+          <Link to={ROUTES.home} className="btn btn--primary">
             Ver la tienda
           </Link>
         </div>
@@ -71,7 +77,7 @@ function Cart({
     <div className="page-container cart">
       <div className="cart-head">
         <h1 className="page-title">Tu carrito</h1>
-        <Link to="/" className="btn btn--ghost">
+        <Link to={ROUTES.home} className="btn btn--ghost">
           Seguir comprando
         </Link>
       </div>
@@ -88,6 +94,8 @@ function Cart({
         {/* Un curioso asomado tras el borde del carrito */}
         <img
           src={asomadoBorde}
+          width="767"
+          height="600"
           alt=""
           className="doodle cart-peeker neon-art al-ritmo"
           style={{ '--fase': '0.3' }}
@@ -102,25 +110,21 @@ function Cart({
             const productPath = product.productId ?? product.id;
             return (
               <li key={product.id} className="cart-item">
-                <Link
-                  to={`/product/${encodeURIComponent(productPath)}`}
-                  className="cart-item-media"
-                >
+                <Link to={ROUTES.product(productPath)} className="cart-item-media">
                   {product.image === PLACEHOLDER_IMAGE ? (
                     <PlaceholderTee title={product.title} compact />
                   ) : (
                     <img
                       src={product.image}
+                      width={product.imageWidth ?? 1254}
+                      height={product.imageHeight ?? 1254}
                       alt={product.imageAlt || product.title}
                       className="cart-item-image"
                     />
                   )}
                 </Link>
                 <div className="cart-item-info">
-                  <Link
-                    to={`/product/${encodeURIComponent(productPath)}`}
-                    className="cart-item-title"
-                  >
+                  <Link to={ROUTES.product(productPath)} className="cart-item-title">
                     {product.title}
                   </Link>
                   {isShopify &&
@@ -137,7 +141,11 @@ function Cart({
                     <p className="cart-item-soldout">Agotado — quítalo del carrito</p>
                   )}
                 </div>
-                <div className="cart-item-quantity" aria-label={`Cantidad de ${product.title}`}>
+                <div
+                  className="cart-item-quantity"
+                  role="group"
+                  aria-label={`Cantidad de ${product.title}`}
+                >
                   <button
                     type="button"
                     className="quantity-btn"
@@ -152,7 +160,7 @@ function Cart({
                     type="button"
                     className="quantity-btn"
                     onClick={() => incrementQuantity(product)}
-                    disabled={busy || product.quantity >= 20}
+                    disabled={busy || product.quantity >= MAX_LINE_QUANTITY}
                     aria-label="Añadir una unidad"
                   >
                     +
@@ -179,6 +187,8 @@ function Cart({
                 bastante hace con seguir el ritmo en sueños */}
         <img
           src={dormidoEsperando}
+          width="617"
+          height="600"
           alt=""
           className="doodle cart-sleeper neon-art al-ritmo al-ritmo--suave"
           style={{ '--fase': '0.8' }}

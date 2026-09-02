@@ -23,3 +23,21 @@ const CREW_AVATAR_IMAGES = Object.freeze({
 export function getCrewAvatarImage(rewardId) {
   return CREW_AVATAR_IMAGES[rewardId] || skaterHead;
 }
+
+// Tamaño intrínseco de cada avatar, para reservar sitio en las <img>.
+const CREW_AVATAR_SIZES = Object.freeze({
+  'skater-head': [300, 300],
+  'dormido-head': [300, 300],
+  'colgado-head': [300, 300],
+  'bolsa-head': [300, 300],
+  'diana-jefe': [346, 600],
+  'estrella-apoyado': [295, 600],
+  'skater-ollie': [499, 600],
+  'grafitero-spray': [364, 600],
+  'breakdance-freeze': [604, 600],
+});
+
+export function getCrewAvatarSize(rewardId) {
+  const [width, height] = CREW_AVATAR_SIZES[rewardId] || CREW_AVATAR_SIZES['skater-head'];
+  return { width, height };
+}

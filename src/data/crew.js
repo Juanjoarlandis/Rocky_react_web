@@ -36,6 +36,8 @@ export const CREW = [
     nombre: 'El Tumbao',
     rol: 'Fundador horizontal',
     img: tumbado,
+    imgWidth: 800,
+    imgHeight: 539,
     rareza: 'ORIGINAL',
     stats: [
       { label: 'Siesta', valor: 5 },
@@ -51,6 +53,8 @@ export const CREW = [
     nombre: 'Los Fundadores',
     rol: 'El banco que lo vio todo',
     img: fundadores,
+    imgWidth: 860,
+    imgHeight: 538,
     especial: true,
     rareza: 'FUNDADORES',
     stats: [],
@@ -63,6 +67,8 @@ export const CREW = [
     nombre: 'El Spray',
     rol: 'Firma oficial de la casa',
     img: grafitero,
+    imgWidth: 364,
+    imgHeight: 600,
     stats: [
       { label: 'Pulso', valor: 5 },
       { label: 'Sigilo', valor: 3 },
@@ -77,6 +83,8 @@ export const CREW = [
     nombre: 'El Vigía',
     rol: 'Seguridad del género',
     img: vigia,
+    imgWidth: 363,
+    imgHeight: 600,
     stats: [
       { label: 'Paciencia', valor: 5 },
       { label: 'Vista', valor: 4 },
@@ -91,6 +99,8 @@ export const CREW = [
     nombre: 'El Portero',
     rol: 'Recepción de Rocky IA',
     img: portero,
+    imgWidth: 364,
+    imgHeight: 600,
     stats: [
       { label: 'Flow', valor: 4 },
       { label: 'Amabilidad', valor: 4 },
@@ -105,6 +115,8 @@ export const CREW = [
     nombre: 'El Curioso',
     rol: 'Auditor de carritos',
     img: curioso,
+    imgWidth: 767,
+    imgHeight: 600,
     stats: [
       { label: 'Cotilleo', valor: 5 },
       { label: 'Discreción', valor: 1 },
@@ -119,6 +131,8 @@ export const CREW = [
     nombre: 'El Productor',
     rol: 'Beats de La Colmena',
     img: productor,
+    imgWidth: 558,
+    imgHeight: 600,
     stats: [
       { label: 'Oído', valor: 5 },
       { label: 'BPM', valor: 4 },
@@ -133,6 +147,8 @@ export const CREW = [
     nombre: 'El Freeze',
     rol: 'Baile parado en el tiempo',
     img: freeze,
+    imgWidth: 604,
+    imgHeight: 600,
     stats: [
       { label: 'Equilibrio', valor: 5 },
       { label: 'Vértigo', valor: 1 },
@@ -147,6 +163,8 @@ export const CREW = [
     nombre: 'El Colgao',
     rol: 'Optimista profesional',
     img: colgao,
+    imgWidth: 228,
+    imgHeight: 600,
     stats: [
       { label: 'Agarre', valor: 5 },
       { label: 'Sensatez', valor: 1 },
@@ -161,6 +179,8 @@ export const CREW = [
     nombre: 'El Paparazzi',
     rol: 'Documentalista del barrio',
     img: paparazzi,
+    imgWidth: 402,
+    imgHeight: 600,
     stats: [
       { label: 'Enfoque', valor: 5 },
       { label: 'Flash', valor: 3 },
@@ -175,6 +195,8 @@ export const CREW = [
     nombre: 'El Dormilón',
     rol: 'Guardia del ticket',
     img: dormilon,
+    imgWidth: 617,
+    imgHeight: 600,
     stats: [
       { label: 'Sueño', valor: 5 },
       { label: 'Puntualidad', valor: 1 },
@@ -189,6 +211,8 @@ export const CREW = [
     nombre: 'El Recadero',
     rol: 'Última unidad en fuga',
     img: recadero,
+    imgWidth: 589,
+    imgHeight: 600,
     stats: [
       { label: 'Velocidad', valor: 5 },
       { label: 'Frenos', valor: 1 },
@@ -203,6 +227,8 @@ export const CREW = [
     nombre: 'El Ollie',
     rol: 'Aéreos y porrazos',
     img: ollie,
+    imgWidth: 499,
+    imgHeight: 600,
     stats: [
       { label: 'Aire', valor: 5 },
       { label: 'Rodilleras', valor: 2 },
@@ -217,6 +243,8 @@ export const CREW = [
     nombre: 'El Turista',
     rol: 'Orientación dudosa',
     img: turista,
+    imgWidth: 271,
+    imgHeight: 600,
     stats: [
       { label: 'Orientación', valor: 1 },
       { label: 'Optimismo', valor: 5 },
@@ -231,6 +259,8 @@ export const CREW = [
     nombre: 'El Paquetes',
     rol: 'Logística con cariño',
     img: paquetes,
+    imgWidth: 600,
+    imgHeight: 600,
     rareza: 'NUEVO FICHAJE',
     stats: [
       { label: 'Fuerza', valor: 4 },
@@ -246,6 +276,8 @@ export const CREW = [
     nombre: 'Rocky',
     rol: 'El jefe',
     img: rocky,
+    imgWidth: 430,
+    imgHeight: 600,
     rareza: 'LEGENDARIA',
     stats: [
       { label: 'Lealtad', valor: 5 },
@@ -261,6 +293,8 @@ export const CREW = [
     nombre: 'El Estrella',
     rol: 'Portero de la pared',
     img: estrella,
+    imgWidth: 295,
+    imgHeight: 600,
     stats: [
       { label: 'Calma', valor: 5 },
       { label: 'Prisa', valor: 1 },
@@ -275,6 +309,8 @@ export const CREW = [
     nombre: 'El Dado',
     rol: 'La suerte del drop',
     img: dado,
+    imgWidth: 580,
+    imgHeight: 600,
     stats: [
       { label: 'Suerte', valor: 5 },
       { label: 'Cálculo', valor: 1 },
@@ -289,6 +325,8 @@ export const CREW = [
     nombre: 'El Nube',
     rol: 'Clima propio',
     img: nube,
+    imgWidth: 345,
+    imgHeight: 600,
     stats: [
       { label: 'Paz', valor: 5 },
       { label: 'Prisa', valor: 1 },
@@ -303,6 +341,8 @@ export const CREW = [
     nombre: 'El Tele',
     rol: 'Antena de La Colmena',
     img: tele,
+    imgWidth: 317,
+    imgHeight: 600,
     stats: [
       { label: 'Sintonía', valor: 5 },
       { label: 'Zapping', valor: 4 },
@@ -317,6 +357,8 @@ export const CREW = [
     nombre: 'El Lata',
     rol: 'Pintor de la marquesina',
     img: lata,
+    imgWidth: 266,
+    imgHeight: 600,
     stats: [
       { label: 'Presión', valor: 5 },
       { label: 'Boquilla fina', valor: 4 },
@@ -331,6 +373,8 @@ export const CREW = [
     nombre: 'El Luna',
     rol: 'Turno de noche',
     img: luna,
+    imgWidth: 442,
+    imgHeight: 600,
     stats: [
       { label: 'Trasnoche', valor: 5 },
       { label: 'Batería', valor: 1 },
@@ -345,6 +389,8 @@ export const CREW = [
     nombre: 'El Diana',
     rol: 'La marca en persona',
     img: diana,
+    imgWidth: 346,
+    imgHeight: 600,
     rareza: 'LA MARCA',
     stats: [
       { label: 'Puntería', valor: 5 },
@@ -360,6 +406,8 @@ export const CREW = [
     nombre: 'El Bombilla',
     rol: 'Departamento de ideas',
     img: bombilla,
+    imgWidth: 334,
+    imgHeight: 600,
     stats: [
       { label: 'Ideas', valor: 5 },
       { label: 'Cable a tierra', valor: 2 },
@@ -374,6 +422,8 @@ export const CREW = [
     nombre: 'La Cruiser',
     rol: 'Rueda la ciudad',
     img: cruiser,
+    imgWidth: 499,
+    imgHeight: 600,
     rareza: 'ORIGINAL',
     stats: [
       { label: 'Rodar', valor: 5 },

@@ -6,6 +6,7 @@ import estrellaApoyado from '../images/optimized/characters/estrella-apoyado-600
 import ChatProductCard from './ChatProductCard';
 import { isAbortError } from '../api/http.js';
 import { sendChatMessage } from '../api/chat.js';
+import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
 import '../styles/pages/chat.css';
 
 const QUICK_PROMPTS = ['Ver camisetas disponibles', '¿Qué hay del DROP 4?', 'Háblame de LA CREW'];
@@ -27,6 +28,7 @@ function ChatComponent({
   canAddToCart = false,
   headerPlayer = null,
 }) {
+  useDocumentTitle('Rocky IA');
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -114,7 +116,13 @@ function ChatComponent({
           <header className="chat-header">
             <div className="chat-header-identity">
               <div className="chat-header-avatar-wrap">
-                <img src={botLogo} alt="" className="chat-header-avatar neon-art--icon" />
+                <img
+                  src={botLogo}
+                  width="256"
+                  height="256"
+                  alt=""
+                  className="chat-header-avatar neon-art--icon"
+                />
                 <span className="chat-online-dot" aria-hidden="true" />
               </div>
               <div>
@@ -213,7 +221,13 @@ function ChatComponent({
             {isLoading && (
               <div className="chat-turn ai">
                 <div className="chat-message ai">
-                  <img src={botLogo} alt="" className="chat-avatar neon-art--icon" />
+                  <img
+                    src={botLogo}
+                    width="256"
+                    height="256"
+                    alt=""
+                    className="chat-avatar neon-art--icon"
+                  />
                   <p
                     className="chat-bubble chat-typing"
                     aria-label="Rocky IA está buscando y escribiendo"

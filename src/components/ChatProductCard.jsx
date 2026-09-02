@@ -52,6 +52,8 @@ function ChatProductCard({ product, addToCart, commerceMode = 'demo', canAddToCa
         {productImage?.url && !hasImageError ? (
           <img
             src={productImage.url}
+            width={productImage.width ?? 1254}
+            height={productImage.height ?? 1254}
             alt={productImage.alt || product.title}
             loading="lazy"
             onError={() => setFailedImageUrl(productImage.url)}

@@ -15,6 +15,7 @@ import {
   purchaseState,
 } from '../features/storefront/availability.js';
 import '../styles/components/product-media.css';
+import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
 import '../styles/pages/product-detail.css';
 
 function ProductDetail({ products, addToCart, commerceMode = 'demo', canAddToCart = true }) {
@@ -26,6 +27,7 @@ function ProductDetail({ products, addToCart, commerceMode = 'demo', canAddToCar
   const product = products.find(
     (candidate) => String(candidate.handle ?? candidate.id) === String(productId)
   );
+  useDocumentTitle(product?.title || 'Producto no encontrado');
   const [selectedVariantId, setSelectedVariantId] = useState(
     () => product?.defaultVariantId || product?.variants?.[0]?.id || null
   );
@@ -113,6 +115,8 @@ function ProductDetail({ products, addToCart, commerceMode = 'demo', canAddToCar
             {/* El Nube pasea por la línea de puntos con su paraguas */}
             <img
               src={nubePaseando}
+              width="345"
+              height="600"
               alt=""
               className="doodle detail-nube neon-art al-ritmo"
               style={{ '--fase': '0.4' }}
@@ -166,7 +170,13 @@ function ProductDetail({ products, addToCart, commerceMode = 'demo', canAddToCar
             {isPlaceholder ? (
               <PlaceholderTee title={product.title} />
             ) : (
-              <img src={product.image} alt={product.title} className="detail-image" />
+              <img
+                src={product.image}
+                width={product.imageWidth ?? 1254}
+                height={product.imageHeight ?? 1254}
+                alt={product.title}
+                className="detail-image"
+              />
             )}
             {!isPlaceholder && (
               <span className="product-zoom" aria-hidden="true">

@@ -1,4 +1,5 @@
 import { PLACEHOLDER_IMAGE as PRODUCT_PLACEHOLDER } from '../config/commerce.js';
+import { productImageSize } from '../data/productImages.js';
 
 /* «35 RED» → «35-red», «ROCKY DROP 4» → «rocky-drop-4»: los handles del
    catálogo demo salen del título, como haría Shopify. */
@@ -47,6 +48,7 @@ export function normalizeDemoCatalog(products = []) {
   return products.map((product) => {
     const handle = slugify(product.handle || product.title);
     const image = product.image || PRODUCT_PLACEHOLDER;
+    const { width: imageWidth, height: imageHeight } = productImageSize(image);
     const price =
       typeof product.price === 'string' && /\d/.test(product.price) ? product.price : null;
     return {
@@ -57,6 +59,8 @@ export function normalizeDemoCatalog(products = []) {
       description: product.description || '',
       specifications: Array.isArray(product.specifications) ? [...product.specifications] : [],
       image,
+      imageWidth,
+      imageHeight,
       imageAlt: product.imageAlt || product.title,
       drop: product.drop || 'Tienda',
       dropHandle: slugify(product.dropHandle || product.drop || 'tienda'),

@@ -207,6 +207,8 @@ function StreetWall() {
           <figure key={photo.src} className="street-photo tape">
             <img
               src={wallImagesReady ? photo.src : undefined}
+              width={photo.width}
+              height={photo.height}
               alt={wallImagesReady ? photo.alt : ''}
               loading="lazy"
               decoding="async"

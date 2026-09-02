@@ -4,6 +4,7 @@ import skaterOllie from '../images/optimized/characters/skater-ollie-600.webp';
 import dadoSentado from '../images/optimized/characters/dado-sentado-600.webp';
 import { PLACEHOLDER_IMAGE } from '../config/commerce.js';
 import { formatPrice } from '../utils/price';
+import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
 import '../styles/pages/drops.css';
 
 /* Cada drop se cuenta por lo que tiene: diseños con precio (disponible),
@@ -46,6 +47,7 @@ function dropMeta(drop) {
 }
 
 function MenuDrop({ products }) {
+  useDocumentTitle('Drops');
   const drops = summarizeDrops(products);
 
   return (
