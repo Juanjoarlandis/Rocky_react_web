@@ -108,29 +108,29 @@
 .crew-marcador.completo {
     background-color: var(--ink-block);
     background-image: var(--spray-speckle);
-    color: #fff;
+    color: var(--white);
     transform: rotate(-0.8deg);
     box-shadow: 5px 5px 0 var(--accent);
 }
 
 .crew-marcador.completo .marcador-titulo,
 .crew-marcador.completo .marcador-club b {
-    color: #fff;
+    color: var(--white);
 }
 
 .crew-marcador.completo .marcador-casillas span {
-    border-color: #f4b942;
+    border-color: var(--gold);
 }
 
 .crew-marcador.completo .marcador-casillas span.on {
-    background-color: #f4b942;
+    background-color: var(--gold);
     box-shadow: inset 0 0 0 2px var(--ink);
 }
 
 .marcador-logro {
     font-family: var(--font-display);
     font-size: 1.05rem;
-    color: #f4b942;
+    color: var(--gold);
     letter-spacing: 0.06em;
     text-transform: uppercase;
     display: inline-block;
@@ -200,20 +200,20 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
     border-radius: 4px 14px 6px 16px;
-    box-shadow: 4px 4px 0 rgba(230, 57, 70, 0.85);
+    box-shadow: 4px 4px 0 rgba(var(--accent-rgb), 0.85);
     transform: rotate(-1.2deg);
 }
 
 .crew-lamina:nth-child(2n) .lamina-cinta {
     transform: rotate(0.9deg);
-    box-shadow: 4px 4px 0 rgba(47, 111, 219, 0.85);
+    box-shadow: 4px 4px 0 rgba(var(--blue-rgb), 0.85);
 }
 
 .lamina-num {
     font-family: var(--font-hand);
     font-size: 0.85rem;
     letter-spacing: 0.16em;
-    color: #b3ada0;
+    color: var(--on-ink-muted);
 }
 
 .lamina-nota {
@@ -243,8 +243,8 @@
     padding: 26px 22px 22px;
     border: 2px solid var(--ink);
     border-radius: var(--wobble-lg);
-    background-color: rgba(26, 26, 26, 0.025);
-    background-image: radial-gradient(circle, rgba(26, 26, 26, 0.055) 1.2px, transparent 1.2px);
+    background-color: rgba(var(--ink-rgb), 0.025);
+    background-image: radial-gradient(circle, rgba(var(--ink-rgb), 0.055) 1.2px, transparent 1.2px);
     background-size: 22px 22px;
     box-shadow: var(--shadow-ink-sm);
 }
@@ -256,8 +256,8 @@
     position: absolute;
     width: 92px;
     height: 30px;
-    background-color: rgba(214, 205, 183, 0.85);
-    border: 1px solid rgba(26, 26, 26, 0.16);
+    background-color: var(--tape);
+    border: 1px solid rgba(var(--ink-rgb), 0.16);
     top: -15px;
 }
 
@@ -403,9 +403,9 @@
 .rareza-legendaria {
     /* Tinta a fuego y no var(--ink): sobre el dorado hace falta trazo oscuro
        también de noche. */
-    border-color: #1a1a1a;
-    color: #1a1a1a;
-    background-color: #f4b942;
+    border-color: var(--ink-fixed);
+    color: var(--ink-fixed);
+    background-color: var(--gold);
 }
 
 .rareza-original {
@@ -417,7 +417,7 @@
     border-style: solid;
     border-color: var(--ink);
     background-color: var(--accent);
-    color: #fff;
+    color: var(--white);
 }
 
 .crew-card-media {
@@ -426,7 +426,7 @@
     align-items: center;
     justify-content: center;
     margin: 8px 0 10px;
-    background-image: radial-gradient(circle, rgba(26, 26, 26, 0.06) 1.1px, transparent 1.1px);
+    background-image: radial-gradient(circle, rgba(var(--ink-rgb), 0.06) 1.1px, transparent 1.1px);
     background-size: 18px 18px;
 }
 
@@ -516,8 +516,8 @@
 
 .crew-card.especial .sello-fichado {
     mix-blend-mode: normal;
-    color: #f4b942;
-    border-color: #f4b942;
+    color: var(--gold);
+    border-color: var(--gold);
 }
 
 @keyframes sello-estampar {
@@ -661,7 +661,7 @@
     background: linear-gradient(
         115deg,
         transparent 40%,
-        rgba(255, 255, 255, 0.45) 50%,
+        rgba(var(--white-rgb), 0.45) 50%,
         transparent 60%
     );
     transform: translateX(-130%);
@@ -689,22 +689,22 @@
 .crew-card.especial .crew-card-face {
     background-color: var(--ink-block);
     background-image: var(--spray-speckle);
-    color: #fff;
+    color: var(--white);
 }
 
 .crew-card.especial .crew-nombre {
-    color: #fff;
+    color: var(--white);
 }
 
 .crew-card.especial .crew-rol,
 .crew-card.especial .crew-num,
 .crew-card.especial .crew-girar {
-    color: #b3ada0;
+    color: var(--on-ink-muted);
 }
 
 .crew-card.especial .crew-rareza {
-    border-color: #f4b942;
-    color: #f4b942;
+    border-color: var(--gold);
+    color: var(--gold);
 }
 
 /* Es el único cromo sin stats: que la ilustración llene ese hueco
@@ -717,20 +717,20 @@
 }
 
 .crew-card.especial .expediente-titulo {
-    color: #fff;
+    color: var(--white);
 }
 
 .crew-card.especial .expediente-datos dt {
-    color: #b3ada0;
+    color: var(--on-ink-muted);
 }
 
 .crew-card.especial .expediente-datos dd {
-    color: #fff;
+    color: var(--white);
 }
 
 .crew-card.especial .expediente-enlace {
-    color: #f4b942;
-    text-decoration-color: #f4b942;
+    color: var(--gold);
+    text-decoration-color: var(--gold);
 }
 
 /* ---------- Huecos por conseguir ---------- */
@@ -930,32 +930,32 @@
    la vitrina, el celo y las tramas de puntos que iban en tinta. */
 
 html[data-theme='neon'] .crew-vitrina-marco {
-    background-color: rgba(237, 241, 255, 0.02);
-    background-image: radial-gradient(circle, rgba(237, 241, 255, 0.07) 1.2px, transparent 1.2px);
+    background-color: rgba(var(--neon-ink-rgb), 0.02);
+    background-image: radial-gradient(circle, rgba(var(--neon-ink-rgb), 0.07) 1.2px, transparent 1.2px);
 }
 
 /* El celo, visto a contraluz. */
 html[data-theme='neon'] .crew-vitrina-marco::before,
 html[data-theme='neon'] .crew-vitrina-marco::after {
-    background-color: rgba(237, 241, 255, 0.14);
-    border-color: rgba(237, 241, 255, 0.22);
+    background-color: rgba(var(--neon-ink-rgb), 0.14);
+    border-color: rgba(var(--neon-ink-rgb), 0.22);
 }
 
 html[data-theme='neon'] .crew-card-media {
-    background-image: radial-gradient(circle, rgba(237, 241, 255, 0.08) 1.1px, transparent 1.1px);
+    background-image: radial-gradient(circle, rgba(var(--neon-ink-rgb), 0.08) 1.1px, transparent 1.1px);
 }
 
 /* Las sombras de las cintas, del rojo/azul de día al rosa/cian de noche. */
 html[data-theme='neon'] .lamina-cinta {
-    box-shadow: 4px 4px 0 rgba(255, 46, 196, 0.75);
+    box-shadow: 4px 4px 0 rgba(var(--neon-pink-rgb), 0.75);
 }
 
 html[data-theme='neon'] .crew-lamina:nth-child(2n) .lamina-cinta {
-    box-shadow: 4px 4px 0 rgba(41, 229, 255, 0.75);
+    box-shadow: 4px 4px 0 rgba(var(--neon-cyan-rgb), 0.75);
 }
 
 /* Sobre el rosa eléctrico el blanco se queda corto: tinta de noche. */
 html[data-theme='neon'] .rareza-la-marca {
-    color: #16041f;
+    color: var(--neon-night);
 }
 }

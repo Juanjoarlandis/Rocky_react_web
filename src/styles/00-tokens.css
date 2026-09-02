@@ -1,3 +1,8 @@
+/* Orden de capas de toda la web: lo de abajo pisa a lo de arriba sin
+   importar en qué chunk llegue cada hoja. Va aquí, en la primera hoja que
+   se carga, porque Vite descarta las sentencias anteriores a los @import. */
+@layer base, utilities, components, pages;
+
 @layer base {
 /* =====================================================================
    TOKENS — la única hoja con colores, medidas y tiempos escritos a mano.
@@ -24,36 +29,73 @@
   --blue: #2f6fdb;
   --white: #fff;
   --gold: #f4b942;
+  --neon-yellow: #ffd60a;
+  /* Tinta a fuego: no cambia con el tema. Para lo que sigue siendo claro de
+     noche (la polaroid, el dorado, la miel de la mesa) y pide trazo oscuro. */
+  --ink-fixed: #1a1a1a;
+  --ink-soft-fixed: #3a3a3a;
 
   /* La tinta descompuesta, para velos y retículas: rgba(var(--ink-rgb), α).
      No cambia con el tema: un velo oscuro sigue siendo oscuro de noche. */
   --ink-rgb: 26, 26, 26;
+  --black-rgb: 0, 0, 0;
   --paper-rgb: 250, 247, 240;
   --card-rgb: 255, 253, 248;
   --white-rgb: 255, 255, 255;
   --accent-rgb: 230, 57, 70;
   --blue-rgb: 47, 111, 219;
   --gold-rgb: 244, 185, 66;
+  --neon-yellow-rgb: 255, 214, 10;
+  /* La luz de noche descompuesta: la tinta clara, el rosa y el cian. Son
+     constantes; sólo se usan en reglas del modo neón. */
+  --neon-ink-rgb: 237, 241, 255;
+  --neon-pink-rgb: 255, 46, 196;
+  --neon-cyan-rgb: 41, 229, 255;
+  --neon-paper-rgb: 12, 9, 23;
+  --neon-card-rgb: 23, 17, 41;
+  --neon-night: #16041f;
 
   /* Bloques entintados (footer, marquesina, cabeceras…): de día son tinta
      tal cual, de noche un morado más hondo que el asfalto. Así el texto
      claro que llevan encima sobrevive al cambio de tema. */
   --ink-block: #1a1a1a;
   --ink-block-text: #faf7f0;
-  /* Texto secundario y acento sobre un bloque entintado. */
+  /* Texto secundario, acento y «en línea» sobre un bloque entintado. */
   --on-ink-muted: #b3ada0;
   --on-ink-accent: #ff7580;
+  --on-ink-ok: #40d47e;
 
   /* ---------- Colores semánticos ---------- */
+  /* Post-it (avisos), ticket (entradas y puntos), superficies apagadas. */
   --postit: #fff4c7;
   --postit-ink: #3a3a3a;
+  --postit-line: #1a1a1a;
+  --ticket: #f9dc61;
+  --muted-bg: #ece8df;
+  --placeholder-bg: #f3ecdf;
   --ok: #1d9e57;
+  --ok-ink: #167441;
   --ok-bg: #e3f8eb;
-  --danger: #c92f3c;
+  --danger: #e63946;
+  --danger-ink: #c92f3c;
   --danger-bg: #ffe5e7;
   --info: #174f8a;
   --info-bg: #e5f0ff;
-  --placeholder-bg: #f3ecdf;
+  /* Celo translúcido que sujeta fotos y marcos. */
+  --tape: rgba(234, 226, 205, 0.88);
+
+  /* ---------- La mesa de beats ----------
+     Chasis oscuro de caja de ritmos: no cambia con el tema. */
+  --mesa-panel: #232323;
+  --mesa-panel-hi: #2e2e2e;
+  --mesa-panel-lo: #1b1a12;
+  --mesa-screen: #141414;
+  --mesa-line: rgba(255, 253, 248, 0.16);
+  --mesa-cyan: #7fd0ff;
+  --mesa-lilac: #c39bff;
+  --mesa-green: #6fd18b;
+  --mesa-rubber: linear-gradient(180deg, #3c3c3c 0%, #2a2a2a 72%);
+  --mesa-rubber-hover: linear-gradient(180deg, #494949 0%, #333 72%);
 
   /* ---------- Espaciado ---------- */
   --space-1: 4px;
@@ -163,23 +205,20 @@ html[data-theme='neon'] {
   --ink-block: #120d20;
   --ink-block-text: #edf1ff;
 
-  /* La luz descompuesta: el rosa y el cian de los halos. */
-  --neon-ink-rgb: 237, 241, 255;
-  --neon-pink-rgb: 255, 46, 196;
-  --neon-cyan-rgb: 41, 229, 255;
-  --neon-night: #16041f;
-
   --postit: #241d0a;
   --postit-ink: #ffe9a8;
   --postit-line: #ffd60a;
+  --ticket: #241d0a;
+  --muted-bg: #1d1631;
+  --placeholder-bg: #1d1631;
   --ok: #52f5a0;
+  --ok-ink: #52f5a0;
   --ok-bg: #0e2a1b;
   --danger: #ff5470;
-  --danger-bg: #2a0e14;
   --danger-ink: #ffc9d2;
+  --danger-bg: #2a0e14;
   --info: #7cc4ff;
   --info-bg: #0e1f33;
-  --placeholder-bg: #1d1631;
 
   /* Las sombras duras siguen siendo duras, pero ahora además irradian. */
   --shadow-ink-sm: 3px 3px 0 rgba(0, 0, 0, 0.65),

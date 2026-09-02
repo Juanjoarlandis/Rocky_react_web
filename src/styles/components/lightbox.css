@@ -3,7 +3,7 @@
     position: fixed;
     inset: 0;
     z-index: 3000;
-    background-color: rgba(15, 15, 15, 0.85);
+    background-color: rgba(var(--black-rgb), 0.85);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -27,7 +27,7 @@
     background-color: var(--card);
     border: 3px solid var(--ink);
     border-radius: var(--wobble-md);
-    box-shadow: 10px 10px 0 rgba(0, 0, 0, 0.55);
+    box-shadow: 10px 10px 0 rgba(var(--black-rgb), 0.55);
     transform: rotate(-0.6deg);
     cursor: default;
 }
@@ -45,13 +45,13 @@
     font-size: 1.7rem;
     line-height: 1;
     cursor: pointer;
-    box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.5);
+    box-shadow: 3px 3px 0 rgba(var(--black-rgb), 0.5);
     transition: transform 0.15s ease, background-color 0.2s ease, color 0.2s ease;
 }
 
 .lightbox-close:hover {
     background-color: var(--accent);
-    color: #fff;
+    color: var(--white);
     transform: rotate(8deg) scale(1.06);
 }
 }

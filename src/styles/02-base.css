@@ -18,7 +18,7 @@
 
 ::selection {
   background-color: var(--accent);
-  color: #fff;
+  color: var(--white);
 }
 
 /* Scrollbar entintado */
@@ -96,9 +96,7 @@ a {
   min-height: 0;
 }
 
-.app--chat
-
-/* ---------- Piezas sueltas ---------- */
+/* ---------- Piezas sueltas del modo neón ---------- */
 
 /* Scrollbar a juego: rosa sobre asfalto. */
 html[data-theme='neon'] ::-webkit-scrollbar-thumb {
@@ -108,6 +106,6 @@ html[data-theme='neon'] ::-webkit-scrollbar-thumb {
 
 html[data-theme='neon'] ::selection {
   background-color: var(--blue);
-  color: #08060f;
+  color: var(--neon-night);
 }
 }

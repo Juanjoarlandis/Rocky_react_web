@@ -6,12 +6,12 @@
     margin-right: -10px;
     background-color: var(--ink-block);
     background-image: var(--spray-speckle);
-    color: #fff;
+    color: var(--white);
     overflow: visible;
     transform: rotate(-1.1deg);
     border-top: 3px solid var(--ink);
     border-bottom: 3px solid var(--ink);
-    box-shadow: 0 4px 0 rgba(26, 26, 26, 0.18);
+    box-shadow: 0 4px 0 rgba(var(--ink-rgb), 0.18);
     position: relative;
     z-index: 1;
     /* Para que El Lata sepa cuánto mide la marquesina y la recorra entera:
@@ -129,11 +129,11 @@
 html[data-theme='neon'] .ticker {
     /* Los bordes de tinta, que de día se fundían con el fondo, de noche son
        el canto iluminado del rótulo. */
-    box-shadow: 0 4px 0 rgba(0, 0, 0, 0.45), 0 0 26px rgba(255, 46, 196, 0.2);
+    box-shadow: 0 4px 0 rgba(var(--black-rgb), 0.45), 0 0 26px rgba(var(--neon-pink-rgb), 0.2);
 }
 
 html[data-theme='neon'] .ticker-track span {
-    color: #fff;
-    text-shadow: 0 0 10px rgba(41, 229, 255, 0.55);
+    color: var(--white);
+    text-shadow: 0 0 10px rgba(var(--neon-cyan-rgb), 0.55);
 }
 }

@@ -9,11 +9,6 @@
     --celda: clamp(22px, 2.9vw, 32px);
     --hueco-celda: 6px;
     --cabeza: 200px;
-    --panel: #232323;
-    --panel-alto: #2e2e2e;
-    --linea: rgba(255, 253, 248, 0.16);
-    --honey: #f4b942;
-    --cian: #7fd0ff;
 }
 
 /* El Freeze baila tu beat: el balanceo va a la velocidad del BPM */
@@ -49,7 +44,7 @@
     border: 2px solid var(--ink);
     border-radius: var(--wobble-md);
     box-shadow: 6px 6px 0 var(--accent);
-    color: #fffdf8;
+    color: var(--ink-block-text);
 }
 
 /* ---------- Cabecera: marca, pantalla y vúmetro ---------- */
@@ -66,7 +61,7 @@
     flex-direction: column;
     justify-content: center;
     padding: 6px 14px;
-    border: 2px solid var(--honey);
+    border: 2px solid var(--gold);
     border-radius: var(--wobble-sm);
     transform: rotate(-1.5deg);
 }
@@ -75,7 +70,7 @@
     font-family: var(--font-display);
     font-size: 1.35rem;
     line-height: 1;
-    color: var(--honey);
+    color: var(--gold);
     letter-spacing: 0.04em;
 }
 
@@ -83,7 +78,7 @@
     font-family: var(--font-hand);
     font-size: 0.78rem;
     letter-spacing: 0.22em;
-    color: rgba(255, 253, 248, 0.7);
+    color: rgba(var(--card-rgb), 0.7);
 }
 
 /* Pantallita ámbar del aparato */
@@ -95,10 +90,10 @@
     justify-content: center;
     gap: 8px;
     padding: 10px 14px;
-    background-color: #1b1a12;
-    border: 2px solid rgba(244, 185, 66, 0.45);
+    background-color: var(--mesa-panel-lo);
+    border: 2px solid rgba(var(--gold-rgb), 0.45);
     border-radius: 10px;
-    box-shadow: inset 0 0 18px rgba(244, 185, 66, 0.12);
+    box-shadow: inset 0 0 18px rgba(var(--gold-rgb), 0.12);
 }
 
 .lcd-datos {
@@ -109,24 +104,24 @@
     font-size: 0.74rem;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: rgba(244, 185, 66, 0.62);
+    color: rgba(var(--gold-rgb), 0.62);
 }
 
 .lcd-datos b {
     font-size: 1.05rem;
     font-weight: 700;
-    color: var(--honey);
-    text-shadow: 0 0 10px rgba(244, 185, 66, 0.45);
+    color: var(--gold);
+    text-shadow: 0 0 10px rgba(var(--gold-rgb), 0.45);
 }
 
 .lcd-rec {
     margin-left: auto;
-    color: rgba(255, 253, 248, 0.5);
+    color: rgba(var(--card-rgb), 0.5);
 }
 
 .lcd-rec.on {
     color: var(--accent);
-    text-shadow: 0 0 10px rgba(230, 57, 70, 0.6);
+    text-shadow: 0 0 10px rgba(var(--accent-rgb), 0.6);
     animation: lcd-latido 1s steps(2, end) infinite;
 }
 
@@ -144,16 +139,16 @@
     flex: 1;
     height: 5px;
     border-radius: 2px;
-    background-color: rgba(244, 185, 66, 0.26);
+    background-color: rgba(var(--gold-rgb), 0.26);
 }
 
 .lcd-pasos i:nth-child(4n + 1) {
-    background-color: rgba(244, 185, 66, 0.5);
+    background-color: rgba(var(--gold-rgb), 0.5);
 }
 
 .lcd-pasos i.on {
-    background-color: var(--honey);
-    box-shadow: 0 0 8px rgba(244, 185, 66, 0.8);
+    background-color: var(--gold);
+    box-shadow: 0 0 8px rgba(var(--gold-rgb), 0.8);
 }
 
 /* Vúmetro: cada segmento se enciende comparando nivel y umbral */
@@ -164,8 +159,8 @@
     gap: 3px;
     width: 26px;
     padding: 7px 6px;
-    background-color: #141414;
-    border: 2px solid var(--linea);
+    background-color: var(--mesa-screen);
+    border: 2px solid var(--mesa-line);
     border-radius: 8px;
 }
 
@@ -173,12 +168,12 @@
     flex: 1;
     min-height: 5px;
     border-radius: 2px;
-    background-color: #6fd18b;
+    background-color: var(--mesa-green);
     /* Siempre se intuyen los segmentos; se encienden al llegar el nivel */
     opacity: max(0.14, calc((var(--nivel) - var(--umbral)) * 60));
 }
 
-.mesa-vu i:nth-child(n + 7) { background-color: var(--honey); }
+.mesa-vu i:nth-child(n + 7) { background-color: var(--gold); }
 .mesa-vu i:nth-child(n + 9) { background-color: var(--accent); }
 
 /* ---------- Transporte ---------- */
@@ -189,8 +184,8 @@
     gap: 12px;
     flex-wrap: wrap;
     padding: 12px;
-    background-color: var(--panel);
-    border: 2px solid var(--linea);
+    background-color: var(--mesa-panel);
+    border: 2px solid var(--mesa-line);
     border-radius: 12px;
 }
 
@@ -207,7 +202,7 @@
     font-family: var(--font-display);
     letter-spacing: 0.06em;
     cursor: pointer;
-    box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.55);
+    box-shadow: 3px 3px 0 rgba(var(--black-rgb), 0.55);
     transition: transform 0.08s ease, background-color 0.15s ease, box-shadow 0.08s ease;
 }
 
@@ -225,7 +220,7 @@
 }
 
 .mesa-play.sonando {
-    background-color: var(--honey);
+    background-color: var(--gold);
 }
 
 .mesa-rec,
@@ -240,7 +235,7 @@
 .mesa-rec:hover,
 .mesa-tap:hover {
     transform: translate(-1px, -1px);
-    box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.55);
+    box-shadow: 4px 4px 0 rgba(var(--black-rgb), 0.55);
 }
 
 .mesa-play:active,
@@ -252,7 +247,7 @@
 
 .mesa-rec.on {
     background-color: var(--accent);
-    color: #fff;
+    color: var(--white);
 }
 
 .mesa-led {
@@ -260,12 +255,12 @@
     height: 10px;
     border-radius: 50%;
     border: 2px solid var(--ink);
-    background-color: rgba(230, 57, 70, 0.35);
+    background-color: rgba(var(--accent-rgb), 0.35);
 }
 
 .mesa-rec.on .mesa-led {
-    background-color: #fff;
-    box-shadow: 0 0 8px #fff;
+    background-color: var(--white);
+    box-shadow: 0 0 8px var(--white);
     animation: lcd-latido 1s steps(2, end) infinite;
 }
 
@@ -283,14 +278,14 @@
     font-size: 0.82rem;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: rgba(255, 253, 248, 0.62);
+    color: rgba(var(--card-rgb), 0.62);
     white-space: nowrap;
 }
 
 .mando-valor {
     font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
     font-size: 0.86rem;
-    color: var(--honey);
+    color: var(--gold);
     min-width: 34px;
     text-align: right;
 }
@@ -299,7 +294,7 @@
     flex: 1;
     min-width: 60px;
     height: 16px;
-    accent-color: var(--honey);
+    accent-color: var(--gold);
     cursor: pointer;
 }
 
@@ -317,15 +312,15 @@
     font-size: 0.82rem;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: rgba(255, 253, 248, 0.55);
+    color: rgba(var(--card-rgb), 0.55);
 }
 
 .chip {
     padding: 5px 13px;
-    border: 2px solid var(--linea);
+    border: 2px solid var(--mesa-line);
     border-radius: 999px;
-    background-color: var(--panel);
-    color: rgba(255, 253, 248, 0.86);
+    background-color: var(--mesa-panel);
+    color: rgba(var(--card-rgb), 0.86);
     font-family: var(--font-hand);
     font-size: 0.92rem;
     cursor: pointer;
@@ -334,23 +329,23 @@
 
 .chip:hover {
     transform: translateY(-1px);
-    border-color: var(--honey);
+    border-color: var(--gold);
 }
 
 .chip.on {
-    background-color: var(--honey);
-    border-color: var(--honey);
+    background-color: var(--gold);
+    border-color: var(--gold);
     /* Tinta a fuego: sobre la miel hace falta trazo oscuro también con el
        neón puesto, donde var(--ink) se vuelve luz. */
-    color: #1a1a1a;
+    color: var(--ink-fixed);
     font-weight: 600;
 }
 
 /* ---------- Secuenciador ---------- */
 
 .mesa-seq {
-    background-color: var(--panel);
-    border: 2px solid var(--linea);
+    background-color: var(--mesa-panel);
+    border: 2px solid var(--mesa-line);
     border-radius: 12px;
     padding: 12px 12px 8px;
 }
@@ -377,7 +372,7 @@
     position: sticky;
     left: 0;
     z-index: 2;
-    background-color: var(--panel);
+    background-color: var(--mesa-panel);
 }
 
 .seq-cabeza {
@@ -397,11 +392,11 @@
     text-align: center;
     font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
     font-size: 0.7rem;
-    color: rgba(255, 253, 248, 0.28);
+    color: rgba(var(--card-rgb), 0.28);
 }
 
 .seq-numeros span.fuerte {
-    color: var(--honey);
+    color: var(--gold);
 }
 
 .seq-rejilla {
@@ -422,7 +417,7 @@
     border: 2px solid transparent;
     border-radius: 7px;
     background-color: transparent;
-    color: #fffdf8;
+    color: var(--ink-block-text);
     font-family: var(--font-hand);
     font-size: 0.92rem;
     text-align: left;
@@ -433,30 +428,30 @@
 }
 
 .pista-nombre:hover {
-    border-color: var(--linea);
+    border-color: var(--mesa-line);
 }
 
 .pista-nombre.muda {
     text-decoration: line-through;
-    color: rgba(255, 253, 248, 0.45);
+    color: rgba(var(--card-rgb), 0.45);
 }
 
 .pista-solo {
     width: 24px;
     height: 24px;
     flex-shrink: 0;
-    border: 2px solid var(--linea);
+    border: 2px solid var(--mesa-line);
     border-radius: 6px;
     background-color: transparent;
-    color: rgba(255, 253, 248, 0.6);
+    color: rgba(var(--card-rgb), 0.6);
     font-family: var(--font-display);
     font-size: 0.72rem;
     cursor: pointer;
 }
 
 .pista-solo.on {
-    background-color: var(--honey);
-    border-color: var(--honey);
+    background-color: var(--gold);
+    border-color: var(--gold);
     color: var(--ink);
 }
 
@@ -479,29 +474,29 @@
     height: var(--celda);
     flex-shrink: 0;
     padding: 0;
-    border: 2px solid rgba(255, 253, 248, 0.2);
+    border: 2px solid rgba(var(--card-rgb), 0.2);
     border-radius: 7px;
-    background-color: rgba(255, 253, 248, 0.05);
+    background-color: rgba(var(--card-rgb), 0.05);
     cursor: pointer;
     transition: transform 0.08s ease, border-color 0.12s ease;
 }
 
 /* Marca de cada pulso: los cuatro cuadros fuertes */
 .celda.marca {
-    background-color: rgba(255, 253, 248, 0.12);
-    border-color: rgba(255, 253, 248, 0.3);
+    background-color: rgba(var(--card-rgb), 0.12);
+    border-color: rgba(var(--card-rgb), 0.3);
 }
 
 .celda:hover {
     transform: translateY(-2px);
-    border-color: var(--honey);
+    border-color: var(--gold);
 }
 
 .celda-luz {
     position: absolute;
     inset: 2px;
     border-radius: 4px;
-    background-color: var(--luz, var(--honey));
+    background-color: var(--luz, var(--gold));
     transform: scale(0);
     transition: transform 0.09s ease, opacity 0.09s ease;
 }
@@ -512,37 +507,37 @@
 .celda.v3 .celda-luz {
     transform: scale(1);
     opacity: 1;
-    box-shadow: 0 0 10px var(--luz, var(--honey));
+    box-shadow: 0 0 10px var(--luz, var(--gold));
 }
 
 /* Columna que está sonando ahora mismo */
 .celda.actual {
-    border-color: #fffdf8;
-    box-shadow: 0 0 0 2px rgba(255, 253, 248, 0.18);
+    border-color: var(--ink-block-text);
+    box-shadow: 0 0 0 2px rgba(var(--card-rgb), 0.18);
 }
 
 /* Cada pista tiene su color de luz */
 .seq-fila:nth-child(1) { --luz: var(--accent); }
-.seq-fila:nth-child(2) { --luz: var(--honey); }
-.seq-fila:nth-child(3) { --luz: var(--cian); }
-.seq-fila:nth-child(4) { --luz: var(--cian); }
-.seq-fila:nth-child(5) { --luz: var(--honey); }
-.seq-fila:nth-child(6) { --luz: var(--cian); }
-.seq-fila:nth-child(7) { --luz: var(--honey); }
+.seq-fila:nth-child(2) { --luz: var(--gold); }
+.seq-fila:nth-child(3) { --luz: var(--mesa-cyan); }
+.seq-fila:nth-child(4) { --luz: var(--mesa-cyan); }
+.seq-fila:nth-child(5) { --luz: var(--gold); }
+.seq-fila:nth-child(6) { --luz: var(--mesa-cyan); }
+.seq-fila:nth-child(7) { --luz: var(--gold); }
 .seq-fila:nth-child(8) { --luz: var(--accent); }
 
 .seq-pista {
     margin: 8px 2px 0;
     font-family: var(--font-hand);
     font-size: 0.82rem;
-    color: rgba(255, 253, 248, 0.45);
+    color: rgba(var(--card-rgb), 0.45);
 }
 
 /* ---------- Pads ---------- */
 
 .mesa-pads-zona {
-    background-color: var(--panel);
-    border: 2px solid var(--linea);
+    background-color: var(--mesa-panel);
+    border: 2px solid var(--mesa-line);
     border-radius: 12px;
     padding: 12px;
 }
@@ -570,15 +565,15 @@
     font-size: 0.82rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: rgba(255, 253, 248, 0.55);
+    color: rgba(var(--card-rgb), 0.55);
 }
 
 .pads-tono select {
     padding: 5px 9px;
-    border: 2px solid var(--linea);
+    border: 2px solid var(--mesa-line);
     border-radius: 8px;
-    background-color: var(--panel-alto);
-    color: #fffdf8;
+    background-color: var(--mesa-panel-hi);
+    color: var(--ink-block-text);
     font-family: var(--font-hand);
     font-size: 0.92rem;
     cursor: pointer;
@@ -593,7 +588,7 @@
 }
 
 .pad {
-    --fam: var(--honey);
+    --fam: var(--gold);
     position: relative;
     display: flex;
     flex-direction: column;
@@ -604,16 +599,16 @@
     border: 2px solid var(--ink);
     border-radius: 12px;
     /* Goma del pad: un poco de relieve para que pida que la toques */
-    background-image: linear-gradient(180deg, #3c3c3c 0%, #2a2a2a 72%);
-    background-color: var(--panel-alto);
-    color: #fffdf8;
+    background-image: var(--mesa-rubber);
+    background-color: var(--mesa-panel-hi);
+    color: var(--ink-block-text);
     cursor: pointer;
     touch-action: manipulation;
     user-select: none;
     box-shadow:
-        0 4px 0 rgba(0, 0, 0, 0.6),
+        0 4px 0 rgba(var(--black-rgb), 0.6),
         inset 0 -4px 0 var(--fam),
-        inset 0 1px 0 rgba(255, 255, 255, 0.09);
+        inset 0 1px 0 rgba(var(--white-rgb), 0.09);
     transition: transform 0.07s ease, box-shadow 0.07s ease, background-color 0.12s ease;
 }
 
@@ -621,10 +616,10 @@
     font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
     font-size: 0.7rem;
     padding: 1px 6px;
-    border: 1px solid rgba(255, 253, 248, 0.16);
+    border: 1px solid rgba(var(--card-rgb), 0.16);
     border-radius: 5px;
-    background-color: rgba(0, 0, 0, 0.42);
-    color: rgba(255, 253, 248, 0.86);
+    background-color: rgba(var(--black-rgb), 0.42);
+    color: rgba(var(--card-rgb), 0.86);
 }
 
 .pad-label {
@@ -632,25 +627,25 @@
     font-size: 0.8rem;
     line-height: 1.1;
     text-align: left;
-    color: rgba(255, 253, 248, 0.92);
+    color: rgba(var(--card-rgb), 0.92);
 }
 
 /* Cada familia de sonido, su color */
 .pad--grave { --fam: var(--accent); }
-.pad--medio { --fam: var(--honey); }
-.pad--agudo { --fam: var(--cian); }
-.pad--aire { --fam: #c39bff; }
-.pad--tecla { --fam: #6fd18b; }
+.pad--medio { --fam: var(--gold); }
+.pad--agudo { --fam: var(--mesa-cyan); }
+.pad--aire { --fam: var(--mesa-lilac); }
+.pad--tecla { --fam: var(--mesa-green); }
 
 .pad:hover {
-    background-image: linear-gradient(180deg, #494949 0%, #333 72%);
+    background-image: var(--mesa-rubber-hover);
 }
 
 /* Al golpear, el pad se hunde y se enciende con su color */
 .pad:active,
 .pad--golpe {
     transform: translateY(3px);
-    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.6), inset 0 -2px 0 rgba(0, 0, 0, 0.25);
+    box-shadow: 0 1px 0 rgba(var(--black-rgb), 0.6), inset 0 -2px 0 rgba(var(--black-rgb), 0.25);
 }
 
 .pad--golpe {
@@ -660,7 +655,7 @@
 }
 
 .pad--golpe.pad--grave {
-    color: #fff;
+    color: var(--white);
 }
 
 .pad--golpe .pad-label {
@@ -668,7 +663,7 @@
 }
 
 .pad--golpe .pad-tecla {
-    background-color: rgba(0, 0, 0, 0.28);
+    background-color: rgba(var(--black-rgb), 0.28);
     border-color: transparent;
     color: inherit;
 }
@@ -677,11 +672,11 @@
     margin: 12px 2px 0;
     font-family: var(--font-hand);
     font-size: 0.84rem;
-    color: rgba(255, 253, 248, 0.5);
+    color: rgba(var(--card-rgb), 0.5);
 }
 
 .pads-nota b {
-    color: var(--honey);
+    color: var(--gold);
     font-weight: 600;
 }
 
@@ -694,7 +689,7 @@
     gap: 12px;
     flex-wrap: wrap;
     padding-top: 12px;
-    border-top: 2px dashed var(--linea);
+    border-top: 2px dashed var(--mesa-line);
 }
 
 .mesa-acciones {
@@ -714,7 +709,7 @@
     min-width: 220px;
     font-family: var(--font-hand);
     font-size: 0.86rem;
-    color: rgba(255, 253, 248, 0.45);
+    color: rgba(var(--card-rgb), 0.45);
     text-align: right;
 }
 

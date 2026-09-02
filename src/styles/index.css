@@ -1,7 +1,4 @@
-/* Orden de capas: lo de abajo pisa a lo de arriba sin importar en qué chunk
-   llegue cada hoja. Cada fichero se envuelve en su capa. */
-@layer base, utilities, components, pages;
-
+/* Sólo importa. El orden de capas lo declara 00-tokens.css. */
 @import './00-tokens.css';
 @import './01-fonts.css';
 @import './02-base.css';

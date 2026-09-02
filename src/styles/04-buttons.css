@@ -46,11 +46,11 @@
 .btn-primary:hover:not(:disabled) {
   background-color: var(--accent);
   border-color: var(--ink);
-  color: #fff;
+  color: var(--white);
 }
 
 .btn-primary.btn-added {
-  background-color: #1d9e57;
+  background-color: var(--ok);
 }
 
 .btn-ghost {

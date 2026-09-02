@@ -24,7 +24,7 @@
     aspect-ratio: 4 / 3;
     overflow: hidden;
     border-bottom: 2px solid var(--ink);
-    background: #ece8df;
+    background: var(--muted-bg);
 }
 
 .chat-product-media > img {
@@ -110,18 +110,18 @@
 }
 
 .chat-product-facts .is-available {
-    color: #167441;
-    background: #e3f8eb;
+    color: var(--ok-ink);
+    background: var(--ok-bg);
 }
 
 .chat-product-facts .is-sold-out {
-    color: var(--accent-dark);
-    background: #ffe9eb;
+    color: var(--danger-ink);
+    background: var(--danger-bg);
 }
 
 .chat-product-facts .is-preview {
-    color: #174f8a;
-    background: #e5f0ff;
+    color: var(--info);
+    background: var(--info-bg);
 }
 
 .chat-product-variant {
@@ -201,25 +201,6 @@
     }
 }
 
-/* ---------- Modo neón ---------- */
-
-/* Los tres estados de stock, en su versión letrero. */
-html[data-theme='neon'] .chat-product-media {
-    background: #1d1631;
-}
-
-html[data-theme='neon'] .chat-product-facts .is-available {
-    color: #52f5a0;
-    background: #0e2a1b;
-}
-
-html[data-theme='neon'] .chat-product-facts .is-sold-out {
-    color: #ff9aad;
-    background: #2a0e14;
-}
-
-html[data-theme='neon'] .chat-product-facts .is-preview {
-    color: #7cc4ff;
-    background: #0e1f33;
-}
+/* El modo neón lo resuelven los tokens (--muted-bg, --ok-*, --danger-*,
+   --info-*): no hace falta pisar nada aquí. */
 }

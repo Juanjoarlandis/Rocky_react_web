@@ -109,28 +109,28 @@
    rosa siguiendo la silueta. Las fotos de verdad no llevan la clase. */
 html[data-theme='neon'] .neon-art {
   filter: invert(1) hue-rotate(180deg) saturate(1.45) brightness(1.05)
-    drop-shadow(0 0 5px rgba(41, 229, 255, 0.55))
-    drop-shadow(0 0 16px rgba(255, 46, 196, 0.4));
+    drop-shadow(0 0 5px rgba(var(--neon-cyan-rgb), 0.55))
+    drop-shadow(0 0 16px rgba(var(--neon-pink-rgb), 0.4));
 }
 
 html[data-theme='neon'] .neon-art--icon {
   filter: invert(1) hue-rotate(180deg) saturate(1.3)
-    drop-shadow(0 0 4px rgba(255, 46, 196, 0.5));
+    drop-shadow(0 0 4px rgba(var(--neon-pink-rgb), 0.5));
 }
 
 /* ---------- Rótulos ---------- */
 
 html[data-theme='neon'] .page-title {
-  color: #fff;
-  text-shadow: 0 0 6px rgba(255, 255, 255, 0.5),
-    0 0 18px rgba(255, 46, 196, 0.75), 0 0 42px rgba(255, 46, 196, 0.4);
+  color: var(--white);
+  text-shadow: 0 0 6px rgba(var(--white-rgb), 0.5),
+    0 0 18px rgba(var(--neon-pink-rgb), 0.75), 0 0 42px rgba(var(--neon-pink-rgb), 0.4);
   animation: neon-encendido 1.6s ease-out 1;
 }
 
 /* La estrella del título, en rosa y con su halo. */
 html[data-theme='neon'] .page-title::before {
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 24 24'><path d='M12 2 L14.6 8.6 L21.5 9.2 L16.3 13.7 L18 20.5 L12 16.8 L6 20.5 L7.7 13.7 L2.5 9.2 L9.4 8.6 Z' fill='none' stroke='%23ff2ec4' stroke-width='2' stroke-linejoin='round'/></svg>");
-  filter: drop-shadow(0 0 6px rgba(255, 46, 196, 0.7));
+  filter: drop-shadow(0 0 6px rgba(var(--neon-pink-rgb), 0.7));
 }
 
 /* El chisporroteo de un tubo recién encendido, una sola vez por página. */

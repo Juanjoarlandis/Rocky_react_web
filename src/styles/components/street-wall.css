@@ -96,10 +96,10 @@
     pointer-events: none;
     background: radial-gradient(
         circle at var(--flash-x, 50%) var(--flash-y, 45%),
-        rgba(255, 255, 255, 0.95) 0%,
-        rgba(255, 255, 255, 0.78) 18%,
-        rgba(255, 255, 255, 0.3) 48%,
-        rgba(255, 255, 255, 0) 75%
+        rgba(var(--white-rgb), 0.95) 0%,
+        rgba(var(--white-rgb), 0.78) 18%,
+        rgba(var(--white-rgb), 0.3) 48%,
+        rgba(var(--white-rgb), 0) 75%
     );
     opacity: 0;
     animation: paparazzi-fogonazo 600ms ease-out forwards;
@@ -165,10 +165,10 @@
     position: relative;
     margin: 0;
     padding: 10px 10px 8px;
-    background-color: #fff;
+    background-color: var(--white);
     /* La polaroid es blanca hasta de noche, así que el rotulador del pie va
        en tinta a fuego y no con var(--ink), que en neón se vuelve luz. */
-    color: #1a1a1a;
+    color: var(--ink-fixed);
     border: 2px solid var(--ink);
     box-shadow: var(--shadow-ink);
     width: clamp(200px, 26vw, 260px);
@@ -202,7 +202,7 @@
     transform: translateX(-50%) rotate(-4deg);
     width: 74px;
     height: 22px;
-    background-color: rgba(234, 226, 205, 0.88);
+    background-color: var(--tape);
     border: 2px solid var(--ink);
     z-index: 2;
 }
@@ -224,7 +224,7 @@
     text-align: center;
     /* Rotulador a fuego, como el marco: la polaroid sigue blanca de noche
        y var(--ink-soft) se volvería luz sobre luz. */
-    color: #3a3a3a;
+    color: var(--ink-soft-fixed);
 }
 
 .street-wall-cta {

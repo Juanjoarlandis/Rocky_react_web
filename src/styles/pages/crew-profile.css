@@ -111,7 +111,7 @@
   border: 3px solid var(--ink);
   border-radius: var(--wobble-lg);
   background:
-    linear-gradient(150deg, transparent 70%, rgba(230, 57, 70, 0.16) 70%),
+    linear-gradient(150deg, transparent 70%, rgba(var(--accent-rgb), 0.16) 70%),
     var(--card);
   box-shadow: var(--shadow-ink-lg);
   text-align: center;
@@ -123,7 +123,7 @@
   position: absolute;
   right: -6px;
   bottom: -18px;
-  color: rgba(26, 26, 26, 0.06);
+  color: rgba(var(--ink-rgb), 0.06);
   font-family: var(--font-display);
   font-size: 4.4rem;
   line-height: 0.78;
@@ -164,7 +164,7 @@
   width: 86%;
   height: 86%;
   object-fit: contain;
-  filter: drop-shadow(5px 6px 0 rgba(26, 26, 26, 0.13));
+  filter: drop-shadow(5px 6px 0 rgba(var(--ink-rgb), 0.13));
 }
 
 .crew-id-card__level {
@@ -172,7 +172,7 @@
   margin-bottom: 8px;
   padding: 4px 10px;
   background: var(--accent);
-  color: #fff;
+  color: var(--white);
   font-family: var(--font-hand);
   transform: rotate(-2deg);
 }
@@ -206,14 +206,14 @@
   padding: clamp(20px, 3vw, 34px);
   border: 2px solid var(--ink);
   border-radius: var(--wobble-md);
-  background: rgba(255, 253, 248, 0.88);
+  background: rgba(var(--card-rgb), 0.88);
   box-shadow: var(--shadow-ink-sm);
 }
 
 .crew-progress-panel {
   position: relative;
   background: var(--ink-block);
-  color: #fff;
+  color: var(--white);
   background-image: var(--spray-speckle);
 }
 
@@ -236,19 +236,19 @@
 
 .crew-progress-copy > strong {
   font-family: var(--font-hand);
-  color: #fff;
+  color: var(--white);
   font-size: 1.2rem;
 }
 
 .crew-progress-panel .crew-section-label {
-  color: #ff7580;
+  color: var(--on-ink-accent);
 }
 
 .crew-progress-track {
   height: 22px;
   margin: 22px 0 12px;
   padding: 3px;
-  border: 2px solid #fff;
+  border: 2px solid var(--white);
   border-radius: var(--wobble-sm);
   transform: rotate(-0.3deg);
 }
@@ -264,7 +264,7 @@
 
 .crew-progress-panel p {
   margin: 0;
-  color: rgba(255, 255, 255, 0.76);
+  color: rgba(var(--white-rgb), 0.76);
   font-family: var(--font-hand);
   font-size: 1rem;
 }
@@ -285,7 +285,8 @@
 }
 
 .crew-stat--tickets {
-  background: #f9dc61;
+  background: var(--ticket);
+  border-color: var(--postit-line);
   transform: rotate(-1deg);
 }
 
@@ -342,7 +343,7 @@
 }
 
 .crew-reward-card--locked {
-  background: #ece8df;
+  background: var(--muted-bg);
 }
 
 .crew-reward-visual {
@@ -353,7 +354,7 @@
   overflow: hidden;
   border-bottom: 2px solid var(--ink);
   background:
-    radial-gradient(circle, rgba(26, 26, 26, 0.08) 1px, transparent 1px),
+    radial-gradient(circle, rgba(var(--ink-rgb), 0.08) 1px, transparent 1px),
     var(--paper);
   background-size: 18px 18px;
 }
@@ -362,7 +363,7 @@
   width: 86%;
   height: 86%;
   object-fit: contain;
-  filter: drop-shadow(4px 5px 0 rgba(26, 26, 26, 0.14));
+  filter: drop-shadow(4px 5px 0 rgba(var(--ink-rgb), 0.14));
 }
 
 .crew-reward-card--locked .crew-reward-visual img {
@@ -375,7 +376,7 @@
   top: 10px;
   padding: 3px 8px;
   border: 2px solid var(--ink);
-  background: #fff;
+  background: var(--white);
   color: var(--accent);
   font-family: var(--font-display);
   font-size: 0.78rem;
@@ -445,7 +446,8 @@
 }
 
 .crew-ticket-shop {
-  background: #fff2b5;
+  background: var(--postit);
+  border-color: var(--postit-line);
 }
 
 .crew-purchase-list {
@@ -532,7 +534,7 @@
   padding: clamp(20px, 3vw, 36px);
   border: 3px solid var(--ink);
   border-radius: var(--wobble-lg);
-  background: rgba(255, 253, 248, 0.9);
+  background: rgba(var(--card-rgb), 0.9);
   box-shadow: var(--shadow-ink-lg);
 }
 
@@ -584,12 +586,12 @@
   border: 2px solid var(--ink);
   border-radius: var(--wobble-md);
   background: var(--ink-block);
-  color: #fff;
+  color: var(--white);
   background-image: var(--spray-speckle);
 }
 
 .crew-preview-level-panel .crew-section-label {
-  color: #ff7580;
+  color: var(--on-ink-accent);
 }
 
 .crew-preview-levels {
@@ -602,7 +604,7 @@
 .crew-preview-levels article {
   min-width: 0;
   padding: 14px;
-  border: 1px dashed rgba(255, 255, 255, 0.55);
+  border: 1px dashed rgba(var(--white-rgb), 0.55);
 }
 
 .crew-preview-levels span,
@@ -613,12 +615,12 @@
 
 .crew-preview-levels span {
   margin-bottom: 5px;
-  color: #ff7580;
+  color: var(--on-ink-accent);
   font-size: 0.82rem;
 }
 
 .crew-preview-levels strong {
-  color: #fff;
+  color: var(--white);
   font-size: clamp(1rem, 1.8vw, 1.35rem);
 }
 
@@ -627,7 +629,7 @@
   padding: clamp(18px, 2vw, 26px);
   border: 2px solid var(--ink);
   border-radius: var(--wobble-md);
-  background: rgba(255, 253, 248, 0.92);
+  background: rgba(var(--card-rgb), 0.92);
 }
 
 .crew-preview-card-heading {
@@ -669,7 +671,7 @@
   margin: 0 0 9px 3px;
   padding: 3px 8px;
   border: 1px dashed var(--accent);
-  background: #fff;
+  background: var(--white);
   color: var(--accent-dark);
   font-family: var(--font-hand);
   font-size: 0.76rem;
@@ -684,7 +686,8 @@
   padding: 18px 20px;
   border: 2px solid var(--ink);
   border-radius: var(--wobble-sm);
-  background: #f9dc61;
+  background: var(--ticket);
+  border-color: var(--postit-line);
   transform: rotate(-0.35deg);
 }
 
@@ -898,17 +901,17 @@
 
 html[data-theme='neon'] .crew-id-card {
   background:
-    linear-gradient(150deg, transparent 70%, rgba(255, 46, 196, 0.14) 70%),
+    linear-gradient(150deg, transparent 70%, rgba(var(--neon-pink-rgb), 0.14) 70%),
     var(--card);
 }
 
 html[data-theme='neon'] .crew-id-card::before {
-  color: rgba(237, 241, 255, 0.07);
+  color: rgba(var(--neon-ink-rgb), 0.07);
 }
 
 html[data-theme='neon'] .crew-progress-panel,
 html[data-theme='neon'] .crew-section {
-  background-color: rgba(23, 17, 41, 0.88);
+  background-color: rgba(var(--neon-card-rgb), 0.88);
 }
 
 /* El panel de progreso conserva su fondo entintado por encima del anterior. */
@@ -916,25 +919,14 @@ html[data-theme='neon'] .crew-progress-panel {
   background-color: var(--ink-block);
 }
 
-html[data-theme='neon'] .crew-stat--tickets,
-html[data-theme='neon'] .crew-ticket-shop,
-html[data-theme='neon'] .crew-preview-ticket {
-  background: #241d0a;
-  border-color: #ffd60a;
-}
-
 /* Sobre el rosa eléctrico el blanco se queda corto: tinta de noche. */
 html[data-theme='neon'] .crew-id-card__level {
-  color: #16041f;
-}
-
-html[data-theme='neon'] .crew-reward-card--locked {
-  background: #241d36;
+  color: var(--neon-night);
 }
 
 html[data-theme='neon'] .crew-reward-visual {
   background:
-    radial-gradient(circle, rgba(237, 241, 255, 0.09) 1px, transparent 1px),
+    radial-gradient(circle, rgba(var(--neon-ink-rgb), 0.09) 1px, transparent 1px),
     var(--paper);
   background-size: 18px 18px;
 }
@@ -944,11 +936,11 @@ html[data-theme='neon'] .crew-owned-stamp {
 }
 
 html[data-theme='neon'] .crew-gate-preview {
-  background: rgba(23, 17, 41, 0.9);
+  background: rgba(var(--neon-card-rgb), 0.9);
 }
 
 html[data-theme='neon'] .crew-preview-card-showcase {
-  background: rgba(23, 17, 41, 0.92);
+  background: rgba(var(--neon-card-rgb), 0.92);
 }
 
 html[data-theme='neon'] .crew-preview-unlock-label {

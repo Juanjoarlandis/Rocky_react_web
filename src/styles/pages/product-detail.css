@@ -46,7 +46,7 @@
     position: absolute;
     width: clamp(68px, 9vw, 96px);
     height: 26px;
-    background-color: rgba(234, 226, 205, 0.88);
+    background-color: var(--tape);
     border: 2px solid var(--ink);
     z-index: 3;
     pointer-events: none;

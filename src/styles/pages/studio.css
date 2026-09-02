@@ -83,7 +83,7 @@
     width: clamp(74px, 9vw, 96px);
     height: auto;
     transform: rotate(-9deg);
-    filter: drop-shadow(3px 3px 0 rgba(26, 26, 26, 0.85));
+    filter: drop-shadow(3px 3px 0 rgba(var(--ink-rgb), 0.85));
     z-index: 3;
     pointer-events: none;
 }
