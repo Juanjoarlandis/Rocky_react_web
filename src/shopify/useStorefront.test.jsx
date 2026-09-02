@@ -375,4 +375,67 @@ describe('useStorefront', () => {
     expect(result.current.capabilities.customerAccounts).toBe(false);
     expect(result.current.error).toContain('carrito y la cuenta');
   });
+
+  it('cuenta las mutaciones en vuelo: la primera que acaba no libera a la segunda', async () => {
+    api.getShopifyStatus.mockResolvedValue({
+      mode: 'shopify',
+      capabilities: {
+        catalog: true,
+        cart: true,
+        customerAccounts: false,
+        admin: false,
+        webhooks: false,
+      },
+    });
+    api.listProducts.mockResolvedValue({ products: [] });
+    api.getCart.mockResolvedValue({ cart: null });
+    const first = deferred();
+    const second = deferred();
+    api.addCartLine.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+
+    const { result } = renderHook(() => useStorefront({ demoProducts }));
+    await waitFor(() => expect(result.current.capabilities.cart).toBe(true));
+
+    let a;
+    let b;
+    act(() => {
+      a = result.current.addToCart({ handle: 'x' }, 'gid://v/1');
+      b = result.current.addToCart({ handle: 'y' }, 'gid://v/2');
+    });
+    expect(result.current.cartBusy).toBe(true);
+    await act(async () => {
+      first.resolve({ cart: null, warnings: [] });
+      await a;
+    });
+    expect(result.current.cartBusy).toBe(true);
+    await act(async () => {
+      second.resolve({ cart: null, warnings: [] });
+      await b;
+    });
+    expect(result.current.cartBusy).toBe(false);
+  });
+
+  it('con un checkoutUrl que no es una URL avisa con sus palabras, no con «Invalid URL»', async () => {
+    api.getShopifyStatus.mockResolvedValue({
+      mode: 'shopify',
+      capabilities: {
+        catalog: true,
+        cart: true,
+        customerAccounts: false,
+        admin: false,
+        webhooks: false,
+      },
+    });
+    api.listProducts.mockResolvedValue({ products: [] });
+    api.getCart.mockResolvedValue({ cart: null });
+    api.beginCheckout.mockResolvedValue({});
+
+    const { result } = renderHook(() => useStorefront({ demoProducts }));
+    await waitFor(() => expect(result.current.capabilities.cart).toBe(true));
+    await act(async () => {
+      await expect(result.current.checkout()).rejects.toThrow('enlace de pago válido');
+    });
+    expect(result.current.error).toBe('Shopify no ha devuelto un enlace de pago válido.');
+    expect(result.current.canAddToCart).toBe(true);
+  });
 });

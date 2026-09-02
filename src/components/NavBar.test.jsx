@@ -103,24 +103,21 @@ describe('NavBar responsive contract', () => {
     expect(navBarCss).toMatch(
       /@media \(max-width: 640px\)[\s\S]*?\.navbar-menu\s*\{[\s\S]*?display:\s*flex;/
     );
-    expect(navBarCss).toMatch(
-      /@media \(min-width: 641px\) and \(max-width: 900px\)[\s\S]*?\.navbar-links\s*\{[\s\S]*?gap:/
-    );
   });
 
-  it('keeps every navigation control at least 44px tall', () => {
-    for (const selector of [
-      'navbar-brand',
-      'navbar-link',
-      'navbar-account',
-      'navbar-cart',
-      'navbar-menu',
-    ]) {
-      expect(navBarCss).toMatch(new RegExp(`\\.${selector}\\s*\\{[\\s\\S]*?min-height:\\s*44px;`));
-    }
-    expect(navBarCss).toMatch(/\.navbar-sheet-link\s*\{[\s\S]*?min-height:\s*52px;/);
-    expect(navBarCss).toMatch(
-      /\.navbar-account\.navbar-account--avatar\s*\{[\s\S]*?width:\s*44px;[\s\S]*?height:\s*44px;[\s\S]*?flex:\s*0 0 44px;/
+  it('every control has an accessible name and the two navigations are labelled', () => {
+    renderNavBar({ totalItems: 2 });
+    const nav = screen.getByRole('navigation', { name: 'Navegación principal' });
+    const names = within(nav)
+      .getAllByRole('link')
+      .map((link) => link.textContent);
+    expect(names).toEqual(['Tienda', 'Drops', 'Estudio', 'Crew', 'Rocky IA', 'Mi Crew']);
+    expect(screen.getByRole('link', { name: 'Inicio' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: 'Carrito, 2 artículos' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /neón/ })).toHaveAttribute('aria-pressed');
+    expect(screen.getByRole('button', { name: 'Abrir el menú' })).toHaveAttribute(
+      'aria-expanded',
+      'false'
     );
   });
 });

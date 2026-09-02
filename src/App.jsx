@@ -72,7 +72,7 @@ function App() {
       products={commerce.products}
       addToCart={addToCart}
       commerceMode={commerce.mode}
-      canAddToCart={commerce.mode !== 'shopify' || commerce.capabilities.cart}
+      canAddToCart={commerce.canAddToCart}
       prioritizeFirstImage={!showSplash}
       loading={commerce.loading}
     />
@@ -143,7 +143,7 @@ function App() {
                     products={commerce.products}
                     addToCart={addToCart}
                     commerceMode={commerce.mode}
-                    canAddToCart={commerce.mode !== 'shopify' || commerce.capabilities.cart}
+                    canAddToCart={commerce.canAddToCart}
                   />
                 }
               />
@@ -153,7 +153,7 @@ function App() {
                   <ChatComponent
                     addToCart={addToCart}
                     commerceMode={commerce.mode}
-                    canAddToCart={commerce.mode === 'shopify' && commerce.capabilities.cart}
+                    canAddToCart={commerce.canAddToCart}
                     headerPlayer={<MiniPlayer variant="chat" />}
                   />
                 }

@@ -158,7 +158,7 @@ function StreetWall() {
               <svg viewBox="0 0 120 120" focusable="false">
                 <polygon
                   points={CHISPAZO}
-                  fill="#fff"
+                  fill="var(--white)"
                   stroke="currentColor"
                   strokeWidth="7"
                   strokeLinejoin="round"

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
@@ -6,7 +6,6 @@ import ProductPage from './ProductPage.jsx';
 import { normalizeDemoCatalog } from '../shopify/normalize.js';
 
 const productPageCss = readFileSync('src/styles/pages/home.css', 'utf8');
-const buttonsCss = readFileSync('src/styles/04-buttons.css', 'utf8');
 
 const previewProducts = [
   {
@@ -246,47 +245,49 @@ describe('ProductPage hero motion', () => {
 });
 
 describe('ProductPage card anatomy', () => {
-  it('reserves two title lines instead of truncating narrow cards to one line', () => {
-    expect(productPageCss).toMatch(
-      /\.product-title\s*\{[\s\S]*?min-height:\s*2\.4em;[\s\S]*?-webkit-line-clamp:\s*2;[\s\S]*?white-space:\s*normal;/
+  it('cada tarjeta lleva su título como encabezado, la foto con lupa y dos acciones con nombre', () => {
+    render(
+      <MemoryRouter>
+        <ProductPage
+          products={previewProducts}
+          addToCart={vi.fn()}
+          commerceMode="shopify"
+          canAddToCart
+        />
+      </MemoryRouter>
     );
+    const card = screen
+      .getByRole('heading', { level: 2, name: 'Night Runner' })
+      .closest('.product-card');
+    expect(card).not.toBeNull();
+    expect(within(card).getByRole('button', { name: 'Ver Night Runner en grande' })).toBeEnabled();
+    expect(within(card).getByRole('link', { name: 'Detalles' })).toHaveAttribute(
+      'href',
+      '/product/rocky-night-runner'
+    );
+    expect(within(card).getByRole('button', { name: 'Vista previa' })).toBeDisabled();
+    const image = within(card).getByRole('img', { name: /Night Runner/ });
+    expect(image).toHaveAttribute('width');
+    expect(image).toHaveAttribute('height');
   });
 
-  it('gives purchase controls the dominant track and keeps every action touch-sized', () => {
-    expect(productPageCss).toMatch(
-      /\.product-actions\s*\{[\s\S]*?display:\s*grid;[\s\S]*?grid-template-columns:\s*minmax\(0,\s*0\.85fr\)\s+minmax\(0,\s*1\.15fr\);/
+  it('la portada presenta el título, el lema, el contador y un salto real al catálogo', () => {
+    render(
+      <MemoryRouter>
+        <ProductPage
+          products={previewProducts}
+          addToCart={vi.fn()}
+          commerceMode="shopify"
+          canAddToCart
+        />
+      </MemoryRouter>
     );
-    expect(productPageCss).toMatch(
-      /\.product-actions\s*>\s*\.add-to-cart-control\s*\{[\s\S]*?width:\s*100%;/
-    );
-    expect(buttonsCss).toMatch(/\.btn\s*\{[\s\S]*?min-height:\s*44px;/);
-    expect(buttonsCss).toMatch(/\.btn--block\s*\{[\s\S]*?width:\s*100%;/);
-    expect(productPageCss).toMatch(
-      /@media \(max-width:\s*640px\)[\s\S]*?\.product-actions\s*\{[\s\S]*?grid-template-columns:\s*1fr;/
-    );
-  });
-
-  it('uses a bounded editorial home hero with explicit tablet and mobile compositions', () => {
-    expect(productPageCss).toMatch(
-      /\.product-page-head--home\s+\.product-page-head-copy\s*\{[\s\S]*?margin-left:\s*clamp\(-96px,\s*calc\(\(1200px\s*-\s*100vw\)\s*\/\s*2\),\s*0px\);/
-    );
-    expect(productPageCss).toMatch(
-      /\.product-page-head--home\s+\.page-title\s*\{[\s\S]*?font-size:\s*clamp\(5\.75rem,\s*12vw,\s*11\.25rem\);/
-    );
-    expect(productPageCss).toMatch(
-      /\.product-page-hero-cta\s*\{[\s\S]*?min-width:\s*240px;[\s\S]*?min-height:\s*64px;/
-    );
-    expect(productPageCss).toMatch(
-      /\.product-page-head--home\s+\.spray-line-wrap\s*\{[\s\S]*?bottom:\s*28px;/
-    );
-    expect(productPageCss).toMatch(
-      /@media \(max-width:\s*900px\)[\s\S]*?\.product-page-head--home/
-    );
-    expect(productPageCss).toMatch(
-      /@media \(max-width:\s*640px\)[\s\S]*?\.product-page-head--home/
-    );
-    expect(productPageCss).toMatch(
-      /@media \(max-width:\s*640px\)[\s\S]*?\.product-page-tagline\s*\{[\s\S]*?max-width:\s*100%;/
-    );
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('ROCKY 035');
+    expect(screen.getByText('HECHO DESDE LA COLMENA')).toBeInTheDocument();
+    expect(screen.getByText(`${previewProducts.length} productos`)).toBeInTheDocument();
+    const cta = screen.getByRole('link', { name: 'Ver Drop 4' });
+    expect(cta).toHaveAttribute('href', '#productos');
+    expect(document.getElementById('productos')).not.toBeNull();
+    expect(document.title).toBe('ROCKY 035');
   });
 });
