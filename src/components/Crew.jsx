@@ -109,6 +109,9 @@ export function CrewCard({ miembro, autoGirado = false, linkEnabled = true, abie
     const [girado, setGirado] = useState(autoGirado);
     const [copiado, setCopiado] = useState(false);
     const cardRef = useRef(null);
+    const copiadoTimerRef = useRef(null);
+
+    useEffect(() => () => clearTimeout(copiadoTimerRef.current), []);
 
     useEffect(() => {
         if (autoGirado && cardRef.current) {
@@ -123,10 +126,9 @@ export function CrewCard({ miembro, autoGirado = false, linkEnabled = true, abie
     }, [autoGirado]);
 
     const girar = () => {
-        setGirado((v) => {
-            if (!v) onAbrir?.(miembro.id);
-            return !v;
-        });
+        // El aviso al álbum va fuera del updater: StrictMode los ejecuta dos veces.
+        if (!girado) onAbrir?.(miembro.id);
+        setGirado((v) => !v);
     };
 
     // Tilt 3D siguiendo el ratón (solo con la carta de frente)
@@ -156,7 +158,8 @@ export function CrewCard({ miembro, autoGirado = false, linkEnabled = true, abie
         try {
             await navigator.clipboard.writeText(url);
             setCopiado(true);
-            setTimeout(() => setCopiado(false), 2200);
+            clearTimeout(copiadoTimerRef.current);
+            copiadoTimerRef.current = setTimeout(() => setCopiado(false), 2200);
         } catch {
             window.prompt('Copia el enlace de este cromo:', url);
         }
@@ -180,6 +183,9 @@ export function CrewCard({ miembro, autoGirado = false, linkEnabled = true, abie
             onMouseMove={alMover}
             onMouseLeave={alSalir}
             onKeyDown={(e) => {
+                // Enter sobre el enlace o el botón del reverso es para ellos,
+                // no para girar el cromo.
+                if (e.target !== e.currentTarget) return;
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
                     girar();
