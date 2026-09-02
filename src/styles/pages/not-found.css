@@ -30,7 +30,6 @@
 
 .notfound-title {
     font-family: var(--font-display);
-    font-weight: 400;
     font-size: clamp(1.5rem, 4vw, 2.2rem);
     text-transform: uppercase;
     margin: 0;
@@ -40,6 +39,6 @@
     margin: 0;
     color: var(--muted);
     font-family: var(--font-hand);
-    font-size: 1.2rem;
+    font-size: var(--text-lg);
 }
 }

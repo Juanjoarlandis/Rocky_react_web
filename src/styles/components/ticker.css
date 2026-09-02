@@ -96,7 +96,7 @@
 .ticker-track span {
     white-space: nowrap;
     font-family: var(--font-display);
-    font-size: 0.95rem;
+    font-size: var(--text-sm);
     letter-spacing: 0.14em;
     text-transform: uppercase;
 }

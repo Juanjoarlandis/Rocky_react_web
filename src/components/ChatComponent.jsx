@@ -124,7 +124,7 @@ function ChatComponent({
                                 <span className="chat-online-dot" aria-hidden="true" />
                             </div>
                             <div>
-                                <p className="chat-header-kicker">Desde dentro de la crew</p>
+                                <p className="kicker chat-header-kicker">Desde dentro de la crew</p>
                                 <h1 className="chat-header-title">Rocky IA</h1>
                             </div>
                         </div>

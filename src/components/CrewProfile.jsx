@@ -359,17 +359,17 @@ export default function CrewProfile({
 
           <section className="crew-stat-grid" aria-label="Resumen Crew">
             <article className="crew-stat crew-stat--tickets">
-              <span>PARA GASTAR</span>
+              <span className="kicker">PARA GASTAR</span>
               <strong>{profile.ticketBalance} Crew Tickets</strong>
               <p>Tu nivel no baja cuando los usas.</p>
             </article>
             <article className="crew-stat">
-              <span>XP HISTÓRICO</span>
+              <span className="kicker">XP HISTÓRICO</span>
               <strong>{profile.xp}</strong>
               <p>La huella de todo lo que llevas.</p>
             </article>
             <article className="crew-stat">
-              <span>COLECCIÓN</span>
+              <span className="kicker">COLECCIÓN</span>
               <strong>{profile.collectionCount}</strong>
               <p>Personajes, marcos y rarezas.</p>
             </article>

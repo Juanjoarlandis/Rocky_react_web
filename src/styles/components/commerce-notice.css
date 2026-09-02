@@ -14,7 +14,7 @@
   background-color: var(--postit);
   color: var(--postit-ink);
   font-family: var(--font-hand);
-  font-size: 1rem;
+  font-size: var(--text-base);
   text-align: center;
 }
 

@@ -24,7 +24,7 @@
 .marcador-titulo {
     margin: 0;
     font-family: var(--font-display);
-    font-size: 1.02rem;
+    font-size: var(--text-base);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     display: inline-block;
@@ -35,14 +35,14 @@
 .marcador-club {
     margin: 8px 0 0;
     font-family: var(--font-hand);
-    font-size: 0.98rem;
+    font-size: var(--text-base);
     color: var(--muted);
 }
 
 .marcador-club b {
     font-family: var(--font-display);
     font-weight: 400;
-    font-size: 1.05rem;
+    font-size: var(--text-md);
     color: var(--ink);
 }
 
@@ -80,7 +80,7 @@
 .marcador-tuyo {
     margin: 9px 0 0;
     font-family: var(--font-hand);
-    font-size: 0.98rem;
+    font-size: var(--text-base);
     color: var(--ink-soft);
 }
 
@@ -115,7 +115,7 @@
 
 .marcador-logro {
     font-family: var(--font-display);
-    font-size: 1.05rem;
+    font-size: var(--text-md);
     color: var(--gold);
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -188,30 +188,26 @@
 
 .lamina-num {
     font-family: var(--font-hand);
-    font-size: 0.85rem;
+    font-size: var(--text-xs);
     letter-spacing: 0.16em;
     color: var(--on-ink-muted);
 }
 
 .lamina-nota {
     font-family: var(--font-hand);
-    font-size: 1.05rem;
+    font-size: var(--text-md);
     color: var(--muted);
     transform: rotate(-0.6deg);
 }
 
 .lamina-cuenta {
     margin-left: auto;
-    font-family: var(--font-hand);
-    font-size: 0.95rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--muted);
     border: 2px dashed var(--line);
     border-radius: var(--wobble-md);
     padding: 2px 12px;
     transform: rotate(1deg);
     white-space: nowrap;
+    font-size: var(--text-sm);
 }
 
 /* La vitrina: un marco con celo en las esquinas para las rarezas */
@@ -360,13 +356,13 @@
 
 .crew-num {
     font-family: var(--font-display);
-    font-size: 1rem;
+    font-size: var(--text-base);
     color: var(--muted);
 }
 
 .crew-rareza {
     font-family: var(--font-hand);
-    font-size: 0.78rem;
+    font-size: var(--text-xs);
     letter-spacing: 0.08em;
     padding: 1px 10px;
     border: 2px dashed var(--accent);
@@ -415,8 +411,7 @@
 .crew-nombre {
     margin: 0;
     font-family: var(--font-display);
-    font-weight: 400;
-    font-size: 1.15rem;
+    font-size: var(--text-lg);
     text-transform: uppercase;
     letter-spacing: 0.02em;
 }
@@ -424,7 +419,7 @@
 .crew-rol {
     margin: 2px 0 10px;
     font-family: var(--font-hand);
-    font-size: 1rem;
+    font-size: var(--text-base);
     color: var(--muted);
 }
 
@@ -447,7 +442,7 @@
 
 .stat-label {
     font-family: var(--font-hand);
-    font-size: 0.96rem;
+    font-size: var(--text-sm);
 }
 
 .stat-dianas {
@@ -464,7 +459,7 @@
     margin-top: 8px;
     align-self: flex-end;
     font-family: var(--font-hand);
-    font-size: 0.9rem;
+    font-size: var(--text-sm);
     color: var(--muted);
     transform: rotate(-1deg);
 }
@@ -477,7 +472,7 @@
     z-index: 2;
     font-family: var(--font-display);
     /* Luckiest Guy monta más ancho que la display anterior: menos cuerpo y tracking */
-    font-size: 0.68rem;
+    font-size: var(--text-2xs);
     letter-spacing: 0.04em;
     color: var(--accent);
     border: 3px double var(--accent);
@@ -511,7 +506,7 @@
 .expediente-titulo {
     margin: 0 0 10px;
     font-family: var(--font-display);
-    font-size: 1.2rem;
+    font-size: var(--text-lg);
     text-transform: uppercase;
     letter-spacing: 0.06em;
     display: inline-block;
@@ -527,18 +522,10 @@
     gap: 12px;
 }
 
-.expediente-datos dt {
-    font-family: var(--font-hand);
-    font-size: 0.85rem;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--muted);
-}
-
 .expediente-datos dd {
     margin: 2px 0 0;
-    font-family: var(--font-hand);
-    font-size: 1.12rem;
+    font-family: var(--font-body);
+    font-size: var(--text-base);
     line-height: 1.35;
 }
 
@@ -560,7 +547,7 @@
     background: none;
     padding: 2px 0;
     font-family: var(--font-hand);
-    font-size: 0.98rem;
+    font-size: var(--text-base);
     color: var(--accent-dark);
     text-decoration: underline wavy var(--accent);
     text-underline-offset: 4px;
@@ -588,7 +575,7 @@
 
 .expediente-serie span {
     font-family: var(--font-hand);
-    font-size: 0.72rem;
+    font-size: var(--text-2xs);
     letter-spacing: 0.09em;
     text-transform: uppercase;
     /* Deja libre la esquina donde vive el "volver" */
@@ -726,13 +713,13 @@
 .crew-hueco-nota {
     margin: 0;
     font-family: var(--font-hand);
-    font-size: 1rem;
+    font-size: var(--text-base);
     color: var(--muted);
 }
 
 .crew-hueco-btn {
     padding: 5px 16px;
-    font-size: 0.98rem;
+    font-size: var(--text-base);
 }
 
 /* ---------- Responsive ---------- */
@@ -771,7 +758,7 @@
     }
 
     .lamina-cinta {
-        font-size: 1.1rem;
+        font-size: var(--text-md);
         padding: 6px 16px 8px;
     }
 
@@ -782,7 +769,7 @@
 
     .lamina-cuenta {
         margin-left: auto;
-        font-size: 0.82rem;
+        font-size: var(--text-xs);
     }
 
     .crew-vitrina-marco {
@@ -799,7 +786,7 @@
 
     .sello-fichado {
         top: 150px;
-        font-size: 0.62rem;
+        font-size: var(--text-2xs);
     }
 
     /* En una sola columna la carta es ancha: necesita alto para que el
@@ -815,7 +802,7 @@
     }
 
     .crew-nombre {
-        font-size: 1rem;
+        font-size: var(--text-base);
     }
 
     .stat-diana {
@@ -845,7 +832,7 @@
     .expediente-compartir {
         margin-top: auto;
         margin-bottom: 10px;
-        font-size: 1.05rem;
+        font-size: var(--text-md);
     }
 
     .expediente-serie {
@@ -860,7 +847,7 @@
     }
 
     .expediente-serie span {
-        font-size: 0.78rem;
+        font-size: var(--text-xs);
     }
 
     .crew-card-back .crew-girar {

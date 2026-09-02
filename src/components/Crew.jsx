@@ -240,19 +240,19 @@ export function CrewCard({ miembro, autoGirado = false, linkEnabled = true, abie
                     <p className="expediente-titulo">Expediente</p>
                     <dl className="expediente-datos">
                         <div>
-                            <dt>Alias</dt>
+                            <dt className="kicker">Alias</dt>
                             <dd>{miembro.nombre}</dd>
                         </div>
                         <div>
-                            <dt>Oficio</dt>
+                            <dt className="kicker">Oficio</dt>
                             <dd>{miembro.rol}</dd>
                         </div>
                         <div>
-                            <dt>Dice</dt>
+                            <dt className="kicker">Dice</dt>
                             <dd>«{miembro.frase}»</dd>
                         </div>
                         <div>
-                            <dt>Visto en</dt>
+                            <dt className="kicker">Visto en</dt>
                             <dd>
                                 {linkEnabled ? (
                                     <Link
@@ -294,7 +294,7 @@ function LaminaSep({ numero, titulo, nota, cuenta }) {
                 {titulo}
             </span>
             <span className="lamina-nota">{nota}</span>
-            <span className="lamina-cuenta">{cuenta}</span>
+            <span className="kicker lamina-cuenta">{cuenta}</span>
         </div>
     );
 }

@@ -118,10 +118,6 @@
 .chat-header-kicker {
     margin: 0 0 2px;
     color: var(--on-ink-muted);
-    font-family: var(--font-hand);
-    font-size: 0.84rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
 }
 
 .chat-header-title {
@@ -129,7 +125,6 @@
     color: var(--white);
     font-family: var(--font-display);
     font-size: clamp(1.35rem, 2.5vw, 1.75rem);
-    font-weight: 400;
     letter-spacing: 0.04em;
     line-height: 1;
     text-transform: uppercase;
@@ -145,14 +140,14 @@
     border-radius: 999px;
     color: var(--on-ink-muted);
     font-family: var(--font-hand);
-    font-size: 0.94rem;
+    font-size: var(--text-sm);
     line-height: 1;
     white-space: nowrap;
 }
 
 .chat-header-status span {
     color: var(--on-ink-ok);
-    font-size: 0.7rem;
+    font-size: var(--text-2xs);
 }
 
 .chat-header-player {
@@ -232,7 +227,7 @@
     margin: 0 0 10px;
     color: var(--accent);
     font-family: var(--font-hand);
-    font-size: 0.92rem;
+    font-size: var(--text-sm);
     font-weight: 700;
     letter-spacing: 0.13em;
 }
@@ -243,7 +238,6 @@
     margin: 0;
     font-family: var(--font-display);
     font-size: clamp(1.9rem, 5vw, 3rem);
-    font-weight: 400;
     letter-spacing: 0.01em;
     line-height: 1.05;
     text-transform: uppercase;
@@ -255,7 +249,7 @@
     margin: 13px 0 22px;
     color: var(--ink-soft);
     font-family: var(--font-hand);
-    font-size: 1.16rem;
+    font-size: var(--text-lg);
     line-height: 1.35;
 }
 
@@ -276,7 +270,7 @@
     background: var(--paper);
     color: var(--ink);
     font-family: var(--font-hand);
-    font-size: 1rem;
+    font-size: var(--text-base);
     cursor: pointer;
     transition: background-color 120ms ease, color 120ms ease, transform 120ms ease;
 }
@@ -295,7 +289,7 @@
     border-top: 2px dashed var(--line);
     color: var(--muted);
     font-family: var(--font-hand);
-    font-size: 0.96rem;
+    font-size: var(--text-sm);
 }
 
 .chat-turn {
@@ -348,8 +342,8 @@
     border-radius: 8px 15px 12px 13px;
     background: var(--card);
     box-shadow: 3px 3px 0 var(--ink);
-    font-family: var(--font-hand);
-    font-size: 1.1rem;
+    font-family: var(--font-body);
+    font-size: var(--text-md);
     line-height: 1.4;
     white-space: pre-wrap;
 }
@@ -371,7 +365,7 @@
     margin: -5px 0 0 48px;
     color: var(--muted);
     font-family: var(--font-hand);
-    font-size: 0.9rem;
+    font-size: var(--text-sm);
 }
 
 .chat-typing {
@@ -435,7 +429,7 @@
     background: var(--paper);
     color: var(--ink);
     font-family: var(--font-hand);
-    font-size: 1.08rem;
+    font-size: var(--text-md);
     line-height: 1.25;
     transition: box-shadow 140ms ease, border-color 140ms ease;
 }
@@ -460,7 +454,7 @@
     top: 50%;
     color: rgba(var(--ink-rgb), 0.26);
     font-family: var(--font-display);
-    font-size: 0.9rem;
+    font-size: var(--text-sm);
     transform: translateY(-50%) rotate(-5deg);
     pointer-events: none;
 }
@@ -478,7 +472,7 @@
     background: var(--accent);
     color: var(--white);
     font-family: var(--font-hand);
-    font-size: 1.04rem;
+    font-size: var(--text-base);
     cursor: pointer;
     box-shadow: 3px 3px 0 var(--ink);
     transition: transform 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
@@ -512,7 +506,7 @@
     margin: -2px 2px 0;
     color: var(--muted);
     font-family: var(--font-hand);
-    font-size: 0.8rem;
+    font-size: var(--text-xs);
     text-align: right;
 }
 
@@ -587,12 +581,12 @@
     }
 
     .chat-header-kicker {
-        font-size: 0.72rem;
+        font-size: var(--text-2xs);
     }
 
     .chat-header-status {
         padding: 5px 9px;
-        font-size: 0.82rem;
+        font-size: var(--text-xs);
     }
 
     .chat-messages {
@@ -606,7 +600,7 @@
     }
 
     .chat-welcome-copy {
-        font-size: 1.04rem;
+        font-size: var(--text-base);
     }
 
     .chat-quick-prompts {
@@ -630,7 +624,7 @@
 
     .chat-bubble {
         padding: 9px 13px;
-        font-size: 1.04rem;
+        font-size: var(--text-base);
     }
 
     .chat-searching {
@@ -648,7 +642,7 @@
         min-height: 46px;
         padding-right: 14px;
         resize: none;
-        font-size: 1rem;
+        font-size: var(--text-base);
     }
 
     .chat-input-mark,

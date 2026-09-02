@@ -12,7 +12,7 @@
   background-color: var(--card);
   color: var(--ink);
   font-family: var(--font-hand);
-  font-size: 1.08rem;
+  font-size: var(--text-md);
   line-height: 1.25;
   letter-spacing: 0.02em;
   text-decoration: none;

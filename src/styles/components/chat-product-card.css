@@ -55,7 +55,7 @@
     background: var(--card);
     color: var(--ink);
     font-family: var(--font-body);
-    font-size: 1rem;
+    font-size: var(--text-base);
     font-weight: 800;
     box-shadow: 2px 2px 0 var(--ink);
 }
@@ -69,19 +69,15 @@
 
 .chat-product-drop {
     margin: 0;
-    color: var(--accent);
-    font-family: var(--font-hand);
-    font-size: 0.82rem;
     font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    color: var(--accent);
 }
 
 .chat-product-title {
     overflow: hidden;
     color: var(--ink);
     font-family: var(--font-display);
-    font-size: 1.15rem;
+    font-size: var(--text-lg);
     line-height: 1.1;
     text-decoration-thickness: 2px;
     text-overflow: ellipsis;
@@ -97,14 +93,14 @@
 }
 
 .chat-product-facts strong {
-    font-size: 1.12rem;
+    font-size: var(--text-md);
 }
 
 .chat-product-facts span {
     padding: 3px 8px;
     border: 1.5px solid currentColor;
     border-radius: 999px;
-    font-size: 0.82rem;
+    font-size: var(--text-xs);
     line-height: 1;
     white-space: nowrap;
 }
@@ -131,7 +127,7 @@
     gap: 9px;
     color: var(--muted);
     font-family: var(--font-hand);
-    font-size: 0.94rem;
+    font-size: var(--text-sm);
 }
 
 .chat-product-variant select {
@@ -143,7 +139,7 @@
     background: var(--paper);
     color: var(--ink);
     font-family: var(--font-hand);
-    font-size: 0.97rem;
+    font-size: var(--text-sm);
 }
 
 .chat-product-single-variant {
@@ -153,7 +149,7 @@
     border: 1.5px dashed var(--ink);
     border-radius: 999px;
     font-family: var(--font-hand);
-    font-size: 0.9rem;
+    font-size: var(--text-sm);
 }
 
 .chat-product-card .add-to-cart-control,
@@ -164,11 +160,11 @@
 .chat-product-card .chat-product-add {
     min-height: 39px;
     padding: 7px 11px;
-    font-size: 0.98rem;
+    font-size: var(--text-base);
 }
 
 .chat-product-card .commerce-inline-error {
-    font-size: 0.82rem;
+    font-size: var(--text-xs);
 }
 
 @media (min-width: 641px) and (max-width: 900px) {

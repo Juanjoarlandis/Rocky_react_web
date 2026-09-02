@@ -61,7 +61,7 @@ function ProductDetail({
 
             <div className="detail-grid">
                 <div className="detail-info">
-                    <p className="detail-drop">{product.drop}</p>
+                    <p className="kicker detail-drop">{product.drop}</p>
                     <h1 className="detail-title squiggle-underline">{product.title}</h1>
                     {product.description && (
                         <p className="detail-description">{product.description}</p>

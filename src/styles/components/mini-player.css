@@ -46,7 +46,7 @@
     overflow: hidden;
     color: var(--ink);
     font-family: var(--font-hand);
-    font-size: 1.05rem;
+    font-size: var(--text-md);
     text-decoration: none;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -97,7 +97,7 @@
 
 .mini-player--chat .mini-player-title {
     max-width: 92px;
-    font-size: 0.95rem;
+    font-size: var(--text-sm);
 }
 
 @media (max-width: 640px) {
@@ -120,12 +120,12 @@
 
     .mini-player--content .mini-player-title {
         max-width: 120px;
-        font-size: 0.98rem;
+        font-size: var(--text-base);
     }
 
     .mini-player--chat .mini-player-title {
         max-width: 58px;
-        font-size: 0.9rem;
+        font-size: var(--text-sm);
     }
 }
 
@@ -148,7 +148,7 @@
 
     .mini-player--content .mini-player-title {
         max-width: 96px;
-        font-size: 0.94rem;
+        font-size: var(--text-sm);
     }
 
     .mini-player--content .mini-player-btn {
@@ -168,7 +168,7 @@
 
     .mini-player--chat .mini-player-title {
         max-width: 48px;
-        font-size: 0.86rem;
+        font-size: var(--text-xs);
     }
 }
 

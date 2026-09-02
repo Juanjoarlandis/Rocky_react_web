@@ -15,7 +15,7 @@
     top: 50%;
     transform: translateY(-50%);
     writing-mode: vertical-rl;
-    font-size: 0.95rem;
+    font-size: var(--text-sm);
     letter-spacing: 0.4em;
     color: rgba(var(--white-rgb), 0.45);
     user-select: none;
@@ -70,7 +70,7 @@
     text-decoration: none;
     color: var(--white);
     font-family: var(--font-hand);
-    font-size: 1.1rem;
+    font-size: var(--text-md);
     letter-spacing: 0.04em;
     padding: 6px 20px;
     border: 2px solid rgba(var(--white-rgb), 0.85);
@@ -91,7 +91,7 @@
 .footer-brand {
     margin: 8px 0 0;
     font-family: var(--font-display);
-    font-size: 1rem;
+    font-size: var(--text-base);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--white);
@@ -100,7 +100,7 @@
 .footer-legal {
     margin: 0;
     font-family: var(--font-hand);
-    font-size: 0.98rem;
+    font-size: var(--text-base);
     color: var(--on-ink-muted);
 }
 

@@ -68,7 +68,7 @@ function ChatProductCard({
             </Link>
 
             <div className="chat-product-copy">
-                <p className="chat-product-drop">{product.drop}</p>
+                <p className="kicker chat-product-drop">{product.drop}</p>
                 <Link to={productPath} className="chat-product-title">
                     {product.title}
                 </Link>

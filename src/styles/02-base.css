@@ -50,6 +50,8 @@ body {
   max-width: 100%;
   overscroll-behavior-x: none;
   font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: var(--leading-base);
   background-color: var(--paper);
   /* Papel de cuaderno: garabatos muy suaves + retícula de puntos. De noche
      cambian los tokens, no esta regla. */
@@ -64,6 +66,18 @@ body {
 
 img {
   max-width: 100%;
+}
+
+/* Los encabezados van en la display, que sólo tiene un peso: sin negrita
+   sintética y con el interlineado apretado que piden los rótulos. */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 400;
+  line-height: var(--leading-tight);
 }
 
 a {

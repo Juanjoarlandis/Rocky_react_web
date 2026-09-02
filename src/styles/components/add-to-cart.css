@@ -10,7 +10,7 @@
   max-width: 240px;
   color: var(--accent-dark);
   font-family: var(--font-hand);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   line-height: 1.2;
 }
 }

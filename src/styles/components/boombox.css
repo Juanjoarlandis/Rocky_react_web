@@ -65,7 +65,7 @@
     margin: 16px 0 10px;
     text-align: center;
     font-family: var(--font-hand);
-    font-size: 1.15rem;
+    font-size: var(--text-lg);
     color: var(--muted);
 }
 
@@ -93,7 +93,7 @@
 
 .bb-time {
     font-family: var(--font-hand);
-    font-size: 1.05rem;
+    font-size: var(--text-md);
     color: var(--muted);
     min-width: 44px;
     text-align: center;
@@ -144,7 +144,7 @@
 
     .bb-time {
         min-width: 38px;
-        font-size: 0.95rem;
+        font-size: var(--text-sm);
     }
 
     .player-btn {

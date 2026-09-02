@@ -72,7 +72,7 @@
 
 .mesa-marca-modelo {
     font-family: var(--font-hand);
-    font-size: 0.78rem;
+    font-size: var(--text-xs);
     letter-spacing: 0.22em;
     color: rgba(var(--card-rgb), 0.7);
 }
@@ -97,14 +97,14 @@
     flex-wrap: wrap;
     gap: 6px 18px;
     font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
-    font-size: 0.74rem;
+    font-size: var(--text-2xs);
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: rgba(var(--gold-rgb), 0.62);
 }
 
 .lcd-datos b {
-    font-size: 1.05rem;
+    font-size: var(--text-md);
     font-weight: 700;
     color: var(--gold);
     text-shadow: 0 0 10px rgba(var(--gold-rgb), 0.45);
@@ -224,7 +224,7 @@
     height: 40px;
     padding: 0 16px;
     border-radius: var(--wobble-sm);
-    font-size: 0.95rem;
+    font-size: var(--text-sm);
 }
 
 .mesa-play:hover,
@@ -270,17 +270,13 @@
 }
 
 .mando-nombre {
-    font-family: var(--font-hand);
-    font-size: 0.82rem;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: rgba(var(--card-rgb), 0.62);
     white-space: nowrap;
+    color: rgba(var(--card-rgb), 0.62);
 }
 
 .mando-valor {
     font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
-    font-size: 0.86rem;
+    font-size: var(--text-xs);
     color: var(--gold);
     min-width: 34px;
     text-align: right;
@@ -304,11 +300,7 @@
 }
 
 .mesa-presets-titulo {
-    font-family: var(--font-hand);
-    font-size: 0.82rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: rgba(var(--card-rgb), 0.55);
+  color: rgba(var(--card-rgb), 0.55);
 }
 
 .chip {
@@ -318,7 +310,7 @@
     background-color: var(--mesa-panel);
     color: rgba(var(--card-rgb), 0.86);
     font-family: var(--font-hand);
-    font-size: 0.92rem;
+    font-size: var(--text-sm);
     cursor: pointer;
     transition: transform 0.08s ease, background-color 0.15s ease, color 0.15s ease;
 }
@@ -387,7 +379,7 @@
     width: var(--celda);
     text-align: center;
     font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
-    font-size: 0.7rem;
+    font-size: var(--text-2xs);
     color: rgba(var(--card-rgb), 0.28);
 }
 
@@ -415,7 +407,7 @@
     background-color: transparent;
     color: var(--ink-block-text);
     font-family: var(--font-hand);
-    font-size: 0.92rem;
+    font-size: var(--text-sm);
     text-align: left;
     white-space: nowrap;
     overflow: hidden;
@@ -441,7 +433,7 @@
     background-color: transparent;
     color: rgba(var(--card-rgb), 0.6);
     font-family: var(--font-display);
-    font-size: 0.72rem;
+    font-size: var(--text-2xs);
     cursor: pointer;
 }
 
@@ -525,7 +517,7 @@
 .seq-pista {
     margin: 8px 2px 0;
     font-family: var(--font-hand);
-    font-size: 0.82rem;
+    font-size: var(--text-xs);
     color: rgba(var(--card-rgb), 0.45);
 }
 
@@ -557,10 +549,6 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-family: var(--font-hand);
-    font-size: 0.82rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
     color: rgba(var(--card-rgb), 0.55);
 }
 
@@ -571,7 +559,7 @@
     background-color: var(--mesa-panel-hi);
     color: var(--ink-block-text);
     font-family: var(--font-hand);
-    font-size: 0.92rem;
+    font-size: var(--text-sm);
     cursor: pointer;
 }
 
@@ -610,7 +598,7 @@
 
 .pad-tecla {
     font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
-    font-size: 0.7rem;
+    font-size: var(--text-2xs);
     padding: 1px 6px;
     border: 1px solid rgba(var(--card-rgb), 0.16);
     border-radius: 5px;
@@ -620,7 +608,7 @@
 
 .pad-label {
     font-family: var(--font-hand);
-    font-size: 0.8rem;
+    font-size: var(--text-xs);
     line-height: 1.1;
     text-align: left;
     color: rgba(var(--card-rgb), 0.92);
@@ -667,7 +655,7 @@
 .pads-nota {
     margin: 12px 2px 0;
     font-family: var(--font-hand);
-    font-size: 0.84rem;
+    font-size: var(--text-xs);
     color: rgba(var(--card-rgb), 0.5);
 }
 
@@ -696,7 +684,7 @@
 
 .mesa-acciones .btn {
     padding: 6px 16px;
-    font-size: 1rem;
+    font-size: var(--text-base);
 }
 
 .mesa-nota {
@@ -704,7 +692,7 @@
     flex: 1;
     min-width: 220px;
     font-family: var(--font-hand);
-    font-size: 0.86rem;
+    font-size: var(--text-xs);
     color: rgba(var(--card-rgb), 0.45);
     text-align: right;
 }
@@ -723,7 +711,7 @@
 
 @media (max-width: 640px) {
     .pista-nombre {
-        font-size: 0.82rem;
+        font-size: var(--text-xs);
         padding: 4px;
     }
 
@@ -774,7 +762,7 @@
     }
 
     .pad-label {
-        font-size: 0.72rem;
+        font-size: var(--text-2xs);
     }
 
     .mesa-nota {

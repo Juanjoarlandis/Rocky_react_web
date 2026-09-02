@@ -489,7 +489,7 @@ function BeatMachine() {
                     </button>
 
                     <label className="mesa-mando">
-                        <span className="mando-nombre">Tempo</span>
+                        <span className="kicker mando-nombre">Tempo</span>
                         <input
                             type="range"
                             min="60"
@@ -505,7 +505,7 @@ function BeatMachine() {
                     </label>
 
                     <label className="mesa-mando">
-                        <span className="mando-nombre">Swing</span>
+                        <span className="kicker mando-nombre">Swing</span>
                         <input
                             type="range"
                             min="0"
@@ -522,7 +522,7 @@ function BeatMachine() {
                     </label>
 
                     <label className="mesa-mando">
-                        <span className="mando-nombre">Volumen</span>
+                        <span className="kicker mando-nombre">Volumen</span>
                         <input
                             type="range"
                             min="0"
@@ -537,7 +537,7 @@ function BeatMachine() {
                 </div>
 
                 <div className="mesa-presets" role="group" aria-label="Ritmos de fábrica">
-                    <span className="mesa-presets-titulo">Ritmos</span>
+                    <span className="kicker mesa-presets-titulo">Ritmos</span>
                     {PRESETS.map((preset) => (
                         <button
                             key={preset.id}
@@ -665,7 +665,7 @@ function BeatMachine() {
                                 </button>
                             ))}
                         </div>
-                        <label className="pads-tono">
+                        <label className="kicker pads-tono">
                             <span>Tono</span>
                             <select
                                 value={tonalidad.id}

@@ -139,7 +139,7 @@
 
 .street-wall-handle {
     font-family: var(--font-hand);
-    font-size: 1.05rem;
+    font-size: var(--text-md);
     color: var(--muted);
     text-decoration: none;
     transform: rotate(-1deg);
@@ -219,7 +219,7 @@
 .street-photo figcaption {
     padding: 8px 2px 2px;
     font-family: var(--font-hand);
-    font-size: 1.02rem;
+    font-size: var(--text-base);
     text-align: center;
     /* Rotulador a fuego, como el marco: la polaroid sigue blanca de noche
        y var(--ink-soft) se volvería luz sobre luz. */

@@ -50,7 +50,7 @@
     align-items: center;
     min-height: 44px;
     font-family: var(--font-hand);
-    font-size: 1.18rem;
+    font-size: var(--text-lg);
     letter-spacing: 0.03em;
     text-decoration: none;
     color: var(--ink);
@@ -92,7 +92,7 @@
     background: transparent;
     color: var(--ink);
     font-family: var(--font-hand);
-    font-size: 1rem;
+    font-size: var(--text-base);
     text-decoration: none;
     cursor: pointer;
     max-width: 120px;
@@ -173,7 +173,7 @@
     border: 2px solid var(--ink);
     border-radius: var(--wobble-md);
     font-family: var(--font-hand);
-    font-size: 0.85rem;
+    font-size: var(--text-xs);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -214,7 +214,7 @@
     }
 
     .navbar-link {
-        font-size: 1rem;
+        font-size: var(--text-base);
         padding-bottom: 6px;
     }
 
@@ -226,7 +226,7 @@
     .navbar-account {
         max-width: 86px;
         padding: 2px 0 4px;
-        font-size: 0.92rem;
+        font-size: var(--text-sm);
     }
 
     .navbar-account.navbar-account--avatar {
