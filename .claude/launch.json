@@ -3,12 +3,9 @@
   "configurations": [
     {
       "name": "rocky-react",
-      "runtimeExecutable": "sh",
-      "runtimeArgs": [
-        "-c",
-        "cd /Users/juanjo/Rocky_react_web && PORT=3001 npx concurrently --kill-others \"npx vite --port 3100 --strictPort\" \"node --watch server.mjs\""
-      ],
-      "port": 3100,
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3000,
       "autoPort": false
     }
   ]

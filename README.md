@@ -71,7 +71,9 @@ npm install
 npm run dev
 ```
 
-La web queda en `http://localhost:3000` y Express en `http://localhost:3001`. Vite reenvía `/api` al BFF durante desarrollo. Si Shopify no está configurado, la interfaz muestra expresamente “Modo demo”; permite probar la presentación y un carrito local, pero no reserva stock ni habilita el pago.
+La web queda en `http://localhost:3000` (Vite) y Express en `http://localhost:3001`. Vite reenvía `/api` al BFF durante desarrollo. Si Shopify no está configurado, la interfaz muestra expresamente “Modo demo”; permite probar la presentación y un carrito local, pero no reserva stock ni habilita el pago.
+
+Los puertos son los mismos en `vite.config.mjs`, `.env.example` y `.claude/launch.json`. El chat de Rocky IA y los avisos de drop sólo aceptan peticiones cuyo `Origin` esté en `API_ALLOWED_ORIGINS` (por defecto, `PUBLIC_ORIGIN`, es decir `http://localhost:3000`): si arrancas Vite en otro puerto, añádelo ahí o verás “Origen no permitido”.
 
 Para crear la clave que cifra sesiones, IDs completos de carrito, OAuth, tokens de cliente, idempotencia y deduplicación de webhooks:
 
