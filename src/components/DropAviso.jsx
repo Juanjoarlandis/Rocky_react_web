@@ -1,20 +1,26 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import recadero from '../images/optimized/characters/corriendo-bolsa-600.webp';
 import '../styles/components/drop-aviso.css';
+import { dropNoticeKey } from '../config/storageKeys.js';
+import { readStorage, writeStorage } from '../utils/storage.js';
+import { isAbortError } from '../api/http.js';
+import { subscribeDropNotice } from '../api/avisos.js';
 
 /* El mostrador de avisos de un drop que aún no ha caído: dejas tu email y El
    Recadero te lo trae el día que salga. El "apodo" es el campo trampa para
    bots — ningún humano lo ve, y el servidor tira a la basura las altas que lo
    traen relleno. */
 
-const recuerdoDe = (producto) => `rocky-aviso-${producto}`;
-
 export default function DropAviso({ producto }) {
   const [estado, setEstado] = useState(() =>
-    globalThis.localStorage?.getItem(recuerdoDe(producto)) ? 'listo' : 'reposo'
+    readStorage(dropNoticeKey(producto)) ? 'listo' : 'reposo'
   );
   const [repetido, setRepetido] = useState(false);
   const [fallo, setFallo] = useState('');
+  // La petición en vuelo se cancela si el formulario desaparece
+  const requestRef = useRef(null);
+
+  useEffect(() => () => requestRef.current?.abort(), []);
 
   if (!producto) return null;
 
@@ -24,31 +30,28 @@ export default function DropAviso({ producto }) {
     setEstado('enviando');
     setFallo('');
 
+    const controller = new AbortController();
+    requestRef.current = controller;
+
     try {
-      const respuesta = await fetch('/api/avisos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const resultado = await subscribeDropNotice(
+        {
           producto,
           email: String(datos.get('email') || ''),
           consentimiento: datos.get('consentimiento') === 'on',
           apodo: String(datos.get('apodo') || ''),
-        }),
-      });
-      const cuerpo = await respuesta.json().catch(() => ({}));
-
-      if (!respuesta.ok) {
-        setEstado('reposo');
-        setFallo(cuerpo.message || 'No hemos podido apuntarte. Prueba otra vez.');
-        return;
-      }
-
-      globalThis.localStorage?.setItem(recuerdoDe(producto), '1');
-      setRepetido(Boolean(cuerpo.repetido));
+        },
+        { signal: controller.signal }
+      );
+      writeStorage(dropNoticeKey(producto), '1');
+      setRepetido(resultado.duplicate);
       setEstado('listo');
-    } catch {
+    } catch (error) {
+      if (isAbortError(error)) return;
       setEstado('reposo');
-      setFallo('No hemos podido apuntarte. Prueba otra vez.');
+      setFallo(error.message);
+    } finally {
+      if (requestRef.current === controller) requestRef.current = null;
     }
   }
 

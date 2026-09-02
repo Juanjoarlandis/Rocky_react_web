@@ -4,10 +4,9 @@ import botLogo from '../images/optimized/shell/ia-256.webp';
 import sentadoBordeRojo from '../images/optimized/characters/sentado-borde-rojo-600.webp';
 import estrellaApoyado from '../images/optimized/characters/estrella-apoyado-600.webp';
 import ChatProductCard from './ChatProductCard';
+import { isAbortError } from '../api/http.js';
+import { sendChatMessage } from '../api/chat.js';
 import '../styles/pages/chat.css';
-
-const ERROR_MESSAGE =
-  'Ahora mismo no puedo responder (el servidor de la IA no está disponible). Inténtalo más tarde.';
 
 const QUICK_PROMPTS = ['Ver camisetas disponibles', '¿Qué hay del DROP 4?', 'Háblame de LA CREW'];
 
@@ -34,6 +33,10 @@ function ChatComponent({
   const scrollRef = useRef(null);
   const latestTurnRef = useRef(null);
   const nextMessageId = useRef(1);
+  // La petición en vuelo se cancela al salir de la pantalla
+  const requestRef = useRef(null);
+
+  useEffect(() => () => requestRef.current?.abort(), []);
 
   useEffect(() => {
     if (messages.length === 0 && !isLoading) return;
@@ -59,42 +62,37 @@ function ChatComponent({
     setInput('');
     setIsLoading(true);
 
-    try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text }),
-      });
-      const data = await response.json().catch(() => null);
-      if (!response.ok) {
-        const requestError = new Error(`HTTP ${response.status}`);
-        requestError.userMessage = data?.message;
-        throw requestError;
-      }
-      if (!data?.message) throw new Error('Respuesta con formato inesperado');
+    const controller = new AbortController();
+    requestRef.current = controller;
 
+    try {
+      const data = await sendChatMessage(text, { signal: controller.signal });
       setMessages((current) => [
         ...current,
         {
           id: nextMessageId.current++,
           sender: 'ai',
           content: data.message,
-          products: Array.isArray(data.products) ? data.products : [],
+          products: data.products,
         },
       ]);
     } catch (error) {
+      if (isAbortError(error)) return;
       console.error('Error al hablar con Rocky IA:', error);
       setMessages((current) => [
         ...current,
         {
           id: nextMessageId.current++,
           sender: 'ai',
-          content: error?.userMessage || ERROR_MESSAGE,
+          content: error.userMessage,
           isError: true,
         },
       ]);
     } finally {
-      setIsLoading(false);
+      if (requestRef.current === controller) {
+        requestRef.current = null;
+        setIsLoading(false);
+      }
     }
   };
 
