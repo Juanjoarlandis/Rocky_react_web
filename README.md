@@ -16,7 +16,7 @@ Storefront full-stack para una marca de streetwear que mezcla tienda, música, p
 
 - **Storefront responsive:** catálogo, variantes, stock, carrito y checkout preparados para Shopify, con un modo demo completo para desarrollo.
 - **Rocky IA:** asistente conectado al catálogo que puede orientar sobre productos, tallas y disponibilidad sin exponer secretos en el cliente.
-- **La Colmena:** reproductor musical, setlist y una mesa de beats de 16 pasos que se ejecuta en el navegador.
+- **La Colmena:** reproductor musical, setlist y una mesa de beats de 8 pistas y 16 pasos (velocidad, swing, mezclador, ritmos de fábrica y 16 pads tocables con el teclado) sintetizada entera en el navegador.
 - **Crew Rewards:** perfiles con XP, niveles, Crew Tickets, avatares y cromos coleccionables.
 - **Backend seguro:** sesiones cifradas, OAuth con PKCE, webhooks verificados e idempotencia para las operaciones sensibles.
 
@@ -91,6 +91,22 @@ npm run security:check  # secretos locales y bundle
 npm run check           # pruebas + build + secret scan
 npm start               # sirve API y dist/ con Express
 ```
+
+## Puerta privada de preestreno
+
+Para sustituir temporalmente la web pública por la portada “We are cooking”,
+configura estos secretos únicamente en el entorno del servidor:
+
+```bash
+SITE_ACCESS_ENABLED=true
+SITE_ACCESS_PASSWORD=
+```
+
+La contraseña debe tener al menos 12 caracteres. Cuando la puerta está activa,
+Express bloquea antes de entregar la SPA, sus recursos o sus APIs; un acceso
+válido concede una sesión privada temporal. No uses variables `VITE_*` para esta
+clave y no la guardes en Git. Reinicia el proceso después de cambiarla para
+invalidar todas las concesiones anteriores.
 
 Para un smoke de producción:
 

@@ -46,4 +46,52 @@ describe('application configuration', () => {
       createConfig({ NODE_ENV: 'test', OPENROUTER_MODELS: ' , ' })
     ).toThrow(/al menos un modelo gratuito/i);
   });
+
+  it('keeps the site access gate off unless it is explicitly enabled', () => {
+    expect(createConfig({ NODE_ENV: 'test' }).siteAccess).toEqual({
+      enabled: false,
+      password: '',
+      sessionLifetimeMs: 12 * 60 * 60 * 1_000,
+    });
+
+    expect(
+      createConfig({
+        NODE_ENV: 'test',
+        SITE_ACCESS_ENABLED: 'false',
+        SITE_ACCESS_PASSWORD: 'unused-test-password',
+      }).siteAccess.enabled
+    ).toBe(false);
+  });
+
+  it('fails closed when the site access configuration is incomplete or ambiguous', () => {
+    expect(() =>
+      createConfig({ NODE_ENV: 'test', SITE_ACCESS_ENABLED: 'true' })
+    ).toThrow(/SITE_ACCESS_PASSWORD/);
+
+    expect(() =>
+      createConfig({
+        NODE_ENV: 'test',
+        SITE_ACCESS_ENABLED: 'true',
+        SITE_ACCESS_PASSWORD: 'too-short',
+      })
+    ).toThrow(/12 caracteres/);
+
+    expect(() =>
+      createConfig({ NODE_ENV: 'test', SITE_ACCESS_ENABLED: 'yes' })
+    ).toThrow(/SITE_ACCESS_ENABLED/);
+  });
+
+  it('enables the site access gate without exposing the password to the client config', () => {
+    const config = createConfig({
+      NODE_ENV: 'test',
+      SITE_ACCESS_ENABLED: 'true',
+      SITE_ACCESS_PASSWORD: 'correct-horse-battery-staple',
+    });
+
+    expect(config.siteAccess).toEqual({
+      enabled: true,
+      password: 'correct-horse-battery-staple',
+      sessionLifetimeMs: 12 * 60 * 60 * 1_000,
+    });
+  });
 });

@@ -1,11 +1,19 @@
+import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../server.mjs';
+import { isLoopbackAddress } from './access-gate.mjs';
+import { MemoryStore } from './encrypted-store.mjs';
 
 const runningServers = new Set();
 const staticTestDirectories = new Set();
+const ACCESS_PASSWORD = 'correct-horse-battery-staple';
+const ACCESS_GATE_ENV = {
+  SITE_ACCESS_ENABLED: 'true',
+  SITE_ACCESS_PASSWORD: ACCESS_PASSWORD,
+};
 
 afterEach(async () => {
   await Promise.all(
@@ -33,8 +41,30 @@ async function createStaticTestDirectory() {
       '<!doctype html><html><body>ROCKY TEST APP</body></html>'
     ),
     fs.writeFile(path.join(directory, 'assets', 'app-test.js'), 'export const ok = true;'),
+    fs.writeFile(path.join(directory, 'assets', 'grafitero-spray-test.webp'), 'fake-webp'),
+    fs.writeFile(
+      path.join(directory, 'assets', 'abrazando-paquete-test.webp'),
+      'fake-webp'
+    ),
+    fs.writeFile(
+      path.join(directory, 'assets', 'corriendo-bolsa-test.webp'),
+      'fake-webp'
+    ),
+    fs.writeFile(
+      path.join(directory, 'assets', 'fredoka-latin-300-700-test.woff2'),
+      'fake-font'
+    ),
+    fs.writeFile(
+      path.join(directory, 'assets', 'luckiest-guy-latin-400-test.woff2'),
+      'fake-font'
+    ),
+    fs.writeFile(
+      path.join(directory, 'assets', 'archivo-latin-400-800-test.woff2'),
+      'fake-font'
+    ),
     fs.writeFile(path.join(directory, 'products', 'rocky-test.webp'), 'fake-webp'),
     fs.writeFile(path.join(directory, 'manifest.json'), '{"name":"ROCKY TEST"}'),
+    fs.writeFile(path.join(directory, 'logo512.png'), 'fake-png'),
   ]);
   return directory;
 }
@@ -51,6 +81,7 @@ async function startTestServer(options = {}) {
     },
     fetchImpl: options.fetchImpl,
     logger: options.logger ?? { error: vi.fn(), info: vi.fn() },
+    store: options.store,
     staticDirectory: options.staticDirectory,
   });
   const server = await new Promise((resolve) => {
@@ -59,6 +90,10 @@ async function startTestServer(options = {}) {
   runningServers.add(server);
   const { port } = server.address();
   return `http://127.0.0.1:${port}`;
+}
+
+function cookieFrom(response) {
+  return response.headers.get('set-cookie')?.split(';', 1)[0] || '';
 }
 
 describe('static delivery boundary', () => {
@@ -121,6 +156,285 @@ describe('static delivery boundary', () => {
     expect(missingMockup.headers.get('content-type')).toContain('text/plain');
     expect(missingMockup.headers.get('cache-control')).toBe('no-store');
     expect(await missingMockup.text()).not.toContain('ROCKY TEST APP');
+  });
+});
+
+describe('private coming-soon access boundary', () => {
+  it('recognizes only the loopback addresses used by the internal healthcheck', () => {
+    expect(isLoopbackAddress('127.0.0.1')).toBe(true);
+    expect(isLoopbackAddress('::1')).toBe(true);
+    expect(isLoopbackAddress('::ffff:127.0.0.1')).toBe(true);
+    expect(isLoopbackAddress('172.17.0.1')).toBe(false);
+    expect(isLoopbackAddress('203.0.113.10')).toBe(false);
+    expect(isLoopbackAddress('')).toBe(false);
+  });
+
+  it('serves only the branded gate to anonymous document requests', async () => {
+    const staticDirectory = await createStaticTestDirectory();
+    const baseUrl = await startTestServer({
+      env: ACCESS_GATE_ENV,
+      staticDirectory,
+    });
+
+    for (const route of ['/', '/cart', '/crew', '/does-not-exist']) {
+      const response = await fetch(`${baseUrl}${route}`, {
+        headers: { Accept: 'text/html' },
+      });
+      const body = await response.text();
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get('cache-control')).toBe('no-store');
+      expect(response.headers.get('cloudflare-cdn-cache-control')).toBe('no-store');
+      expect(response.headers.get('x-robots-tag')).toBe('noindex, nofollow, noarchive');
+      expect(response.headers.get('set-cookie')).toBeNull();
+      expect(body).toContain('WE ARE COOKING');
+      expect(body).toContain('COMING SOON');
+      expect(body).not.toContain('ROCKY TEST APP');
+      expect(body).not.toContain(ACCESS_PASSWORD);
+    }
+  });
+
+  it('closes APIs and direct application resources before they can be served', async () => {
+    const staticDirectory = await createStaticTestDirectory();
+    const baseUrl = await startTestServer({
+      env: ACCESS_GATE_ENV,
+      staticDirectory,
+    });
+
+    for (const route of [
+      '/api/shopify/status',
+      '/assets/app-test.js',
+      '/products/rocky-test.webp',
+      '/manifest.json',
+      '/music/barro.m4a',
+    ]) {
+      const response = await fetch(`${baseUrl}${route}`);
+
+      expect(response.status).toBe(404);
+      expect(response.headers.get('cache-control')).toBe('no-store');
+      expect(response.headers.get('cloudflare-cdn-cache-control')).toBe('no-store');
+      expect(await response.text()).not.toContain('ROCKY TEST APP');
+    }
+
+    const health = await fetch(`${baseUrl}/api/health`);
+    expect(health.status).toBe(200);
+    await expect(health.json()).resolves.toEqual({ status: 'ok' });
+  });
+
+  it('serves only the allowlisted visual resources used by the gate', async () => {
+    const staticDirectory = await createStaticTestDirectory();
+    const baseUrl = await startTestServer({
+      env: ACCESS_GATE_ENV,
+      staticDirectory,
+    });
+
+    const stylesheet = await fetch(`${baseUrl}/access-gate/style.css`);
+    const character = await fetch(`${baseUrl}/access-gate/media/grafitero`);
+    const unknown = await fetch(`${baseUrl}/access-gate/media/app-test`);
+
+    expect(stylesheet.status).toBe(200);
+    expect(stylesheet.headers.get('content-type')).toContain('text/css');
+    expect(stylesheet.headers.get('cache-control')).toBe('no-store');
+    expect(character.status).toBe(200);
+    expect(character.headers.get('content-type')).toContain('image/webp');
+    expect(character.headers.get('cache-control')).toBe('no-store');
+    expect(unknown.status).toBe(404);
+  });
+
+  it('keeps failed attempts on the branded page and rate-limits repeated guesses', async () => {
+    const staticDirectory = await createStaticTestDirectory();
+    const baseUrl = await startTestServer({
+      env: ACCESS_GATE_ENV,
+      staticDirectory,
+    });
+    const headers = {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Origin: 'https://rocky.test',
+    };
+
+    for (let attempt = 1; attempt <= 5; attempt += 1) {
+      const response = await fetch(`${baseUrl}/access-gate`, {
+        method: 'POST',
+        headers,
+        body: 'password=definitely-not-it',
+      });
+      const body = await response.text();
+
+      expect(response.status).toBe(401);
+      expect(response.headers.get('set-cookie')).toBeNull();
+      expect(body).toContain('No abre. Revisa la clave');
+      expect(body).not.toContain('definitely-not-it');
+    }
+
+    const limited = await fetch(`${baseUrl}/access-gate`, {
+      method: 'POST',
+      headers,
+      body: 'password=still-not-it',
+    });
+
+    expect(limited.status).toBe(429);
+    expect(limited.headers.get('retry-after')).toBeTruthy();
+    expect(await limited.text()).toContain('Demasiados intentos');
+  });
+
+  it('rotates the session after a valid password and unlocks the whole app', async () => {
+    const staticDirectory = await createStaticTestDirectory();
+    const baseUrl = await startTestServer({
+      env: ACCESS_GATE_ENV,
+      staticDirectory,
+    });
+
+    const login = await fetch(`${baseUrl}/access-gate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Origin: 'https://rocky.test',
+      },
+      body: `password=${encodeURIComponent(ACCESS_PASSWORD)}`,
+      redirect: 'manual',
+    });
+    const cookie = cookieFrom(login);
+
+    expect(login.status).toBe(303);
+    expect(login.headers.get('location')).toBe('/');
+    expect(login.headers.get('set-cookie')).toContain('HttpOnly');
+    expect(login.headers.get('set-cookie')).toContain('SameSite=Lax');
+    expect(cookie).toBeTruthy();
+
+    const document = await fetch(`${baseUrl}/`, { headers: { Cookie: cookie } });
+    const asset = await fetch(`${baseUrl}/assets/app-test.js`, {
+      headers: { Cookie: cookie },
+    });
+    const api = await fetch(`${baseUrl}/api/shopify/status`, {
+      headers: { Cookie: cookie },
+    });
+
+    expect(document.status).toBe(200);
+    expect(await document.text()).toContain('ROCKY TEST APP');
+    expect(asset.status).toBe(200);
+    expect(asset.headers.get('cache-control')).toBe('private, no-store');
+    expect(asset.headers.get('cloudflare-cdn-cache-control')).toBe('no-store');
+    expect(api.status).toBe(200);
+    await expect(api.json()).resolves.toMatchObject({ mode: 'demo' });
+  });
+
+  it('sets Secure on the access session cookie in production', async () => {
+    const staticDirectory = await createStaticTestDirectory();
+    const baseUrl = await startTestServer({
+      env: {
+        ...ACCESS_GATE_ENV,
+        NODE_ENV: 'production',
+      },
+      staticDirectory,
+    });
+
+    const response = await fetch(`${baseUrl}/access-gate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Origin: 'https://rocky.test',
+      },
+      body: `password=${encodeURIComponent(ACCESS_PASSWORD)}`,
+      redirect: 'manual',
+    });
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get('set-cookie')).toContain('Secure');
+    expect(response.headers.get('set-cookie')).toContain('__Host-rocky_session=');
+  });
+
+  it('invalidates an existing access grant when the application process restarts', async () => {
+    const staticDirectory = await createStaticTestDirectory();
+    const store = new MemoryStore();
+    const firstProcess = await startTestServer({
+      env: ACCESS_GATE_ENV,
+      staticDirectory,
+      store,
+    });
+    const login = await fetch(`${firstProcess}/access-gate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Origin: 'https://rocky.test',
+      },
+      body: `password=${encodeURIComponent(ACCESS_PASSWORD)}`,
+      redirect: 'manual',
+    });
+    const cookie = cookieFrom(login);
+    const secondProcess = await startTestServer({
+      env: ACCESS_GATE_ENV,
+      staticDirectory,
+      store,
+    });
+
+    const response = await fetch(`${secondProcess}/`, {
+      headers: { Accept: 'text/html', Cookie: cookie },
+    });
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain('WE ARE COOKING');
+    expect(body).not.toContain('ROCKY TEST APP');
+  });
+
+  it('keeps the HMAC-verified Shopify webhook available as a machine-only exception', async () => {
+    const staticDirectory = await createStaticTestDirectory();
+    const secret = 'shopify-webhook-test-secret';
+    const rawBody = JSON.stringify({ shop: 'rocky-dev' });
+    const signature = crypto.createHmac('sha256', secret).update(rawBody).digest('base64');
+    const baseUrl = await startTestServer({
+      env: {
+        ...ACCESS_GATE_ENV,
+        APP_ENCRYPTION_KEY: 'test-encryption-key-not-written-to-disk',
+        SHOPIFY_STORE_DOMAIN: 'rocky-dev.myshopify.com',
+        SHOPIFY_CLIENT_SECRET: secret,
+      },
+      staticDirectory,
+      store: new MemoryStore(),
+    });
+
+    const invalid = await fetch(`${baseUrl}/api/shopify/webhooks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: rawBody,
+    });
+    const valid = await fetch(`${baseUrl}/api/shopify/webhooks`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Hmac-Sha256': signature,
+        'X-Shopify-Webhook-Id': 'delivery-access-gate-1',
+        'X-Shopify-Topic': 'app/uninstalled',
+        'X-Shopify-Shop-Domain': 'rocky-dev.myshopify.com',
+        'X-Shopify-Api-Version': '2026-07',
+      },
+      body: rawBody,
+    });
+
+    expect(invalid.status).toBe(401);
+    expect(valid.status).toBe(200);
+    await expect(valid.json()).resolves.toEqual({ accepted: true, duplicate: false });
+  });
+
+  it('rejects cross-origin unlock attempts even when the password is correct', async () => {
+    const staticDirectory = await createStaticTestDirectory();
+    const baseUrl = await startTestServer({
+      env: ACCESS_GATE_ENV,
+      staticDirectory,
+    });
+
+    const response = await fetch(`${baseUrl}/access-gate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Origin: 'https://evil.example',
+      },
+      body: `password=${encodeURIComponent(ACCESS_PASSWORD)}`,
+      redirect: 'manual',
+    });
+
+    expect(response.status).toBe(403);
+    expect(response.headers.get('set-cookie')).toBeNull();
   });
 });
 

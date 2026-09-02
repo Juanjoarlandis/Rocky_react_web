@@ -3,6 +3,11 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import dotenv from 'dotenv';
 import express from 'express';
+import {
+  createAccessGate,
+  isLoopbackAddress,
+  setPrivateAccessHeaders,
+} from './server/access-gate.mjs';
 import { createAvisosHandler } from './server/avisos.mjs';
 import { createChatHandler } from './server/chat.mjs';
 import { createConfig } from './server/config.mjs';
@@ -32,12 +37,20 @@ const REVALIDATED_PUBLIC_CACHE = 'public, max-age=14400, must-revalidate';
 const REVALIDATED_EDGE_CACHE = 'public, max-age=14400';
 const REVALIDATED_DOCUMENT_CACHE = 'public, max-age=0, must-revalidate';
 
-function setSpaDocumentHeaders(res) {
+function setSpaDocumentHeaders(res, isPrivate = false) {
+  if (isPrivate) {
+    setPrivateAccessHeaders(res);
+    return;
+  }
   res.setHeader('Cache-Control', REVALIDATED_DOCUMENT_CACHE);
   res.setHeader('Cloudflare-CDN-Cache-Control', 'no-store');
 }
 
-function setStablePublicHeaders(res) {
+function setStablePublicHeaders(res, isPrivate = false) {
+  if (isPrivate) {
+    setPrivateAccessHeaders(res);
+    return;
+  }
   res.setHeader('Cache-Control', REVALIDATED_PUBLIC_CACHE);
   res.setHeader('Cloudflare-CDN-Cache-Control', REVALIDATED_EDGE_CACHE);
 }
@@ -76,6 +89,10 @@ export function createApp({
   app.use(exactOriginPolicy(config));
 
   app.get('/api/health', (req, res) => {
+    if (config.siteAccess.enabled && !isLoopbackAddress(req.socket.remoteAddress)) {
+      res.setHeader('Cloudflare-CDN-Cache-Control', 'no-store');
+      return res.status(404).json({ message: 'Ruta no encontrada.' });
+    }
     res.json({ status: 'ok' });
   });
 
@@ -109,6 +126,16 @@ export function createApp({
         },
       })
     );
+  }
+
+  if (config.siteAccess.enabled) {
+    const accessGate = createAccessGate({
+      config,
+      sessions,
+      staticDirectory,
+    });
+    app.use('/access-gate', accessGate.router);
+    app.use(accessGate.requireAccess);
   }
 
   app.use(
@@ -170,6 +197,10 @@ export function createApp({
         index: false,
         fallthrough: true,
         setHeaders(res) {
+          if (config.siteAccess.enabled) {
+            setPrivateAccessHeaders(res);
+            return;
+          }
           res.setHeader('Cache-Control', IMMUTABLE_ASSET_CACHE);
           res.setHeader('Cloudflare-CDN-Cache-Control', IMMUTABLE_EDGE_CACHE);
         },
@@ -186,10 +217,10 @@ export function createApp({
         fallthrough: true,
         setHeaders(res, filePath) {
           if (filePath === indexPath) {
-            setSpaDocumentHeaders(res);
+            setSpaDocumentHeaders(res, config.siteAccess.enabled);
             return;
           }
-          setStablePublicHeaders(res);
+          setStablePublicHeaders(res, config.siteAccess.enabled);
         },
       })
     );
@@ -201,7 +232,7 @@ export function createApp({
     });
     app.get('*', (req, res, next) => {
       if (req.method !== 'GET') return next();
-      setSpaDocumentHeaders(res);
+      setSpaDocumentHeaders(res, config.siteAccess.enabled);
       return res.sendFile(indexPath);
     });
   }

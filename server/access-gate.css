@@ -1,0 +1,371 @@
+@font-face {
+  font-family: 'Rocky Display';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/access-gate/media/font-display') format('woff2');
+}
+
+@font-face {
+  font-family: 'Rocky Hand';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('/access-gate/media/font-hand') format('woff2');
+}
+
+@font-face {
+  font-family: 'Rocky Body';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('/access-gate/media/font-body') format('woff2');
+}
+
+:root {
+  color-scheme: light;
+  --ink: #1a1a1a;
+  --paper: #faf7f0;
+  --card: #fffdf8;
+  --muted: #736d61;
+  --red: #e63946;
+  --blue: #2f6fdb;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow-x: hidden;
+  background-color: var(--paper);
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'><g fill='none' stroke='%231a1a1a' stroke-opacity='0.055' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M38 30 L41 42 L53 45 L41 48 L38 60 L35 48 L23 45 L35 42 Z'/><circle cx='195' cy='72' r='10'/><path d='M181 72 L209 72 M195 58 L195 86 M52 190 q12 -10 24 0 q10 8 22 0 l-6 -5 m6 5 l-8 4 M200 175 l-8 16 h9 l-10 18'/></g></svg>"),
+    radial-gradient(circle, rgba(26, 26, 26, 0.075) 1.2px, transparent 1.2px);
+  background-size: 260px 260px, 26px 26px;
+  color: var(--ink);
+  font-family: 'Rocky Body', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.gate-shell {
+  position: relative;
+  display: grid;
+  min-height: 100vh;
+  min-height: 100dvh;
+  place-items: center;
+  overflow: hidden;
+  padding: 110px 24px 72px;
+  isolation: isolate;
+}
+
+.gate-shell::before,
+.gate-shell::after {
+  position: absolute;
+  z-index: -2;
+  border: 3px solid var(--ink);
+  content: '';
+  opacity: 0.09;
+}
+
+.gate-shell::before {
+  width: 420px;
+  height: 420px;
+  top: -210px;
+  right: -170px;
+  border-radius: 50%;
+}
+
+.gate-shell::after {
+  width: 280px;
+  height: 280px;
+  bottom: -155px;
+  left: -120px;
+  rotate: 17deg;
+}
+
+.gate-brand {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  translate: -50% 0;
+  font-family: 'Rocky Display', 'Arial Black', sans-serif;
+  font-size: clamp(1.45rem, 3vw, 2rem);
+  letter-spacing: 0.055em;
+  white-space: nowrap;
+}
+
+.gate-brand img {
+  width: 43px;
+  height: 43px;
+}
+
+.gate-card {
+  position: relative;
+  z-index: 2;
+  width: min(650px, 100%);
+  padding: clamp(36px, 6vw, 62px) clamp(24px, 7vw, 70px) 30px;
+  border: 3px solid var(--ink);
+  border-radius: 23px 255px 27px 225px / 225px 24px 255px 28px;
+  background: var(--card);
+  box-shadow: 10px 11px 0 var(--ink);
+  text-align: center;
+  rotate: -0.35deg;
+}
+
+.gate-card::before {
+  position: absolute;
+  width: 112px;
+  height: 30px;
+  top: -17px;
+  left: 50%;
+  background: rgb(230 57 70 / 82%);
+  content: '';
+  translate: -50% 0;
+  rotate: -2deg;
+}
+
+.gate-kicker {
+  display: inline-block;
+  margin: 0 0 13px;
+  padding: 5px 17px 4px;
+  border: 2px dashed var(--red);
+  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  color: var(--red);
+  font-family: 'Rocky Hand', sans-serif;
+  font-size: 0.97rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  rotate: -2deg;
+}
+
+h1 {
+  max-width: 520px;
+  margin: 0 auto;
+  font-family: 'Rocky Display', 'Arial Black', sans-serif;
+  font-size: clamp(3.3rem, 10vw, 6.4rem);
+  font-weight: 400;
+  letter-spacing: 0.015em;
+  line-height: 0.88;
+  text-wrap: balance;
+}
+
+.gate-squiggle {
+  width: min(330px, 80%);
+  height: 14px;
+  margin: 16px auto 12px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='18' viewBox='0 0 240 18'><path d='M4 11 Q 19 3 34 11 T 64 11 T 94 11 T 124 11 T 154 11 T 184 11 T 214 11 L236 9' fill='none' stroke='%23e63946' stroke-width='6' stroke-linecap='round'/></svg>");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
+.gate-copy {
+  margin: 0 auto 24px;
+  color: #4b473f;
+  font-family: 'Rocky Hand', sans-serif;
+  font-size: clamp(1.12rem, 2.5vw, 1.36rem);
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.gate-form label {
+  display: block;
+  margin-bottom: 7px;
+  font-family: 'Rocky Hand', sans-serif;
+  font-size: 0.94rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.gate-input-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 9px;
+}
+
+.gate-input-row input,
+.gate-input-row button {
+  min-height: 50px;
+  border: 2px solid var(--ink);
+  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  font: inherit;
+}
+
+.gate-input-row input {
+  min-width: 0;
+  padding: 10px 15px;
+  background: #fff;
+  box-shadow: inset 2px 2px 0 rgb(26 26 26 / 8%);
+  font-family: 'Rocky Hand', sans-serif;
+  font-size: 1.05rem;
+  outline: none;
+}
+
+.gate-input-row input:focus-visible {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 4px rgb(47 111 219 / 18%);
+}
+
+.gate-input-row button {
+  padding: 9px 23px;
+  background: var(--ink);
+  box-shadow: 4px 4px 0 var(--red);
+  color: #fff;
+  cursor: pointer;
+  font-family: 'Rocky Hand', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  transition: translate 120ms ease, box-shadow 120ms ease;
+}
+
+.gate-input-row button:hover {
+  translate: -1px -1px;
+  box-shadow: 6px 6px 0 var(--red);
+}
+
+.gate-input-row button:active {
+  translate: 3px 3px;
+  box-shadow: 1px 1px 0 var(--red);
+}
+
+.gate-input-row button:focus-visible {
+  outline: 4px solid rgb(47 111 219 / 35%);
+  outline-offset: 3px;
+}
+
+.gate-message {
+  min-height: 1.4em;
+  margin: 10px 0 2px;
+  font-family: 'Rocky Hand', sans-serif;
+  font-size: 1rem;
+}
+
+.gate-message--error {
+  color: #bd2632;
+  font-weight: 650;
+}
+
+.gate-note {
+  margin: 17px 0 0;
+  color: var(--muted);
+  font-family: 'Rocky Hand', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+}
+
+.gate-character {
+  position: absolute;
+  z-index: 3;
+  height: auto;
+  filter: drop-shadow(5px 6px 0 rgb(26 26 26 / 16%));
+  pointer-events: none;
+  user-select: none;
+}
+
+.gate-character--spray {
+  width: clamp(145px, 23vw, 285px);
+  left: max(-48px, calc(50% - 555px));
+  bottom: max(22px, calc(50% - 295px));
+  rotate: -5deg;
+  animation: float-left 4.8s ease-in-out infinite;
+}
+
+.gate-character--package {
+  width: clamp(135px, 20vw, 255px);
+  right: max(-32px, calc(50% - 480px));
+  top: max(92px, calc(50% - 285px));
+  rotate: 5deg;
+  animation: float-right 5.4s ease-in-out -1.4s infinite;
+}
+
+.gate-character--runner {
+  width: clamp(115px, 17vw, 210px);
+  right: max(-40px, calc(50% - 455px));
+  bottom: max(-18px, calc(50% - 330px));
+  rotate: -7deg;
+  animation: runner-bob 3.6s ease-in-out -0.7s infinite;
+}
+
+@keyframes float-left {
+  50% { translate: 0 -8px; rotate: 2deg; }
+}
+
+@keyframes float-right {
+  50% { translate: 0 9px; rotate: -2deg; }
+}
+
+@keyframes runner-bob {
+  50% { translate: -7px -5px; rotate: 2deg; }
+}
+
+@media (max-width: 760px) {
+  .gate-shell {
+    align-items: center;
+    padding: 92px 17px 130px;
+  }
+
+  .gate-brand {
+    top: 18px;
+  }
+
+  .gate-card {
+    padding: 39px 21px 24px;
+    box-shadow: 7px 8px 0 var(--ink);
+  }
+
+  .gate-input-row {
+    grid-template-columns: 1fr;
+  }
+
+  .gate-input-row button {
+    width: 100%;
+  }
+
+  .gate-character--spray {
+    width: 132px;
+    left: -31px;
+    bottom: -17px;
+  }
+
+  .gate-character--package {
+    width: 115px;
+    top: 63px;
+    right: -31px;
+    z-index: 1;
+  }
+
+  .gate-character--runner {
+    display: none;
+  }
+}
+
+@media (max-width: 390px) {
+  h1 {
+    font-size: clamp(3rem, 18vw, 4.1rem);
+  }
+
+  .gate-copy br {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gate-character,
+  .gate-input-row button {
+    animation: none;
+    transition: none;
+  }
+}

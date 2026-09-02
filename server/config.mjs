@@ -3,6 +3,30 @@ function readPositiveInteger(value, fallback, { min = 1, max = Number.MAX_SAFE_I
   return Number.isInteger(parsed) && parsed >= min && parsed <= max ? parsed : fallback;
 }
 
+function readBooleanFlag(value, fallback, label) {
+  if (value === undefined || value === '') return fallback;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  throw new Error(`${label} sólo puede ser true o false.`);
+}
+
+function readSiteAccess(env) {
+  const enabled = readBooleanFlag(env.SITE_ACCESS_ENABLED, false, 'SITE_ACCESS_ENABLED');
+  const configuredPassword = String(env.SITE_ACCESS_PASSWORD || '');
+
+  if (enabled && configuredPassword.length < 12) {
+    throw new Error(
+      'SITE_ACCESS_PASSWORD es obligatorio y debe tener al menos 12 caracteres.'
+    );
+  }
+
+  return Object.freeze({
+    enabled,
+    password: enabled ? configuredPassword : '',
+    sessionLifetimeMs: 12 * 60 * 60 * 1_000,
+  });
+}
+
 const DEFAULT_FREE_MODELS = [
   'google/gemma-4-31b-it:free',
   'nvidia/nemotron-3-ultra-550b-a55b:free',
@@ -87,6 +111,7 @@ export function createConfig(env = process.env) {
     publicOrigin,
     allowedOrigins: readOrigins(env, publicOrigin, isProduction),
     trustProxyHops: readPositiveInteger(env.TRUST_PROXY_HOPS, 0, { min: 0, max: 3 }),
+    siteAccess: readSiteAccess(env),
     chat: {
       apiKey: env.OPENROUTER_API_KEY || '',
       models,
