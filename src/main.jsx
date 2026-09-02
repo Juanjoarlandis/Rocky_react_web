@@ -1,3 +1,4 @@
+import './index.css';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
@@ -6,16 +7,17 @@ import {
   clearPreloadRecoveryGuardAfterBoot,
   installPreloadRecovery,
 } from './preloadRecovery';
-import './index.css';
 
 installPreloadRecovery();
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 
 root.render(
-  <BrowserRouter>
-    <App />
-  </BrowserRouter>
+  <React.StrictMode>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </React.StrictMode>
 );
 
 clearPreloadRecoveryGuardAfterBoot();
