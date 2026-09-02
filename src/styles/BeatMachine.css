@@ -1,15 +1,24 @@
-/* LA MESA DE BEATS — caja de ritmos dibujada */
+/* LA MESA DE BEATS — chasis de caja de ritmos, dibujado a mano.
+   Panel oscuro con moteado de spray, pantalla ámbar, vúmetro y pads. */
 
 .mesa-wrap {
     position: relative;
     /* Hueco para El Freeze bailando encima de la mesa */
     margin-top: clamp(92px, 12vw, 118px);
+    --celda: clamp(22px, 2.9vw, 32px);
+    --hueco-celda: 6px;
+    --cabeza: 200px;
+    --panel: #232323;
+    --panel-alto: #2e2e2e;
+    --linea: rgba(255, 253, 248, 0.16);
+    --honey: #f4b942;
+    --cian: #7fd0ff;
 }
 
 /* El Freeze baila tu beat: el balanceo va a la velocidad del BPM */
 .mesa-dancer {
     position: absolute;
-    bottom: calc(100% - 8px);
+    bottom: calc(100% - 10px);
     right: 5%;
     height: clamp(110px, 15vw, 150px);
     width: auto;
@@ -23,152 +32,673 @@
 }
 
 @keyframes mesa-baile {
-    0%, 100% {
-        transform: rotate(-3deg);
-    }
-    50% {
-        transform: rotate(5deg) translateY(-4px);
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .mesa-dancer {
-        animation: none !important;
-    }
+    0%, 100% { transform: rotate(-3deg); }
+    50% { transform: rotate(5deg) translateY(-4px); }
 }
 
 .mesa {
     position: relative;
     z-index: 2;
-    background-color: var(--card);
-    border: 2px solid var(--ink);
-    border-radius: var(--wobble-md);
-    box-shadow: var(--shadow-ink);
-    padding: 22px 24px 16px;
-}
-
-/* ---------- Rejilla ---------- */
-
-.mesa-grid {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 16px;
+    padding: 18px 20px 16px;
+    background-color: var(--ink-block);
+    background-image: var(--spray-speckle);
+    border: 2px solid var(--ink);
+    border-radius: var(--wobble-md);
+    box-shadow: 6px 6px 0 var(--accent);
+    color: #fffdf8;
+}
+
+/* ---------- Cabecera: marca, pantalla y vúmetro ---------- */
+
+.mesa-cabecera {
+    display: flex;
+    align-items: stretch;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.mesa-marca {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 6px 14px;
+    border: 2px solid var(--honey);
+    border-radius: var(--wobble-sm);
+    transform: rotate(-1.5deg);
+}
+
+.mesa-marca-nombre {
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    line-height: 1;
+    color: var(--honey);
+    letter-spacing: 0.04em;
+}
+
+.mesa-marca-modelo {
+    font-family: var(--font-hand);
+    font-size: 0.78rem;
+    letter-spacing: 0.22em;
+    color: rgba(255, 253, 248, 0.7);
+}
+
+/* Pantallita ámbar del aparato */
+.mesa-lcd {
+    flex: 1;
+    min-width: 240px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background-color: #1b1a12;
+    border: 2px solid rgba(244, 185, 66, 0.45);
+    border-radius: 10px;
+    box-shadow: inset 0 0 18px rgba(244, 185, 66, 0.12);
+}
+
+.lcd-datos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+    font-size: 0.74rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(244, 185, 66, 0.62);
+}
+
+.lcd-datos b {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--honey);
+    text-shadow: 0 0 10px rgba(244, 185, 66, 0.45);
+}
+
+.lcd-rec {
+    margin-left: auto;
+    color: rgba(255, 253, 248, 0.5);
+}
+
+.lcd-rec.on {
+    color: var(--accent);
+    text-shadow: 0 0 10px rgba(230, 57, 70, 0.6);
+    animation: lcd-latido 1s steps(2, end) infinite;
+}
+
+@keyframes lcd-latido {
+    50% { opacity: 0.35; }
+}
+
+/* Los 16 pasos, en chiquitito */
+.lcd-pasos {
+    display: flex;
+    gap: 4px;
+}
+
+.lcd-pasos i {
+    flex: 1;
+    height: 5px;
+    border-radius: 2px;
+    background-color: rgba(244, 185, 66, 0.26);
+}
+
+.lcd-pasos i:nth-child(4n + 1) {
+    background-color: rgba(244, 185, 66, 0.5);
+}
+
+.lcd-pasos i.on {
+    background-color: var(--honey);
+    box-shadow: 0 0 8px rgba(244, 185, 66, 0.8);
+}
+
+/* Vúmetro: cada segmento se enciende comparando nivel y umbral */
+.mesa-vu {
+    --nivel: 0;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 3px;
+    width: 26px;
+    padding: 7px 6px;
+    background-color: #141414;
+    border: 2px solid var(--linea);
+    border-radius: 8px;
+}
+
+.mesa-vu i {
+    flex: 1;
+    min-height: 5px;
+    border-radius: 2px;
+    background-color: #6fd18b;
+    /* Siempre se intuyen los segmentos; se encienden al llegar el nivel */
+    opacity: max(0.14, calc((var(--nivel) - var(--umbral)) * 60));
+}
+
+.mesa-vu i:nth-child(n + 7) { background-color: var(--honey); }
+.mesa-vu i:nth-child(n + 9) { background-color: var(--accent); }
+
+/* ---------- Transporte ---------- */
+
+.mesa-transporte {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 12px;
+    background-color: var(--panel);
+    border: 2px solid var(--linea);
+    border-radius: 12px;
+}
+
+.mesa-play,
+.mesa-rec,
+.mesa-tap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    border: 2px solid var(--ink);
+    background-color: var(--card);
+    color: var(--ink);
+    font-family: var(--font-display);
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.55);
+    transition: transform 0.08s ease, background-color 0.15s ease, box-shadow 0.08s ease;
+}
+
+.mesa-play {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.mesa-play svg {
+    width: 22px;
+    height: 22px;
+    fill: currentColor;
+}
+
+.mesa-play.sonando {
+    background-color: var(--honey);
+}
+
+.mesa-rec,
+.mesa-tap {
+    height: 40px;
+    padding: 0 16px;
+    border-radius: var(--wobble-sm);
+    font-size: 0.95rem;
+}
+
+.mesa-play:hover,
+.mesa-rec:hover,
+.mesa-tap:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.55);
+}
+
+.mesa-play:active,
+.mesa-rec:active,
+.mesa-tap:active {
+    transform: translate(2px, 2px);
+    box-shadow: none;
+}
+
+.mesa-rec.on {
+    background-color: var(--accent);
+    color: #fff;
+}
+
+.mesa-led {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid var(--ink);
+    background-color: rgba(230, 57, 70, 0.35);
+}
+
+.mesa-rec.on .mesa-led {
+    background-color: #fff;
+    box-shadow: 0 0 8px #fff;
+    animation: lcd-latido 1s steps(2, end) infinite;
+}
+
+/* Mandos deslizantes */
+.mesa-mando {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    flex: 1 1 190px;
+    min-width: 165px;
+}
+
+.mando-nombre {
+    font-family: var(--font-hand);
+    font-size: 0.82rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(255, 253, 248, 0.62);
+    white-space: nowrap;
+}
+
+.mando-valor {
+    font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+    font-size: 0.86rem;
+    color: var(--honey);
+    min-width: 34px;
+    text-align: right;
+}
+
+.mesa input[type='range'] {
+    flex: 1;
+    min-width: 60px;
+    height: 16px;
+    accent-color: var(--honey);
+    cursor: pointer;
+}
+
+/* ---------- Ritmos de fábrica ---------- */
+
+.mesa-presets {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.mesa-presets-titulo {
+    font-family: var(--font-hand);
+    font-size: 0.82rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(255, 253, 248, 0.55);
+}
+
+.chip {
+    padding: 5px 13px;
+    border: 2px solid var(--linea);
+    border-radius: 999px;
+    background-color: var(--panel);
+    color: rgba(255, 253, 248, 0.86);
+    font-family: var(--font-hand);
+    font-size: 0.92rem;
+    cursor: pointer;
+    transition: transform 0.08s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.chip:hover {
+    transform: translateY(-1px);
+    border-color: var(--honey);
+}
+
+.chip.on {
+    background-color: var(--honey);
+    border-color: var(--honey);
+    /* Tinta a fuego: sobre la miel hace falta trazo oscuro también con el
+       neón puesto, donde var(--ink) se vuelve luz. */
+    color: #1a1a1a;
+    font-weight: 600;
+}
+
+/* ---------- Secuenciador ---------- */
+
+.mesa-seq {
+    background-color: var(--panel);
+    border: 2px solid var(--linea);
+    border-radius: 12px;
+    padding: 12px 12px 8px;
+}
+
+.seq-scroll {
     overflow-x: auto;
     padding-bottom: 6px;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
 }
 
-/* Pista para el dedo en móvil: la rejilla se desliza */
-.mesa-hint {
-    display: none;
-    margin: 8px 0 0;
-    font-family: var(--font-hand);
-    font-size: 0.92rem;
-    color: var(--muted);
-    text-align: right;
-}
-
-.mesa-row {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-}
-
-.mesa-label {
-    font-family: var(--font-hand);
-    font-size: 1.05rem;
-    width: 64px;
-    flex-shrink: 0;
-    transform: rotate(-1deg);
-}
-
-.mesa-cells {
-    display: flex;
-    gap: 6px;
-}
-
-.mesa-cell {
-    width: clamp(24px, 3.2vw, 34px);
-    height: clamp(24px, 3.2vw, 34px);
-    flex-shrink: 0;
-    border: 2px solid var(--ink);
-    border-radius: var(--wobble-sm);
-    background-color: var(--card);
-    cursor: pointer;
-    padding: 0;
-    transition: transform 0.08s ease, background-color 0.12s ease, box-shadow 0.12s ease;
-}
-
-/* Marca visual de cada pulso (pasos 1, 5, 9, 13) */
-.mesa-cell.marca {
-    background-color: var(--paper);
-}
-
-.mesa-cell:hover {
-    transform: translate(-1px, -1px);
-    box-shadow: 2px 2px 0 var(--ink);
-}
-
-.mesa-cell.on {
-    background-color: var(--ink);
-    box-shadow: 2px 2px 0 rgba(26, 26, 26, 0.35);
-}
-
-.mesa-cell.on.roja {
-    background-color: var(--accent);
-}
-
-/* Columna que está sonando ahora mismo */
-.mesa-cell.actual {
-    transform: translateY(-2px);
-    border-color: var(--accent);
-    box-shadow: 0 3px 0 var(--accent);
-}
-
-/* ---------- Controles ---------- */
-
-.mesa-controls {
-    display: flex;
-    align-items: center;
-    gap: 18px;
-    flex-wrap: wrap;
-    margin-top: 16px;
-    padding-top: 14px;
-    border-top: 2px dashed var(--line);
-}
-
-.mesa-play {
-    width: 58px;
-    height: 58px;
-}
-
-.mesa-bpm {
+.seq-regla,
+.seq-fila {
     display: flex;
     align-items: center;
     gap: 12px;
-    flex: 1;
-    min-width: 190px;
+    min-width: max-content;
 }
 
-.mesa-bpm-valor {
-    font-family: var(--font-display);
-    font-size: 1rem;
+.seq-hueco,
+.seq-cabeza {
+    width: var(--cabeza);
+    flex-shrink: 0;
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background-color: var(--panel);
+}
+
+.seq-cabeza {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-right: 6px;
+}
+
+.seq-numeros {
+    display: flex;
+    gap: var(--hueco-celda);
+}
+
+.seq-numeros span {
+    width: var(--celda);
+    text-align: center;
+    font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+    font-size: 0.7rem;
+    color: rgba(255, 253, 248, 0.28);
+}
+
+.seq-numeros span.fuerte {
+    color: var(--honey);
+}
+
+.seq-rejilla {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-top: 4px;
+}
+
+.seq-fila.apagada {
+    opacity: 0.45;
+}
+
+.pista-nombre {
+    flex: 1;
+    min-width: 0;
+    padding: 4px 6px;
+    border: 2px solid transparent;
+    border-radius: 7px;
+    background-color: transparent;
+    color: #fffdf8;
+    font-family: var(--font-hand);
+    font-size: 0.92rem;
+    text-align: left;
     white-space: nowrap;
-    transform: rotate(-1.5deg);
-    min-width: 74px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
 }
 
-.mesa-bpm input {
-    flex: 1;
-    accent-color: var(--accent);
+.pista-nombre:hover {
+    border-color: var(--linea);
+}
+
+.pista-nombre.muda {
+    text-decoration: line-through;
+    color: rgba(255, 253, 248, 0.45);
+}
+
+.pista-solo {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    border: 2px solid var(--linea);
+    border-radius: 6px;
+    background-color: transparent;
+    color: rgba(255, 253, 248, 0.6);
+    font-family: var(--font-display);
+    font-size: 0.72rem;
     cursor: pointer;
-    height: 16px;
+}
+
+.pista-solo.on {
+    background-color: var(--honey);
+    border-color: var(--honey);
+    color: var(--ink);
+}
+
+/* El deslizador de pista es fijo: gana al ancho general de los mandos */
+.mesa input.pista-nivel[type='range'] {
+    flex: 0 0 52px;
+    width: 52px;
+    min-width: 52px;
+    height: 12px;
+}
+
+.seq-celdas {
+    display: flex;
+    gap: var(--hueco-celda);
+}
+
+.celda {
+    position: relative;
+    width: var(--celda);
+    height: var(--celda);
+    flex-shrink: 0;
+    padding: 0;
+    border: 2px solid rgba(255, 253, 248, 0.2);
+    border-radius: 7px;
+    background-color: rgba(255, 253, 248, 0.05);
+    cursor: pointer;
+    transition: transform 0.08s ease, border-color 0.12s ease;
+}
+
+/* Marca de cada pulso: los cuatro cuadros fuertes */
+.celda.marca {
+    background-color: rgba(255, 253, 248, 0.12);
+    border-color: rgba(255, 253, 248, 0.3);
+}
+
+.celda:hover {
+    transform: translateY(-2px);
+    border-color: var(--honey);
+}
+
+.celda-luz {
+    position: absolute;
+    inset: 2px;
+    border-radius: 4px;
+    background-color: var(--luz, var(--honey));
+    transform: scale(0);
+    transition: transform 0.09s ease, opacity 0.09s ease;
+}
+
+/* Fantasma, golpe y acento */
+.celda.v1 .celda-luz { transform: scale(0.5); opacity: 0.6; }
+.celda.v2 .celda-luz { transform: scale(1); opacity: 0.9; }
+.celda.v3 .celda-luz {
+    transform: scale(1);
+    opacity: 1;
+    box-shadow: 0 0 10px var(--luz, var(--honey));
+}
+
+/* Columna que está sonando ahora mismo */
+.celda.actual {
+    border-color: #fffdf8;
+    box-shadow: 0 0 0 2px rgba(255, 253, 248, 0.18);
+}
+
+/* Cada pista tiene su color de luz */
+.seq-fila:nth-child(1) { --luz: var(--accent); }
+.seq-fila:nth-child(2) { --luz: var(--honey); }
+.seq-fila:nth-child(3) { --luz: var(--cian); }
+.seq-fila:nth-child(4) { --luz: var(--cian); }
+.seq-fila:nth-child(5) { --luz: var(--honey); }
+.seq-fila:nth-child(6) { --luz: var(--cian); }
+.seq-fila:nth-child(7) { --luz: var(--honey); }
+.seq-fila:nth-child(8) { --luz: var(--accent); }
+
+.seq-pista {
+    margin: 8px 2px 0;
+    font-family: var(--font-hand);
+    font-size: 0.82rem;
+    color: rgba(255, 253, 248, 0.45);
+}
+
+/* ---------- Pads ---------- */
+
+.mesa-pads-zona {
+    background-color: var(--panel);
+    border: 2px solid var(--linea);
+    border-radius: 12px;
+    padding: 12px;
+}
+
+.pads-barra {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.pads-bancos {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.pads-tono {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-hand);
+    font-size: 0.82rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 253, 248, 0.55);
+}
+
+.pads-tono select {
+    padding: 5px 9px;
+    border: 2px solid var(--linea);
+    border-radius: 8px;
+    background-color: var(--panel-alto);
+    color: #fffdf8;
+    font-family: var(--font-hand);
+    font-size: 0.92rem;
+    cursor: pointer;
+}
+
+.pads-rejilla {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    max-width: 760px;
+    margin: 0 auto;
+}
+
+.pad {
+    --fam: var(--honey);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    aspect-ratio: 1.55 / 1;
+    padding: 7px 9px;
+    border: 2px solid var(--ink);
+    border-radius: 12px;
+    /* Goma del pad: un poco de relieve para que pida que la toques */
+    background-image: linear-gradient(180deg, #3c3c3c 0%, #2a2a2a 72%);
+    background-color: var(--panel-alto);
+    color: #fffdf8;
+    cursor: pointer;
+    touch-action: manipulation;
+    user-select: none;
+    box-shadow:
+        0 4px 0 rgba(0, 0, 0, 0.6),
+        inset 0 -4px 0 var(--fam),
+        inset 0 1px 0 rgba(255, 255, 255, 0.09);
+    transition: transform 0.07s ease, box-shadow 0.07s ease, background-color 0.12s ease;
+}
+
+.pad-tecla {
+    font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+    font-size: 0.7rem;
+    padding: 1px 6px;
+    border: 1px solid rgba(255, 253, 248, 0.16);
+    border-radius: 5px;
+    background-color: rgba(0, 0, 0, 0.42);
+    color: rgba(255, 253, 248, 0.86);
+}
+
+.pad-label {
+    font-family: var(--font-hand);
+    font-size: 0.8rem;
+    line-height: 1.1;
+    text-align: left;
+    color: rgba(255, 253, 248, 0.92);
+}
+
+/* Cada familia de sonido, su color */
+.pad--grave { --fam: var(--accent); }
+.pad--medio { --fam: var(--honey); }
+.pad--agudo { --fam: var(--cian); }
+.pad--aire { --fam: #c39bff; }
+.pad--tecla { --fam: #6fd18b; }
+
+.pad:hover {
+    background-image: linear-gradient(180deg, #494949 0%, #333 72%);
+}
+
+/* Al golpear, el pad se hunde y se enciende con su color */
+.pad:active,
+.pad--golpe {
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.6), inset 0 -2px 0 rgba(0, 0, 0, 0.25);
+}
+
+.pad--golpe {
+    background-image: none;
+    background-color: var(--fam);
+    color: var(--ink);
+}
+
+.pad--golpe.pad--grave {
+    color: #fff;
+}
+
+.pad--golpe .pad-label {
+    color: inherit;
+}
+
+.pad--golpe .pad-tecla {
+    background-color: rgba(0, 0, 0, 0.28);
+    border-color: transparent;
+    color: inherit;
+}
+
+.pads-nota {
+    margin: 12px 2px 0;
+    font-family: var(--font-hand);
+    font-size: 0.84rem;
+    color: rgba(255, 253, 248, 0.5);
+}
+
+.pads-nota b {
+    color: var(--honey);
+    font-weight: 600;
+}
+
+/* ---------- Pie ---------- */
+
+.mesa-pie {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding-top: 12px;
+    border-top: 2px dashed var(--linea);
 }
 
 .mesa-acciones {
     display: flex;
-    gap: 12px;
+    gap: 10px;
     flex-wrap: wrap;
 }
 
@@ -178,48 +708,97 @@
 }
 
 .mesa-nota {
-    margin: 12px 2px 0;
+    margin: 0;
+    flex: 1;
+    min-width: 220px;
     font-family: var(--font-hand);
-    font-size: 0.95rem;
-    color: var(--muted);
-    transform: rotate(-0.5deg);
+    font-size: 0.86rem;
+    color: rgba(255, 253, 248, 0.45);
+    text-align: right;
 }
 
 /* ---------- Responsive ---------- */
 
+@media (max-width: 860px) {
+    .mesa-wrap {
+        --cabeza: 138px;
+    }
+
+    .pista-nivel {
+        display: none;
+    }
+}
+
 @media (max-width: 640px) {
+    .pista-nombre {
+        font-size: 0.82rem;
+        padding: 4px;
+    }
+
+    .mesa-wrap {
+        margin-top: 84px;
+        --celda: 26px;
+        --hueco-celda: 5px;
+        --cabeza: 124px;
+    }
+
     .mesa {
         padding: 14px 12px 12px;
-    }
-
-    .mesa-label {
-        width: 52px;
-        font-size: 0.92rem;
-    }
-
-    .mesa-cells {
-        gap: 4px;
-    }
-
-    .mesa-cell {
-        width: 26px;
-        height: 26px;
-    }
-
-    .mesa-hint {
-        display: block;
-    }
-
-    .mesa-controls {
         gap: 12px;
+    }
+
+    .mesa-cabecera {
+        gap: 10px;
+    }
+
+    .mesa-marca {
+        padding: 4px 10px;
+    }
+
+    .mesa-lcd {
+        min-width: 180px;
+        padding: 8px 10px;
+    }
+
+    .mesa-vu {
+        width: 100%;
+        flex-direction: row;
+        height: 20px;
+        padding: 5px;
+    }
+
+    .mesa-transporte {
+        gap: 10px;
+        padding: 10px;
+    }
+
+    .mesa-mando {
+        flex: 1 1 100%;
+    }
+
+    .pad {
+        aspect-ratio: 1.5 / 1;
+        padding: 5px 6px;
+    }
+
+    .pad-label {
+        font-size: 0.72rem;
+    }
+
+    .mesa-nota {
+        text-align: left;
     }
 
     .mesa-dancer {
         height: 96px;
         right: 3%;
     }
+}
 
-    .mesa-wrap {
-        margin-top: 84px;
+@media (prefers-reduced-motion: reduce) {
+    .mesa-dancer,
+    .lcd-rec.on,
+    .mesa-rec.on .mesa-led {
+        animation: none !important;
     }
 }
