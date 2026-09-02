@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { MemoryStore } from '../encrypted-store.mjs';
-import { createCustomerAccountClient } from './customer-account.mjs';
+import { createCustomerAccountClient, normalizeReturnPath } from './customer-account.mjs';
 
 function response(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -121,12 +121,33 @@ describe('Customer Account OAuth', () => {
       fetchImpl: vi.fn(),
     });
 
-    await expect(
-      client.beginAuthentication({
-        returnPath: 'https://evil.example',
-        sessionBinding: 'session-binding-for-tests',
-      })
-    ).rejects.toMatchObject({ status: 400 });
+    for (const returnPath of [
+      'https://evil.example',
+      '//evil.example',
+      '/\\evil.example',
+      '/\\/evil.example',
+      'javascript:alert(1)',
+      'cart',
+      '',
+      42,
+    ]) {
+      await expect(
+        client.beginAuthentication({
+          returnPath,
+          sessionBinding: 'session-binding-for-tests',
+        })
+      ).rejects.toMatchObject({ status: 400, code: 'INVALID_RETURN_PATH' });
+    }
+  });
+
+  it('keeps encoded backslashes as a local path instead of a new origin', () => {
+    expect(normalizeReturnPath('/%5C', config.publicOrigin)).toBe('/%5C');
+    expect(normalizeReturnPath('/%5Cevil.example', config.publicOrigin)).toBe('/%5Cevil.example');
+    expect(normalizeReturnPath('/mi-crew?tab=xp#top', config.publicOrigin)).toBe(
+      '/mi-crew?tab=xp#top'
+    );
+    expect(normalizeReturnPath('/\\evil.example', config.publicOrigin)).toBeNull();
+    expect(normalizeReturnPath('/\\/evil.example', config.publicOrigin)).toBeNull();
   });
 
   it('binds OAuth state to the browser session that started login', async () => {

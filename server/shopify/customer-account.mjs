@@ -18,8 +18,22 @@ function hash(value) {
   return crypto.createHash('sha256').update(value, 'utf8').digest('base64url');
 }
 
-function isSafeReturnPath(value) {
-  return typeof value === 'string' && /^\/(?!\/)[^\r\n]*$/.test(value) && value.length <= 500;
+// La ruta de retorno se resuelve contra el origen público y sólo vale si
+// sigue en él: así caen `//evil`, `/\\evil` (el navegador lee la barra
+// invertida como barra normal) y cualquier URL absoluta. Se devuelve la ruta
+// ya normalizada por el parser de URL, nunca el texto que llegó.
+export function normalizeReturnPath(value, publicOrigin) {
+  if (typeof value !== 'string' || value.length > 500 || !value.startsWith('/')) {
+    return null;
+  }
+  let url;
+  try {
+    url = new URL(value, publicOrigin);
+  } catch {
+    return null;
+  }
+  if (url.origin !== publicOrigin) return null;
+  return `${url.pathname}${url.search}${url.hash}`;
 }
 
 function requireSessionBinding(value) {
@@ -315,7 +329,8 @@ export function createCustomerAccountClient({
 
   return {
     async beginAuthentication({ returnPath = '/', sessionBinding } = {}) {
-      if (!isSafeReturnPath(returnPath)) {
+      const safeReturnPath = normalizeReturnPath(returnPath, config.publicOrigin);
+      if (!safeReturnPath) {
         throw new CustomerAccountError('Ruta de retorno no permitida.', 400, 'INVALID_RETURN_PATH');
       }
       const sessionBindingHash = requireSessionBinding(sessionBinding);
@@ -327,7 +342,7 @@ export function createCustomerAccountClient({
       await store.set(
         'oauthTransactions',
         hash(state),
-        { nonce, verifier, returnPath, sessionBindingHash },
+        { nonce, verifier, returnPath: safeReturnPath, sessionBindingHash },
         { expiresAt: clock() + OAUTH_TRANSACTION_MS }
       );
 
