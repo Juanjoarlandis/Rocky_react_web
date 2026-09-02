@@ -11,6 +11,15 @@ export const STEP_COUNT = 16;
 export const LEGACY_TRACK_COUNT = 4;
 export const MAX_VELOCITY = 3;
 
+// Rango de la mesa: lo que admiten los mandos, el tap tempo y los enlaces.
+export const BPM_MIN = 60;
+export const BPM_MAX = 180;
+export const BPM_DEFAULT = 95;
+// Swing: 0 = recto, 1 = la corchea impar se va al tresillo (y un poco más)
+export const SWING_MIN = 0;
+export const SWING_MAX = 0.7;
+export const SWING_DEFAULT = 0;
+
 const V2_PREFIX = '2';
 const V1_RE = /^[0-9a-f]{16}$/i;
 const V2_RE = /^2[0-9a-f]{64}$/i;
@@ -101,15 +110,15 @@ export function isEmptyPattern(pattern) {
     return normalizePattern(pattern).every((track) => track.every((v) => v === 0));
 }
 
-export function clampBpm(value, fallback = 95) {
+export function clampBpm(value, fallback = BPM_DEFAULT) {
     const bpm = Number(value);
     if (!Number.isFinite(bpm)) return fallback;
-    return Math.min(180, Math.max(60, Math.round(bpm)));
+    return Math.min(BPM_MAX, Math.max(BPM_MIN, Math.round(bpm)));
 }
 
-// Swing: 0 = recto, 1 = la corchea impar se va al tresillo (y un poco más)
-export function clampSwing(value, fallback = 0) {
+// El swing se guarda con dos decimales: es lo que resuelve el mando.
+export function clampSwing(value, fallback = SWING_DEFAULT) {
     const swing = Number(value);
     if (!Number.isFinite(swing)) return fallback;
-    return Math.min(0.7, Math.max(0, Math.round(swing * 100) / 100));
+    return Math.min(SWING_MAX, Math.max(SWING_MIN, Math.round(swing * 100) / 100));
 }

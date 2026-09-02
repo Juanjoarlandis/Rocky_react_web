@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+    BPM_DEFAULT,
+    BPM_MAX,
+    BPM_MIN,
+    SWING_DEFAULT,
+    SWING_MAX,
+    SWING_MIN,
     clampBpm,
     clampSwing,
     decodePattern,
@@ -80,11 +86,28 @@ describe('beatCodec', () => {
         expect(clampBpm('120')).toBe(120);
     });
 
+    it('publica el rango de tempo que usan los mandos', () => {
+        expect(BPM_MIN).toBe(60);
+        expect(BPM_MAX).toBe(180);
+        expect(BPM_DEFAULT).toBe(95);
+        expect(clampBpm(BPM_MIN - 1)).toBe(BPM_MIN);
+        expect(clampBpm(BPM_MAX + 1)).toBe(BPM_MAX);
+        expect(clampBpm(undefined)).toBe(BPM_DEFAULT);
+    });
+
     it('limita el swing entre recto y tresillo largo', () => {
         expect(clampSwing(0)).toBe(0);
         expect(clampSwing(0.24)).toBe(0.24);
         expect(clampSwing(9)).toBe(0.7);
         expect(clampSwing(-1)).toBe(0);
         expect(clampSwing('bailando')).toBe(0);
+    });
+
+    it('publica el rango de swing que usan los mandos', () => {
+        expect(SWING_MIN).toBe(0);
+        expect(SWING_MAX).toBe(0.7);
+        expect(SWING_DEFAULT).toBe(0);
+        expect(clampSwing(SWING_MAX + 0.5)).toBe(SWING_MAX);
+        expect(clampSwing(undefined)).toBe(SWING_DEFAULT);
     });
 });
