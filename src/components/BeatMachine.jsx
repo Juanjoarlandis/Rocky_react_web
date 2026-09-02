@@ -119,6 +119,7 @@ function BeatMachine() {
     const vuRef = useRef(null);
     const tapsRef = useRef([]);
     const flashRef = useRef(null);
+    const copiadoRef = useRef(null);
 
     // Espejos para el planificador, que corre fuera del ciclo de React
     const patternRef = useRef(pattern);
@@ -286,6 +287,7 @@ function BeatMachine() {
             seq.timer = null;
             seq.raf = null;
             clearTimeout(flashRef.current);
+            clearTimeout(copiadoRef.current);
             engineRef.current?.close();
             engineRef.current = null;
         },
@@ -416,7 +418,8 @@ function BeatMachine() {
         try {
             await navigator.clipboard.writeText(url);
             setCopiado(true);
-            setTimeout(() => setCopiado(false), 2400);
+            clearTimeout(copiadoRef.current);
+            copiadoRef.current = setTimeout(() => setCopiado(false), 2400);
         } catch {
             window.prompt('Copia el enlace de tu beat:', url);
         }
