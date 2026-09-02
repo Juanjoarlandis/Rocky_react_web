@@ -101,11 +101,6 @@
     transform: translateX(4px) rotate(4deg);
 }
 
-.product-page-hero-cta:focus-visible {
-    outline: 3px solid var(--accent);
-    outline-offset: 4px;
-}
-
 /* El grafitero pinta la línea del encabezado. No se mueve del sitio: el dibujo
    lo tiene rociando hacia abajo y a su izquierda, así que lo coherente es que la
    línea salga de su bote y crezca hacia allá. El chorro son puntos animados de

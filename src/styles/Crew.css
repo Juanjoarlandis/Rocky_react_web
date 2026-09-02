@@ -303,6 +303,11 @@
     perspective: 1200px;
     height: 430px;
     cursor: pointer;
+}
+
+/* El anillo de foco lo lleva la carta de dentro, que es la que gira; el
+   contorno global sobre el contenedor plano sobraría. */
+.crew-card:focus-visible {
     outline: none;
 }
 

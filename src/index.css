@@ -76,6 +76,19 @@
   box-sizing: border-box;
 }
 
+/* Los controles nativos (rango, casillas, textarea) se pintan claros aunque el
+   sistema esté en oscuro; el modo neón lo cambia a dark más abajo. */
+:root {
+  color-scheme: light;
+}
+
+/* Un solo anillo de foco para toda la web: el rojo de la marca, separado del
+   borde. Los componentes que ya llevan su propia señal lo apagan a mano. */
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
 ::selection {
   background-color: var(--accent);
   color: #fff;

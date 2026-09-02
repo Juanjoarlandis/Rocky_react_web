@@ -607,7 +607,6 @@
     padding: 11px 54px 10px 14px;
     border: 2px solid var(--ink);
     border-radius: 11px 18px 10px 15px;
-    outline: none;
     background: var(--paper);
     color: var(--ink);
     font-family: var(--font-hand);
@@ -619,6 +618,11 @@
 .chat-input-wrap textarea:focus {
     border-color: var(--accent);
     box-shadow: 3px 3px 0 var(--ink);
+}
+
+/* El foco ya se ve en el borde rojo y la sombra: sin anillo encima. */
+.chat-input-wrap textarea:focus-visible {
+    outline: none;
 }
 
 .chat-input-wrap textarea::placeholder {

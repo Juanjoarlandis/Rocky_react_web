@@ -123,11 +123,6 @@
     box-shadow: 3px 3px 0 var(--accent);
 }
 
-.navbar-account--avatar:focus-visible {
-    outline: 3px solid var(--accent);
-    outline-offset: 3px;
-}
-
 .navbar-account-avatar {
     width: 100%;
     height: 100%;
@@ -152,8 +147,6 @@
 .navbar-link:focus-visible,
 .navbar-account:focus-visible,
 .navbar-cart:focus-visible {
-    outline: 3px solid var(--accent);
-    outline-offset: 3px;
     border-radius: var(--wobble-sm);
 }
 
@@ -262,8 +255,6 @@
 }
 
 .navbar-theme:focus-visible {
-    outline: 3px solid var(--accent);
-    outline-offset: 3px;
     border-radius: var(--wobble-sm);
 }
 

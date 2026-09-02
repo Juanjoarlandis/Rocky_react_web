@@ -56,12 +56,6 @@
     text-decoration: underline wavy var(--accent);
 }
 
-.mini-player-title:focus-visible,
-.mini-player-btn:focus-visible {
-    outline: 3px solid var(--accent);
-    outline-offset: 3px;
-}
-
 .mini-player-btn {
     display: flex;
     align-items: center;
