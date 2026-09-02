@@ -72,6 +72,7 @@
     font-family: var(--font-hand);
     font-size: var(--text-md);
     letter-spacing: 0.04em;
+    min-height: 44px;
     padding: 6px 20px;
     border: 2px solid rgba(var(--white-rgb), 0.85);
     border-radius: var(--wobble-sm);

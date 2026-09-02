@@ -88,7 +88,7 @@ function App() {
             className={`commerce-notice ${commerce.error ? 'commerce-notice-error' : ''}`}
             role={commerce.error ? 'alert' : 'status'}
           >
-            {commerce.error || 'Modo demo: catálogo de muestra, sin reserva de stock ni pagos.'}
+            {commerce.error || 'Modo demo · catálogo de muestra, sin stock ni pagos.'}
           </div>
         )}
         <Suspense

@@ -41,9 +41,11 @@ const SPOT_SELECTOR =
   'section, article, aside, figure, form, table, nav, header, footer, ' +
   'ul[class], ol[class], li[class], a[class], div[class]';
 
-// Elementos flotantes que no debe tapar aunque queden por encima de él.
+// Elementos que no debe tapar aunque queden por encima de él: lo flotante y,
+// en las tarjetas, el sello de «sin revelar», las etiquetas y los botones.
 const BLOCKED_SELECTOR =
-  '.navbar, .mini-player, .chat-composer, .product-page-head--home';
+  '.navbar, .mini-player, .chat-composer, .product-page-head--home, ' +
+  '.placeholder-tee__label, .badge, .product-actions, .add-to-cart-control';
 
 const MAX_SPOT_NODES = 500;
 const SAFE_GAP = 6;
