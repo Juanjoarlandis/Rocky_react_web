@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import asomadoBorde from '../images/optimized/characters/asomado-borde-600.webp';
-// Derivado de `characters/cotilla-esquina.png` (620x820, el original de
-// ImageGen): mismo encuadre a 348x460, que sobra para los 115 px que se ve como
-// mucho, y pesa 47 kB en vez de 585 kB.
+// Derivado del original de ImageGen `cotilla-esquina.png` (620x820, en
+// prompts-munecos/): mismo encuadre a 348x460, que sobra para los 115 px que
+// se ve como mucho, y pesa 47 kB en vez de 585 kB.
 import cotillaEsquina from '../images/optimized/characters/cotilla-esquina-460.webp';
 import '../styles/CuriousPeeker.css';
 

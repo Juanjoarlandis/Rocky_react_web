@@ -32,3 +32,6 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# lockfile de yarn: el proyecto usa npm (package-lock.json)
+yarn.lock
