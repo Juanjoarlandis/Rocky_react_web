@@ -7,8 +7,8 @@
 - Alias público: `https://www.rocky035.com`.
 - Commit de aplicación: `ee13492e6173076e1f89e90e6cf3f580d2253b11`.
 - Release: `/opt/rocky035/releases/20260821T113325Z-ee13492-drop-groove`.
-- Imagen: `rocky035:20260821T113325Z-ee13492-drop-groove`.
-- ID de imagen: `sha256:2a069ca9e77258eabf0634247ed4f31e0c9cfc278e57a549a2d6d802b95eda5a`.
+- Imagen: `rocky035:<tag-imagen>`.
+- ID de imagen: `sha256:<digest>`.
 - Arquitectura: `linux/arm64`.
 - Runtime: Node `v24.19.0`, usuario `node`.
 - Proyecto Compose conservado: `20260807t094206z-d4a7bb2`.
@@ -73,15 +73,15 @@ comandos completaron los 290 tests y el build con la imagen oficial Node
 ## Rollback retenido
 
 - Release anterior: `/opt/rocky035/releases/20260813T180942Z-df62f96-footer-alpha`.
-- Imagen anterior: `rocky035:20260813T180942Z-df62f96-footer-alpha`.
+- Imagen anterior: `rocky035:<tag-imagen>`.
 
 Para restaurarla sin tocar Cloudflare, Shopify, el volumen cifrado ni otros
 servicios:
 
 ```bash
-ssh rpi-tailscale
+ssh <host-interno>
 printf '%s\n' \
-  'ROCKY_IMAGE=rocky035:20260813T180942Z-df62f96-footer-alpha' \
+  'ROCKY_IMAGE=rocky035:<tag-imagen>' \
   'COMPOSE_PROJECT_NAME=20260807t094206z-d4a7bb2' \
   | sudo tee /opt/rocky035/compose.env >/dev/null
 sudo chmod 600 /opt/rocky035/compose.env

@@ -19,6 +19,9 @@
 # encrypted local runtime state
 /.data
 
+# imágenes maestras para scripts/optimizar-imagenes.mjs (no se versionan)
+/assets-master
+
 # misc
 .DS_Store
 .env

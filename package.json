@@ -1,5 +1,5 @@
 {
-  "name": "rocky_react",
+  "name": "rocky035-web",
   "version": "0.1.0",
   "private": true,
   "engines": {
@@ -45,6 +45,8 @@
     "format:check": "prettier --check .",
     "security:check": "node scripts/check-secrets.mjs",
     "avisos:exportar": "node scripts/exportar-avisos.mjs",
+    "seed:drop4": "node scripts/seed-drop4.mjs",
+    "images:optimize": "node scripts/optimizar-imagenes.mjs",
     "check": "npm run test:run && npm run lint && npm run lint:css && npm run build && npm run security:check",
     "dev:client": "vite",
     "dev:server": "PORT=3001 node --watch server/index.mjs",
@@ -52,7 +54,5 @@
   },
   "description": "Tienda web de ROCKY 035: React + Vite y un BFF Express preparado para Shopify.",
   "main": "server/index.mjs",
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+  "license": "UNLICENSED"
 }

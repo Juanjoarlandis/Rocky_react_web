@@ -16,8 +16,8 @@
 
 - Estado: desplegado y verificado.
 - Release: `/opt/rocky035/releases/20260811T105823Z-766e6ee-home-impact-r2`.
-- Imagen: `rocky035:20260811T105823Z-766e6ee-home-impact-r2`.
-- Digest: `sha256:0b7eda8c2a72ef9fbd25efaa3da1dfeb8710195091f937f692bbe4066171bc0e`.
+- Imagen: `rocky035:<tag-imagen>`.
+- Digest: `sha256:<digest>`.
 - Arquitectura: `linux/arm64`.
 - Proyecto Compose conservado: `20260807t094206z-d4a7bb2`.
 - El build de la imagen repitió las 237 pruebas y el build Vite antes de
@@ -64,16 +64,16 @@ Se conservaron intactos en el workspace y no se publicaron automáticamente.
 ## Rollback retenido
 
 - Release anterior: `/opt/rocky035/releases/20260810T204719Z-766e6ee-visual-r1`.
-- Imagen anterior: `rocky035:20260810T204719Z-766e6ee-visual-r1`.
+- Imagen anterior: `rocky035:<tag-imagen>`.
 - Digest anterior:
-  `sha256:551ba0115dfd1f9bfdec5387ee444f5eb5d8bf746e1e617e490912094b9bf50f`.
+  `sha256:<digest>`.
 
 Para restaurarla sin tocar Cloudflare, Shopify ni otros servicios:
 
 ```bash
-ssh rpi-tailscale
+ssh <host-interno>
 printf '%s\n' \
-  'ROCKY_IMAGE=rocky035:20260810T204719Z-766e6ee-visual-r1' \
+  'ROCKY_IMAGE=rocky035:<tag-imagen>' \
   'COMPOSE_PROJECT_NAME=20260807t094206z-d4a7bb2' \
   | sudo tee /opt/rocky035/compose.env >/dev/null
 sudo chmod 600 /opt/rocky035/compose.env

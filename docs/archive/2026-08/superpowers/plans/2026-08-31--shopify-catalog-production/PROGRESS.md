@@ -33,8 +33,8 @@
 - Estado: completada y verificada.
 - Release activa:
   `/opt/rocky035/releases/20260831T101511Z-335534d-catalog8-beats-r2`.
-- Imagen activa: `rocky035:20260831T101511Z-335534d-catalog8-beats-r2`.
-- Digest: `sha256:9496a75f6c841d2d953764cbaaa868a9d575f82ee42f727b0ac7a7507d192986`.
+- Imagen activa: `rocky035:<tag-imagen>`.
+- Digest: `sha256:<digest>`.
 - Arquitectura/runtime: ARM64, Node 24.19.0, usuario `node`, root filesystem
   de solo lectura y reinicio `unless-stopped`.
 - Build ARM64: 44 archivos y 313 pruebas, build Vite y auditoría de
@@ -49,7 +49,7 @@
 - Servicios ajenos: permanecieron activos.
 - Rollback inmediato: release
   `/opt/rocky035/releases/20260831T100513Z-335534d-catalog8-beats`, imagen
-  `rocky035:20260831T100513Z-335534d-catalog8-beats` y selector protegido
+  `rocky035:<tag-imagen>` y selector protegido
   `/opt/rocky035/compose.env.pre-20260831T101511Z-335534d-catalog8-beats-r2`.
 - Rollback anterior conservado: release
   `/opt/rocky035/releases/20260821T113325Z-ee13492-drop-groove`.

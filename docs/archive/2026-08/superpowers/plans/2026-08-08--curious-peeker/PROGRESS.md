@@ -33,8 +33,8 @@
 
 - Status: completed.
 - Release: `/opt/rocky035/releases/20260808T163208Z-dc85923-wt-curious-peeker`.
-- Image: `rocky035:20260808T163208Z-dc85923-wt-curious-peeker`, digest
-  `sha256:cff5e0a4fa4ae3ca44df1dc2a645f832521dc3a54c610761515522f4065af575`.
+- Image: `rocky035:<tag-imagen>`, digest
+  `sha256:<digest>`.
 - Build evidence: the Raspberry image build repeated all 204 tests and the
   production bundle successfully before switching traffic.
 - Runtime evidence: the container is running and healthy after a controlled
@@ -60,7 +60,7 @@
   suite still passes 204 tests.
 - Release: `/opt/rocky035/releases/20260808T164415Z-dc85923-wt-corner-peek`,
   image digest
-  `sha256:c9e1f5cb0c9caf76fb3f1dca6d62967b9bb4ed5d8921a7ad2051ff58d6c7e2cc`.
+  `sha256:<digest>`.
 - Public QA: the production bundle `index-LvmiZ9BL.js` rendered the new
   `curious-peeker--top-right` position clipped by the right edge with no
   horizontal overflow.

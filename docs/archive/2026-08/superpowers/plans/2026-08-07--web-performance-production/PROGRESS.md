@@ -73,8 +73,8 @@
 
 - Status: completed in production
 - Release: `/opt/rocky035/releases/20260807T213144Z-d4a7bb2-perf2`
-- Image: `rocky035:20260807T213144Z-d4a7bb2-perf2`
-- Image ID: `sha256:edfad646d14820969c8145b9daf0f0391f858164b83da13a5167e91ee3919f2b`
+- Image: `rocky035:<tag-imagen>`
+- Image ID: `sha256:<digest>`
 - Evidence:
   - Preflight found 4 CPU cores, 7.9 GiB RAM with 5.2 GiB available, 25 GiB disk free and CPU at 57.9 C. The release was built as ARM64 in Docker and passed the full 134-test/build/secret-scan gate before activation.
   - The Compose switch changed only `rocky035`, retained project `20260807t094206z-d4a7bb2`, and reached `healthy`. A controlled container restart subsequently returned healthy in six seconds.
@@ -86,8 +86,8 @@
   - Post-restart cold public trace: TTFB `176 ms`, FCP `292 ms`, LCP `660 ms`, CLS `0.000132`, zero long tasks, 18 products and no diagnostics.
   - Browser route sweep passed apex, `www`, home, valid category/detail routes, drops, cart, Rocky IA, studio, crew, account and 404. The synthetic `vite:preloadError` test caused one successful reload and rejected a second reload while guarded.
   - Chromium used by automation has no AAC decoder, so it could verify source assignment but not playback. `ffprobe` identifies the production file as AAC stereo/44.1 kHz/113.13 s, and the production server returned `206 Partial Content` for its byte range.
-  - Unrelated container state was identical before and after restart. `cloudflared`, `timesup-papelitos-tunnel` and `timesup-papelitos` remained active; `crm.aliomarket.com` remained 200. `prometheus` was already in `Restarting (2)` before this rollout and was not touched.
+  - Unrelated container state was identical before and after restart. `cloudflared`, `<otro-servicio>-tunnel` and `<otro-servicio>` remained active; `<host-interno-crm>` remained 200. `prometheus` was already in `Restarting (2)` before this rollout and was not touched.
 - Rollback retained:
   - Immediate previous release: `/opt/rocky035/releases/20260807T212153Z-d4a7bb2-perf`
-  - Immediate previous image: `rocky035:20260807T212153Z-d4a7bb2-perf` (`sha256:8256ccc611f236415db28966413ef0877944d6e22b5fbe649e8a4e65d128f850`)
-  - Original pre-optimization image is also retained as `rocky035:20260807T171139Z-d4a7bb2`.
+  - Immediate previous image: `rocky035:<tag-imagen>` (`sha256:<digest>`)
+  - Original pre-optimization image is also retained as `rocky035:<tag-imagen>`.

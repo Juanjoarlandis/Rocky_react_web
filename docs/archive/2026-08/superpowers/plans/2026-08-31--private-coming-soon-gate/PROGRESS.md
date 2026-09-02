@@ -46,8 +46,8 @@
 - Estado: completada y verificada.
 - Release activa:
   `/opt/rocky035/releases/20260831T141831Z-335534d-private-gate`.
-- Imagen activa: `rocky035:20260831T141831Z-335534d-private-gate`.
-- Digest: `sha256:af10edc2e337f989a627c645be5310b78f2ca2166c6ef445dd032e4bd7cc79e4`.
+- Imagen activa: `rocky035:<tag-imagen>`.
+- Digest: `sha256:<digest>`.
 - Build ARM64: 44 archivos y 326 pruebas reales, build Vite y auditoría de
   dependencias runtime aprobados dentro de la imagen.
 - Runtime: ARM64, Node 24.19.0, usuario `node`, root filesystem de solo lectura,
@@ -94,7 +94,7 @@ Se eliminaron únicamente esos sidecars del snapshot y se añadieron `._*` y
 - Release anterior:
   `/opt/rocky035/releases/20260831T101511Z-335534d-catalog8-beats-r2`.
 - Imagen anterior:
-  `rocky035:20260831T101511Z-335534d-catalog8-beats-r2`.
+  `rocky035:<tag-imagen>`.
 - Selector anterior:
   `/opt/rocky035/compose.env.pre-20260831T141831Z-335534d-private-gate`.
 
