@@ -56,13 +56,13 @@ function ProductDetail({
     );
 
     return (
-        <div className="detail">
+        <div className="page-container detail">
             <Link to="/" className="detail-back">← Volver a la tienda</Link>
 
             <div className="detail-grid">
                 <div className="detail-info">
                     <p className="detail-drop">{product.drop}</p>
-                    <h1 className="detail-title">{product.title}</h1>
+                    <h1 className="detail-title squiggle-underline">{product.title}</h1>
                     {product.description && (
                         <p className="detail-description">{product.description}</p>
                     )}
@@ -99,11 +99,11 @@ function ProductDetail({
                     )}
                     <div className="detail-buy">
                         {/* El Nube pasea por la línea de puntos con su paraguas */}
-                        <img src={nubePaseando} alt="" className="detail-nube neon-art al-ritmo" style={{ '--fase': '0.4' }} />
+                        <img src={nubePaseando} alt="" className="doodle detail-nube neon-art al-ritmo" style={{ '--fase': '0.4' }} />
                         {price ? (
                             <p className="detail-price">{price}</p>
                         ) : (
-                            <p className="badge-soon">Próximamente</p>
+                            <p className="badge badge--dashed">Próximamente</p>
                         )}
                         <AddToCartButton
                             product={product}
@@ -126,7 +126,7 @@ function ProductDetail({
                     </div>
                 </div>
 
-                <div className="detail-media-wrap">
+                <div className="detail-media-wrap tape">
                     {/* Un chaval de la banda vigila el producto desde el marco */}
                     <img
                         src={sentadoBordeBlanco}
@@ -139,7 +139,7 @@ function ProductDetail({
                     />
                     <button
                         type="button"
-                        className="detail-media"
+                        className="paper-card detail-media"
                         onClick={() => !isPlaceholder && setZoomOpen(true)}
                         aria-label={`Ver ${product.title} en grande`}
                         disabled={isPlaceholder}

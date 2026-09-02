@@ -13,11 +13,8 @@
 
 /* El fotógrafo agachado a la derecha, con su línea de suelo garabateada */
 .street-photographer {
-    position: absolute;
     right: 2%;
     bottom: -8px;
-    pointer-events: none;
-    user-select: none;
 }
 
 .street-photographer img {
@@ -193,18 +190,20 @@
     z-index: 2;
 }
 
-/* Celo en la esquina superior */
+/* Un solo trozo de celo, arriba y centrado */
+.street-photo {
+    --tape-w: 74px;
+    --tape-h: 22px;
+}
+
 .street-photo::before {
-    content: '';
-    position: absolute;
     top: -12px;
     left: 50%;
     transform: translateX(-50%) rotate(-4deg);
-    width: 74px;
-    height: 22px;
-    background-color: var(--tape);
-    border: 2px solid var(--ink);
-    z-index: 2;
+}
+
+.street-photo::after {
+    display: none;
 }
 
 .street-photo img {

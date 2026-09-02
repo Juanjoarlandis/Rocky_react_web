@@ -1,8 +1,6 @@
 @layer pages {
 .studio {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 40px 24px 72px;
+    --container: 900px;
     /* Panal de La Colmena, muy sutil, solo en esta sección */
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='56' height='97' viewBox='0 0 56 97'><g fill='none' stroke='%231a1a1a' stroke-opacity='0.05' stroke-width='2'><path d='M28 1 L54 16 L54 48 L28 63 L2 48 L2 16 Z'/><path d='M28 63 L54 78 L54 97 M28 63 L2 78 L2 97'/></g></svg>");
     background-size: 56px 97px;
@@ -38,40 +36,24 @@
     }
 }
 
-.studio-subtitle {
-    margin: 12px 0 0;
-    color: var(--muted);
-    font-family: var(--font-hand);
-    font-size: 1.2rem;
-    transform: rotate(-0.5deg);
-}
-
 /* ---------- Player ---------- */
 
 .studio-player-wrap {
-    position: relative;
     margin-top: clamp(96px, 13vw, 130px);
 }
 
 /* El productor cabeza-hexágono sentado en lo alto del radiocasete
    (posa en cuclillas: la base de la imagen apoya plana en el borde) */
 .studio-doodle {
-    position: absolute;
     bottom: calc(100% - 10px);
     right: 7%;
     height: clamp(130px, 16vw, 165px);
     width: auto;
     z-index: 2;
-    pointer-events: none;
-    user-select: none;
 }
 
 .studio-player {
     position: relative;
-    background-color: var(--card);
-    border: 2px solid var(--ink);
-    border-radius: var(--wobble-md);
-    box-shadow: var(--shadow-ink);
     padding: 26px 28px 24px;
 }
 
@@ -100,31 +82,17 @@
     display: inline-block;
 }
 
-.studio-section-title::after {
-    content: '';
-    display: block;
-    height: 8px;
-    margin-top: 2px;
-    background-image: var(--squiggle);
-    background-repeat: repeat-x;
-    background-size: 48px 8px;
-}
-
 .setlist-frame {
-    position: relative;
     /* Hueco para El Luna en cuclillas sobre la lista */
     margin-top: clamp(96px, 13vw, 128px);
 }
 
 .setlist-luna {
-    position: absolute;
     bottom: calc(100% - 8px);
     right: 6%;
     height: clamp(96px, 13vw, 126px);
     width: auto;
     z-index: 3;
-    pointer-events: none;
-    user-select: none;
 }
 
 .setlist-list {
@@ -133,10 +101,6 @@
     padding: 0;
     position: relative;
     z-index: 2;
-    background-color: var(--card);
-    border: 2px solid var(--ink);
-    border-radius: var(--wobble-md);
-    box-shadow: var(--shadow-ink);
     overflow: hidden;
 }
 
@@ -229,7 +193,6 @@
 /* ---------- Escúchalo en serio (embed real) ---------- */
 
 .listen-wrap {
-    position: relative;
     /* Hueco para El Tele sentado encima del reproductor */
     margin-top: clamp(86px, 11vw, 112px);
 }
@@ -237,15 +200,12 @@
 /* El Tele sentado en el borde del reproductor de Spotify:
    la línea de las manos está al 71% de su imagen (cuelga el 29%) */
 .listen-tele {
-    position: absolute;
     bottom: 100%;
     left: 7%;
     height: clamp(120px, 15vw, 152px);
     width: auto;
     transform: translateY(29%);
     z-index: 2;
-    pointer-events: none;
-    user-select: none;
 }
 
 .listen {
@@ -254,21 +214,14 @@
 }
 
 .listen-hanger {
-    position: absolute;
     top: calc(100% - 8px);
     right: 7%;
     height: clamp(150px, 21vw, 200px);
     width: auto;
     z-index: 2;
-    pointer-events: none;
-    user-select: none;
 }
 
 .listen-card {
-    background-color: var(--card);
-    border: 2px solid var(--ink);
-    border-radius: var(--wobble-md);
-    box-shadow: var(--shadow-ink);
     padding: 12px;
     overflow: hidden;
 }
@@ -353,10 +306,6 @@
 }
 
 @media (max-width: 640px) {
-    .studio {
-        padding: 24px 16px 56px;
-    }
-
     .listen-hanger {
         display: none;
     }

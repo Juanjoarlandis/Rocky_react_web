@@ -91,29 +91,29 @@ function Studio() {
     const { index, playing, select } = useMusic();
 
     return (
-        <div className="studio">
+        <div className="page-container studio">
             <div className="studio-head">
                 <BeeDoodle className="studio-bee" />
                 <h1 className="page-title">La Colmena</h1>
-                <p className="studio-subtitle">{ARTIST.claim}</p>
+                <p className="subtitle">{ARTIST.claim}</p>
             </div>
 
-            <div className="studio-player-wrap">
+            <div className="doodle-shelf studio-player-wrap">
                 {/* El productor cabeza-hexágono vibra encima del radiocasete.
                     Cuando suena la radio cabecea el doble que nadie: es lo suyo. */}
-                <img src={auricularesSentado} alt="" className="studio-doodle neon-art al-ritmo al-ritmo--fuerte" style={{ '--fase': '0' }} />
-                <div className="studio-player">
+                <img src={auricularesSentado} alt="" className="doodle studio-doodle neon-art al-ritmo al-ritmo--fuerte" style={{ '--fase': '0' }} />
+                <div className="paper-card studio-player">
                     <ColmenaSticker className="studio-sticker" />
                     <Boombox />
                 </div>
             </div>
 
             <section className="setlist" aria-label="Lista de temas">
-                <h2 className="studio-section-title">Setlist</h2>
-                <div className="setlist-frame">
+                <h2 className="studio-section-title squiggle-underline">Setlist</h2>
+                <div className="doodle-shelf setlist-frame">
                 {/* El Luna, de turno de noche, escucha con el móvil en cuclillas */}
-                <img src={lunaMovil} alt="" className="setlist-luna neon-art al-ritmo" style={{ '--fase': '0.65' }} />
-                <ol className="setlist-list">
+                <img src={lunaMovil} alt="" className="doodle setlist-luna neon-art al-ritmo" style={{ '--fase': '0.65' }} />
+                <ol className="paper-card setlist-list">
                     {TRACKS.map((track, i) => {
                         const active = i === index;
                         return (
@@ -145,19 +145,19 @@ function Studio() {
             </section>
 
             <section className="mesa-section" aria-label="La mesa de beats">
-                <h2 className="studio-section-title">La mesa de beats</h2>
-                <p className="studio-subtitle mesa-subtitle">
+                <h2 className="studio-section-title squiggle-underline">La mesa de beats</h2>
+                <p className="subtitle mesa-subtitle">
                     Ocho pistas, dieciséis pads y swing. Deja tu ritmo en La Colmena: El Freeze lo baila.
                 </p>
                 <BeatMachine />
             </section>
 
             <section className="listen" aria-label={`Escuchar a ${ARTIST.name}`}>
-                <h2 className="studio-section-title">Escúchalo en serio</h2>
-                <div className="listen-wrap">
+                <h2 className="studio-section-title squiggle-underline">Escúchalo en serio</h2>
+                <div className="doodle-shelf listen-wrap">
                     {/* El Tele viendo la tele que es él mismo, sentado en el reproductor */}
-                    <img src={teleSentado} alt="" className="listen-tele neon-art al-ritmo" style={{ '--fase': '0.95' }} />
-                    <div className="listen-card">
+                    <img src={teleSentado} alt="" className="doodle listen-tele neon-art al-ritmo" style={{ '--fase': '0.95' }} />
+                    <div className="paper-card listen-card">
                         <iframe
                             title={`${ARTIST.name} en Spotify`}
                             src={ARTIST.spotifyEmbed}
@@ -169,7 +169,7 @@ function Studio() {
                         />
                     </div>
                     {/* Uno de la banda colgado del borde del reproductor */}
-                    <img src={colgadoBorde} alt="" className="listen-hanger neon-art al-ritmo" style={{ '--fase': '1.25' }} />
+                    <img src={colgadoBorde} alt="" className="doodle listen-hanger neon-art al-ritmo" style={{ '--fase': '1.25' }} />
                 </div>
                 <div className="listen-links">
                     <a className="btn btn-primary" href={ARTIST.spotify} target="_blank" rel="noopener noreferrer">
@@ -182,7 +182,7 @@ function Studio() {
             </section>
 
             <section className="eps" aria-label="EPs">
-                <h2 className="studio-section-title">EPs</h2>
+                <h2 className="studio-section-title squiggle-underline">EPs</h2>
                 <div className="eps-grid">
                     {EPS.map((ep) => (
                         <article key={ep.title} className="ep-card">
@@ -201,7 +201,7 @@ function Studio() {
                                     </a>
                                 )}
                                 {!ep.links.spotify && !ep.links.youtube && (
-                                    <span className="badge-soon">En el horno</span>
+                                    <span className="badge badge--dashed">En el horno</span>
                                 )}
                             </div>
                         </article>

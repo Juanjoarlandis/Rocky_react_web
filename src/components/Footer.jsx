@@ -61,7 +61,7 @@ const Footer = () => {
                     a tamaño de pantalla (663 kB frente a 7,3 MB). CSS sigue
                     controlando recorrido, dirección y extremos, y el póster
                     quieto atiende al movimiento reducido. */}
-                <span className="ticker-lata">
+                <span className="doodle ticker-lata">
                     <picture className="ticker-lata-picture">
                         <source
                             media={REDUCED_MOTION}
@@ -95,7 +95,7 @@ const Footer = () => {
                     loading="lazy"
                     decoding="async"
                     alt="Ilustración de tres chicos sentados con ropa ROCKY"
-                    className="footer-illustration neon-art al-ritmo al-ritmo--suave"
+                    className="doodle footer-illustration neon-art al-ritmo al-ritmo--suave"
                     style={{ '--fase': '0.2' }}
                 />
                 <a

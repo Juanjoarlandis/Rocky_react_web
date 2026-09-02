@@ -6,7 +6,7 @@ import '../styles/pages/not-found.css';
 
 const NotFound = () => {
     return (
-        <div className="notfound">
+        <div className="page-container notfound">
             <div className="notfound-figures">
                 <img
                     src={perdidoMapa}

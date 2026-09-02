@@ -14,15 +14,12 @@
    hasta la última fila del lienzo con la suela. Va dentro del panel para que lo
    acompañe si cambia de sitio, pero se pinta por fuera, encima del borde. */
 .crew-corner-character {
-  position: absolute;
   right: clamp(26px, 4vw, 60px);
   bottom: 100%;
   z-index: 2;
   display: block;
   width: clamp(132px, 13vw, 184px);
   height: auto;
-  pointer-events: none;
-  user-select: none;
 }
 
 /* Con la sesión abierta lo que tiene encima es la cabecera, y a su derecha vive
@@ -354,7 +351,7 @@
   overflow: hidden;
   border-bottom: 2px solid var(--ink);
   background:
-    radial-gradient(circle, rgba(var(--ink-rgb), 0.08) 1px, transparent 1px),
+    radial-gradient(circle, rgba(var(--dot-rgb), 0.08) 1.2px, transparent 1.2px),
     var(--paper);
   background-size: 18px 18px;
 }
@@ -922,13 +919,6 @@ html[data-theme='neon'] .crew-progress-panel {
 /* Sobre el rosa eléctrico el blanco se queda corto: tinta de noche. */
 html[data-theme='neon'] .crew-id-card__level {
   color: var(--neon-night);
-}
-
-html[data-theme='neon'] .crew-reward-visual {
-  background:
-    radial-gradient(circle, rgba(var(--neon-ink-rgb), 0.09) 1px, transparent 1px),
-    var(--paper);
-  background-size: 18px 18px;
 }
 
 html[data-theme='neon'] .crew-owned-stamp {

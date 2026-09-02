@@ -112,7 +112,7 @@ function ChatComponent({
                     height="1598"
                     decoding="async"
                     alt=""
-                    className="chat-lean neon-art al-ritmo"
+                    className="doodle chat-lean neon-art al-ritmo"
                     style={{ '--fase': '0.5' }}
                 />
 
@@ -155,7 +155,7 @@ function ChatComponent({
                                     height="1187"
                                     decoding="async"
                                     alt=""
-                                    className="chat-welcome-doodle neon-art al-ritmo"
+                                    className="doodle chat-welcome-doodle neon-art al-ritmo"
                                     style={{ '--fase': '0.9' }}
                                 />
                                 <div className="chat-welcome">

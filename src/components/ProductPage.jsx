@@ -56,7 +56,7 @@ function ProductPage({
     }
 
     return (
-        <div className="product-page">
+        <div className="page-container product-page">
             <div className={`product-page-head${isHome ? ' product-page-head--home' : ''}`}>
                 <div className="product-page-head-copy">
                     <div className="product-page-head-row">
@@ -115,7 +115,7 @@ function ProductPage({
                         height="350"
                         decoding="async"
                         alt=""
-                        className="spray-cruiser neon-art"
+                        className="doodle spray-cruiser neon-art"
                     />
                 </div>
             </div>
@@ -137,7 +137,7 @@ function ProductPage({
                         )
                     );
                     return (
-                        <article key={productPath} className="product-card">
+                        <article key={productPath} className="paper-card product-card">
                             <button
                                 type="button"
                                 className="product-media"
@@ -171,7 +171,7 @@ function ProductPage({
                                 {price ? (
                                     <p className="product-price">{price}</p>
                                 ) : (
-                                    <p className="badge-soon">Próximamente</p>
+                                    <p className="badge badge--dashed">Próximamente</p>
                                 )}
                                 <div className="product-actions">
                                     <Link to={`/product/${encodeURIComponent(productPath)}`} className="btn btn-ghost">

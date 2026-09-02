@@ -288,7 +288,7 @@ export function CrewCard({ miembro, autoGirado = false, linkEnabled = true, abie
 // Separador de lámina: cinta pintada con su cuenta de piezas
 function LaminaSep({ numero, titulo, nota, cuenta }) {
     return (
-        <div className="lamina-sep">
+        <div className="lamina-sep squiggle-baseline">
             <span className="lamina-cinta">
                 <span className="lamina-num">{numero}</span>
                 {titulo}
@@ -377,11 +377,11 @@ function Crew() {
     }, []);
 
     return (
-        <div className="crew">
+        <div className="page-container crew">
             <div className="crew-head">
                 <div className="crew-head-txt">
                     <h1 className="page-title">La Crew</h1>
-                    <p className="crew-subtitle">
+                    <p className="subtitle">
                         Los que hacen que esto ruede. Gira los cromos y colecciónalos a todos.
                     </p>
                 </div>
@@ -412,7 +412,7 @@ function Crew() {
             </div>
 
             {/* El desfile: la banda posando sobre la línea */}
-            <div className="crew-parade-row">
+            <div className="crew-parade-row squiggle-baseline">
                 <div className="crew-parade" aria-hidden="true">
                     {DESFILE.map(({ id, alto, vuela }) => {
                         const miembro = CREW.find((m) => m.id === id);
@@ -439,7 +439,7 @@ function Crew() {
                         nota="las piezas serias del álbum"
                         cuenta={`${VITRINA.length} rarezas`}
                     />
-                    <div className="crew-vitrina-marco">
+                    <div className="crew-vitrina-marco tape">
                         <div className="crew-grid crew-grid--vitrina">
                             {VITRINA.map((miembro) => (
                                 <CrewCard
@@ -499,7 +499,7 @@ function Crew() {
                                         Preséntate
                                     </a>
                                 )}
-                                <span className="badge-soon">Cromo por conseguir</span>
+                                <span className="badge badge--dashed">Cromo por conseguir</span>
                             </div>
                         ))}
                     </div>

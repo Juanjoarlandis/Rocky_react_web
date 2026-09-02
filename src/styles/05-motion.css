@@ -1,6 +1,20 @@
 @layer utilities {
 /* Animaciones compartidas por varios componentes. */
 
+/* Un sello que cae sobre el papel: --stamp-rotate, --stamp-scale y
+   --stamp-opacity los pone cada sello (el del cromo, el del recado). */
+@keyframes stamp-in {
+  from {
+    opacity: 0;
+    transform: rotate(var(--stamp-rotate, -3deg)) scale(var(--stamp-scale, 1.6));
+  }
+
+  to {
+    opacity: var(--stamp-opacity, 1);
+    transform: rotate(var(--stamp-rotate, -3deg)) scale(1);
+  }
+}
+
 @keyframes crosshair-spin {
   to {
     transform: rotate(360deg);

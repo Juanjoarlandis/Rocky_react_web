@@ -85,7 +85,7 @@
     border: 3px solid var(--accent-dark);
     border-radius: 8px 10px 8px 12px;
     transform: rotate(-3deg);
-    animation: drop-aviso-estampa 0.35s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+    animation: stamp-in 0.35s cubic-bezier(0.2, 1.4, 0.4, 1) both;
 }
 
 .drop-aviso-nota {
@@ -95,25 +95,10 @@
 }
 
 .drop-aviso-recadero {
-    position: absolute;
     right: 8px;
     bottom: 6px;
     width: 78px;
     height: auto;
-    pointer-events: none;
-    user-select: none;
-}
-
-@keyframes drop-aviso-estampa {
-    from {
-        opacity: 0;
-        transform: rotate(-3deg) scale(1.6);
-    }
-
-    to {
-        opacity: 1;
-        transform: rotate(-3deg) scale(1);
-    }
 }
 
 @media (prefers-reduced-motion: reduce) {

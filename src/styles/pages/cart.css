@@ -1,8 +1,6 @@
 @layer pages {
 .cart {
-    max-width: 860px;
-    margin: 0 auto;
-    padding: 40px 24px 72px;
+    --container: 860px;
 }
 
 .cart-head {
@@ -14,20 +12,15 @@
 }
 
 .cart-list-wrap {
-    position: relative;
     /* Hueco para el asomado tras el borde de la lista */
     margin-top: clamp(84px, 12vw, 104px);
     margin-bottom: 28px;
 }
 
 .cart-peeker {
-    position: absolute;
     bottom: calc(100% - 5px);
     right: 26px;
     width: clamp(112px, 16vw, 148px);
-    z-index: 1;
-    pointer-events: none;
-    user-select: none;
 }
 
 .cart-list {
@@ -36,10 +29,6 @@
     padding: 0;
     position: relative;
     z-index: 2;
-    background-color: var(--card);
-    border: 2px solid var(--ink);
-    border-radius: var(--wobble-md);
-    box-shadow: var(--shadow-ink);
     overflow: hidden;
 }
 
@@ -119,7 +108,7 @@
     font-size: 0.92rem;
 }
 
-.cart-item .badge-soon {
+.cart-item .badge {
     font-size: 0.85rem;
     padding: 0 10px;
 }
@@ -203,15 +192,12 @@
 }
 
 .cart-sleeper {
-    position: absolute;
     bottom: calc(100% - 9px);
     left: 6%;
     height: clamp(96px, 12vw, 118px);
     width: auto;
     /* Sentado con el culo sobre el borde del ticket */
     z-index: 3;
-    pointer-events: none;
-    user-select: none;
 }
 
 .cart-summary {
@@ -290,10 +276,6 @@
 .cart-empty-card {
     position: relative;
     margin-top: clamp(120px, 26vw, 190px);
-    background-color: var(--card);
-    border: 2px solid var(--ink);
-    border-radius: var(--wobble-md);
-    box-shadow: var(--shadow-ink);
     padding: 40px 24px;
     text-align: center;
     display: flex;
@@ -303,27 +285,19 @@
 }
 
 .cart-empty-illustration {
-    position: absolute;
     bottom: 100%;
     right: 7%;
     width: clamp(180px, 42%, 250px);
     /* El costado apoya en el borde de la tarjeta, las piernas cuelgan por delante */
     transform: translateY(46.6%);
-    pointer-events: none;
-    user-select: none;
-    z-index: 1;
 }
 
 /* El Bombilla de pie en la otra punta de la tarjeta, con la idea clara */
 .cart-empty-idea {
-    position: absolute;
     bottom: calc(100% - 6px);
     left: 7%;
     height: clamp(110px, 14vw, 148px);
     width: auto;
-    pointer-events: none;
-    user-select: none;
-    z-index: 1;
 }
 
 .cart-empty-card p {
@@ -334,10 +308,6 @@
 }
 
 @media (max-width: 640px) {
-    .cart {
-        padding: 24px 16px 56px;
-    }
-
     .cart-item {
         grid-template-columns: 72px minmax(0, 1fr) auto;
         grid-template-areas:

@@ -37,7 +37,7 @@ function errorText(error) {
 function CrewCornerCharacter({ className = '' }) {
   return (
     <img
-      className={`crew-corner-character neon-art al-ritmo ${className}`.trim()}
+      className={`doodle crew-corner-character neon-art al-ritmo ${className}`.trim()}
       style={{ '--fase': '0.7' }}
       src={larguiruchoEsquina}
       width="600"

@@ -21,15 +21,12 @@
 
 /* El Estrella apoyado en el lateral de la tarjeta, solo si sobra pantalla */
 .chat-lean {
-    position: absolute;
     left: max(0px, calc(50% - 630px));
     top: 34%;
     z-index: 3;
     width: auto;
     height: clamp(158px, 18vw, 205px);
     transform: translateX(-58%);
-    pointer-events: none;
-    user-select: none;
 }
 
 .chat-card {
@@ -180,7 +177,7 @@
     background-image:
         linear-gradient(rgba(var(--paper-rgb), 0.87), rgba(var(--paper-rgb), 0.87)),
         var(--spray-speckle),
-        radial-gradient(circle, rgba(var(--ink-rgb), 0.1) 1px, transparent 1.2px);
+        radial-gradient(circle, rgba(var(--dot-rgb), 0.1) 1.2px, transparent 1.2px);
     background-size: auto, 180px 180px, 24px 24px;
     scrollbar-gutter: stable;
 }
@@ -194,15 +191,12 @@
 }
 
 .chat-welcome-doodle {
-    position: absolute;
     /* Su tope coincide con el borde superior de la tarjeta… */
     top: clamp(84px, 10vw, 112px);
     right: 7%;
     z-index: 2;
     width: auto;
     height: clamp(130px, 14vw, 168px);
-    pointer-events: none;
-    user-select: none;
     filter: drop-shadow(2px 2px 0 rgba(var(--ink-rgb), 0.1));
     /* …y sube el 65.5% de su altura: las palmas quedan apoyadas en el borde */
     transform: translateY(-65.5%);
@@ -694,12 +688,12 @@
    La tarjeta y las burbujas ya beben de las variables; aquí sólo se pisan
    los blancos y cremas que iban a fuego. */
 
-/* El velo del papel pasa a velo de asfalto, con la retícula en claro. */
+/* El velo del papel pasa a velo de asfalto; la retícula ya cambia sola. */
 html[data-theme='neon'] .chat-messages {
     background-image:
         linear-gradient(rgba(var(--neon-paper-rgb), 0.87), rgba(var(--neon-paper-rgb), 0.87)),
         var(--spray-speckle),
-        radial-gradient(circle, rgba(var(--neon-ink-rgb), 0.1) 1px, transparent 1.2px);
+        radial-gradient(circle, rgba(var(--dot-rgb), 0.1) 1.2px, transparent 1.2px);
 }
 
 html[data-theme='neon'] .chat-header-avatar {

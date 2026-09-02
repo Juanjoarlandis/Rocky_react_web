@@ -32,13 +32,10 @@
 .ticker-lata {
     --lata-patrulla: 28s;
 
-    position: absolute;
     left: 0;
     bottom: calc(100% - 5px);
     z-index: 2;
     display: block;
-    pointer-events: none;
-    user-select: none;
     animation: lata-patrulla var(--lata-patrulla) linear infinite;
 }
 

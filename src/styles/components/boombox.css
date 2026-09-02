@@ -16,17 +16,11 @@
 }
 
 .bb-art.playing .bb-spool {
-    animation: bb-spin 1.6s linear infinite;
+    animation: crosshair-spin 1.6s linear infinite;
 }
 
 .bb-art.playing .bb-diana {
-    animation: bb-spin 7s linear infinite;
-}
-
-@keyframes bb-spin {
-    to {
-        transform: rotate(360deg);
-    }
+    animation: crosshair-spin 7s linear infinite;
 }
 
 /* La señal de la antena: en reposo no emite; sonando, late suave. */

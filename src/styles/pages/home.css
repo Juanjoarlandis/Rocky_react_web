@@ -1,10 +1,4 @@
 @layer pages {
-.product-page {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 40px 24px 72px;
-}
-
 .product-page-head {
     margin-bottom: 36px;
 }
@@ -223,14 +217,10 @@
        margen y hace falta medio monitor (ver la media query). */
     --cruiser-carrerilla: 12vw;
 
-    position: absolute;
     left: 4%;
     bottom: 4px;
     height: clamp(96px, 12vw, 132px);
     width: auto;
-    z-index: 1;
-    pointer-events: none;
-    user-select: none;
     /* `both`: en los 2,2s de espera rige el primer keyframe —fuera de
        pantalla por la izquierda— y al acabar se queda en el último —fuera
        por la derecha—. Sin fill se la vería plantada en su sitio natural. */
@@ -312,13 +302,9 @@
 }
 
 .product-card {
-    background-color: var(--card);
-    border: 2px solid var(--ink);
-    border-radius: var(--wobble-md);
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    box-shadow: var(--shadow-ink);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -375,7 +361,7 @@
     font-size: 1.25rem;
 }
 
-.product-body .badge-soon {
+.product-body .badge {
     align-self: flex-start;
 }
 
@@ -433,10 +419,6 @@
 }
 
 @media (max-width: 640px) {
-    .product-page {
-        padding: 24px 16px 56px;
-    }
-
     .product-grid {
         grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
         gap: 18px;

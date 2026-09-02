@@ -144,7 +144,7 @@ function StreetWall() {
                     del insta {INSTAGRAM_HANDLE}
                 </a>
                 {/* El fotógrafo de la crew, disparando el muro */}
-                <span className="street-photographer" ref={figuraRef}>
+                <span className="doodle street-photographer" ref={figuraRef}>
                     <img
                         src={fotografoAgachado}
                         width="212"
@@ -210,7 +210,7 @@ function StreetWall() {
             </div>
             <div className="street-wall-grid" ref={wallGridRef}>
                 {streetWall.map((photo) => (
-                    <figure key={photo.src} className="street-photo">
+                    <figure key={photo.src} className="street-photo tape">
                         <img
                             src={wallImagesReady ? photo.src : undefined}
                             alt={wallImagesReady ? photo.alt : ''}

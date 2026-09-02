@@ -15,25 +15,25 @@ function MenuDrop({ products }) {
     }, new Map()).values()];
 
     return (
-        <div className="drops">
+        <div className="page-container drops">
             <h1 className="page-title">Drops</h1>
-            <p className="drops-subtitle">Colecciones limitadas. Cuando vuelan, vuelan.</p>
-            <div className="drops-list-wrap">
+            <p className="subtitle">Colecciones limitadas. Cuando vuelan, vuelan.</p>
+            <div className="doodle-shelf drops-list-wrap">
                 {/* El tumbado descansa sobre la primera tarjeta de la lista */}
-                <img src={tumbado} alt="" className="drops-illustration neon-art al-ritmo al-ritmo--suave" style={{ '--fase': '0.35' }} />
+                <img src={tumbado} alt="" className="doodle drops-illustration neon-art al-ritmo al-ritmo--suave" style={{ '--fase': '0.35' }} />
                 {/* El Dado se juega el próximo drop en la otra punta de la repisa */}
-                <img src={dadoSentado} alt="" className="drops-dado neon-art al-ritmo" style={{ '--fase': '0.55' }} />
+                <img src={dadoSentado} alt="" className="doodle drops-dado neon-art al-ritmo" style={{ '--fase': '0.55' }} />
                 {/* Y el skater vuela por encima */}
-                <img src={skaterOllie} alt="" className="drops-skater neon-art al-ritmo" style={{ '--fase': '1.1' }} />
+                <img src={skaterOllie} alt="" className="doodle drops-skater neon-art al-ritmo" style={{ '--fase': '1.1' }} />
                 <nav className="drops-list" aria-label="Categorías">
-                    <Link className="drops-link" to="/">
+                    <Link className="paper-card drops-link" to="/">
                         <span>Todo el catálogo</span>
                         <span className="drops-arrow" aria-hidden="true">→</span>
                     </Link>
                     {uniqueDrops.map((drop) => (
                         <Link
                             key={drop.handle}
-                            className="drops-link"
+                            className="paper-card drops-link"
                             to={`/products/${encodeURIComponent(drop.handle)}`}
                         >
                             <span>{drop.title}</span>

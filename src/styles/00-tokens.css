@@ -172,9 +172,11 @@
   /* Subrayado garabateado reutilizable */
   --squiggle: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='8' viewBox='0 0 48 8'><path d='M2 5 Q 8 1 14 5 T 26 5 T 38 5 T 47 4' fill='none' stroke='%23e63946' stroke-width='3' stroke-linecap='round'/></svg>");
 
-  /* Retícula de puntos del cuaderno; --dot-alpha ajusta lo marcada que va. */
+  /* Retícula de puntos del cuaderno: color y opacidad por defecto. Se usa
+     como rgba(var(--dot-rgb), α) en cada sitio, no como imagen precocinada,
+     para que cada bloque pueda subir o bajar su α. */
+  --dot-rgb: var(--ink-rgb);
   --dot-alpha: 0.07;
-  --dot-grid: radial-gradient(circle, rgba(var(--ink-rgb), var(--dot-alpha)) 1.2px, transparent 1.2px);
   --dot-grid-size: 26px 26px;
 
   /* Garabatos muy suaves del papel de cuaderno (estrella, diana, nube, rayo). */
@@ -232,7 +234,8 @@ html[data-theme='neon'] {
   --squiggle: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='8' viewBox='0 0 48 8'><path d='M2 5 Q 8 1 14 5 T 26 5 T 38 5 T 47 4' fill='none' stroke='%23ff2ec4' stroke-width='3' stroke-linecap='round'/></svg>");
 
   /* El cuaderno de noche: mismos garabatos y misma retícula, en cian tenue. */
-  --dot-grid: radial-gradient(circle, rgba(41, 229, 255, 0.09) 1.2px, transparent 1.2px);
+  --dot-rgb: var(--neon-cyan-rgb);
+  --dot-alpha: 0.09;
   --notebook-doodles: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'><g fill='none' stroke='%2329e5ff' stroke-opacity='0.06' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M38 30 L41 42 L53 45 L41 48 L38 60 L35 48 L23 45 L35 42 Z'/><g><circle cx='195' cy='72' r='10'/><path d='M181 72 L209 72 M195 58 L195 86'/></g><path d='M52 190 q12 -10 24 0 q10 8 22 0 l-6 -5 m6 5 l-8 4'/><path d='M200 175 l-8 16 h9 l-10 18'/></g></svg>");
 
   color-scheme: dark;

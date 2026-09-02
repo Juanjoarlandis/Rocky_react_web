@@ -12,13 +12,23 @@
   display: inline-block;
 }
 
-.page-title::after {
+/* El subrayado garabateado, como pseudo-elemento bajo cualquier rótulo. */
+.page-title::after,
+.squiggle-underline::after {
   content: '';
   display: block;
   height: 8px;
   margin-top: 2px;
   background-image: var(--squiggle);
   background-repeat: repeat-x;
+  background-size: 48px 8px;
+}
+
+/* El mismo garabato como línea de suelo bajo un bloque (desfiles, láminas). */
+.squiggle-baseline {
+  background-image: var(--squiggle);
+  background-repeat: repeat-x;
+  background-position: left bottom;
   background-size: 48px 8px;
 }
 
@@ -40,19 +50,133 @@
   display: none;
 }
 
-/* ---------- Badges ---------- */
+/* ---------- Contenedor de página ----------
+   Ancho máximo, centrado y el aire de arriba y abajo. Cada página fija su
+   ancho con --container (por defecto el ancho completo, 1200px). */
 
-.badge-soon {
+.page-container {
+  width: 100%;
+  max-width: var(--container, var(--container-wide));
+  margin: 0 auto;
+  padding: 40px 24px 72px;
+}
+
+@media (max-width: 640px) {
+  .page-container {
+    padding: 24px 16px 56px;
+  }
+}
+
+/* Subtítulo de página: a mano, apagado y un pelín torcido. */
+.subtitle {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-family: var(--font-hand);
+  font-size: var(--text-lg);
+  transform: rotate(-0.5deg);
+}
+
+/* ---------- Tarjeta de papel ----------
+   Papel, borde de tinta, esquinas irregulares y sombra dura. */
+
+.paper-card {
+  background-color: var(--card);
+  border: 2px solid var(--ink);
+  border-radius: var(--wobble-md);
+  box-shadow: var(--shadow-ink);
+}
+
+/* ---------- Pegatina ----------
+   Un rótulo pegado torcido: la usan las cintas, contadores y sellos. */
+
+.sticker {
+  display: inline-block;
+  padding: 4px 12px;
+  border: 2px solid var(--ink);
+  border-radius: var(--wobble-xs);
+  background-color: var(--card);
+  color: var(--ink);
+  box-shadow: var(--shadow-ink-xs);
+  font-family: var(--font-hand);
+  line-height: 1.2;
+  transform: rotate(-2deg);
+}
+
+.sticker--accent {
+  background-color: var(--accent);
+  color: var(--white);
+}
+
+.sticker--ink {
+  background-color: var(--ink-block);
+  color: var(--ink-block-text);
+}
+
+/* ---------- Etiqueta ----------
+   «Próximamente», «En el horno», «Cromo por conseguir»: texto en rojo con
+   borde discontinuo (--dashed) o relleno (--solid). */
+
+.badge {
   display: inline-block;
   margin: 0;
   padding: 2px 14px;
-  border: 2px dashed var(--accent);
+  border: 2px solid var(--accent);
   border-radius: var(--wobble-md);
   color: var(--accent);
   font-family: var(--font-hand);
   font-size: 0.98rem;
   letter-spacing: 0.06em;
   transform: rotate(-2deg);
+}
+
+.badge--dashed {
+  border-style: dashed;
+}
+
+.badge--solid {
+  background-color: var(--accent);
+  color: var(--white);
+}
+
+/* ---------- Muñecos apoyados ----------
+   Un muñeco decorativo se posa sobre el canto de un bloque: va absoluto,
+   no atrapa clics ni selección y queda por delante del papel. El bloque que
+   hace de repisa lleva .doodle-shelf para que las coordenadas sean suyas. */
+
+.doodle {
+  position: absolute;
+  width: auto;
+  pointer-events: none;
+  user-select: none;
+  z-index: var(--z-doodle);
+}
+
+.doodle-shelf {
+  position: relative;
+}
+
+/* ---------- Celo ----------
+   Dos tiras de celo translúcido sujetando una foto o un marco; cada sitio
+   decide dónde caen (top/left/transform) y si sobra la segunda. */
+
+.tape::before,
+.tape::after {
+  content: '';
+  position: absolute;
+  width: var(--tape-w, 92px);
+  height: var(--tape-h, 26px);
+  background-color: var(--tape);
+  border: 2px solid var(--ink);
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* ---------- Retícula de puntos ----------
+   El cuaderno: rgba(var(--dot-rgb), α) cambia de tinta a luz con el tema. */
+
+.dot-grid {
+  background-image: radial-gradient(circle, rgba(var(--dot-rgb), var(--dot-alpha)) 1.2px, transparent 1.2px);
+  background-size: var(--dot-grid-size);
 }
 
 /* ---------- Estados de página ---------- */

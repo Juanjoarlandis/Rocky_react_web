@@ -53,7 +53,9 @@ body {
   background-color: var(--paper);
   /* Papel de cuaderno: garabatos muy suaves + retícula de puntos. De noche
      cambian los tokens, no esta regla. */
-  background-image: var(--notebook-doodles), var(--dot-grid);
+  background-image:
+    var(--notebook-doodles),
+    radial-gradient(circle, rgba(var(--dot-rgb), var(--dot-alpha)) 1.2px, transparent 1.2px);
   background-size: 260px 260px, var(--dot-grid-size);
   color: var(--ink);
   -webkit-font-smoothing: antialiased;

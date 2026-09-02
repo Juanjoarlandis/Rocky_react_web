@@ -56,14 +56,11 @@
 
 /* Los tres chicos se sientan sobre el borde superior del marco */
 .footer-illustration {
-    position: absolute;
     bottom: calc(100% - 14px);
     left: 50%;
     transform: translateX(-50%);
     width: min(60vw, 430px);
     height: auto;
-    pointer-events: none;
-    user-select: none;
 }
 
 .footer-social {

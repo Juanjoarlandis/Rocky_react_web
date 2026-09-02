@@ -44,10 +44,10 @@ function Cart({
     if (cart.length === 0) {
         return (
             <div className="cart-empty">
-                <div className="cart-empty-card">
-                    <img src={emptyCartImage} alt="" className="cart-empty-illustration neon-art al-ritmo al-ritmo--suave" style={{ '--fase': '0.1' }} />
+                <div className="paper-card cart-empty-card">
+                    <img src={emptyCartImage} alt="" className="doodle cart-empty-illustration neon-art al-ritmo al-ritmo--suave" style={{ '--fase': '0.1' }} />
                     {/* El Bombilla ya sabe la solución: ¡a la tienda! */}
-                    <img src={bombillaEureka} alt="" className="cart-empty-idea neon-art al-ritmo" style={{ '--fase': '0.6' }} />
+                    <img src={bombillaEureka} alt="" className="doodle cart-empty-idea neon-art al-ritmo" style={{ '--fase': '0.6' }} />
                     <h1 className="page-title">Tu carrito está vacío</h1>
                     <p>Échale un ojo al último drop.</p>
                     <Link to="/" className="btn btn-primary">Ver la tienda</Link>
@@ -57,7 +57,7 @@ function Cart({
     }
 
     return (
-        <div className="cart">
+        <div className="page-container cart">
             <div className="cart-head">
                 <h1 className="page-title">Tu carrito</h1>
                 <Link to="/" className="btn btn-ghost">Seguir comprando</Link>
@@ -71,10 +71,10 @@ function Cart({
                 </ul>
             )}
 
-            <div className="cart-list-wrap">
+            <div className="doodle-shelf cart-list-wrap">
                 {/* Un curioso asomado tras el borde del carrito */}
-                <img src={asomadoBorde} alt="" className="cart-peeker neon-art al-ritmo" style={{ '--fase': '0.3' }} />
-                <ul className="cart-list">
+                <img src={asomadoBorde} alt="" className="doodle cart-peeker neon-art al-ritmo" style={{ '--fase': '0.3' }} />
+                <ul className="paper-card cart-list">
                 {cart.map((product) => {
                     const unitPrice = formatPrice(product.price);
                     const localPrice = parsePrice(product.price);
@@ -102,7 +102,7 @@ function Cart({
                                 {unitPrice ? (
                                     <p className="cart-item-price">{unitPrice} / ud.</p>
                                 ) : (
-                                    <p className="badge-soon">Próximamente</p>
+                                    <p className="badge badge--dashed">Próximamente</p>
                                 )}
                                 {isShopify && product.availableForSale === false && (
                                     <p className="cart-item-soldout">Agotado — quítalo del carrito</p>
@@ -150,7 +150,7 @@ function Cart({
             <div className="cart-summary-wrap">
             {/* Dormido esperando a que abra el pago del drop; cabecea flojito,
                 bastante hace con seguir el ritmo en sueños */}
-            <img src={dormidoEsperando} alt="" className="cart-sleeper neon-art al-ritmo al-ritmo--suave" style={{ '--fase': '0.8' }} />
+            <img src={dormidoEsperando} alt="" className="doodle cart-sleeper neon-art al-ritmo al-ritmo--suave" style={{ '--fase': '0.8' }} />
             <div className="cart-summary">
                 <div className="cart-summary-row">
                     <span>Total</span>

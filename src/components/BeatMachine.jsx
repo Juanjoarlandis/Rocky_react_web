@@ -432,8 +432,8 @@ function BeatMachine() {
     };
 
     return (
-        <div className="mesa-wrap" ref={wrapRef}>
-            <img src={breakdanceFreeze} alt="" className="mesa-dancer neon-art" style={danceStyle} />
+        <div className="doodle-shelf mesa-wrap" ref={wrapRef}>
+            <img src={breakdanceFreeze} alt="" className="doodle mesa-dancer neon-art" style={danceStyle} />
 
             <div className="mesa">
                 <header className="mesa-cabecera">

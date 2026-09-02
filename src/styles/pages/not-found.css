@@ -1,8 +1,7 @@
 @layer pages {
 .notfound {
-    max-width: 560px;
-    margin: 0 auto;
-    padding: 48px 24px 72px;
+    --container: 560px;
+    padding-top: 48px;
     text-align: center;
     display: flex;
     flex-direction: column;

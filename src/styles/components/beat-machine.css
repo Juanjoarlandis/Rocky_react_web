@@ -3,7 +3,6 @@
    Panel oscuro con moteado de spray, pantalla ámbar, vúmetro y pads. */
 
 .mesa-wrap {
-    position: relative;
     /* Hueco para El Freeze bailando encima de la mesa */
     margin-top: clamp(92px, 12vw, 118px);
     --celda: clamp(22px, 2.9vw, 32px);
@@ -13,14 +12,11 @@
 
 /* El Freeze baila tu beat: el balanceo va a la velocidad del BPM */
 .mesa-dancer {
-    position: absolute;
     bottom: calc(100% - 10px);
     right: 5%;
     height: clamp(110px, 15vw, 150px);
     width: auto;
     z-index: 3;
-    pointer-events: none;
-    user-select: none;
     transform-origin: 20% 95%;
     animation-name: mesa-baile;
     animation-timing-function: ease-in-out;

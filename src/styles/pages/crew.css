@@ -1,24 +1,10 @@
 @layer pages {
-.crew {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 40px 24px 72px;
-}
-
 .crew-head {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     gap: 28px;
     margin-bottom: 26px;
-}
-
-.crew-subtitle {
-    margin: 12px 0 0;
-    color: var(--muted);
-    font-family: var(--font-hand);
-    font-size: 1.2rem;
-    transform: rotate(-0.5deg);
 }
 
 /* ---------- El marcador del álbum ---------- */
@@ -146,11 +132,6 @@
     gap: 24px;
     margin: 26px 0 40px;
     padding-bottom: 12px;
-    /* La línea sobre la que posa la banda */
-    background-image: var(--squiggle);
-    background-repeat: repeat-x;
-    background-position: left bottom;
-    background-size: 48px 8px;
 }
 
 .crew-parade {
@@ -182,10 +163,6 @@
     gap: 16px;
     margin: 0 0 26px;
     padding-bottom: 14px;
-    background-image: var(--squiggle);
-    background-repeat: repeat-x;
-    background-position: left bottom;
-    background-size: 48px 8px;
 }
 
 .lamina-cinta {
@@ -244,19 +221,18 @@
     border: 2px solid var(--ink);
     border-radius: var(--wobble-lg);
     background-color: rgba(var(--ink-rgb), 0.025);
-    background-image: radial-gradient(circle, rgba(var(--ink-rgb), 0.055) 1.2px, transparent 1.2px);
+    background-image: radial-gradient(circle, rgba(var(--dot-rgb), 0.055) 1.2px, transparent 1.2px);
     background-size: 22px 22px;
     box-shadow: var(--shadow-ink-sm);
 }
 
-/* Tiras de celo sujetando el marco */
+/* Tiras de celo sujetando el marco, con el borde más fino */
+.crew-vitrina-marco {
+    --tape-h: 30px;
+}
+
 .crew-vitrina-marco::before,
 .crew-vitrina-marco::after {
-    content: '';
-    position: absolute;
-    width: 92px;
-    height: 30px;
-    background-color: var(--tape);
     border: 1px solid rgba(var(--ink-rgb), 0.16);
     top: -15px;
 }
@@ -426,7 +402,7 @@
     align-items: center;
     justify-content: center;
     margin: 8px 0 10px;
-    background-image: radial-gradient(circle, rgba(var(--ink-rgb), 0.06) 1.1px, transparent 1.1px);
+    background-image: radial-gradient(circle, rgba(var(--dot-rgb), 0.06) 1.2px, transparent 1.2px);
     background-size: 18px 18px;
 }
 
@@ -511,24 +487,17 @@
     opacity: 0.85;
     mix-blend-mode: multiply;
     pointer-events: none;
-    animation: sello-estampar 0.35s cubic-bezier(0.2, 1.4, 0.4, 1);
+    /* El sello cae más torcido y desde más alto que el del recado */
+    --stamp-rotate: -11deg;
+    --stamp-scale: 2.1;
+    --stamp-opacity: 0.85;
+    animation: stamp-in 0.35s cubic-bezier(0.2, 1.4, 0.4, 1);
 }
 
 .crew-card.especial .sello-fichado {
     mix-blend-mode: normal;
     color: var(--gold);
     border-color: var(--gold);
-}
-
-@keyframes sello-estampar {
-    0% {
-        opacity: 0;
-        transform: rotate(-11deg) scale(2.1);
-    }
-    100% {
-        opacity: 0.85;
-        transform: rotate(-11deg) scale(1);
-    }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -786,10 +755,6 @@
 }
 
 @media (max-width: 640px) {
-    .crew {
-        padding: 24px 16px 56px;
-    }
-
     .crew-grid {
         grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
         gap: 18px;
@@ -931,7 +896,6 @@
 
 html[data-theme='neon'] .crew-vitrina-marco {
     background-color: rgba(var(--neon-ink-rgb), 0.02);
-    background-image: radial-gradient(circle, rgba(var(--neon-ink-rgb), 0.07) 1.2px, transparent 1.2px);
 }
 
 /* El celo, visto a contraluz. */
@@ -939,10 +903,6 @@ html[data-theme='neon'] .crew-vitrina-marco::before,
 html[data-theme='neon'] .crew-vitrina-marco::after {
     background-color: rgba(var(--neon-ink-rgb), 0.14);
     border-color: rgba(var(--neon-ink-rgb), 0.22);
-}
-
-html[data-theme='neon'] .crew-card-media {
-    background-image: radial-gradient(circle, rgba(var(--neon-ink-rgb), 0.08) 1.1px, transparent 1.1px);
 }
 
 /* Las sombras de las cintas, del rojo/azul de día al rosa/cian de noche. */
