@@ -2,6 +2,7 @@
 // Cada cromo: nombre de guerra, oficio, stats (0-5, medidos en dianas),
 // y el expediente del reverso con la página donde vive cada uno.
 
+import { INSTAGRAM_URL } from '../config/links';
 import tumbado from '../images/optimized/shell/tumbado-800.webp';
 import fundadores from '../images/optimized/shell/sentado-860.webp';
 import grafitero from '../images/optimized/characters/grafitero-spray-600.webp';
@@ -400,6 +401,6 @@ export const POR_FICHAR = [
         id: 'tu',
         nombre: '¿Tú?',
         nota: 'La crew siempre ficha. Escríbenos al insta.',
-        enlace: 'https://www.instagram.com/rocky035/',
+        enlace: INSTAGRAM_URL,
     },
 ];

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { INSTAGRAM_URL } from '../config/links';
 import '../styles/Footer.css';
 
 import instagramIcon from '../images/optimized/shell/instagram-64.webp';
@@ -97,7 +98,7 @@ const Footer = () => {
                     style={{ '--fase': '0.2' }}
                 />
                 <a
-                    href="https://www.instagram.com/"
+                    href={INSTAGRAM_URL}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="footer-social"

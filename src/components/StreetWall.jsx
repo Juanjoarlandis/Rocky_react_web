@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router';
 import streetWall from '../data/streetWall';
+import { INSTAGRAM_HANDLE, INSTAGRAM_URL } from '../config/links';
 import fotografoAgachado from '../images/optimized/shell/fotografo-agachado.webp';
 import dianaJefe from '../images/optimized/splash/diana-jefe.webp';
 import '../styles/StreetWall.css';
@@ -136,11 +137,11 @@ function StreetWall() {
                 <h2 className="page-title">La banda</h2>
                 <a
                     className="street-wall-handle"
-                    href="https://www.instagram.com/rocky035/"
+                    href={INSTAGRAM_URL}
                     target="_blank"
                     rel="noopener noreferrer"
                 >
-                    del insta @rocky035
+                    del insta {INSTAGRAM_HANDLE}
                 </a>
                 {/* El fotógrafo de la crew, disparando el muro */}
                 <span className="street-photographer" ref={figuraRef}>
