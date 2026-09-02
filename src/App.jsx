@@ -12,7 +12,7 @@ import ProductPage from './features/catalog/ProductPage';
 import CuriousPeeker from './features/peeker/CuriousPeeker';
 import CartRunner from './features/cart/CartRunner';
 import demoCatalog from './data/demoCatalog.json';
-import previewProducts from '../server/preview-products.mjs';
+import previewProducts from '../shared/preview-products.mjs';
 import { normalizeDemoCatalog } from './features/storefront/normalize';
 import { useStorefront } from './features/storefront/useStorefront';
 import { STORAGE_KEYS } from './config/storageKeys.js';

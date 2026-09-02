@@ -21,10 +21,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
-import { createConfig } from '../server/config.mjs';
-import { createAdminClient } from '../server/shopify/admin.mjs';
-import { createShopifyConfig } from '../server/shopify/config.mjs';
-import { requestShopifyGraphql } from '../server/shopify/graphql.mjs';
+import { createConfig } from '../server/config/app.mjs';
+import { createAdminClient } from '../server/integrations/shopify/admin.mjs';
+import { createShopifyConfig } from '../server/config/shopify.mjs';
+import { requestShopifyGraphql } from '../server/integrations/shopify/graphql.mjs';
 
 dotenv.config({ quiet: true });
 

@@ -1,0 +1,37 @@
+# Actualizaciones semanales de dependencias npm y de las acciones de CI.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '07:00'
+      timezone: Europe/Madrid
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: 'Actualiza'
+    groups:
+      herramientas:
+        patterns:
+          - 'eslint*'
+          - '@eslint/*'
+          - 'prettier'
+          - 'stylelint*'
+          - 'vite'
+          - '@vitejs/*'
+          - 'vitest'
+          - '@vitest/*'
+          - '@testing-library/*'
+          - 'jsdom'
+          - 'globals'
+          - 'concurrently'
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '07:00'
+      timezone: Europe/Madrid
+    commit-message:
+      prefix: 'Actualiza'

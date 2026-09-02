@@ -57,6 +57,46 @@ Storefront full-stack para una marca de streetwear que mezcla tienda, música, p
 
 `React 19` · `Vite 8` · `Express 4` · `Shopify APIs` · `OpenRouter` · `Vitest`
 
+## Estructura del repo
+
+```
+index.html, vite.config.mjs   entrada y build de Vite (con los dos proyectos de Vitest)
+src/                          SPA React por features
+  features/                   storefront (modo, catálogo, carrito, cuenta), catalog, cart, chat,
+                              crew, studio (mesa de beats), music (radio), peeker (muñeco curioso)
+  components/                 UI genérica: NavBar, Footer, SplashIntro, StreetWall, NotFound,
+                              icons/, doodles/
+  api/                        http.js (cliente único con cancelación), shopify.js, chat.js, avisos.js
+  config/                     routes, storageKeys, commerce, links, campaign
+  hooks/, utils/, data/       hooks compartidos, helpers puros y datos (catálogo demo, crew, muro)
+  styles/                     index.css → 00-tokens → 01-fonts → 02-base → 03-utilities →
+                              04-buttons → 05-motion; components/ y pages/ (@layer)
+shared/                       módulos sin dependencias de Node que importan src/ y server/
+                              (catálogo de vista previa)
+server/
+  index.mjs                   arranque: sonda del almacén, listen, señales de apagado
+  app.mjs                     composición: crea dependencias y monta rutas en orden
+  config/                     env.mjs (helpers), app.mjs, storage.mjs, shopify.mjs
+  http/                       middleware/ (cabeceras, origen, rate limit, validación, errores),
+                              routes/ (health, chat, avisos, crew, shopify/*), static.mjs,
+                              access-gate (puerta privada), errors.mjs
+  services/                   sesiones, operaciones de carrito, avisos, entregas de webhooks,
+                              crew/ (recompensas), chat/ (orchestrator, commerce, prompt)
+  integrations/               shopify/ (graphql, storefront, admin, customer-account,
+                              webhook-verify) y openrouter/
+  storage/                    memory-store y encrypted-file-store (AES-256-GCM)
+  lib/                        keyed-lock, serial-queue, hash, fetch-json, logger
+scripts/                      check-secrets, exportar-avisos, seed-drop4, optimizar-imagenes,
+                              marketing/extraer-posters.sh
+public/                       estáticos servidos tal cual (products/, music/, street/)
+docs/                         design/, ops/, marketing/, archive/ (índice en docs/README.md)
+posters/, prompts-munecos/    material de marketing que saldrá del repo (docs/marketing/README.md)
+```
+
+Los tests viven junto al módulo que prueban (`*.test.mjs` en el servidor,
+`*.test.jsx` en la interfaz). `CLAUDE.md` resume las convenciones y
+`CONTRIBUTING.md` el flujo de trabajo.
+
 ## Requisitos
 
 - Node.js 24 (la versión esperada está en `.nvmrc`).
@@ -86,12 +126,19 @@ Copia el resultado a `APP_ENCRYPTION_KEY` en el gestor de secretos del entorno. 
 ## Comandos
 
 ```bash
-npm run dev             # Vite + Express con recarga
-npm run test:run        # suite Vitest una vez
+npm run dev             # Vite (:3000) + Express (:3001) con recarga
+npm run test:run        # suite Vitest una vez (proyectos server y client)
+npm run test:coverage   # cobertura de server/ y shared/ con umbral del 80 %
+npm run lint            # ESLint
+npm run lint:css        # Stylelint
+npm run format          # Prettier sobre todo el repo
 npm run build           # frontend de producción en dist/
 npm run security:check  # secretos locales y bundle
-npm run check           # pruebas + build + secret scan
-npm start               # sirve API y dist/ con Express
+npm run check           # pruebas + lint + stylelint + build + secret scan
+npm start               # node server/index.mjs: sirve /api y dist/
+npm run seed:drop4      # crea los productos del DROP 4 en Shopify (simulacro sin --apply)
+npm run avisos:exportar # CSV de la lista de avisos desde el almacén cifrado
+npm run images:optimize # regenera src/images/optimized/** desde assets-master/
 ```
 
 ## Puerta privada de preestreno
@@ -177,7 +224,7 @@ devolución mientras tanto.
 
 ## Rocky IA: personalidad y coste cero
 
-La personalidad de Rocky IA vive exclusivamente en el servidor, en `server/rocky-prompt.mjs`. El navegador envía sólo el mensaje nuevo; no puede introducir roles, historial, prompt, modelo ni parámetros del proveedor. El historial se limita a ocho mensajes y se conserva en la sesión del servidor.
+La personalidad de Rocky IA vive exclusivamente en el servidor, en `server/services/chat/prompt.mjs`. El navegador envía sólo el mensaje nuevo; no puede introducir roles, historial, prompt, modelo ni parámetros del proveedor. El historial se limita a ocho mensajes y se conserva en la sesión del servidor.
 
 `OPENROUTER_MODELS` falla cerrado: cada identificador debe terminar en `:free` o ser exactamente `openrouter/free`. Una entrada pagada, mixta o vacía impide arrancar la aplicación. Los fallbacks también pertenecen a esa lista cerrada y nunca se sustituye un error por un modelo de pago.
 
@@ -201,11 +248,59 @@ Las cuentas usan discovery HTTPS, Authorization Code + PKCE, `state` de un solo 
 
 Rocky IA exige un `Origin` exacto permitido, acepta únicamente `{ "message": string }`, mantiene los roles conversacionales en el servidor y bloquea intentos evidentes de revelar o cambiar sus instrucciones sin consumir una petición del proveedor.
 
-Consulta [SECURITY.md](./SECURITY.md) para los controles de despliegue, rotación y limitaciones conocidas. La arquitectura detallada y la evidencia por tarea están en [docs/superpowers/plans/2026-08-07--shopify-security-readiness](./docs/superpowers/plans/2026-08-07--shopify-security-readiness/README.md).
+Consulta [SECURITY.md](./SECURITY.md) para los controles de despliegue, rotación y limitaciones conocidas. La arquitectura original y la evidencia por tarea están archivadas en [docs/archive/2026-08/superpowers/plans/2026-08-07--shopify-security-readiness](./docs/archive/2026-08/superpowers/plans/2026-08-07--shopify-security-readiness/README.md).
 
 ## Almacenamiento y escalado
 
 El estado se guarda como un único sobre AES-256-GCM con escrituras atómicas y permisos restrictivos. Está diseñado para una sola instancia Node con disco persistente. Antes de escalar horizontalmente o desplegar sobre disco efímero, migra las interfaces de sesión/idempotencia/webhooks a una base compartida con transacciones; no compartas el fichero entre procesos.
+
+## Despliegue
+
+La imagen de producción se construye con el `Dockerfile` multi-etapa (Node 24
+fijado por digest): la etapa de build ejecuta la suite y `vite build`, y la de
+runtime sólo lleva `node_modules` de producción, `server/`, `shared/`,
+`scripts/exportar-avisos.mjs`, el catálogo demo y `dist/`. Corre como usuario
+`node`, con `HEALTHCHECK` sobre `/api/health` y `node server/index.mjs` como
+comando. El servidor sondea el almacén cifrado antes de escuchar: si
+`APP_ENCRYPTION_KEY` no descifra el fichero o `.data/` no admite escrituras, el
+proceso termina con código 1 en lugar de arrancar a medias.
+
+```bash
+docker build -t rocky035:local .
+docker run --rm -p 127.0.0.1:3100:3001 --env-file /etc/rocky035/rocky.env \
+  -v /var/lib/rocky035:/app/.data rocky035:local
+```
+
+`compose.production.yaml` describe el servicio tal y como corre en el origen
+privado: imagen `${ROCKY_IMAGE}`, `env_file` en `/etc/rocky035/rocky.env`
+(propiedad de root, modo 0600), puerto publicado sólo en `127.0.0.1:3100`,
+volumen persistente en `/var/lib/rocky035`, sistema de ficheros de sólo
+lectura, sin capacidades y `no-new-privileges`. Delante va un túnel de
+Cloudflare que termina TLS y publica `rocky035.com` y `www.rocky035.com`;
+por eso `TRUST_PROXY_HOPS=1` es obligatorio en producción (con `0`, todos los
+visitantes compartirían la IP del proxy y el rate limit sería global).
+`PUBLIC_ORIGIN` y `API_ALLOWED_ORIGINS` deben ser los orígenes HTTPS exactos
+que publica Cloudflare.
+
+Tareas de operación:
+
+- `npm run seed:drop4` crea o actualiza en Shopify los productos del DROP 4 a
+  partir de `src/data/demoCatalog.json`; sin `--apply` es un simulacro.
+  Necesita `SHOPIFY_ADMIN_ACCESS_TOKEN` o las credenciales `client_credentials`
+  con `write_products` y `write_publications`.
+- `npm run avisos:exportar` vuelca a CSV la lista de avisos del drop desde el
+  almacén cifrado (hay que ejecutarlo donde viva el servidor, con
+  `APP_ENCRYPTION_KEY` y `STATE_STORE_PATH`); `-- --vaciar <handle>` borra la
+  lista de un producto una vez enviado el aviso.
+- `npm run images:optimize` regenera `src/images/optimized/**` desde una
+  carpeta maestra (`assets-master/`, ignorada por git, o `--source <ruta>`),
+  conservando carpetas y anchos existentes. Usa `sharp`, que no es dependencia
+  del proyecto: `npm install --no-save sharp`. Con `--dry-run` sólo enseña el
+  plan.
+- `posters/` y `prompts-munecos/` son material de marketing (pósters de
+  Instagram, briefs y salidas de los muñecos). No entran en la imagen ni en el
+  bundle y saldrán del repositorio siguiendo `docs/marketing/README.md`; el
+  plan para purgar el historial está en `docs/ops/reescritura-historial.md`.
 
 ## Verificación antes de publicar
 

@@ -7,7 +7,6 @@ package-lock.json
 posters
 prompts-munecos
 public/theme-init.js
-docs/cotilla-esquina-preview.html
 docs/design/cotilla-esquina-preview.html
 *.md
 *.woff2

@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import MenuDrop, { summarizeDrops } from './MenuDrop.jsx';
-import previewProducts from '../../../server/preview-products.mjs';
+import previewProducts from '../../../shared/preview-products.mjs';
 import demoCatalog from '../../data/demoCatalog.json';
 import { normalizeDemoCatalog } from '../storefront/normalize.js';
 
