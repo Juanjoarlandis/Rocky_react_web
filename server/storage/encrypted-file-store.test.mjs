@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EncryptedStore } from './encrypted-file-store.mjs';
 import { MemoryStore } from './memory-store.mjs';
 
@@ -89,6 +89,36 @@ describe('EncryptedStore', () => {
     expect(() => new EncryptedStore({ filePath: '/tmp/unused', key: 'not-base64' })).toThrow(
       /APP_ENCRYPTION_KEY/
     );
+  });
+
+  it('decrypts the file once and serves later reads from memory', async () => {
+    const { store, filePath, key } = await createStore();
+    const readState = vi.spyOn(store, 'readState');
+
+    await store.set('sessions', 'a', { n: 1 });
+    await store.set('sessions', 'b', { n: 2 });
+    await store.get('sessions', 'a');
+    await store.get('sessions', 'b');
+    await store.delete('sessions', 'a');
+
+    expect(readState).toHaveBeenCalledTimes(1);
+    // Cada mutación llega al disco: otra instancia con la misma clave lo ve.
+    const reopened = new EncryptedStore({ filePath, key });
+    await expect(reopened.get('sessions', 'a')).resolves.toBeNull();
+    await expect(reopened.get('sessions', 'b')).resolves.toEqual({ n: 2 });
+  });
+
+  it('probes the file with the current key and rejects a key that cannot decrypt it', async () => {
+    const { store, filePath } = await createStore();
+    await store.set('sessions', 'a', { n: 1 });
+
+    await expect(store.probe()).resolves.toBe(true);
+    const wrongKey = new EncryptedStore({
+      filePath,
+      key: crypto.randomBytes(32).toString('base64'),
+    });
+    await expect(wrongKey.probe()).rejects.toThrow(/APP_ENCRYPTION_KEY/);
+    await expect(new MemoryStore().probe()).resolves.toBe(true);
   });
 
   it('prunes expired records during later mutations', async () => {

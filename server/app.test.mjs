@@ -371,7 +371,10 @@ describe('private coming-soon access boundary', () => {
       logger,
     });
 
-    const response = await fetch(`${baseUrl}/api/shopify/cart`);
+    // Con cookie, la lectura del carrito consulta el almacén roto.
+    const response = await fetch(`${baseUrl}/api/shopify/cart`, {
+      headers: { Cookie: `rocky_session=${'a'.repeat(43)}` },
+    });
 
     expect(response.status).toBe(500);
     await expect(response.json()).resolves.toEqual({
@@ -469,9 +472,132 @@ describe('HTTP security boundary', () => {
     );
     expect(response.headers.get('content-security-policy')).toContain("font-src 'self'");
     expect(response.headers.get('content-security-policy')).toContain("style-src 'self'");
+    expect(response.headers.get('content-security-policy')).toContain(
+      "img-src 'self' data: https://cdn.shopify.com"
+    );
     expect(response.headers.get('content-security-policy')).not.toContain('fonts.googleapis.com');
     expect(response.headers.get('content-security-policy')).not.toContain('fonts.gstatic.com');
     expect(response.headers.get('cache-control')).toBe('no-store');
+  });
+
+  it('answers preflights with the exact origin and only the Content-Type header', async () => {
+    const baseUrl = await startTestServer();
+
+    const response = await fetch(`${baseUrl}/api/shopify/cart/lines`, {
+      method: 'OPTIONS',
+      headers: { Origin: 'https://rocky.test', 'Access-Control-Request-Method': 'POST' },
+    });
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get('access-control-allow-origin')).toBe('https://rocky.test');
+    expect(response.headers.get('access-control-allow-headers')).toBe('Content-Type');
+  });
+
+  it('reports 503 from the health probe when the state store cannot be read', async () => {
+    class UnreadableStore extends MemoryStore {
+      async probe() {
+        throw new Error('No se pudo descifrar el estado local. Revisa APP_ENCRYPTION_KEY.');
+      }
+    }
+    const logger = { error: vi.fn(), info: vi.fn(), warn: vi.fn() };
+    const baseUrl = await startTestServer({ store: new UnreadableStore(), logger });
+
+    const response = await fetch(`${baseUrl}/api/health`);
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({ status: 'unavailable' });
+    expect(logger.error).toHaveBeenCalledWith(
+      'State store probe failed',
+      expect.objectContaining({ reason: 'store_unavailable', name: 'Error' })
+    );
+  });
+
+  it('ignores a malformed session cookie instead of failing the request', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ choices: [{ message: { content: 'ok' } }], usage: { cost: 0 } }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      );
+    const baseUrl = await startTestServer({ fetchImpl });
+
+    const response = await fetch(`${baseUrl}/api/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Origin: 'https://rocky.test',
+        Cookie: 'rocky_session=%E0%A4%A; other=%ZZ',
+      },
+      body: JSON.stringify({ message: 'hola' }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('set-cookie')).toContain('rocky_session=');
+  });
+
+  it('serves the chat catalog from a process cache for a minute', async () => {
+    const shopifyCatalog = {
+      data: {
+        products: {
+          pageInfo: { hasNextPage: false, endCursor: null },
+          nodes: [
+            {
+              id: 'gid://shopify/Product/1',
+              handle: 'rockydz-boyz',
+              title: 'Rockydz Boyz',
+              description: 'Camiseta blanca oversize.',
+              featuredImage: null,
+              collections: { nodes: [] },
+              variants: {
+                nodes: [
+                  {
+                    id: 'gid://shopify/ProductVariant/11',
+                    title: 'M',
+                    availableForSale: true,
+                    quantityAvailable: null,
+                    selectedOptions: [{ name: 'Talla', value: 'M' }],
+                    price: { amount: '35.00', currencyCode: 'EUR' },
+                    image: null,
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+    };
+    const fetchImpl = vi.fn(
+      async (url) =>
+        new Response(
+          JSON.stringify(
+            String(url).includes('.myshopify.com/')
+              ? shopifyCatalog
+              : { choices: [{ message: { content: 'ok' } }], usage: { cost: 0 } }
+          ),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+    );
+    const baseUrl = await startTestServer({
+      fetchImpl,
+      env: { SHOPIFY_STORE_DOMAIN: 'rocky-dev.myshopify.com', CHAT_RATE_LIMIT_MAX: '5' },
+    });
+    const ask = () =>
+      fetch(`${baseUrl}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Origin: 'https://rocky.test' },
+        body: JSON.stringify({ message: '¿Qué camisetas tenéis disponibles?' }),
+      });
+
+    expect((await ask()).status).toBe(200);
+    expect((await ask()).status).toBe(200);
+
+    const shopifyCalls = fetchImpl.mock.calls.filter(([url]) =>
+      String(url).includes('.myshopify.com/')
+    );
+    expect(shopifyCalls).toHaveLength(1);
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
   });
 
   it('rejects arbitrary browser origins before an upstream call', async () => {

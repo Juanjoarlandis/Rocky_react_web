@@ -75,8 +75,8 @@ export function createAccountRouter({ config, sessions, customerAccounts, requir
       const previousSession = await sessions.read(req);
       if (!previousSession) {
         throw new CustomerAccountError('La sesión OAuth ha caducado.', {
-          status: 400,
-          code: 'INVALID_STATE',
+          status: 401,
+          code: 'OAUTH_SESSION_EXPIRED',
         });
       }
       const completed = await customerAccounts.completeAuthentication({

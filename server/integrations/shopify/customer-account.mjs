@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { CustomerAccountError } from '../../http/errors.mjs';
 import { fetchJson } from '../../lib/fetch-json.mjs';
 import { sha256Base64Url } from '../../lib/hash.mjs';
+import { createKeyedLock } from '../../lib/keyed-lock.mjs';
 import { ensureLogger } from '../../lib/logger.mjs';
 import { requestShopifyGraphql } from './graphql.mjs';
 
@@ -11,6 +12,12 @@ const OAUTH_TRANSACTION_MS = 10 * 60 * 1_000;
 const CUSTOMER_TOKEN_RETENTION_MS = 30 * 24 * 60 * 60 * 1_000;
 const MAX_TOKEN_LIFETIME_SECONDS = 365 * 24 * 60 * 60;
 const USER_AGENT = 'ROCKY035-Shopify/1.0';
+// Cachés de proceso: el perfil se pide en cada página privada y en cada
+// turno del chat; las claves de firma cambian muy de vez en cuando.
+export const PROFILE_CACHE_TTL_MS = 60_000;
+export const JWKS_CACHE_TTL_MS = 10 * 60 * 1_000;
+const MAX_CACHED_PROFILES = 1_000;
+const MAX_CACHED_KEYS = 50;
 
 const TRANSPORT_MESSAGES = Object.freeze({
   TIMEOUT: 'Shopify ha superado el tiempo de espera.',
@@ -155,19 +162,29 @@ function parseJwt(token) {
   }
 }
 
-async function verifyIdToken({ token, nonce, clientId, discovery, fetchImpl, clock, logger }) {
+function signingKeyMatches(candidate, header) {
+  return (
+    candidate.kid === header.kid &&
+    (!candidate.alg || candidate.alg === header.alg) &&
+    (!candidate.use || candidate.use === 'sig') &&
+    (!candidate.key_ops || candidate.key_ops.includes('verify'))
+  );
+}
+
+async function verifyIdToken({
+  token,
+  nonce,
+  clientId,
+  discovery,
+  resolveSigningKey,
+  clock,
+  logger,
+}) {
   const parsed = parseJwt(token);
   if (!['ES256', 'RS256'].includes(parsed.header.alg) || !parsed.header.kid) {
     throw invalidIdToken('Algoritmo de ID token no permitido.');
   }
-  const jwks = await fetchDiscovery(discovery.jwks_uri, fetchImpl);
-  const jwk = jwks.keys?.find(
-    (candidate) =>
-      candidate.kid === parsed.header.kid &&
-      (!candidate.alg || candidate.alg === parsed.header.alg) &&
-      (!candidate.use || candidate.use === 'sig') &&
-      (!candidate.key_ops || candidate.key_ops.includes('verify'))
-  );
+  const jwk = await resolveSigningKey(parsed.header);
   if (!jwk) {
     throw invalidIdToken('No se encuentra la clave del ID token.');
   }
@@ -228,6 +245,16 @@ async function verifyIdToken({ token, nonce, clientId, discovery, fetchImpl, clo
   return { ...parsed.payload, sub: customerSubject };
 }
 
+// Caché acotada con orden de inserción: cuando se llena, sale la entrada
+// más antigua.
+function remember(cache, key, value, maxEntries) {
+  cache.delete(key);
+  cache.set(key, value);
+  while (cache.size > maxEntries) {
+    cache.delete(cache.keys().next().value);
+  }
+}
+
 export function createCustomerAccountClient({
   config,
   store,
@@ -236,6 +263,12 @@ export function createCustomerAccountClient({
   logger = null,
 }) {
   const log = ensureLogger(logger);
+  // Un candado por tokenId: dos peticiones con el token caducado no deben
+  // refrescarlo a la vez, porque Shopify rota el refresh token y la segunda
+  // llamada invalidaría a la primera.
+  const withTokenLock = createKeyedLock();
+  const profileCache = new Map();
+  const signingKeyCache = new Map();
   let openIdDiscovery = null;
   let apiDiscovery = null;
 
@@ -263,6 +296,25 @@ export function createCustomerAccountClient({
     }
     requireHttpsUrl(apiDiscovery.graphql_api);
     return apiDiscovery;
+  }
+
+  // Clave de firma por kid con caducidad; un kid desconocido vuelve a pedir
+  // el JWKS (rotación de claves).
+  async function resolveSigningKey(header) {
+    const cached = signingKeyCache.get(header.kid);
+    if (cached && cached.expiresAt > clock() && signingKeyMatches(cached.jwk, header)) {
+      return cached.jwk;
+    }
+    const discovery = await getOpenIdDiscovery();
+    const jwks = await fetchDiscovery(discovery.jwks_uri, fetchImpl);
+    const keys = Array.isArray(jwks.keys) ? jwks.keys : [];
+    const expiresAt = clock() + JWKS_CACHE_TTL_MS;
+    for (const candidate of keys) {
+      if (typeof candidate?.kid === 'string') {
+        remember(signingKeyCache, candidate.kid, { jwk: candidate, expiresAt }, MAX_CACHED_KEYS);
+      }
+    }
+    return keys.find((candidate) => signingKeyMatches(candidate, header)) || null;
   }
 
   async function exchangeToken(discovery, body) {
@@ -321,14 +373,16 @@ export function createCustomerAccountClient({
   }
 
   async function getUsableToken(tokenId) {
-    const record = await store.get('customerTokens', tokenId);
-    if (!record) {
-      throw new CustomerAccountError('Sesión de cliente no válida.', {
-        status: 401,
-        code: 'NO_SESSION',
-      });
-    }
-    return record.expiresAt - 30_000 > clock() ? record : refreshToken(tokenId, record);
+    return withTokenLock(tokenId, async () => {
+      const record = await store.get('customerTokens', tokenId);
+      if (!record) {
+        throw new CustomerAccountError('Sesión de cliente no válida.', {
+          status: 401,
+          code: 'NO_SESSION',
+        });
+      }
+      return record.expiresAt - 30_000 > clock() ? record : refreshToken(tokenId, record);
+    });
   }
 
   return {
@@ -410,7 +464,7 @@ export function createCustomerAccountClient({
         nonce: transaction.nonce,
         clientId: config.customerClientId,
         discovery,
-        fetchImpl,
+        resolveSigningKey,
         clock,
         logger: log,
       });
@@ -435,6 +489,9 @@ export function createCustomerAccountClient({
     },
 
     async getCustomerProfile(tokenId) {
+      const cached = profileCache.get(tokenId);
+      if (cached && cached.expiresAt > clock()) return { ...cached.profile };
+
       const token = await getUsableToken(tokenId);
       const discovery = await getApiDiscovery();
       const { data } = await requestShopifyGraphql({
@@ -444,13 +501,20 @@ export function createCustomerAccountClient({
         fetchImpl,
       });
       const customer = data.customer;
-      return {
+      const profile = {
         id: customer.id,
         displayName: getCustomerDisplayName(customer),
         firstName: cleanCustomerText(customer.firstName),
         lastName: cleanCustomerText(customer.lastName),
         email: cleanCustomerText(customer.emailAddress?.emailAddress),
       };
+      remember(
+        profileCache,
+        tokenId,
+        { profile, expiresAt: clock() + PROFILE_CACHE_TTL_MS },
+        MAX_CACHED_PROFILES
+      );
+      return { ...profile };
     },
 
     async createLogoutUrl(tokenId) {
@@ -465,7 +529,9 @@ export function createCustomerAccountClient({
     },
 
     async deleteToken(tokenId) {
-      if (tokenId) await store.delete('customerTokens', tokenId);
+      if (!tokenId) return;
+      profileCache.delete(tokenId);
+      await store.delete('customerTokens', tokenId);
     },
   };
 }

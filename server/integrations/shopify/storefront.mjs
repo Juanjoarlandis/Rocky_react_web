@@ -218,11 +218,6 @@ export function createStorefrontClient({ config, fetchImpl = globalThis.fetch })
       };
     },
 
-    async createCart(input, context) {
-      const result = await createCartForSession(input, context);
-      return { cart: result.cart, warnings: result.warnings };
-    },
-
     createCartForSession,
 
     async getCart(fullCartId, { buyerIp } = {}) {

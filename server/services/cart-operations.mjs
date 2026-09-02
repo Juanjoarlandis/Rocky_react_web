@@ -1,4 +1,4 @@
-import { ShopifyGraphqlError } from '../http/errors.mjs';
+import { ShopifyGraphqlError, isHttpError } from '../http/errors.mjs';
 import { createKeyedLock } from '../lib/keyed-lock.mjs';
 
 const IDEMPOTENCY_RETENTION_MS = 24 * 60 * 60 * 1_000;
@@ -57,12 +57,19 @@ export function createCartOperations({
         );
         return response;
       } catch (error) {
-        await store.set(
-          'cartOperations',
-          idempotencyKey,
-          { status: 'ambiguous', failedAt: clock() },
-          { expiresAt: clock() + AMBIGUOUS_RETENTION_MS }
-        );
+        // Un rechazo claro (4xx) no deja el carrito a medias: se libera la
+        // operación para que el cliente pueda corregir y reintentar con el
+        // mismo operationId. Sólo un fallo ambiguo (red, 5xx) queda marcado.
+        if (isHttpError(error) && error.status < 500) {
+          await store.delete('cartOperations', idempotencyKey);
+        } else {
+          await store.set(
+            'cartOperations',
+            idempotencyKey,
+            { status: 'ambiguous', failedAt: clock() },
+            { expiresAt: clock() + AMBIGUOUS_RETENTION_MS }
+          );
+        }
         throw error;
       }
     });
@@ -77,8 +84,12 @@ export function createCartOperations({
 
   async function requireOwnedLine(cartId, lineId, context) {
     const current = await storefront.getCart(cartId, context);
+    // Una línea de otro carrito no existe para quien pregunta: 404, no 400.
     if (!current.cart?.lines.some((line) => line.id === lineId)) {
-      throw new ShopifyGraphqlError('La línea no pertenece al carrito.', { status: 400 });
+      throw new ShopifyGraphqlError('La línea no pertenece al carrito.', {
+        status: 404,
+        code: 'LINE_NOT_FOUND',
+      });
     }
   }
 

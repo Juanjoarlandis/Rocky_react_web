@@ -54,11 +54,13 @@ export function createCartRouter({ config, sessions, cartOperations, requireOrig
   };
   const context = (req) => ({ buyerIp: req.ip });
 
+  // Leer el carrito no crea sesión: sin cookie no hay carrito y no se escribe
+  // nada en el almacén.
   router.get(
     '/cart',
     requireCartCapability,
     asyncRoute(async (req, res) => {
-      const session = await sessions.open(req, res);
+      const session = await sessions.read(req);
       return res.json(await cartOperations.read(session, context(req)));
     })
   );

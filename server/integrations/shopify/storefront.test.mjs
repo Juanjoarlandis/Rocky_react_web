@@ -131,7 +131,7 @@ describe('Storefront client', () => {
     );
     const client = createStorefrontClient({ config, fetchImpl });
 
-    const result = await client.createCart({
+    const result = await client.createCartForSession({
       variantId: 'gid://shopify/ProductVariant/2',
       quantity: 1,
       price: '0.01',
@@ -143,7 +143,8 @@ describe('Storefront client', () => {
     expect(result.cart.lines[0].cost).toEqual({
       totalAmount: { amount: '35.00', currencyCode: 'EUR' },
     });
-    expect(JSON.stringify(result)).not.toContain('cart-secret');
+    expect(JSON.stringify(result.cart)).not.toContain('cart-secret');
+    expect(result.fullCartId).toContain('cart-secret');
     const body = JSON.parse(fetchImpl.mock.calls[0][1].body);
     expect(body.variables).toEqual({
       lines: [{ merchandiseId: 'gid://shopify/ProductVariant/2', quantity: 1 }],

@@ -15,7 +15,9 @@ export function exactOriginPolicy(config) {
     res.setHeader('Vary', 'Origin');
     if (req.method === 'OPTIONS') {
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Operation-Id');
+      // El identificador de operación viaja en el cuerpo JSON, no en una
+      // cabecera: sólo hace falta permitir Content-Type.
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
       res.setHeader('Access-Control-Max-Age', '600');
       return res.status(204).end();
     }

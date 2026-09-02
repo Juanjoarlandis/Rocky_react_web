@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../../app.mjs';
-import { AVISOS_INDICE, AVISOS_NAMESPACE, celdaCsvSegura } from '../../services/avisos.mjs';
+import {
+  AVISOS_INDICE,
+  AVISOS_NAMESPACE,
+  MAX_POR_PRODUCTO,
+  MAX_PRODUCTOS_INDICE,
+  celdaCsvSegura,
+} from '../../services/avisos.mjs';
 import { MemoryStore } from '../../storage/memory-store.mjs';
 
 const ORIGEN = 'https://rocky.test';
@@ -45,7 +51,7 @@ function apunta(baseUrl, body, { origin = ORIGEN } = {}) {
 }
 
 const ALTA = {
-  producto: 'signal-ghost',
+  producto: 'rocky-signal-ghost',
   email: 'crew@rocky.test',
   consentimiento: true,
   apodo: '',
@@ -66,13 +72,17 @@ describe('POST /api/avisos', () => {
 
     const respuesta = await apunta(baseUrl, ALTA);
     expect(respuesta.status).toBe(200);
-    expect(await respuesta.json()).toEqual({ ok: true, repetido: false });
+    expect(await respuesta.json()).toEqual({
+      ok: true,
+      duplicate: false,
+      product: 'rocky-signal-ghost',
+    });
 
-    const lista = await store.get(AVISOS_NAMESPACE, 'signal-ghost');
+    const lista = await store.get(AVISOS_NAMESPACE, 'rocky-signal-ghost');
     expect(lista).toHaveLength(1);
     expect(lista[0].email).toBe('crew@rocky.test');
     expect(lista[0].fecha).toMatch(/^\d{4}-\d{2}-\d{2}T/);
-    expect(await store.get(AVISOS_NAMESPACE, AVISOS_INDICE)).toEqual(['signal-ghost']);
+    expect(await store.get(AVISOS_NAMESPACE, AVISOS_INDICE)).toEqual(['rocky-signal-ghost']);
   });
 
   it('no duplica un email repetido y lo dice', async () => {
@@ -81,8 +91,12 @@ describe('POST /api/avisos', () => {
     await apunta(baseUrl, ALTA);
     const repetida = await apunta(baseUrl, { ...ALTA, email: ' CREW@rocky.test ' });
 
-    expect(await repetida.json()).toEqual({ ok: true, repetido: true });
-    expect(await store.get(AVISOS_NAMESPACE, 'signal-ghost')).toHaveLength(1);
+    expect(await repetida.json()).toEqual({
+      ok: true,
+      duplicate: true,
+      product: 'rocky-signal-ghost',
+    });
+    expect(await store.get(AVISOS_NAMESPACE, 'rocky-signal-ghost')).toHaveLength(1);
   });
 
   it('rechaza emails que no lo son y altas sin permiso', async () => {
@@ -101,8 +115,8 @@ describe('POST /api/avisos', () => {
     const respuesta = await apunta(baseUrl, { ...ALTA, apodo: 'Bot McBotface' });
 
     expect(respuesta.status).toBe(200);
-    expect(await respuesta.json()).toEqual({ ok: true, repetido: false });
-    expect(await store.get(AVISOS_NAMESPACE, 'signal-ghost')).toBeNull();
+    expect(await respuesta.json()).toEqual({ ok: true, duplicate: false, product: null });
+    expect(await store.get(AVISOS_NAMESPACE, 'rocky-signal-ghost')).toBeNull();
   });
 
   it('sin origen de confianza no hay lista', async () => {
@@ -110,6 +124,44 @@ describe('POST /api/avisos', () => {
 
     expect((await apunta(baseUrl, ALTA, { origin: 'https://malote.test' })).status).toBe(403);
     expect((await apunta(baseUrl, ALTA, { origin: null })).status).toBe(403);
+  });
+
+  it('rechaza productos que la tienda no conoce', async () => {
+    const { store, baseUrl } = await arrancaServidor();
+
+    const respuesta = await apunta(baseUrl, { ...ALTA, producto: 'camiseta-inventada' });
+
+    expect(respuesta.status).toBe(400);
+    expect(await respuesta.json()).toEqual({ message: 'Ese producto no está en la tienda.' });
+    expect(await store.get(AVISOS_NAMESPACE, 'camiseta-inventada')).toBeNull();
+    // Los handles del catálogo demo y de su drop sí valen.
+    expect((await apunta(baseUrl, { ...ALTA, producto: 'rocky-drop-4' })).status).toBe(200);
+    expect((await apunta(baseUrl, { ...ALTA, producto: '35-red' })).status).toBe(200);
+  });
+
+  it('responde 429 cuando la lista de un producto o el índice están a reventar', async () => {
+    const { store, baseUrl } = await arrancaServidor({ env: { AVISOS_RATE_LIMIT_MAX: '10' } });
+    await store.set(
+      AVISOS_NAMESPACE,
+      'rocky-signal-ghost',
+      Array.from({ length: MAX_POR_PRODUCTO }, (_, index) => ({
+        email: `crew${index}@rocky.test`,
+        fecha: '2026-09-02T00:00:00.000Z',
+      }))
+    );
+    await store.set(
+      AVISOS_NAMESPACE,
+      AVISOS_INDICE,
+      Array.from({ length: MAX_PRODUCTOS_INDICE }, (_, index) => `producto-${index}`)
+    );
+
+    const listaLlena = await apunta(baseUrl, ALTA);
+    const indiceLleno = await apunta(baseUrl, { ...ALTA, producto: 'rocky-airwave' });
+
+    expect(listaLlena.status).toBe(429);
+    expect(listaLlena.headers.get('retry-after')).toBe('3600');
+    expect(indiceLleno.status).toBe(429);
+    expect(await store.get(AVISOS_NAMESPACE, 'rocky-airwave')).toBeNull();
   });
 
   it('corta el grifo al pasarse del límite por ventana', async () => {

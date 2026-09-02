@@ -98,7 +98,7 @@ async function saveHistory({ sessions, session, history, logger, requestId }) {
 }
 
 async function loadChatProducts({
-  storefront,
+  catalog,
   demoProducts,
   userMessage,
   history,
@@ -114,7 +114,7 @@ async function loadChatProducts({
   ) {
     return { products: [], searchAttempted: false, catalogUnavailable: false };
   }
-  if (!storefront) {
+  if (!catalog) {
     return {
       products: selectDemoChatProducts(userMessage, demoProducts),
       searchAttempted: true,
@@ -122,9 +122,11 @@ async function loadChatProducts({
     };
   }
   try {
-    const catalog = await storefront.listProducts({ first: 50, buyerIp });
+    // El catálogo llega de la caché de proceso (60 s): una conversación con
+    // varias preguntas de tienda no dispara una consulta a Shopify por turno.
+    const listed = await catalog.list({ buyerIp });
     return {
-      products: selectCatalogChatProducts(userMessage, catalog.products, demoProducts),
+      products: selectCatalogChatProducts(userMessage, listed.products, demoProducts),
       searchAttempted: true,
       catalogUnavailable: false,
     };
@@ -175,7 +177,7 @@ export async function loadCrewChatContext({
 export function createChatHandler({
   config,
   sessions,
-  storefront = null,
+  catalog = null,
   demoProducts = [],
   customerAccounts = null,
   crewRewards = null,
@@ -234,7 +236,7 @@ export function createChatHandler({
     try {
       const [commerce, crewContext] = await Promise.all([
         loadChatProducts({
-          storefront,
+          catalog,
           demoProducts,
           userMessage,
           history,

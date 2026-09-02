@@ -3,7 +3,6 @@ import {
   buildCommerceContext,
   hasCommerceIntent,
   selectCatalogChatProducts,
-  selectChatProducts,
   selectDemoChatProducts,
 } from './commerce.mjs';
 import previewProducts from '../../../shared/preview-products.mjs';
@@ -142,7 +141,12 @@ describe('Rocky IA commerce context', () => {
   });
 
   it('ranks matching sellable products and returns a bounded safe card DTO', () => {
-    const selected = selectChatProducts('Quiero la camiseta Smoker azul en talla L', products, 2);
+    const selected = selectCatalogChatProducts(
+      'Quiero la camiseta Smoker azul en talla L',
+      products,
+      [],
+      2
+    );
 
     expect(selected).toHaveLength(1);
     expect(selected[0]).toMatchObject({
@@ -165,7 +169,7 @@ describe('Rocky IA commerce context', () => {
   });
 
   it('preserves unavailable matches when they are the requested product', () => {
-    const [selected] = selectChatProducts('¿Hay stock de Agotada Negra?', products, 3);
+    const [selected] = selectCatalogChatProducts('¿Hay stock de Agotada Negra?', products, [], 3);
 
     expect(selected).toMatchObject({
       handle: 'agotada-negra',
@@ -175,7 +179,7 @@ describe('Rocky IA commerce context', () => {
   });
 
   it('builds a fact-only context that directs numeric details to the cards', () => {
-    const selected = selectChatProducts('Muéstrame camisetas', products, 2);
+    const selected = selectCatalogChatProducts('Muéstrame camisetas', products, [], 2);
     const context = buildCommerceContext(selected);
 
     expect(context).toContain('CATÁLOGO VERIFICADO');
@@ -245,7 +249,7 @@ describe('Rocky IA commerce context', () => {
         },
       ];
 
-      expect(selectChatProducts('Rockydz Boyz', malformed)).toEqual([]);
+      expect(selectCatalogChatProducts('Rockydz Boyz', malformed)).toEqual([]);
     }
   );
 
@@ -264,7 +268,7 @@ describe('Rocky IA commerce context', () => {
         },
       ];
 
-      expect(selectChatProducts('Rockydz Boyz', malformed)).toEqual([]);
+      expect(selectCatalogChatProducts('Rockydz Boyz', malformed)).toEqual([]);
     }
   );
 

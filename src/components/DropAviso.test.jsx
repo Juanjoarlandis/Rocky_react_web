@@ -23,7 +23,7 @@ describe('DropAviso: el mostrador de avisos del drop', () => {
   it('manda el alta con permiso y estampa el recibo', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ ok: true, repetido: false }),
+      json: async () => ({ ok: true, duplicate: false, product: 'signal-ghost' }),
     });
     vi.stubGlobal('fetch', fetchMock);
 

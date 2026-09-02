@@ -17,14 +17,17 @@ function decodeEncryptionKey(value) {
   return key;
 }
 
-// Un único sobre AES-256-GCM en disco con escrituras atómicas. Serializa las
-// operaciones dentro del proceso; no ofrece bloqueo entre procesos.
+// Un único sobre AES-256-GCM en disco con escrituras atómicas. El estado
+// descifrado se mantiene en memoria y cada mutación lo vuelca entero
+// (write-through): las lecturas no tocan el disco. Serializa las operaciones
+// dentro del proceso; no ofrece bloqueo entre procesos.
 export class EncryptedFileStore {
   constructor({ filePath, key, clock = () => Date.now() }) {
     if (!filePath) throw new Error('El almacenamiento cifrado necesita una ruta.');
     this.filePath = filePath;
     this.key = decodeEncryptionKey(key);
     this.clock = clock;
+    this.state = null;
     this.withLock = createSerialQueue();
   }
 
@@ -80,52 +83,73 @@ export class EncryptedFileStore {
     await fs.rename(temporaryPath, this.filePath);
   }
 
-  // Comprueba que el fichero se puede leer y descifrar con la clave actual.
+  // Descifra el fichero una sola vez; a partir de ahí el estado vive en memoria.
+  async load() {
+    if (!this.state) this.state = await this.readState();
+    return this.state;
+  }
+
+  // Vuelca el estado en memoria a disco. Si falla, se descarta la copia en
+  // memoria para que la siguiente operación vuelva a leer lo que hay en disco.
+  async persist() {
+    try {
+      await this.writeState(this.state);
+    } catch (error) {
+      this.state = null;
+      throw error;
+    }
+  }
+
+  // Sonda: descifra con la clave actual y comprueba que se puede escribir en
+  // el directorio. Se usa antes de escuchar y en /api/health.
   async probe() {
     return this.withLock(async () => {
-      await this.readState();
+      await this.load();
+      const directory = path.dirname(this.filePath);
+      await fs.mkdir(directory, { recursive: true, mode: 0o700 });
+      await fs.access(directory, fs.constants.W_OK);
       return true;
     });
   }
 
   async get(namespace, key) {
     return this.withLock(async () => {
-      const state = await this.readState();
+      const state = await this.load();
       return clone(readRecord(state, namespace, key, this.clock())?.value ?? null);
     });
   }
 
   async set(namespace, key, value, { expiresAt = null } = {}) {
     return this.withLock(async () => {
-      const state = await this.readState();
+      const state = await this.load();
       pruneExpiredRecords(state, this.clock());
       state.namespaces[namespace] ??= {};
       state.namespaces[namespace][key] = { value: clone(value), expiresAt };
-      await this.writeState(state);
+      await this.persist();
       return clone(value);
     });
   }
 
   async delete(namespace, key) {
     return this.withLock(async () => {
-      const state = await this.readState();
+      const state = await this.load();
       pruneExpiredRecords(state, this.clock());
       const existed = Boolean(state.namespaces[namespace]?.[key]);
       if (!existed) return false;
       delete state.namespaces[namespace][key];
-      await this.writeState(state);
+      await this.persist();
       return true;
     });
   }
 
   async consume(namespace, key) {
     return this.withLock(async () => {
-      const state = await this.readState();
+      const state = await this.load();
       pruneExpiredRecords(state, this.clock());
       const record = readRecord(state, namespace, key, this.clock());
       if (state.namespaces[namespace]?.[key]) {
         delete state.namespaces[namespace][key];
-        await this.writeState(state);
+        await this.persist();
       }
       return clone(record?.value ?? null);
     });
@@ -133,13 +157,13 @@ export class EncryptedFileStore {
 
   async setIfAbsent(namespace, key, value, { expiresAt = null } = {}) {
     return this.withLock(async () => {
-      const state = await this.readState();
+      const state = await this.load();
       pruneExpiredRecords(state, this.clock());
       const current = readRecord(state, namespace, key, this.clock());
       if (current) return { inserted: false, value: clone(current.value) };
       state.namespaces[namespace] ??= {};
       state.namespaces[namespace][key] = { value: clone(value), expiresAt };
-      await this.writeState(state);
+      await this.persist();
       return { inserted: true, value: clone(value) };
     });
   }

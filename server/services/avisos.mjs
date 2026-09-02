@@ -12,7 +12,8 @@ export const AVISOS_NAMESPACE = 'avisos';
 export const AVISOS_INDICE = '!indice';
 
 // Válvulas de seguridad, no metas.
-const MAX_POR_PRODUCTO = 5_000;
+export const MAX_POR_PRODUCTO = 5_000;
+export const MAX_PRODUCTOS_INDICE = 200;
 const EMAIL_MAX = 254;
 const PRODUCTO_MAX = 128;
 // Suficiente para "algo@algo.tld" sin pretender validar el RFC entero: el
@@ -30,7 +31,12 @@ export function celdaCsvSegura(value) {
   return `"${neutralizado.replaceAll('"', '""')}"`;
 }
 
-export function createAvisosService({ store, logger, clock = () => new Date() }) {
+export function createAvisosService({
+  store,
+  knownProducts = null,
+  logger,
+  clock = () => new Date(),
+}) {
   const log = ensureLogger(logger);
   // Las altas van en fila india: el get y el set del store son atómicos por
   // separado, y dos altas a la vez se pisarían la lista entre medias.
@@ -52,6 +58,13 @@ export function createAvisosService({ store, logger, clock = () => new Date() })
       return email;
     },
 
+    // Sólo se admite un producto que la tienda conoce: sin esta lista, el
+    // índice crecería con cualquier cadena que mande un bot.
+    async isKnownProduct(product) {
+      if (!knownProducts) return true;
+      return knownProducts.includes(product);
+    },
+
     // Devuelve {status: 'added' | 'duplicate' | 'full'}.
     async register({ product, email }) {
       return enFila(async () => {
@@ -62,12 +75,15 @@ export function createAvisosService({ store, logger, clock = () => new Date() })
         if (lista.length >= MAX_POR_PRODUCTO) {
           return { status: 'full' };
         }
+        const indice = (await store.get(AVISOS_NAMESPACE, AVISOS_INDICE)) ?? [];
+        const esNuevo = !indice.includes(product);
+        if (esNuevo && indice.length >= MAX_PRODUCTOS_INDICE) {
+          return { status: 'full' };
+        }
 
         lista.push({ email, fecha: clock().toISOString() });
         await store.set(AVISOS_NAMESPACE, product, lista);
-
-        const indice = (await store.get(AVISOS_NAMESPACE, AVISOS_INDICE)) ?? [];
-        if (!indice.includes(product)) {
+        if (esNuevo) {
           await store.set(AVISOS_NAMESPACE, AVISOS_INDICE, [...indice, product]);
         }
 

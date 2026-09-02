@@ -310,10 +310,6 @@ export function hasCommerceIntent(message, { history = [], knownProducts = [] } 
   return [...COMMERCE_FOLLOW_UP_TERMS].some((term) => terms.has(term));
 }
 
-export function selectChatProducts(message, products, limit = MAX_CHAT_PRODUCTS) {
-  return selectCatalogChatProducts(message, products, [], limit);
-}
-
 function rankedProducts(messageTerms, products, source) {
   return (Array.isArray(products) ? products : []).map((product, index) => ({
     product,

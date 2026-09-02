@@ -76,8 +76,7 @@ export function mountStaticApp(app, { staticDirectory, isPrivate = false }) {
     setUncachedHeaders(res);
     return res.status(404).type('text/plain').send('Product asset not found.');
   });
-  app.get('*', (req, res, next) => {
-    if (req.method !== 'GET') return next();
+  app.get('*', (req, res) => {
     setSpaDocumentHeaders(res, isPrivate);
     return res.sendFile(indexPath);
   });

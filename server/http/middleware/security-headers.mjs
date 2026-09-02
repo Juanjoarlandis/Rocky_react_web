@@ -6,7 +6,8 @@ const CONTENT_SECURITY_POLICY = [
   "form-action 'self' https://*.myshopify.com",
   "frame-ancestors 'none'",
   "frame-src 'self' https://open.spotify.com",
-  "img-src 'self' data: https:",
+  // Las únicas imágenes remotas son las del CDN de Shopify (catálogo y carrito).
+  "img-src 'self' data: https://cdn.shopify.com",
   "media-src 'self'",
   "object-src 'none'",
   "script-src 'self'",

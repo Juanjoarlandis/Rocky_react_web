@@ -179,6 +179,96 @@ describe('Shopify HTTP contracts', () => {
     expect(JSON.stringify(storedSessions)).toContain('full-cart-secret');
   });
 
+  it('reads the cart without a cookie and without creating a session', async () => {
+    const fetchImpl = vi.fn();
+    const store = new MemoryStore();
+    const baseUrl = await start({ env: configuredEnv(), fetchImpl, store });
+
+    const response = await fetch(`${baseUrl}/api/shopify/cart`);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ cart: null, warnings: [] });
+    expect(response.headers.get('set-cookie')).toBeNull();
+    expect(store.state.namespaces.sessions).toBeUndefined();
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('frees the operation after a clear Shopify rejection so the same id can retry', async () => {
+    const rejected = {
+      data: {
+        cartCreate: {
+          cart: null,
+          userErrors: [{ field: ['lines'], message: 'Variant is sold out', code: 'INVALID' }],
+          warnings: [],
+        },
+      },
+    };
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(response(rejected))
+      .mockResolvedValueOnce(response(cartPayload()));
+    const store = new MemoryStore();
+    const baseUrl = await start({ env: configuredEnv(), fetchImpl, store });
+    const requestBody = {
+      variantId: 'gid://shopify/ProductVariant/2',
+      quantity: 1,
+      operationId: 'operation-retry-1',
+    };
+
+    const first = await fetch(`${baseUrl}/api/shopify/cart/lines`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: 'https://rocky.test' },
+      body: JSON.stringify(requestBody),
+    });
+    const cookie = first.headers.get('set-cookie').split(';')[0];
+    const second = await fetch(`${baseUrl}/api/shopify/cart/lines`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: 'https://rocky.test', Cookie: cookie },
+      body: JSON.stringify(requestBody),
+    });
+
+    expect(first.status).toBe(422);
+    await expect(first.json()).resolves.toMatchObject({ code: 'USER_ERROR' });
+    expect(second.status).toBe(200);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(Object.keys(store.state.namespaces.cartOperations)).toHaveLength(1);
+  });
+
+  it('answers 404 for a cart line that does not belong to the session cart', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(response(cartPayload()));
+    const baseUrl = await start({ env: configuredEnv(), fetchImpl });
+    const headers = { 'Content-Type': 'application/json', Origin: 'https://rocky.test' };
+
+    const created = await fetch(`${baseUrl}/api/shopify/cart/lines`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        variantId: 'gid://shopify/ProductVariant/2',
+        quantity: 1,
+        operationId: 'operation-create-1',
+      }),
+    });
+    const cookie = created.headers.get('set-cookie').split(';')[0];
+    fetchImpl.mockResolvedValue(
+      response({ data: { cart: { ...cartPayload().data.cartCreate.cart } } })
+    );
+    const foreign = await fetch(`${baseUrl}/api/shopify/cart/lines`, {
+      method: 'DELETE',
+      headers: { ...headers, Cookie: cookie },
+      body: JSON.stringify({
+        lineId: 'gid://shopify/CartLine/other-cart-line',
+        operationId: 'operation-remove-1',
+      }),
+    });
+
+    expect(created.status).toBe(200);
+    expect(foreign.status).toBe(404);
+    await expect(foreign.json()).resolves.toEqual({
+      message: 'La línea no pertenece al carrito.',
+      code: 'LINE_NOT_FOUND',
+    });
+  });
+
   it('rejects malformed cart input before opening a session or calling Shopify', async () => {
     const fetchImpl = vi.fn();
     const store = new MemoryStore();

@@ -5,11 +5,25 @@ import { describeError } from './http/errors.mjs';
 
 dotenv.config({ quiet: true });
 
-// Arranque del proceso: escucha, señales de apagado y promesas sueltas.
-// La composición de la aplicación vive en app.mjs.
-export function startServer() {
+// Arranque del proceso: sonda del almacén, escucha, señales de apagado y
+// promesas sueltas. La composición de la aplicación vive en app.mjs.
+export async function startServer() {
   const app = createApp();
-  const { config, logger } = app.locals;
+  const { config, store, logger } = app.locals;
+
+  // Si la clave no descifra el estado o el disco no admite escrituras, mejor
+  // no arrancar que servir sesiones que se perderán.
+  try {
+    await store.probe();
+  } catch (error) {
+    logger.error('State store probe failed', {
+      reason: 'store_unavailable',
+      ...describeError(error),
+    });
+    process.exitCode = 1;
+    return null;
+  }
+
   const server = app.listen(config.port, () => {
     logger.info('ROCKY 035 server listening', { port: config.port });
   });

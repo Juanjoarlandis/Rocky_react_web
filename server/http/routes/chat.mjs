@@ -18,7 +18,7 @@ const CHAT_BODY = {
 export function createChatRouter({
   config,
   sessions,
-  storefront,
+  catalog,
   demoProducts,
   customerAccounts,
   crewRewards,
@@ -46,7 +46,7 @@ export function createChatRouter({
       createChatHandler({
         config,
         sessions,
-        storefront,
+        catalog,
         demoProducts,
         customerAccounts,
         crewRewards,

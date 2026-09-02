@@ -2,19 +2,32 @@ import crypto from 'node:crypto';
 import { sha256Base64Url } from '../lib/hash.mjs';
 
 const SESSION_LIFETIME_MS = 30 * 24 * 60 * 60 * 1_000;
+// lastSeenAt sólo se refresca cada cinco minutos: evita una escritura (y un
+// cifrado del fichero entero) por cada petición de lectura.
+const LAST_SEEN_REFRESH_MS = 5 * 60 * 1_000;
 
-function parseCookies(header = '') {
-  return Object.fromEntries(
-    header
-      .split(';')
-      .map((part) => part.trim())
-      .filter(Boolean)
-      .map((part) => {
-        const separator = part.indexOf('=');
-        if (separator === -1) return [part, ''];
-        return [part.slice(0, separator), decodeURIComponent(part.slice(separator + 1))];
-      })
-  );
+function decodeCookieValue(value) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return null;
+  }
+}
+
+// Una cookie malformada (p. ej. un %E0%A4%A a medias) se ignora en lugar de
+// tumbar la petición con un 500.
+export function parseCookies(header = '') {
+  const cookies = {};
+  for (const part of String(header || '').split(';')) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+    const separator = trimmed.indexOf('=');
+    const name = separator === -1 ? trimmed : trimmed.slice(0, separator);
+    const value = separator === -1 ? '' : decodeCookieValue(trimmed.slice(separator + 1));
+    if (value === null) continue;
+    cookies[name] = value;
+  }
+  return cookies;
 }
 
 function isValidSessionId(value) {
@@ -58,6 +71,8 @@ export function createSessionManager({ store, isProduction, clock = () => Date.n
   return {
     cookieName,
 
+    // Lee la sesión sin crearla: para rutas de consulta que no deben dejar
+    // rastro en el almacén.
     async read(req) {
       const id = readId(req);
       if (!id) return null;
@@ -66,16 +81,19 @@ export function createSessionManager({ store, isProduction, clock = () => Date.n
       return record ? { id, key, record } : null;
     },
 
+    // Abre (o crea) la sesión. Sólo escribe si toca refrescar lastSeenAt.
     async open(req, res) {
       const id = readId(req);
       if (!id) return create(res);
       const key = hashSessionId(id);
       const record = await store.get('sessions', key);
       if (!record) return create(res);
-      const updated = { ...record, lastSeenAt: clock() };
-      await store.set('sessions', key, updated, {
-        expiresAt: clock() + SESSION_LIFETIME_MS,
-      });
+      const now = clock();
+      if (now - (record.lastSeenAt || 0) < LAST_SEEN_REFRESH_MS) {
+        return { id, key, record };
+      }
+      const updated = { ...record, lastSeenAt: now };
+      await store.set('sessions', key, updated, { expiresAt: now + SESSION_LIFETIME_MS });
       return { id, key, record: updated };
     },
 

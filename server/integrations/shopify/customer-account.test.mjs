@@ -363,6 +363,172 @@ describe('Customer Account OAuth', () => {
     });
   });
 
+  it('caches the customer profile for a minute and forgets it on logout', async () => {
+    let now = 1_000_000;
+    const clock = () => now;
+    const store = new MemoryStore({ clock });
+    await store.set('customerTokens', 'customer-token-id', {
+      accessToken: 'customer-access-token',
+      refreshToken: 'customer-refresh-token',
+      expiresAt: now + 3_600_000,
+    });
+    const profileResponse = () =>
+      response({
+        data: {
+          customer: {
+            id: 'gid://shopify/Customer/1',
+            displayName: 'Juanjo',
+            firstName: 'Juanjo',
+            lastName: '',
+            emailAddress: { emailAddress: 'juanjo@example.com' },
+          },
+        },
+      });
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        response({ graphql_api: 'https://shopify.com/customer-account/graphql' })
+      )
+      .mockResolvedValueOnce(profileResponse())
+      .mockResolvedValueOnce(profileResponse())
+      .mockResolvedValueOnce(profileResponse());
+    const client = createCustomerAccountClient({ config, store, fetchImpl, clock });
+
+    const first = await client.getCustomerProfile('customer-token-id');
+    const second = await client.getCustomerProfile('customer-token-id');
+    now += 61_000;
+    const third = await client.getCustomerProfile('customer-token-id');
+    await client.deleteToken('customer-token-id');
+
+    expect(first).toEqual(second);
+    expect(third).toEqual(first);
+    // Discovery + dos consultas de perfil: la segunda lectura salió de la caché.
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+    await expect(client.getCustomerProfile('customer-token-id')).rejects.toMatchObject({
+      status: 401,
+      code: 'NO_SESSION',
+    });
+  });
+
+  it('refreshes an expired token once even when two requests race', async () => {
+    const clock = () => 1_000_000;
+    const store = new MemoryStore({ clock });
+    await store.set('customerTokens', 'customer-token-id', {
+      accessToken: 'stale-access-token',
+      refreshToken: 'stale-refresh-token',
+      expiresAt: clock() + 1_000,
+    });
+    const discovery = {
+      authorization_endpoint: 'https://shopify.com/authorize',
+      token_endpoint: 'https://shopify.com/token',
+      jwks_uri: 'https://shopify.com/jwks',
+      issuer: 'https://shopify.com/authentication/1',
+    };
+    const fetchImpl = vi.fn(async (url) => {
+      const target = String(url);
+      if (target.endsWith('/openid-configuration')) return response(discovery);
+      if (target === discovery.token_endpoint) {
+        return response({
+          access_token: 'fresh-access-token',
+          refresh_token: 'fresh-refresh-token',
+          expires_in: 600,
+        });
+      }
+      if (target.endsWith('/customer-account-api')) {
+        return response({ graphql_api: 'https://shopify.com/customer-account/graphql' });
+      }
+      return response({
+        data: {
+          customer: {
+            id: 'gid://shopify/Customer/1',
+            displayName: 'Juanjo',
+            firstName: 'Juanjo',
+            lastName: '',
+            emailAddress: { emailAddress: 'juanjo@example.com' },
+          },
+        },
+      });
+    });
+    const client = createCustomerAccountClient({ config, store, fetchImpl, clock });
+
+    const [first, second] = await Promise.all([
+      client.getCustomerProfile('customer-token-id'),
+      client.getCustomerProfile('customer-token-id'),
+    ]);
+
+    expect(first.id).toBe('gid://shopify/Customer/1');
+    expect(second.id).toBe('gid://shopify/Customer/1');
+    const refreshCalls = fetchImpl.mock.calls.filter(([url]) => url === discovery.token_endpoint);
+    expect(refreshCalls).toHaveLength(1);
+    expect(String(refreshCalls[0][1].body)).toContain('refresh_token=stale-refresh-token');
+    expect(await store.get('customerTokens', 'customer-token-id')).toMatchObject({
+      accessToken: 'fresh-access-token',
+      refreshToken: 'fresh-refresh-token',
+    });
+  });
+
+  it('reuses the signing key by kid across logins until the JWKS cache expires', async () => {
+    const { publicKey, privateKey } = crypto.generateKeyPairSync('ec', {
+      namedCurve: 'P-256',
+    });
+    const publicJwk = publicKey.export({ format: 'jwk' });
+    const kid = 'shopify-key-cached';
+    const discovery = {
+      authorization_endpoint: 'https://shopify.com/authorize',
+      token_endpoint: 'https://shopify.com/token',
+      jwks_uri: 'https://shopify.com/jwks',
+      issuer: 'https://shopify.com/authentication/1',
+    };
+    const clock = () => 1_000_000;
+    const store = new MemoryStore({ clock });
+    let issuedTokens = 0;
+    // El doble de Shopify firma cada ID token con el nonce de la transacción
+    // en curso.
+    let currentNonce = null;
+    const fetchImpl = vi.fn(async (url) => {
+      const target = String(url);
+      if (target.endsWith('/openid-configuration')) return response(discovery);
+      if (target === discovery.jwks_uri) {
+        return response({ keys: [{ ...publicJwk, kid, alg: 'ES256', use: 'sig' }] });
+      }
+      issuedTokens += 1;
+      return response({
+        access_token: `access-${issuedTokens}`,
+        refresh_token: `refresh-${issuedTokens}`,
+        id_token: signIdToken({
+          privateKey,
+          kid,
+          payload: {
+            iss: discovery.issuer,
+            aud: config.customerClientId,
+            sub: 'gid://shopify/Customer/1',
+            exp: 2_000,
+            iat: 900,
+            nonce: currentNonce,
+          },
+        }),
+        expires_in: 600,
+      });
+    });
+    const client = createCustomerAccountClient({ config, store, fetchImpl, clock });
+
+    async function login(sessionBinding) {
+      const authorizationUrl = new URL(await client.beginAuthentication({ sessionBinding }));
+      const state = authorizationUrl.searchParams.get('state');
+      const transaction = await store.get('oauthTransactions', hash(state));
+      currentNonce = transaction.nonce;
+      return client.completeAuthentication({ state, code: 'code', sessionBinding });
+    }
+
+    const first = await login('session-binding-number-one');
+    const second = await login('session-binding-number-two');
+
+    expect(first.customerSubject).toBe('gid://shopify/Customer/1');
+    expect(second.customerSubject).toBe('gid://shopify/Customer/1');
+    const jwksCalls = fetchImpl.mock.calls.filter(([url]) => String(url) === discovery.jwks_uri);
+    expect(jwksCalls).toHaveLength(1);
+  });
+
   it('uses the customer name when Shopify repeats the email as displayName', async () => {
     const clock = () => 1_000_000;
     const store = new MemoryStore({ clock });

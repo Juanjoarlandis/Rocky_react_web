@@ -27,7 +27,9 @@ import { createStorefrontClient } from './integrations/shopify/storefront.mjs';
 import { createLogger, ensureLogger } from './lib/logger.mjs';
 import { createAvisosService } from './services/avisos.mjs';
 import { createCartOperations } from './services/cart-operations.mjs';
+import { createCatalogCache } from './services/catalog-cache.mjs';
 import { createCrewRewardsService } from './services/crew/rewards.mjs';
+import { createKnownProducts } from './services/known-products.mjs';
 import { createSessionManager } from './services/sessions.mjs';
 import { createStateStore } from './storage/create-store.mjs';
 
@@ -73,7 +75,9 @@ export function createApp({
     fetchImpl,
     timeoutMs: config.chat.timeoutMs,
   });
-  const avisos = createAvisosService({ store: stateStore, logger });
+  const catalogCache = storefront ? createCatalogCache({ storefront }) : null;
+  const knownProducts = createKnownProducts({ catalog: catalogCache, logger });
+  const avisos = createAvisosService({ store: stateStore, knownProducts, logger });
   const requireOrigin = requireTrustedOrigin(config);
 
   const app = express();
@@ -82,6 +86,9 @@ export function createApp({
   app.locals.logger = logger;
 
   app.disable('x-powered-by');
+  // Query strings planas: nada de objetos anidados (?a[b]=c) que luego haya
+  // que validar campo a campo.
+  app.set('query parser', 'simple');
   if (config.trustProxyHops > 0) {
     app.set('trust proxy', config.trustProxyHops);
   }
@@ -89,7 +96,7 @@ export function createApp({
   app.use(securityHeaders(config));
   app.use(exactOriginPolicy(config));
 
-  app.use('/api/health', createHealthRouter({ config, store: stateStore }));
+  app.use('/api/health', createHealthRouter({ config, store: stateStore, logger }));
 
   // Los webhooks van antes de la puerta privada y del parser JSON: son la
   // única entrada de máquina y se verifican sobre el cuerpo crudo.
@@ -139,7 +146,7 @@ export function createApp({
     createChatRouter({
       config,
       sessions,
-      storefront,
+      catalog: catalogCache,
       demoProducts: previewProducts,
       customerAccounts,
       crewRewards,

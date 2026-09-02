@@ -44,7 +44,7 @@ export default function DropAviso({ producto }) {
       }
 
       globalThis.localStorage?.setItem(recuerdoDe(producto), '1');
-      setRepetido(Boolean(cuerpo.repetido));
+      setRepetido(Boolean(cuerpo.duplicate));
       setEstado('listo');
     } catch {
       setEstado('reposo');
