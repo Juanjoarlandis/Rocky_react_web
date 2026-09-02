@@ -1,7 +1,11 @@
 import crypto from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { MemoryStore } from '../encrypted-store.mjs';
-import { processWebhookDelivery, verifyWebhookHmac } from './webhooks.mjs';
+import {
+  createWebhookHandler,
+  processWebhookDelivery,
+  verifyWebhookHmac,
+} from './webhooks.mjs';
 
 const secret = 'shopify-client-secret';
 const rawBody = Buffer.from('{"shop":"rocky-dev"}', 'utf8');
@@ -146,5 +150,47 @@ describe('Shopify webhooks', () => {
       onDelivery,
     })).rejects.toMatchObject({ status: 401 });
     expect(onDelivery).not.toHaveBeenCalled();
+  });
+  it('answers 500 with a generic message and logs the real error with its stack', async () => {
+    class BrokenStore extends MemoryStore {
+      async set() {
+        throw new TypeError('disco lleno');
+      }
+    }
+    const logger = { error: vi.fn(), info: vi.fn() };
+    const handler = createWebhookHandler({
+      config: {
+        clientSecret: secret,
+        storeDomain: 'rocky-dev.myshopify.com',
+        apiVersion: '2026-07',
+        webhookTopics: new Set(['app/uninstalled']),
+      },
+      store: new BrokenStore(),
+      logger,
+    });
+    const headers = {
+      'x-shopify-hmac-sha256': sign(rawBody),
+      'x-shopify-webhook-id': 'delivery-500',
+      'x-shopify-topic': 'app/uninstalled',
+      'x-shopify-shop-domain': 'rocky-dev.myshopify.com',
+      'x-shopify-api-version': '2026-07',
+    };
+    const req = { body: rawBody, requestId: 'req-500', get: (name) => headers[name.toLowerCase()] };
+    const res = { status: vi.fn().mockReturnThis(), json: vi.fn().mockReturnThis() };
+
+    await handler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ message: 'No se pudo procesar el webhook.' });
+    expect(logger.error).toHaveBeenCalledWith(
+      'Shopify webhook rejected',
+      expect.objectContaining({
+        requestId: 'req-500',
+        reason: 'internal_error',
+        name: 'TypeError',
+        message: 'disco lleno',
+        stack: expect.stringContaining('disco lleno'),
+      })
+    );
   });
 });

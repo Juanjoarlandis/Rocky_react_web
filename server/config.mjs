@@ -104,13 +104,23 @@ export function createConfig(env = process.env) {
 
   const models = readFreeModels(env);
 
+  // En producción siempre hay un proxy delante (compose publica 127.0.0.1 y
+  // Cloudflare termina TLS): sin hops todos los visitantes comparten la IP
+  // 127.0.0.1, el rate limit se vuelve global y Shopify recibe un Buyer-IP falso.
+  const trustProxyHops = readPositiveInteger(env.TRUST_PROXY_HOPS, 0, { min: 0, max: 3 });
+  if (isProduction && trustProxyHops === 0) {
+    throw new Error(
+      'TRUST_PROXY_HOPS debe ser el número exacto de proxies delante del servidor (1 con Cloudflare); con 0 en producción todos los usuarios compartirían la misma IP.'
+    );
+  }
+
   return {
     nodeEnv,
     isProduction,
     port: readPositiveInteger(env.PORT, 3001, { max: 65535 }),
     publicOrigin,
     allowedOrigins: readOrigins(env, publicOrigin, isProduction),
-    trustProxyHops: readPositiveInteger(env.TRUST_PROXY_HOPS, 0, { min: 0, max: 3 }),
+    trustProxyHops,
     siteAccess: readSiteAccess(env),
     chat: {
       apiKey: env.OPENROUTER_API_KEY || '',

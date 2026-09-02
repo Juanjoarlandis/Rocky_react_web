@@ -4,13 +4,41 @@ import { createConfig } from './config.mjs';
 describe('application configuration', () => {
   it('requires a canonical HTTPS public origin in production', () => {
     expect(() =>
-      createConfig({ NODE_ENV: 'production', PUBLIC_ORIGIN: 'http://rocky.test' })
+      createConfig({
+        NODE_ENV: 'production',
+        PUBLIC_ORIGIN: 'http://rocky.test',
+        TRUST_PROXY_HOPS: '1',
+      })
     ).toThrow(/HTTPS/);
 
     expect(
-      createConfig({ NODE_ENV: 'production', PUBLIC_ORIGIN: 'https://rocky.test' })
-        .publicOrigin
+      createConfig({
+        NODE_ENV: 'production',
+        PUBLIC_ORIGIN: 'https://rocky.test',
+        TRUST_PROXY_HOPS: '1',
+      }).publicOrigin
     ).toBe('https://rocky.test');
+  });
+
+  it('refuses to start in production without an explicit proxy hop count', () => {
+    expect(() =>
+      createConfig({ NODE_ENV: 'production', PUBLIC_ORIGIN: 'https://rocky.test' })
+    ).toThrow(/TRUST_PROXY_HOPS/);
+    expect(() =>
+      createConfig({
+        NODE_ENV: 'production',
+        PUBLIC_ORIGIN: 'https://rocky.test',
+        TRUST_PROXY_HOPS: '0',
+      })
+    ).toThrow(/TRUST_PROXY_HOPS/);
+    expect(
+      createConfig({
+        NODE_ENV: 'production',
+        PUBLIC_ORIGIN: 'https://rocky.test',
+        TRUST_PROXY_HOPS: '2',
+      }).trustProxyHops
+    ).toBe(2);
+    expect(createConfig({ NODE_ENV: 'test' }).trustProxyHops).toBe(0);
   });
 
   it('accepts only explicit free OpenRouter models', () => {

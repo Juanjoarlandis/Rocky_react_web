@@ -324,6 +324,7 @@ describe('private coming-soon access boundary', () => {
       env: {
         ...ACCESS_GATE_ENV,
         NODE_ENV: 'production',
+        TRUST_PROXY_HOPS: '1',
       },
       staticDirectory,
     });
@@ -375,6 +376,48 @@ describe('private coming-soon access boundary', () => {
     expect(response.status).toBe(200);
     expect(body).toContain('WE ARE COOKING');
     expect(body).not.toContain('ROCKY TEST APP');
+  });
+
+  it('logs the name, message and stack of internal errors next to the request id', async () => {
+    class BrokenStore extends MemoryStore {
+      async get() {
+        throw new Error('el almacén cifrado no responde');
+      }
+
+      async set() {
+        throw new Error('el almacén cifrado no responde');
+      }
+    }
+    const logger = { error: vi.fn(), info: vi.fn() };
+    const baseUrl = await startTestServer({
+      env: {
+        APP_ENCRYPTION_KEY: 'test-encryption-key-not-written-to-disk',
+        SHOPIFY_STORE_DOMAIN: 'rocky-dev.myshopify.com',
+      },
+      store: new BrokenStore(),
+      logger,
+    });
+
+    const response = await fetch(`${baseUrl}/api/shopify/cart`);
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      message: 'Algo se ha roto en el servidor.',
+    });
+    expect(logger.error).toHaveBeenCalledWith(
+      'Unhandled request error',
+      expect.objectContaining({
+        requestId: expect.any(String),
+        reason: 'internal_error',
+        name: 'Error',
+        message: 'el almacén cifrado no responde',
+        stack: expect.stringContaining('el almacén cifrado no responde'),
+      })
+    );
+    const [, details] = logger.error.mock.calls.at(-1);
+    expect(details).not.toHaveProperty('headers');
+    expect(details).not.toHaveProperty('body');
+    expect(details).not.toHaveProperty('cookies');
   });
 
   it('keeps the HMAC-verified Shopify webhook available as a machine-only exception', async () => {

@@ -37,6 +37,14 @@ const REVALIDATED_PUBLIC_CACHE = 'public, max-age=14400, must-revalidate';
 const REVALIDATED_EDGE_CACHE = 'public, max-age=14400';
 const REVALIDATED_DOCUMENT_CACHE = 'public, max-age=0, must-revalidate';
 
+export function describeError(error) {
+  return {
+    name: error?.name || 'Error',
+    message: error?.message || String(error),
+    stack: error?.stack || null,
+  };
+}
+
 function setSpaDocumentHeaders(res, isPrivate = false) {
   if (isPrivate) {
     setPrivateAccessHeaders(res);
@@ -244,6 +252,8 @@ export function createApp({
       : error?.type === 'entity.parse.failed'
         ? 400
         : 500;
+    // Nombre, mensaje y stack bastan para diagnosticar: nunca el cuerpo, las
+    // cabeceras ni las cookies de la petición.
     logger.error('Unhandled request error', {
       requestId: req.requestId,
       reason: status === 413
@@ -251,6 +261,7 @@ export function createApp({
         : status === 400
           ? 'invalid_json'
           : 'internal_error',
+      ...(status === 500 ? describeError(error) : {}),
     });
     return res.status(status).json({
       message: status === 413
@@ -269,6 +280,12 @@ function startServer() {
   const app = createApp();
   const server = app.listen(config.port, () => {
     console.info(`ROCKY 035 server listening on port ${config.port}`);
+  });
+
+  // Una promesa suelta sin catch no debe morir en silencio: se registra con
+  // su stack y el proceso sigue sirviendo.
+  process.on('unhandledRejection', (reason) => {
+    console.error('Unhandled promise rejection', describeError(reason));
   });
 
   const shutdown = (signal) => {

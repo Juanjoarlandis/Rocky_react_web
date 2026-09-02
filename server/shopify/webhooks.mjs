@@ -106,9 +106,17 @@ export function createWebhookHandler({ config, store, onDelivery, logger = conso
       });
       return res.status(200).json(result);
     } catch (error) {
+      const expected = error instanceof WebhookError;
       logger.error('Shopify webhook rejected', {
         requestId: req.requestId,
-        reason: error instanceof WebhookError ? error.message : 'internal_error',
+        reason: expected ? error.message : 'internal_error',
+        ...(expected
+          ? {}
+          : {
+              name: error?.name || 'Error',
+              message: error?.message || String(error),
+              stack: error?.stack || null,
+            }),
       });
       return res.status(error instanceof WebhookError ? error.status : 500).json({
         message: error instanceof WebhookError ? error.message : 'No se pudo procesar el webhook.',
