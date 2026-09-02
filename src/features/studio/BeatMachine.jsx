@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { useMusic } from '../../context/MusicContext';
-import { IconPlay, IconPause } from '../../components/Boombox';
+import { IconPlay, IconPause } from '../../components/icons/PlayerIcons';
 import BeatPads from './BeatPads';
 import { createEngine } from '../../audio/engine';
 import { applyMix, hitPad, isAudible, trackIndexOf, triggerTrack } from './audio/drumKit';

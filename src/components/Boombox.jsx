@@ -1,5 +1,6 @@
 import React from 'react';
 import { useMusic } from '../context/MusicContext';
+import { IconNext, IconPause, IconPlay, IconPrev } from './icons/PlayerIcons';
 
 // Radiocasete dibujado a mano: la mesa de control de la radio global.
 // Play/pausa, anterior/siguiente, barra de progreso con seek y ruedas
@@ -150,38 +151,6 @@ function BoomboxArt({ playing }) {
             {/* Pies de goma */}
             <rect x="66" y="306" width="36" height="13" rx="6" fill="var(--ink)" />
             <rect x="534" y="304" width="36" height="13" rx="6" fill="var(--ink)" />
-        </svg>
-    );
-}
-
-export function IconPrev() {
-    return (
-        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-            <path d="M6 4 L6 20 M19 5 L9 12 L19 19 Z" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-        </svg>
-    );
-}
-
-export function IconNext() {
-    return (
-        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-            <path d="M18 4 L18 20 M5 5 L15 12 L5 19 Z" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-        </svg>
-    );
-}
-
-export function IconPlay() {
-    return (
-        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
-            <path d="M7 4 L20 12 L7 20 Z" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-        </svg>
-    );
-}
-
-export function IconPause() {
-    return (
-        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
-            <path d="M7 4 L7 20 M17 4 L17 20" stroke="currentColor" strokeWidth="4.5" strokeLinecap="round" />
         </svg>
     );
 }
