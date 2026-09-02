@@ -177,7 +177,7 @@ devolución mientras tanto.
 
 ## Rocky IA: personalidad y coste cero
 
-La personalidad de Rocky IA vive exclusivamente en el servidor, en `server/rocky-prompt.mjs`. El navegador envía sólo el mensaje nuevo; no puede introducir roles, historial, prompt, modelo ni parámetros del proveedor. El historial se limita a ocho mensajes y se conserva en la sesión del servidor.
+La personalidad de Rocky IA vive exclusivamente en el servidor, en `server/services/chat/prompt.mjs`. El navegador envía sólo el mensaje nuevo; no puede introducir roles, historial, prompt, modelo ni parámetros del proveedor. El historial se limita a ocho mensajes y se conserva en la sesión del servidor.
 
 `OPENROUTER_MODELS` falla cerrado: cada identificador debe terminar en `:free` o ser exactamente `openrouter/free`. Una entrada pagada, mixta o vacía impide arrancar la aplicación. Los fallbacks también pertenecen a esa lista cerrada y nunca se sustituye un error por un modelo de pago.
 

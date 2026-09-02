@@ -33,7 +33,7 @@
     "vitest": "^4.1.10"
   },
   "scripts": {
-    "start": "node server.mjs",
+    "start": "node server/index.mjs",
     "build": "vite build",
     "test": "vitest",
     "test:run": "vitest run",
@@ -45,11 +45,11 @@
     "avisos:exportar": "node scripts/exportar-avisos.mjs",
     "check": "npm run test:run && npm run lint && npm run lint:css && npm run build && npm run security:check",
     "dev:client": "vite",
-    "dev:server": "PORT=3001 node --watch server.mjs",
+    "dev:server": "PORT=3001 node --watch server/index.mjs",
     "dev": "concurrently --kill-others-on-fail \"npm run dev:client\" \"npm run dev:server\""
   },
   "description": "Tienda web de ROCKY 035: React + Vite y un BFF Express preparado para Shopify.",
-  "main": "server.mjs",
+  "main": "server/index.mjs",
   "keywords": [],
   "author": "",
   "license": "ISC"

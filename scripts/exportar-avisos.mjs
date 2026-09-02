@@ -10,8 +10,8 @@
 
 import path from 'node:path';
 import dotenv from 'dotenv';
-import { AVISOS_INDICE, AVISOS_NAMESPACE, celdaCsvSegura } from '../server/avisos.mjs';
-import { EncryptedStore } from '../server/encrypted-store.mjs';
+import { AVISOS_INDICE, AVISOS_NAMESPACE, celdaCsvSegura } from '../server/services/avisos.mjs';
+import { EncryptedStore } from '../server/storage/encrypted-file-store.mjs';
 
 dotenv.config({ quiet: true });
 

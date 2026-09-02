@@ -46,8 +46,8 @@ export default [
   },
   {
     files: [
-      'server.mjs',
       'server/**/*.mjs',
+      'shared/**/*.mjs',
       'scripts/**/*.mjs',
       'vite.config.mjs',
       'eslint.config.mjs',
@@ -62,7 +62,7 @@ export default [
     },
   },
   {
-    files: ['server/**/*.test.mjs'],
+    files: ['server/**/*.test.mjs', 'shared/**/*.test.mjs'],
     languageOptions: { globals: { ...globals.node, ...globals.vitest } },
   },
 ];

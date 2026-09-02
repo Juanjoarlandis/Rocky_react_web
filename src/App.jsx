@@ -12,7 +12,7 @@ import ProductPage from './components/ProductPage';
 import CuriousPeeker from './components/CuriousPeeker';
 import CartRunner from './components/CartRunner';
 import demoCatalog from './data/demoCatalog.json';
-import previewProducts from '../server/preview-products.mjs';
+import previewProducts from '../shared/preview-products.mjs';
 import { normalizeDemoCatalog } from './shopify/normalize';
 import { useStorefront } from './shopify/useStorefront';
 
