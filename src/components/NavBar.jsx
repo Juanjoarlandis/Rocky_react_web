@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { Link, NavLink } from 'react-router';
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { Link, NavLink, useLocation } from 'react-router';
 import '../styles/components/navbar.css';
 
 import { getCrewAvatarImage } from '../data/crewAvatarImages.js';
+import { useLockBodyScroll } from '../hooks/useLockBodyScroll.js';
 import { alternaTema, temaActual } from '../utils/theme.js';
 import logo from '../images/Rockypng.png';
 import cartIcon from '../images/optimized/shell/cart-96.webp';
@@ -30,9 +31,80 @@ const BombillaIcon = () => (
     </svg>
 );
 
+/* Tres trazos a mano que se cruzan en aspa cuando el menú está abierto. */
+const MenuIcon = ({ open }) => (
+    <svg
+        viewBox="0 0 24 24"
+        width="26"
+        height="26"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        aria-hidden="true"
+        className={`navbar-menu-icon${open ? ' is-open' : ''}`}
+    >
+        <path className="navbar-menu-stroke navbar-menu-stroke--top" d="M4 7 q8 -1.2 16 0" />
+        <path className="navbar-menu-stroke navbar-menu-stroke--mid" d="M4 12 q8 1 16 0" />
+        <path className="navbar-menu-stroke navbar-menu-stroke--bottom" d="M4 17 q8 -1 16 0" />
+    </svg>
+);
+
+const DESTINATIONS = [
+    { to: '/', label: 'Tienda', end: true },
+    { to: '/menudrop', label: 'Drops' },
+    { to: '/estudio', label: 'Estudio' },
+    { to: '/crew', label: 'Crew' },
+    { to: '/rockyIA', label: 'Rocky IA' },
+];
+
 // react-router marca el destino actual con `active`; aquí se traduce al
 // prefijo de estado de la casa.
 const navLinkClass = ({ isActive }) => `navbar-link${isActive ? ' is-active' : ''}`;
+const sheetLinkClass = ({ isActive }) => `navbar-sheet-link${isActive ? ' is-active' : ''}`;
+const FOCUSABLE = 'a[href], button:not([disabled])';
+
+function cartLabel(totalItems) {
+    if (!totalItems) return 'Carrito, vacío';
+    return `Carrito, ${totalItems} ${totalItems === 1 ? 'artículo' : 'artículos'}`;
+}
+
+/* El acceso a Mi Crew cambia según haya cuentas de cliente y sesión: avatar
+   equipado, enlace al login de Shopify o la ruta de vista previa. */
+function AccountEntry({ accountEnabled, account, crewAvatarId, className, onNavigate }) {
+    if (accountEnabled && account.loggedIn) {
+        return (
+            <NavLink
+                to="/mi-crew"
+                className={({ isActive }) => `${className} navbar-account--avatar${isActive ? ' is-active' : ''}`}
+                aria-label="Mi Crew"
+                title="Mi Crew"
+                onClick={onNavigate}
+            >
+                <img
+                    src={getCrewAvatarImage(crewAvatarId)}
+                    width="96"
+                    height="96"
+                    decoding="async"
+                    alt=""
+                    className="navbar-account-avatar neon-art--icon"
+                />
+            </NavLink>
+        );
+    }
+    if (accountEnabled) {
+        return (
+            <a href="/api/shopify/account/login?returnPath=%2Fmi-crew" className={className}>
+                Mi Crew
+            </a>
+        );
+    }
+    return (
+        <NavLink to="/mi-crew" className={className} onClick={onNavigate}>
+            Mi Crew
+        </NavLink>
+    );
+}
 
 const NavBar = ({
     totalItems,
@@ -45,8 +117,74 @@ const NavBar = ({
     const enciendeApaga = () => setTema(alternaTema());
     const neonPuesto = tema === 'neon';
 
+    const [menuOpen, setMenuOpen] = useState(false);
+    const menuButtonRef = useRef(null);
+    const sheetRef = useRef(null);
+    const sheetId = useId();
+    const location = useLocation();
+
+    const closeMenu = useCallback(() => setMenuOpen(false), []);
+
+    // Cambiar de ruta cierra la hoja aunque se llegue por otro camino.
+    useEffect(() => {
+        setMenuOpen(false);
+    }, [location.pathname]);
+
+    useLockBodyScroll(menuOpen);
+
+    /* Con la hoja abierta el foco entra en ella, Tab da vueltas dentro y
+       Escape la cierra devolviendo el foco al botón que la abrió. */
+    useEffect(() => {
+        if (!menuOpen) return undefined;
+        const sheet = sheetRef.current;
+        const button = menuButtonRef.current;
+        sheet?.querySelector(FOCUSABLE)?.focus();
+
+        const onKeyDown = (event) => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                setMenuOpen(false);
+                button?.focus();
+                return;
+            }
+            if (event.key !== 'Tab' || !sheet) return;
+            const focusable = [...sheet.querySelectorAll(FOCUSABLE)];
+            if (!focusable.length) return;
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        };
+        document.addEventListener('keydown', onKeyDown);
+        return () => document.removeEventListener('keydown', onKeyDown);
+    }, [menuOpen]);
+
+    const themeButton = (className) => (
+        <button
+            type="button"
+            className={`${className} ${neonPuesto ? 'navbar-theme--on' : ''}`}
+            onClick={enciendeApaga}
+            aria-pressed={neonPuesto}
+            aria-label={neonPuesto ? 'Apagar el neón' : 'Encender el neón'}
+            title={neonPuesto ? 'Apagar el neón' : 'Encender el neón'}
+        >
+            <BombillaIcon />
+            {className.includes('sheet') && (
+                <span>{neonPuesto ? 'Apagar el neón' : 'Encender el neón'}</span>
+            )}
+        </button>
+    );
+
+    /* La hoja va fuera del <header>: su backdrop-filter crea un bloque
+       contenedor y dejaría el position: fixed encerrado en los 56px de barra. */
     return (
-        <header className="navbar">
+        <>
+        <header className={`navbar${menuOpen ? ' navbar--menu-open' : ''}`}>
             <div className="navbar-inner">
                 <Link to="/" className="navbar-brand" aria-label="Inicio">
                     <img
@@ -59,50 +197,20 @@ const NavBar = ({
                     />
                 </Link>
                 <nav className="navbar-links" aria-label="Navegación principal">
-                    <NavLink to="/" end className={navLinkClass}>
-                        Tienda
-                    </NavLink>
-                    <NavLink to="/menudrop" className={navLinkClass}>
-                        Drops
-                    </NavLink>
-                    <NavLink to="/estudio" className={navLinkClass}>
-                        Estudio
-                    </NavLink>
-                    <NavLink to="/crew" className={navLinkClass}>
-                        Crew
-                    </NavLink>
-                    <NavLink to="/rockyIA" className={navLinkClass}>
-                        Rocky IA
-                    </NavLink>
-                    {accountEnabled && account.loggedIn ? (
-                        <NavLink
-                            to="/mi-crew"
-                            className={({ isActive }) => `navbar-account navbar-account--avatar${isActive ? ' is-active' : ''}`}
-                            aria-label="Abrir MiCrew"
-                            title="Abrir MiCrew"
-                        >
-                            <img
-                                src={getCrewAvatarImage(crewAvatarId)}
-                                width="96"
-                                height="96"
-                                decoding="async"
-                                alt=""
-                                className="navbar-account-avatar neon-art--icon"
-                            />
+                    {DESTINATIONS.map(({ to, label, end }) => (
+                        <NavLink key={to} to={to} end={end} className={navLinkClass}>
+                            {label}
                         </NavLink>
-                    ) : accountEnabled ? (
-                        <a
-                            href="/api/shopify/account/login?returnPath=%2Fmi-crew"
-                            className="navbar-account"
-                        >
-                            Mi Crew
-                        </a>
-                    ) : (
-                        <NavLink to="/mi-crew" className="navbar-account">
-                            Mi Crew
-                        </NavLink>
-                    )}
-                    <NavLink to="/cart" className="navbar-cart" aria-label="Carrito">
+                    ))}
+                    <AccountEntry
+                        accountEnabled={accountEnabled}
+                        account={account}
+                        crewAvatarId={crewAvatarId}
+                        className="navbar-account"
+                    />
+                </nav>
+                <div className="navbar-tools">
+                    <NavLink to="/cart" className="navbar-cart" aria-label={cartLabel(totalItems)}>
                         <img
                             src={cartIcon}
                             width="96"
@@ -112,22 +220,53 @@ const NavBar = ({
                             className="navbar-cart-icon neon-art--icon"
                         />
                         {totalItems > 0 && (
-                            <span className="cart-counter">{totalItems}</span>
+                            <span className="cart-counter" aria-hidden="true">{totalItems}</span>
                         )}
                     </NavLink>
+                    {themeButton('navbar-theme')}
                     <button
                         type="button"
-                        className={`navbar-theme ${neonPuesto ? 'navbar-theme--on' : ''}`}
-                        onClick={enciendeApaga}
-                        aria-pressed={neonPuesto}
-                        aria-label={neonPuesto ? 'Apagar el neón' : 'Encender el neón'}
-                        title={neonPuesto ? 'Apagar el neón' : 'Encender el neón'}
+                        ref={menuButtonRef}
+                        className="navbar-menu"
+                        onClick={() => setMenuOpen((open) => !open)}
+                        aria-expanded={menuOpen}
+                        aria-controls={sheetId}
+                        aria-label={menuOpen ? 'Cerrar el menú' : 'Abrir el menú'}
                     >
-                        <BombillaIcon />
+                        <MenuIcon open={menuOpen} />
                     </button>
-                </nav>
+                </div>
             </div>
         </header>
+            {menuOpen && (
+                <div
+                    id={sheetId}
+                    ref={sheetRef}
+                    className="navbar-sheet"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Menú"
+                >
+                    <nav className="navbar-sheet-links" aria-label="Navegación principal">
+                        {DESTINATIONS.map(({ to, label, end }) => (
+                            <NavLink key={to} to={to} end={end} className={sheetLinkClass} onClick={closeMenu}>
+                                {label}
+                            </NavLink>
+                        ))}
+                        <AccountEntry
+                            accountEnabled={accountEnabled}
+                            account={account}
+                            crewAvatarId={crewAvatarId}
+                            className="navbar-sheet-link navbar-sheet-account"
+                            onNavigate={closeMenu}
+                        />
+                    </nav>
+                    <div className="navbar-sheet-footer">
+                        {themeButton('navbar-theme navbar-theme--sheet')}
+                    </div>
+                </div>
+            )}
+        </>
     );
 };
 

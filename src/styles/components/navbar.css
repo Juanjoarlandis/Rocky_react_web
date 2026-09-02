@@ -44,6 +44,14 @@
     gap: clamp(12px, 3vw, 30px);
 }
 
+/* Carrito, interruptor y botón de menú: siempre a la derecha, también en móvil */
+.navbar-tools {
+    display: flex;
+    align-items: center;
+    gap: clamp(6px, 1.5vw, 14px);
+    flex: 0 0 auto;
+}
+
 .navbar-link {
     position: relative;
     display: flex;
@@ -181,59 +189,6 @@
     transform: rotate(6deg);
 }
 
-/* Última franja horizontal: comprime el ritmo sin recortar destinos. */
-@media (min-width: 721px) and (max-width: 800px) {
-    .navbar-inner {
-        padding-inline: 16px;
-        gap: 12px;
-    }
-
-    .navbar-links {
-        gap: clamp(10px, 1.5vw, 12px);
-    }
-}
-
-/* En tablet estrecha y móvil, la navbar pasa a dos filas estables. */
-@media (max-width: 720px) {
-    .navbar-inner {
-        flex-direction: column;
-        height: auto;
-        padding: 8px 10px 9px;
-        gap: 2px;
-    }
-
-    .navbar-links {
-        width: 100%;
-        justify-content: center;
-        flex-wrap: wrap;
-        gap: 2px 14px;
-    }
-
-    .navbar-logo {
-        height: 22px;
-    }
-
-    .navbar-link {
-        font-size: var(--text-base);
-        padding-bottom: 6px;
-    }
-
-    .navbar-cart-icon {
-        width: 28px;
-        height: 28px;
-    }
-
-    .navbar-account {
-        max-width: 86px;
-        padding: 2px 0 4px;
-        font-size: var(--text-sm);
-    }
-
-    .navbar-account.navbar-account--avatar {
-        padding: 1px;
-    }
-}
-
 /* ---------- El interruptor del neón ---------- */
 
 .navbar-theme {
@@ -274,6 +229,211 @@
     opacity: 1;
 }
 
+/* ---------- El botón de menú y la hoja (sólo en móvil) ---------- */
+
+.navbar-menu {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 4px;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+}
+
+.navbar-menu-stroke {
+    transform-origin: 12px 12px;
+    transition: transform var(--dur-base) var(--ease-out), opacity var(--dur-base) var(--ease-out);
+}
+
+.navbar-menu-icon.is-open .navbar-menu-stroke--top {
+    transform: translateY(5px) rotate(45deg);
+}
+
+.navbar-menu-icon.is-open .navbar-menu-stroke--mid {
+    opacity: 0;
+}
+
+.navbar-menu-icon.is-open .navbar-menu-stroke--bottom {
+    transform: translateY(-5px) rotate(-45deg);
+}
+
+/* La hoja cae desde la barra y ocupa el resto de la pantalla: papel de
+   cuaderno, los seis destinos en grande y el interruptor abajo. */
+.navbar-sheet {
+    position: fixed;
+    top: var(--nav-h);
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: var(--z-nav);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: var(--space-5);
+    padding: var(--space-5) var(--space-4) var(--space-6);
+    overflow-y: auto;
+    background-color: var(--paper);
+    background-image: radial-gradient(circle, rgba(var(--dot-rgb), var(--dot-alpha)) 1.2px, transparent 1.2px);
+    background-size: var(--dot-grid-size);
+    animation: navbar-sheet-in var(--dur-base) var(--ease-out);
+}
+
+@keyframes navbar-sheet-in {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.navbar-sheet-links {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.navbar-sheet-link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-height: 52px;
+    padding: var(--space-2) var(--space-1);
+    border-bottom: 2px dashed var(--line);
+    color: var(--ink);
+    font-family: var(--font-hand);
+    font-size: var(--text-xl);
+    letter-spacing: 0.03em;
+    text-decoration: none;
+}
+
+.navbar-sheet-link.is-active {
+    color: var(--accent);
+}
+
+.navbar-sheet-link.is-active::after {
+    content: '';
+    position: absolute;
+    left: var(--space-1);
+    right: auto;
+    bottom: 2px;
+    width: 96px;
+    height: 8px;
+    background-image: var(--squiggle);
+    background-repeat: repeat-x;
+    background-size: 48px 8px;
+}
+
+/* Mi Crew en la hoja: el avatar va con su nombre al lado */
+.navbar-sheet-account.navbar-account--avatar {
+    gap: var(--space-3);
+}
+
+.navbar-sheet-account.navbar-account--avatar::after {
+    content: 'Mi Crew';
+}
+
+.navbar-sheet-account .navbar-account-avatar {
+    width: 44px;
+    height: 44px;
+    border: 2px solid var(--ink);
+    border-radius: 50%;
+    background: var(--card);
+    object-fit: contain;
+}
+
+.navbar-sheet-footer {
+    display: flex;
+    justify-content: flex-start;
+}
+
+.navbar-theme--sheet {
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: 2px solid var(--ink);
+    border-radius: var(--wobble-sm);
+    background-color: var(--card);
+    box-shadow: var(--shadow-ink-xs);
+    font-family: var(--font-hand);
+    font-size: var(--text-md);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .navbar-sheet {
+        animation: none;
+    }
+
+    .navbar-menu-stroke {
+        transition: none;
+    }
+}
+
+/* ---------- Anchos ---------- */
+
+/* Tablet: una sola fila con el ritmo comprimido, sin recortar destinos. */
+@media (min-width: 641px) and (max-width: 900px) {
+    .navbar-inner {
+        padding-inline: 16px;
+        gap: 12px;
+    }
+
+    .navbar-logo {
+        height: 24px;
+    }
+
+    .navbar-links {
+        gap: clamp(8px, 1.4vw, 14px);
+    }
+
+    .navbar-link {
+        font-size: var(--text-base);
+    }
+
+    .navbar-account {
+        max-width: 90px;
+        font-size: var(--text-sm);
+    }
+}
+
+/* Móvil: una fila (logo, carrito, menú) y los destinos en la hoja. */
+@media (max-width: 640px) {
+    .navbar-inner {
+        padding: 0 12px;
+    }
+
+    .navbar-logo {
+        height: 22px;
+    }
+
+    .navbar-links,
+    .navbar-tools > .navbar-theme {
+        display: none;
+    }
+
+    .navbar-menu {
+        display: flex;
+    }
+
+    .navbar-cart-icon {
+        width: 30px;
+        height: 30px;
+    }
+}
+
+/* En escritorio la hoja no existe: los destinos ya están en la barra. */
+@media (min-width: 641px) {
+    .navbar-sheet {
+        display: none;
+    }
+}
+
 /* ---------- Modo neón ---------- */
 
 /* El beige translúcido va cosido a fuego arriba, así que de noche se pisa:
@@ -282,5 +442,9 @@ html[data-theme='neon'] .navbar {
     background-color: rgba(var(--neon-paper-rgb), 0.92);
     box-shadow: 0 1px 0 rgba(var(--neon-cyan-rgb), 0.35),
         0 4px 22px rgba(var(--neon-pink-rgb), 0.14);
+}
+
+html[data-theme='neon'] .navbar-sheet {
+    background-color: var(--paper);
 }
 }
