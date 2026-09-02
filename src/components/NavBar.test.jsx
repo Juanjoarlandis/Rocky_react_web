@@ -45,7 +45,10 @@ describe('NavBar Crew entry', () => {
 
   it('announces the cart with its item count', () => {
     renderNavBar({ totalItems: 3 });
-    expect(screen.getByRole('link', { name: 'Carrito, 3 artículos' })).toHaveAttribute('href', '/cart');
+    expect(screen.getByRole('link', { name: 'Carrito, 3 artículos' })).toHaveAttribute(
+      'href',
+      '/cart'
+    );
   });
 });
 
@@ -106,10 +109,14 @@ describe('NavBar responsive contract', () => {
   });
 
   it('keeps every navigation control at least 44px tall', () => {
-    for (const selector of ['navbar-brand', 'navbar-link', 'navbar-account', 'navbar-cart', 'navbar-menu']) {
-      expect(navBarCss).toMatch(
-        new RegExp(`\\.${selector}\\s*\\{[\\s\\S]*?min-height:\\s*44px;`)
-      );
+    for (const selector of [
+      'navbar-brand',
+      'navbar-link',
+      'navbar-account',
+      'navbar-cart',
+      'navbar-menu',
+    ]) {
+      expect(navBarCss).toMatch(new RegExp(`\\.${selector}\\s*\\{[\\s\\S]*?min-height:\\s*44px;`));
     }
     expect(navBarCss).toMatch(/\.navbar-sheet-link\s*\{[\s\S]*?min-height:\s*52px;/);
     expect(navBarCss).toMatch(

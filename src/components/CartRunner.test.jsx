@@ -5,7 +5,12 @@ import CartRunner, { CRUCE_MS, medidas, planRun } from './CartRunner.jsx';
 const VIEW = Object.freeze({ width: 1280, height: 800 });
 // El icono del carrito vive en la esquina de arriba a la derecha.
 const ICONO = Object.freeze({
-  left: 1180, right: 1224, top: 20, bottom: 64, width: 44, height: 44,
+  left: 1180,
+  right: 1224,
+  top: 20,
+  bottom: 64,
+  width: 44,
+  height: 44,
 });
 
 function montaIcono(rect = ICONO) {

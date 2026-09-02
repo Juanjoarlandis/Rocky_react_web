@@ -126,7 +126,15 @@ function normalizeSearchText(value) {
 
 function safeText(value, maxLength = 120) {
   if (typeof value !== 'string') return '';
-  return value.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, maxLength);
+  return (
+    value
+      // Se limpian a propósito los caracteres de control que llegan del navegador.
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, maxLength)
+  );
 }
 
 function safeImage(image) {
@@ -152,9 +160,7 @@ function safeMoney(price) {
     return null;
   }
   const amountText = String(rawAmount).trim();
-  const currencyText = typeof price?.currencyCode === 'string'
-    ? price.currencyCode.trim()
-    : '';
+  const currencyText = typeof price?.currencyCode === 'string' ? price.currencyCode.trim() : '';
   if (
     !/^(?:0|[1-9]\d{0,7})(?:\.\d{1,2})?$/.test(amountText) ||
     !/^[A-Za-z]{3}$/.test(currencyText)
@@ -234,11 +240,7 @@ function sanitizeDemoProduct(product) {
 function termsForMessage(message) {
   return normalizeSearchText(message)
     .split(' ')
-    .filter((term) =>
-      term.length > 1 &&
-      !COMMERCE_TERMS.has(term) &&
-      !SEARCH_STOP_TERMS.has(term)
-    );
+    .filter((term) => term.length > 1 && !COMMERCE_TERMS.has(term) && !SEARCH_STOP_TERMS.has(term));
 }
 
 function includesTerm(text, term) {
@@ -246,10 +248,9 @@ function includesTerm(text, term) {
   if (words.includes(term)) return true;
   if (term.length < 5) return false;
   const singularTerm = term.slice(0, -1);
-  return words.some((word) => (
-    word === singularTerm ||
-    (word.length >= 5 && word.slice(0, -1) === term)
-  ));
+  return words.some(
+    (word) => word === singularTerm || (word.length >= 5 && word.slice(0, -1) === term)
+  );
 }
 
 function relevanceScore(messageTerms, product) {
@@ -295,17 +296,13 @@ function hasDirectCommerceIntent(message, knownProducts) {
   );
 }
 
-export function hasCommerceIntent(
-  message,
-  { history = [], knownProducts = [] } = {}
-) {
+export function hasCommerceIntent(message, { history = [], knownProducts = [] } = {}) {
   if (hasDirectCommerceIntent(message, knownProducts)) return true;
 
   const hasRecentCommerceTurn = (Array.isArray(history) ? history : [])
     .slice(-4)
-    .some((entry) =>
-      entry?.role === 'user' &&
-      hasDirectCommerceIntent(entry.content, knownProducts)
+    .some(
+      (entry) => entry?.role === 'user' && hasDirectCommerceIntent(entry.content, knownProducts)
     );
   if (!hasRecentCommerceTurn) return false;
 
@@ -323,8 +320,8 @@ function rankedProducts(messageTerms, products, source) {
     index,
     source,
     score: relevanceScore(messageTerms, product),
-    isAvailable: source === 'shopify' &&
-      (product.variants || []).some((variant) => variant.availableForSale),
+    isAvailable:
+      source === 'shopify' && (product.variants || []).some((variant) => variant.availableForSale),
   }));
 }
 
@@ -334,15 +331,19 @@ export function selectCatalogChatProducts(
   demoProducts = [],
   limit = MAX_CHAT_PRODUCTS
 ) {
-  const boundedLimit = Math.max(1, Math.min(Number.parseInt(limit, 10) || MAX_CHAT_PRODUCTS, MAX_CHAT_PRODUCTS));
+  const boundedLimit = Math.max(
+    1,
+    Math.min(Number.parseInt(limit, 10) || MAX_CHAT_PRODUCTS, MAX_CHAT_PRODUCTS)
+  );
   const messageTerms = termsForMessage(message);
   const liveHandles = new Set(
     (Array.isArray(shopifyProducts) ? shopifyProducts : [])
       .map((product) => safeText(product?.handle, 120))
       .filter((handle) => SAFE_HANDLE.test(handle))
   );
-  const distinctDemoProducts = (Array.isArray(demoProducts) ? demoProducts : [])
-    .filter((product) => !liveHandles.has(safeText(product?.handle, 120)));
+  const distinctDemoProducts = (Array.isArray(demoProducts) ? demoProducts : []).filter(
+    (product) => !liveHandles.has(safeText(product?.handle, 120))
+  );
 
   const ranked = [
     ...rankedProducts(messageTerms, shopifyProducts, 'shopify'),
@@ -351,11 +352,12 @@ export function selectCatalogChatProducts(
   const hasSpecificRequest = messageTerms.length > 0;
 
   return ranked
-    .sort((left, right) =>
-      right.score - left.score ||
-      Number(right.isAvailable) - Number(left.isAvailable) ||
-      Number(right.source === 'shopify') - Number(left.source === 'shopify') ||
-      left.index - right.index
+    .sort(
+      (left, right) =>
+        right.score - left.score ||
+        Number(right.isAvailable) - Number(left.isAvailable) ||
+        Number(right.source === 'shopify') - Number(left.source === 'shopify') ||
+        left.index - right.index
     )
     .filter((candidate) => !hasSpecificRequest || candidate.score > 0)
     .map(({ product, source }) =>

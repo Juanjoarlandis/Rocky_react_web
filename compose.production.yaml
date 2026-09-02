@@ -7,7 +7,7 @@ services:
     env_file:
       - /etc/rocky035/rocky.env
     ports:
-      - "127.0.0.1:3100:3001"
+      - '127.0.0.1:3100:3001'
     volumes:
       - /var/lib/rocky035:/app/.data
     read_only: true

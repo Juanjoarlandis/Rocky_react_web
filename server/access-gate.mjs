@@ -176,9 +176,10 @@ function createAttemptTracker(clock) {
       }
 
       const previous = clients.get(key);
-      const attempt = !previous || previous.resetAt <= now
-        ? { count: 0, resetAt: now + ATTEMPT_WINDOW_MS }
-        : previous;
+      const attempt =
+        !previous || previous.resetAt <= now
+          ? { count: 0, resetAt: now + ATTEMPT_WINDOW_MS }
+          : previous;
       attempt.count += 1;
       clients.delete(key);
       clients.set(key, attempt);
@@ -242,12 +243,7 @@ export function createAccessGate({
 
         const candidate = typeof req.body?.password === 'string' ? req.body.password : '';
         if (!passwordMatches(candidate, config.siteAccess.password)) {
-          return renderClosed(
-            res,
-            401,
-            'No abre. Revisa la clave y prueba otra vez.',
-            'error'
-          );
+          return renderClosed(res, 401, 'No abre. Revisa la clave y prueba otra vez.', 'error');
         }
 
         attempts.clear(clientKey);

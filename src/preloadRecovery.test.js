@@ -1,8 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  clearPreloadRecoveryGuardAfterBoot,
-  recoverFromPreloadError,
-} from './preloadRecovery.js';
+import { clearPreloadRecoveryGuardAfterBoot, recoverFromPreloadError } from './preloadRecovery.js';
 
 describe('stale Vite chunk recovery', () => {
   beforeEach(() => sessionStorage.clear());

@@ -174,9 +174,9 @@ describe('Storefront client', () => {
     await expect(
       client.updateLines(cart.id, { lineId: REAL_LINE_ID, quantity: 2 })
     ).resolves.toMatchObject({ cart: { totalQuantity: 2 } });
-    await expect(
-      client.removeLines(cart.id, { lineId: REAL_LINE_ID })
-    ).resolves.toMatchObject({ cart: { totalQuantity: 2 } });
+    await expect(client.removeLines(cart.id, { lineId: REAL_LINE_ID })).resolves.toMatchObject({
+      cart: { totalQuantity: 2 },
+    });
 
     expect(JSON.parse(fetchImpl.mock.calls[0][1].body).variables.lines).toEqual([
       { id: REAL_LINE_ID, quantity: 2 },

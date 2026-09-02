@@ -20,9 +20,7 @@ function paidOrder({
     current_total_price_set: {
       shop_money: { amount, currency_code: currency },
     },
-    customer: customerId
-      ? { admin_graphql_api_id: customerId }
-      : null,
+    customer: customerId ? { admin_graphql_api_id: customerId } : null,
     line_items: [
       { title: 'Rockydz Boyz', quantity: 1 },
       { title: 'Gorra 035', quantity: 1 },
@@ -145,12 +143,14 @@ describe('Crew reward profiles', () => {
   it('skips guest and non-EUR orders without creating a balance', async () => {
     const service = createCrewRewardsService({ store: new MemoryStore() });
 
-    await expect(
-      service.creditPaidOrder(paidOrder({ customerId: null }))
-    ).resolves.toEqual({ credited: false, reason: 'missing_customer' });
-    await expect(
-      service.creditPaidOrder(paidOrder({ currency: 'USD' }))
-    ).resolves.toEqual({ credited: false, reason: 'unsupported_currency' });
+    await expect(service.creditPaidOrder(paidOrder({ customerId: null }))).resolves.toEqual({
+      credited: false,
+      reason: 'missing_customer',
+    });
+    await expect(service.creditPaidOrder(paidOrder({ currency: 'USD' }))).resolves.toEqual({
+      credited: false,
+      reason: 'unsupported_currency',
+    });
   });
 
   it('spends tickets idempotently without reducing XP or level', async () => {

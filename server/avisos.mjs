@@ -87,9 +87,7 @@ export function createAvisosHandler({ store, logger, clock = () => new Date() })
       });
 
       if (salida.lleno) {
-        return res
-          .status(503)
-          .json({ message: 'La lista está a reventar; inténtalo más tarde.' });
+        return res.status(503).json({ message: 'La lista está a reventar; inténtalo más tarde.' });
       }
       return res.json(salida);
     } catch (error) {

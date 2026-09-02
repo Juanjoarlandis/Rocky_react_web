@@ -1,8 +1,4 @@
-import {
-  fetchWithTimeout,
-  requestShopifyGraphql,
-  ShopifyGraphqlError,
-} from './graphql.mjs';
+import { fetchWithTimeout, requestShopifyGraphql, ShopifyGraphqlError } from './graphql.mjs';
 
 const MAX_TOKEN_LIFETIME_SECONDS = 365 * 24 * 60 * 60;
 
@@ -17,7 +13,11 @@ function isValidTokenResponse(payload) {
   );
 }
 
-export function createAdminClient({ config, fetchImpl = globalThis.fetch, clock = () => Date.now() }) {
+export function createAdminClient({
+  config,
+  fetchImpl = globalThis.fetch,
+  clock = () => Date.now(),
+}) {
   let tokenRecord = null;
   let tokenRequest = null;
 

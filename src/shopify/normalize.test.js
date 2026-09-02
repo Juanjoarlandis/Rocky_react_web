@@ -88,8 +88,22 @@ describe('Shopify UI normalization', () => {
 
   it('normaliza el catálogo demo con handle, dropHandle y sin variantes', () => {
     const [tee, revealed] = normalizeDemoCatalog([
-      { id: 1, drop: 'ROCKY DROP 4', title: '35 RED', specifications: ['Próximamente'], price: '??', image: '/products/placeholder-unreleased.webp', description: 'Roja' },
-      { id: 15, drop: 'ROCKY DROP 4', title: 'RockyRacing', price: '35', image: '/products/rocky-racing.webp' },
+      {
+        id: 1,
+        drop: 'ROCKY DROP 4',
+        title: '35 RED',
+        specifications: ['Próximamente'],
+        price: '??',
+        image: '/products/placeholder-unreleased.webp',
+        description: 'Roja',
+      },
+      {
+        id: 15,
+        drop: 'ROCKY DROP 4',
+        title: 'RockyRacing',
+        price: '35',
+        image: '/products/rocky-racing.webp',
+      },
     ]);
     expect(tee).toMatchObject({
       id: '35-red',

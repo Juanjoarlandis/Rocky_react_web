@@ -7,8 +7,12 @@ function MusicProbe() {
   return (
     <>
       <span data-testid="playing">{String(music.playing)}</span>
-      <button type="button" onClick={music.toggle}>toggle</button>
-      <button type="button" onClick={() => music.select(0)}>select</button>
+      <button type="button" onClick={music.toggle}>
+        toggle
+      </button>
+      <button type="button" onClick={() => music.select(0)}>
+        select
+      </button>
     </>
   );
 }
@@ -17,12 +21,8 @@ afterEach(() => vi.restoreAllMocks());
 
 describe('MusicProvider network activation', () => {
   it('keeps the audio source empty until the user requests playback', () => {
-    const play = vi
-      .spyOn(window.HTMLMediaElement.prototype, 'play')
-      .mockResolvedValue();
-    const load = vi
-      .spyOn(window.HTMLMediaElement.prototype, 'load')
-      .mockImplementation(() => {});
+    const play = vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockResolvedValue();
+    const load = vi.spyOn(window.HTMLMediaElement.prototype, 'load').mockImplementation(() => {});
     const { container } = render(
       <MusicProvider>
         <MusicProbe />

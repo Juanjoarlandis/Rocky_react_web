@@ -4,15 +4,26 @@ import process from 'node:process';
 import { execFileSync } from 'node:child_process';
 
 const root = process.cwd();
-const skippedDirectories = new Set([
-  '.git',
-  '.data',
-  'coverage',
-  'node_modules',
-]);
+const skippedDirectories = new Set(['.git', '.data', 'coverage', 'node_modules']);
 const textExtensions = new Set([
-  '', '.css', '.env', '.example', '.html', '.ini', '.js', '.json', '.jsx',
-  '.md', '.mjs', '.sh', '.toml', '.ts', '.tsx', '.txt', '.yaml', '.yml',
+  '',
+  '.css',
+  '.env',
+  '.example',
+  '.html',
+  '.ini',
+  '.js',
+  '.json',
+  '.jsx',
+  '.md',
+  '.mjs',
+  '.sh',
+  '.toml',
+  '.ts',
+  '.tsx',
+  '.txt',
+  '.yaml',
+  '.yml',
 ]);
 const forbiddenEnvironmentFiles = /^\.env(?:\..+)?$/;
 const allowedEnvironmentFiles = new Set(['.env.example']);

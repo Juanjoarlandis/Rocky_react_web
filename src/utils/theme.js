@@ -10,31 +10,29 @@ const THEME_KEY = 'rocky-theme';
 const META_COLORS = { light: '#1a1a1a', neon: '#0c0917' };
 
 export function temaActual() {
-    return document.documentElement.dataset.theme === 'neon'
-        ? 'neon'
-        : 'light';
+  return document.documentElement.dataset.theme === 'neon' ? 'neon' : 'light';
 }
 
 export function aplicaTema(tema) {
-    const html = document.documentElement;
-    if (tema === 'neon') {
-        html.dataset.theme = 'neon';
-    } else {
-        delete html.dataset.theme;
-    }
-    try {
-        localStorage.setItem(THEME_KEY, tema);
-    } catch {
-        /* Sin localStorage el interruptor funciona igual, sólo que no se
+  const html = document.documentElement;
+  if (tema === 'neon') {
+    html.dataset.theme = 'neon';
+  } else {
+    delete html.dataset.theme;
+  }
+  try {
+    localStorage.setItem(THEME_KEY, tema);
+  } catch {
+    /* Sin localStorage el interruptor funciona igual, sólo que no se
            acuerda entre visitas. */
-    }
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) {
-        meta.setAttribute('content', META_COLORS[tema] || META_COLORS.light);
-    }
-    return tema;
+  }
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) {
+    meta.setAttribute('content', META_COLORS[tema] || META_COLORS.light);
+  }
+  return tema;
 }
 
 export function alternaTema() {
-    return aplicaTema(temaActual() === 'neon' ? 'light' : 'neon');
+  return aplicaTema(temaActual() === 'neon' ? 'light' : 'neon');
 }

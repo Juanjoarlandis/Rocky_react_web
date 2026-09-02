@@ -1,17 +1,17 @@
 @layer pages {
-.studio {
+  .studio {
     --container: 900px;
     /* Panal de La Colmena, muy sutil, solo en esta sección */
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='56' height='97' viewBox='0 0 56 97'><g fill='none' stroke='%231a1a1a' stroke-opacity='0.05' stroke-width='2'><path d='M28 1 L54 16 L54 48 L28 63 L2 48 L2 16 Z'/><path d='M28 63 L54 78 L54 97 M28 63 L2 78 L2 97'/></g></svg>");
     background-size: 56px 97px;
-}
+  }
 
-.studio-head {
+  .studio-head {
     position: relative;
-}
+  }
 
-/* La abeja sobrevolando el título con su vuelo garabateado */
-.studio-bee {
+  /* La abeja sobrevolando el título con su vuelo garabateado */
+  .studio-bee {
     position: absolute;
     top: -26px;
     right: clamp(0px, 8vw, 90px);
@@ -19,46 +19,48 @@
     height: auto;
     pointer-events: none;
     animation: bee-hover 3.4s ease-in-out infinite;
-}
+  }
 
-@keyframes bee-hover {
-    0%, 100% {
-        transform: translateY(0) rotate(0deg);
+  @keyframes bee-hover {
+    0%,
+    100% {
+      transform: translateY(0) rotate(0deg);
     }
+
     50% {
-        transform: translateY(-7px) rotate(-2deg);
+      transform: translateY(-7px) rotate(-2deg);
     }
-}
+  }
 
-@media (prefers-reduced-motion: reduce) {
+  @media (prefers-reduced-motion: reduce) {
     .studio-bee {
-        animation: none;
+      animation: none;
     }
-}
+  }
 
-/* ---------- Player ---------- */
+  /* ---------- Player ---------- */
 
-.studio-player-wrap {
+  .studio-player-wrap {
     margin-top: clamp(96px, 13vw, 130px);
-}
+  }
 
-/* El productor cabeza-hexágono sentado en lo alto del radiocasete
+  /* El productor cabeza-hexágono sentado en lo alto del radiocasete
    (posa en cuclillas: la base de la imagen apoya plana en el borde) */
-.studio-doodle {
+  .studio-doodle {
     bottom: calc(100% - 10px);
     right: 7%;
     height: clamp(130px, 16vw, 165px);
     width: auto;
     z-index: 2;
-}
+  }
 
-.studio-player {
+  .studio-player {
     position: relative;
     padding: 26px 28px 24px;
-}
+  }
 
-/* Pegatina hexagonal de La Colmena en la esquina del player */
-.studio-sticker {
+  /* Pegatina hexagonal de La Colmena en la esquina del player */
+  .studio-sticker {
     position: absolute;
     top: -20px;
     left: -18px;
@@ -68,42 +70,42 @@
     filter: drop-shadow(3px 3px 0 rgba(var(--ink-rgb), 0.85));
     z-index: 3;
     pointer-events: none;
-}
+  }
 
-/* ---------- Setlist ---------- */
+  /* ---------- Setlist ---------- */
 
-.studio-section-title {
+  .studio-section-title {
     font-family: var(--font-display);
     font-size: var(--text-xl);
     text-transform: uppercase;
     margin: 56px 0 20px;
     position: relative;
     display: inline-block;
-}
+  }
 
-.setlist-frame {
+  .setlist-frame {
     /* Hueco para El Luna en cuclillas sobre la lista */
     margin-top: clamp(96px, 13vw, 128px);
-}
+  }
 
-.setlist-luna {
+  .setlist-luna {
     bottom: calc(100% - 8px);
     right: 6%;
     height: clamp(96px, 13vw, 126px);
     width: auto;
     z-index: 3;
-}
+  }
 
-.setlist-list {
+  .setlist-list {
     list-style: none;
     margin: 0;
     padding: 0;
     position: relative;
     z-index: 2;
     overflow: hidden;
-}
+  }
 
-.setlist-row {
+  .setlist-row {
     display: flex;
     align-items: center;
     gap: 18px;
@@ -115,32 +117,32 @@
     cursor: pointer;
     text-align: left;
     transition: background-color var(--dur-fast) ease;
-}
+  }
 
-.setlist-list li:last-child .setlist-row {
+  .setlist-list > :last-child > .setlist-row {
     border-bottom: none;
-}
+  }
 
-.setlist-row:hover {
+  .setlist-row:hover {
     background-color: var(--paper);
-}
+  }
 
-.setlist-row.is-active {
+  .setlist-row.is-active {
     background-color: var(--paper);
-}
+  }
 
-.setlist-num {
+  .setlist-num {
     font-family: var(--font-display);
     font-size: var(--text-md);
     color: var(--muted);
     flex-shrink: 0;
-}
+  }
 
-.setlist-row.is-active .setlist-num {
+  .setlist-row.is-active .setlist-num {
     color: var(--accent);
-}
+  }
 
-.setlist-title {
+  .setlist-title {
     flex: 1;
     min-width: 0;
     font-family: var(--font-hand);
@@ -148,104 +150,104 @@
     color: var(--ink);
     display: flex;
     flex-direction: column;
-}
+  }
 
-.setlist-title em {
+  .setlist-title em {
     font-style: normal;
     font-size: var(--text-sm);
     color: var(--muted);
-}
+  }
 
-.setlist-duration {
+  .setlist-duration {
     font-family: var(--font-hand);
     font-size: var(--text-base);
     color: var(--muted);
-}
+  }
 
-.setlist-spinner {
+  .setlist-spinner {
     width: 26px;
     height: 26px;
     animation: crosshair-spin 1.4s linear infinite;
-}
+  }
 
-@media (prefers-reduced-motion: reduce) {
+  @media (prefers-reduced-motion: reduce) {
     .setlist-spinner {
-        animation: none;
+      animation: none;
     }
-}
+  }
 
-.setlist-note {
+  .setlist-note {
     margin: 12px 4px 0;
     font-family: var(--font-hand);
     font-size: var(--text-base);
     color: var(--muted);
     transform: rotate(-0.6deg);
-}
+  }
 
-/* ---------- La mesa de beats ---------- */
+  /* ---------- La mesa de beats ---------- */
 
-.mesa-subtitle {
+  .mesa-subtitle {
     display: block;
     margin-top: -8px;
-}
+  }
 
-/* ---------- Escúchalo en serio (embed real) ---------- */
+  /* ---------- Escúchalo en serio (embed real) ---------- */
 
-.listen-wrap {
+  .listen-wrap {
     /* Hueco para El Tele sentado encima del reproductor */
     margin-top: clamp(86px, 11vw, 112px);
-}
+  }
 
-/* El Tele sentado en el borde del reproductor de Spotify:
+  /* El Tele sentado en el borde del reproductor de Spotify:
    la línea de las manos está al 71% de su imagen (cuelga el 29%) */
-.listen-tele {
+  .listen-tele {
     bottom: 100%;
     left: 7%;
     height: clamp(120px, 15vw, 152px);
     width: auto;
     transform: translateY(29%);
     z-index: 2;
-}
+  }
 
-.listen {
+  .listen {
     /* Aire tras la sección para el colgado del borde */
     margin-bottom: clamp(90px, 16vw, 150px);
-}
+  }
 
-.listen-hanger {
+  .listen-hanger {
     top: calc(100% - 8px);
     right: 7%;
     height: clamp(150px, 21vw, 200px);
     width: auto;
     z-index: 2;
-}
+  }
 
-.listen-card {
+  .listen-card {
     padding: 12px;
     overflow: hidden;
-}
+  }
 
-.listen-card iframe {
+  .listen-card iframe {
     display: block;
     border-radius: 14px;
-}
+  }
 
-.listen-links {
+  .listen-links {
     display: flex;
     gap: 14px;
     margin-top: 18px;
     flex-wrap: wrap;
-}
+  }
 
-/* ---------- EPs ---------- */
+  /* ---------- EPs ---------- */
 
-.eps-grid {
+  .eps-grid {
     display: flex;
     flex-wrap: wrap;
     gap: 26px;
-}
+  }
 
-.ep-card {
+  .ep-card {
     width: clamp(180px, 24vw, 220px);
     background-color: var(--card);
     border: 2px solid var(--ink);
@@ -258,60 +260,60 @@
     gap: 8px;
     transform: rotate(-0.8deg);
     transition: transform var(--dur-fast) ease;
-}
+  }
 
-.ep-card:nth-child(2n) {
+  .ep-card:nth-child(2n) {
     transform: rotate(0.9deg);
-}
+  }
 
-.ep-card:hover {
+  .ep-card:hover {
     transform: rotate(0deg) translate(-3px, -3px);
-}
+  }
 
-.ep-cover {
+  .ep-cover {
     width: 100%;
     height: auto;
     display: block;
-}
+  }
 
-.ep-title {
+  .ep-title {
     margin: 4px 0 0;
     font-family: var(--font-display);
     font-size: var(--text-base);
     text-transform: uppercase;
     text-align: center;
-}
+  }
 
-.ep-year {
+  .ep-year {
     margin: 0;
     font-family: var(--font-hand);
     font-size: var(--text-sm);
     color: var(--muted);
-}
+  }
 
-.ep-links {
+  .ep-links {
     display: flex;
     gap: 10px;
     margin-top: 4px;
     flex-wrap: wrap;
     justify-content: center;
-}
+  }
 
-@media (max-width: 640px) {
+  @media (max-width: 640px) {
     .listen-hanger {
-        display: none;
+      display: none;
     }
 
     .listen {
-        margin-bottom: 24px;
+      margin-bottom: 24px;
     }
 
     .studio-player {
-        padding: 18px 14px 16px;
+      padding: 18px 14px 16px;
     }
 
     .eps-grid {
-        justify-content: center;
+      justify-content: center;
     }
-}
+  }
 }

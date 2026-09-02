@@ -10,9 +10,9 @@ describe('theme boot', () => {
 
     expect(indexHtml).toContain('<script src="/theme-init.js"></script>');
     expect(scripts).toHaveLength(2);
-    expect(scripts.every(([, attributes, body]) => (
-      attributes.includes('src=') && body.trim() === ''
-    ))).toBe(true);
+    expect(
+      scripts.every(([, attributes, body]) => attributes.includes('src=') && body.trim() === '')
+    ).toBe(true);
     expect(fs.existsSync(path.resolve('public/theme-init.js'))).toBe(true);
   });
 });

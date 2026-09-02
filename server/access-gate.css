@@ -48,7 +48,9 @@ body {
   background-image:
     url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'><g fill='none' stroke='%231a1a1a' stroke-opacity='0.055' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M38 30 L41 42 L53 45 L41 48 L38 60 L35 48 L23 45 L35 42 Z'/><circle cx='195' cy='72' r='10'/><path d='M181 72 L209 72 M195 58 L195 86 M52 190 q12 -10 24 0 q10 8 22 0 l-6 -5 m6 5 l-8 4 M200 175 l-8 16 h9 l-10 18'/></g></svg>"),
     radial-gradient(circle, rgba(26, 26, 26, 0.075) 1.2px, transparent 1.2px);
-  background-size: 260px 260px, 26px 26px;
+  background-size:
+    260px 260px,
+    26px 26px;
   color: var(--ink);
   font-family: 'Rocky Body', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -227,7 +229,9 @@ h1 {
   font-family: 'Rocky Hand', sans-serif;
   font-size: 1.05rem;
   font-weight: 700;
-  transition: translate 120ms ease, box-shadow 120ms ease;
+  transition:
+    translate 120ms ease,
+    box-shadow 120ms ease;
 }
 
 .gate-input-row button:hover {
@@ -300,15 +304,24 @@ h1 {
 }
 
 @keyframes float-left {
-  50% { translate: 0 -8px; rotate: 2deg; }
+  50% {
+    translate: 0 -8px;
+    rotate: 2deg;
+  }
 }
 
 @keyframes float-right {
-  50% { translate: 0 9px; rotate: -2deg; }
+  50% {
+    translate: 0 9px;
+    rotate: -2deg;
+  }
 }
 
 @keyframes runner-bob {
-  50% { translate: -7px -5px; rotate: 2deg; }
+  50% {
+    translate: -7px -5px;
+    rotate: 2deg;
+  }
 }
 
 @media (max-width: 760px) {

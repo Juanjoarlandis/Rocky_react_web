@@ -127,13 +127,10 @@ describe('Shopify HTTP contracts', () => {
       fetchImpl,
     });
 
-    const response = await fetch(
-      `${baseUrl}/api/shopify/account/login?returnPath=%2Fmi-crew`,
-      {
-        headers: { Host: 'www.rocky.test' },
-        redirect: 'manual',
-      }
-    );
+    const response = await fetch(`${baseUrl}/api/shopify/account/login?returnPath=%2Fmi-crew`, {
+      headers: { Host: 'www.rocky.test' },
+      redirect: 'manual',
+    });
 
     expect(response.status).toBe(302);
     expect(response.headers.get('location')).toBe(
@@ -222,16 +219,18 @@ describe('Shopify HTTP contracts', () => {
       },
       store,
     });
-    const rawBody = Buffer.from(JSON.stringify({
-      admin_graphql_api_id: 'gid://shopify/Order/77',
-      name: '#1035',
-      processed_at: '2026-08-07T18:00:00Z',
-      current_total_price_set: {
-        shop_money: { amount: '34.99', currency_code: 'EUR' },
-      },
-      customer: { admin_graphql_api_id: 'gid://shopify/Customer/1' },
-      line_items: [{ title: 'Rockydz Boyz', quantity: 1 }],
-    }));
+    const rawBody = Buffer.from(
+      JSON.stringify({
+        admin_graphql_api_id: 'gid://shopify/Order/77',
+        name: '#1035',
+        processed_at: '2026-08-07T18:00:00Z',
+        current_total_price_set: {
+          shop_money: { amount: '34.99', currency_code: 'EUR' },
+        },
+        customer: { admin_graphql_api_id: 'gid://shopify/Customer/1' },
+        line_items: [{ title: 'Rockydz Boyz', quantity: 1 }],
+      })
+    );
     const hmac = crypto.createHmac('sha256', secret).update(rawBody).digest('base64');
     const headers = {
       'Content-Type': 'application/json',

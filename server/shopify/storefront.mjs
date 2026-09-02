@@ -1,8 +1,4 @@
-import {
-  assertMutationSucceeded,
-  requestShopifyGraphql,
-  ShopifyGraphqlError,
-} from './graphql.mjs';
+import { assertMutationSucceeded, requestShopifyGraphql, ShopifyGraphqlError } from './graphql.mjs';
 import net from 'node:net';
 
 const PRODUCT_FIELDS = `
@@ -180,9 +176,7 @@ export function createStorefrontClient({ config, fetchImpl = globalThis.fetch })
     }
     return {
       'Shopify-Storefront-Private-Token': config.storefrontToken,
-      ...(net.isIP(buyerIp || '')
-        ? { 'Shopify-Storefront-Buyer-IP': buyerIp }
-        : {}),
+      ...(net.isIP(buyerIp || '') ? { 'Shopify-Storefront-Buyer-IP': buyerIp } : {}),
     };
   }
   const request = (query, variables, buyerIp) =>
@@ -208,11 +202,15 @@ export function createStorefrontClient({ config, fetchImpl = globalThis.fetch })
   return {
     async listProducts({ first = 20, after = null, buyerIp } = {}) {
       const boundedFirst = Math.max(1, Math.min(Number.parseInt(first, 10) || 20, 50));
-      const { data } = await request(LIST_PRODUCTS, {
-        first: boundedFirst,
-        after: after || null,
-        includeQuantity: Boolean(config.exposeQuantity),
-      }, buyerIp);
+      const { data } = await request(
+        LIST_PRODUCTS,
+        {
+          first: boundedFirst,
+          after: after || null,
+          includeQuantity: Boolean(config.exposeQuantity),
+        },
+        buyerIp
+      );
       return {
         products: data.products.nodes.map(mapProduct),
         pageInfo: data.products.pageInfo,
@@ -237,11 +235,7 @@ export function createStorefrontClient({ config, fetchImpl = globalThis.fetch })
 
     async addLines(fullCartId, input, { buyerIp } = {}) {
       const line = validateVariantInput(input);
-      const { data } = await request(
-        ADD_LINES,
-        { cartId: fullCartId, lines: [line] },
-        buyerIp
-      );
+      const { data } = await request(ADD_LINES, { cartId: fullCartId, lines: [line] }, buyerIp);
       const payload = assertMutationSucceeded(data.cartLinesAdd);
       return { cart: sanitizeCart(payload.cart), warnings: payload.warnings || [] };
     },
@@ -260,10 +254,14 @@ export function createStorefrontClient({ config, fetchImpl = globalThis.fetch })
           code: 'INVALID_QUANTITY',
         });
       }
-      const { data } = await request(UPDATE_LINES, {
-        cartId: fullCartId,
-        lines: [{ id: lineId, quantity: parsedQuantity }],
-      }, buyerIp);
+      const { data } = await request(
+        UPDATE_LINES,
+        {
+          cartId: fullCartId,
+          lines: [{ id: lineId, quantity: parsedQuantity }],
+        },
+        buyerIp
+      );
       const payload = assertMutationSucceeded(data.cartLinesUpdate);
       return { cart: sanitizeCart(payload.cart), warnings: payload.warnings || [] };
     },
@@ -275,10 +273,14 @@ export function createStorefrontClient({ config, fetchImpl = globalThis.fetch })
           code: 'INVALID_LINE',
         });
       }
-      const { data } = await request(REMOVE_LINES, {
-        cartId: fullCartId,
-        lineIds: [lineId],
-      }, buyerIp);
+      const { data } = await request(
+        REMOVE_LINES,
+        {
+          cartId: fullCartId,
+          lineIds: [lineId],
+        },
+        buyerIp
+      );
       const payload = assertMutationSucceeded(data.cartLinesRemove);
       return { cart: sanitizeCart(payload.cart), warnings: payload.warnings || [] };
     },

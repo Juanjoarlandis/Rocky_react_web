@@ -1,6 +1,6 @@
 @layer components {
-/* Cinta de marquesina pintada a mano, justo antes del footer */
-.ticker {
+  /* Cinta de marquesina pintada a mano, justo antes del footer */
+  .ticker {
     margin-top: 64px;
     margin-left: -10px;
     margin-right: -10px;
@@ -18,18 +18,18 @@
        `cqw` es un 1% de este ancho, y así el paseo se ajusta solo a la
        pantalla en vez de ir a ojo con unidades de viewport. */
     container-type: inline-size;
-}
+  }
 
-/* El recorte del texto en marcha vive aquí, para que El Lata pueda asomar */
-.ticker-clip {
+  /* El recorte del texto en marcha vive aquí, para que El Lata pueda asomar */
+  .ticker-clip {
     overflow: hidden;
-}
+  }
 
-/* El Lata patrulla la marquesina que él mismo pintó, de una punta a la otra y
+  /* El Lata patrulla la marquesina que él mismo pintó, de una punta a la otra y
    vuelta, con una parada en cada extremo. Va dentro de la cinta, así que se
    inclina con ella y camina siguiendo su pendiente. Los cinco píxeles de
    solape son los que le dejan los pies apoyados en el canto. */
-.ticker-lata {
+  .ticker-lata {
     --lata-patrulla: 28s;
 
     left: 0;
@@ -37,100 +37,104 @@
     z-index: 2;
     display: block;
     animation: lata-patrulla var(--lata-patrulla) linear infinite;
-}
+  }
 
-/* El WebP animado ya trae la marcha acelerada a 1,5× y su alfa; su caja
+  /* El WebP animado ya trae la marcha acelerada a 1,5× y su alfa; su caja
    conserva la altura anterior para no alterar la marquesina. */
-.ticker-lata-picture,
-.ticker-lata-image {
+  .ticker-lata-picture,
+  .ticker-lata-image {
     display: block;
-}
+  }
 
-.ticker-lata-image {
+  .ticker-lata-image {
     height: clamp(84px, 10vw, 110px);
     width: auto;
     max-width: none;
-}
+  }
 
-/* La animación camina hacia la izquierda, por eso la primera pasada nace en el
+  /* La animación camina hacia la izquierda, por eso la primera pasada nace en el
    extremo derecho. Al llegar al izquierdo se voltea y regresa. Los altos duran
    sólo el instante necesario para girar;
    antes ocupaban hasta un 10 % de la vuelta y parecían un bloqueo. El volteo
    cae entre dos keyframes pegados —una
    centésima de la vuelta— porque interpolando de 1 a -1 el `scale` pasa por cero
    y el muñeco se aplasta hasta desaparecer. Así es un corte seco. */
-@keyframes lata-patrulla {
+  @keyframes lata-patrulla {
     0% {
-        translate: calc(100cqw - 100%) 0;
-        scale: 1 1;
+      translate: calc(100cqw - 100%) 0;
+      scale: 1 1;
     }
 
     48% {
-        translate: 0 0;
-        scale: 1 1;
+      translate: 0 0;
+      scale: 1 1;
     }
 
-    48.01%, 50% {
-        translate: 0 0;
-        scale: -1 1;
+    48.01%,
+    50% {
+      translate: 0 0;
+      scale: -1 1;
     }
 
     98% {
-        translate: calc(100cqw - 100%) 0;
-        scale: -1 1;
+      translate: calc(100cqw - 100%) 0;
+      scale: -1 1;
     }
 
-    98.01%, 100% {
-        translate: calc(100cqw - 100%) 0;
-        scale: 1 1;
+    98.01%,
+    100% {
+      translate: calc(100cqw - 100%) 0;
+      scale: 1 1;
     }
-}
+  }
 
-.ticker-track {
+  .ticker-track {
     display: flex;
     width: max-content;
     padding: 9px 0;
     animation: ticker-scroll 30s linear infinite;
-}
+  }
 
-.ticker-track span {
+  .ticker-track span {
     white-space: nowrap;
     font-family: var(--font-display);
     font-size: var(--text-sm);
     letter-spacing: 0.14em;
     text-transform: uppercase;
-}
+  }
 
-@keyframes ticker-scroll {
+  @keyframes ticker-scroll {
     to {
-        transform: translateX(-50%);
+      transform: translateX(-50%);
     }
-}
+  }
 
-@media (prefers-reduced-motion: reduce) {
+  @media (prefers-reduced-motion: reduce) {
     .ticker-track,
     .ticker-lata {
-        animation: none;
+      animation: none;
     }
 
     /* Sin paseo se queda quieto donde estaba antes, y no pegado al canto. */
     .ticker-lata {
-        left: auto;
-        right: 4%;
+      left: auto;
+      right: 4%;
     }
-}
+  }
 
-/* ---------- Modo neón ----------
+  /* ---------- Modo neón ----------
    La marquesina ya era de noche: aquí sólo se le da corriente. */
 
-html[data-theme='neon'] .ticker {
+  [data-theme='neon'] .ticker {
     /* Los bordes de tinta, que de día se fundían con el fondo, de noche son
        el canto iluminado del rótulo. */
-    box-shadow: 0 4px 0 rgba(var(--black-rgb), 0.45), 0 0 26px rgba(var(--neon-pink-rgb), 0.2);
-}
+    box-shadow:
+      0 4px 0 rgba(var(--black-rgb), 0.45),
+      0 0 26px rgba(var(--neon-pink-rgb), 0.2);
+  }
 
-html[data-theme='neon'] .ticker-track span {
+  [data-theme='neon'] .ticker-track span {
     color: var(--white);
     text-shadow: 0 0 10px rgba(var(--neon-cyan-rgb), 0.55);
-}
+  }
 }

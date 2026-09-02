@@ -1,5 +1,5 @@
 @layer pages {
-.notfound {
+  .notfound {
     --container: 560px;
     padding-top: 48px;
     text-align: center;
@@ -7,38 +7,38 @@
     flex-direction: column;
     align-items: center;
     gap: 14px;
-}
+  }
 
-.notfound-figures {
+  .notfound-figures {
     display: flex;
     align-items: flex-end;
     justify-content: center;
     gap: 4px;
-}
+  }
 
-.notfound-image {
+  .notfound-image {
     width: min(48vw, 210px);
     max-height: 390px;
     object-fit: contain;
     transform: rotate(-1deg);
-}
+  }
 
-.notfound-dog {
+  .notfound-dog {
     width: min(24vw, 108px);
     transform: rotate(2.5deg);
-}
+  }
 
-.notfound-title {
+  .notfound-title {
     font-family: var(--font-display);
     font-size: clamp(1.5rem, 4vw, 2.2rem);
     text-transform: uppercase;
     margin: 0;
-}
+  }
 
-.notfound-text {
+  .notfound-text {
     margin: 0;
     color: var(--muted);
     font-family: var(--font-hand);
     font-size: var(--text-lg);
-}
+  }
 }

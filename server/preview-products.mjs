@@ -9,7 +9,8 @@ const previewProducts = Object.freeze([
     price: null,
     image: '/products/rocky-night-runner.webp',
     imageAlt: 'Camiseta oversize negra Night Runner con mapa urbano nocturno',
-    description: 'Camiseta oversize negra para salir de noche, con mapa urbano, ruta roja, estrellas azul hielo y estética racing de asfalto.',
+    description:
+      'Camiseta oversize negra para salir de noche, con mapa urbano, ruta roja, estrellas azul hielo y estética racing de asfalto.',
     isPreview: true,
   },
   {
@@ -22,7 +23,8 @@ const previewProducts = Object.freeze([
     price: null,
     image: '/products/rocky-pit-crew.webp',
     imageAlt: 'Camiseta oversize gris carbón Pit Crew 035 con gráfica racing',
-    description: 'Camiseta oversize gris carbón lavado con número 35 rojo, cuadros de carrera y herramientas de pit crew para un look garage y racing.',
+    description:
+      'Camiseta oversize gris carbón lavado con número 35 rojo, cuadros de carrera y herramientas de pit crew para un look garage y racing.',
     isPreview: true,
   },
   {
@@ -35,7 +37,8 @@ const previewProducts = Object.freeze([
     price: null,
     image: '/products/rocky-airwave.webp',
     imageAlt: 'Camiseta oversize blanca Airwave con personaje radio azul y naranja',
-    description: 'Camiseta oversize blanca con personaje radio analógica, ondas musicales, azul cobalto y naranja; una gráfica luminosa y juguetona de LA COLMENA.',
+    description:
+      'Camiseta oversize blanca con personaje radio analógica, ondas musicales, azul cobalto y naranja; una gráfica luminosa y juguetona de LA COLMENA.',
     isPreview: true,
   },
   {
@@ -48,7 +51,8 @@ const previewProducts = Object.freeze([
     price: null,
     image: '/products/rocky-signal-ghost.webp',
     imageAlt: 'Camiseta oversize azul cobalto Signal Ghost con fantasma televisor',
-    description: 'Camiseta oversize azul cobalto con personaje fantasma de cabeza televisor, antenas, anillos de señal y tinta crema y roja.',
+    description:
+      'Camiseta oversize azul cobalto con personaje fantasma de cabeza televisor, antenas, anillos de señal y tinta crema y roja.',
     isPreview: true,
   },
   {
@@ -61,7 +65,8 @@ const previewProducts = Object.freeze([
     price: null,
     image: '/products/rocky-solar-club.webp',
     imageAlt: 'Camiseta oversize color arena Solar Club con sol skater',
-    description: 'Camiseta oversize color arena para verano, con sol naranja sobre skate, ola turquesa y un aire mediterráneo relajado.',
+    description:
+      'Camiseta oversize color arena para verano, con sol naranja sobre skate, ola turquesa y un aire mediterráneo relajado.',
     isPreview: true,
   },
   {
@@ -74,7 +79,8 @@ const previewProducts = Object.freeze([
     price: null,
     image: '/products/rocky-marea-035.webp',
     imageAlt: 'Camiseta oversize turquesa Marea 035 con personaje ola y skate',
-    description: 'Camiseta oversize turquesa desgastado con personaje ola, cruiser, zapatillas, azul marino y coral para un look costero y skater.',
+    description:
+      'Camiseta oversize turquesa desgastado con personaje ola, cruiser, zapatillas, azul marino y coral para un look costero y skater.',
     isPreview: true,
   },
 ]);

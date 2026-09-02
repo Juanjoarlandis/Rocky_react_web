@@ -58,10 +58,7 @@ describe('ProductDetail', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /añadir al carrito/i }));
     await waitFor(() =>
-      expect(addToCart).toHaveBeenCalledWith(
-        product,
-        'gid://shopify/ProductVariant/2'
-      )
+      expect(addToCart).toHaveBeenCalledWith(product, 'gid://shopify/ProductVariant/2')
     );
   });
 
@@ -88,8 +85,12 @@ describe('ProductDetail', () => {
     const addButton = screen.getByRole('button', { name: /añadir al carrito/i });
     const mediaButton = screen.getByRole('button', { name: /ver rocky tee en grande/i });
 
-    expect(title.compareDocumentPosition(addButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(addButton.compareDocumentPosition(mediaButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      title.compareDocumentPosition(addButton) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(
+      addButton.compareDocumentPosition(mediaButton) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
   });
 
   it('sin precio ofrece «Avísame» y lleva el foco al formulario del drop', () => {
@@ -112,7 +113,12 @@ describe('ProductDetail', () => {
           <Route
             path="/product/:productId"
             element={
-              <ProductDetail products={[unreleased]} addToCart={vi.fn()} commerceMode="demo" canAddToCart />
+              <ProductDetail
+                products={[unreleased]}
+                addToCart={vi.fn()}
+                commerceMode="demo"
+                canAddToCart
+              />
             }
           />
         </Routes>

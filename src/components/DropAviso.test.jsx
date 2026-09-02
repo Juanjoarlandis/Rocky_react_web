@@ -30,9 +30,7 @@ describe('DropAviso: el mostrador de avisos del drop', () => {
     render(<DropAviso producto="signal-ghost" />);
     rellenaYEnvia();
 
-    await waitFor(() =>
-      expect(screen.getByTestId('drop-aviso-listo')).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByTestId('drop-aviso-listo')).toBeInTheDocument());
     expect(screen.getByText('El Recadero te lo trae el día del drop.')).toBeInTheDocument();
 
     const [url, opciones] = fetchMock.mock.calls[0];

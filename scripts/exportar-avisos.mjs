@@ -10,11 +10,7 @@
 
 import path from 'node:path';
 import dotenv from 'dotenv';
-import {
-  AVISOS_INDICE,
-  AVISOS_NAMESPACE,
-  celdaCsvSegura,
-} from '../server/avisos.mjs';
+import { AVISOS_INDICE, AVISOS_NAMESPACE, celdaCsvSegura } from '../server/avisos.mjs';
 import { EncryptedStore } from '../server/encrypted-store.mjs';
 
 dotenv.config({ quiet: true });
@@ -54,9 +50,7 @@ let total = 0;
 for (const producto of indice) {
   const lista = (await store.get(AVISOS_NAMESPACE, producto)) ?? [];
   for (const { email, fecha } of lista) {
-    console.log(
-      [producto, email, fecha].map((valor) => celdaCsvSegura(valor)).join(',')
-    );
+    console.log([producto, email, fecha].map((valor) => celdaCsvSegura(valor)).join(','));
     total += 1;
   }
 }

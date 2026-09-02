@@ -40,7 +40,9 @@ describe('MiniPlayer route ownership', () => {
     const { container } = renderRoute('/estudio');
 
     await screen.findByRole('heading', { name: 'La Colmena' });
-    expect(screen.queryByRole('group', { name: /reproductor de rocky 035/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('group', { name: /reproductor de rocky 035/i })
+    ).not.toBeInTheDocument();
     expect(container.querySelector('.mini-player-slot')).not.toBeInTheDocument();
     expect(container.querySelector('.chat-header-player')).not.toBeInTheDocument();
   });

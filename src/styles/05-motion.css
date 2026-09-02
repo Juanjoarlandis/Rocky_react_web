@@ -1,66 +1,66 @@
 @layer utilities {
-/* Animaciones compartidas por varios componentes. */
+  /* Animaciones compartidas por varios componentes. */
 
-/* Un sello que cae sobre el papel: --stamp-rotate, --stamp-scale y
+  /* Un sello que cae sobre el papel: --stamp-rotate, --stamp-scale y
    --stamp-opacity los pone cada sello (el del cromo, el del recado). */
-@keyframes stamp-in {
-  from {
-    opacity: 0;
-    transform: rotate(var(--stamp-rotate, -3deg)) scale(var(--stamp-scale, 1.6));
+  @keyframes stamp-in {
+    from {
+      opacity: 0;
+      transform: rotate(var(--stamp-rotate, -3deg)) scale(var(--stamp-scale, 1.6));
+    }
+
+    to {
+      opacity: var(--stamp-opacity, 1);
+      transform: rotate(var(--stamp-rotate, -3deg)) scale(1);
+    }
   }
 
-  to {
-    opacity: var(--stamp-opacity, 1);
-    transform: rotate(var(--stamp-rotate, -3deg)) scale(1);
+  @keyframes crosshair-spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
-}
 
-@keyframes crosshair-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* Todos al ritmo: cuando suena la radio, el MusicProvider cuelga
+  /* Todos al ritmo: cuando suena la radio, el MusicProvider cuelga
    `data-groove` y `--bpm` del body y los muñecos estáticos cabecean al pulso
    del tema. Cada instancia trae su `--fase` para no cabecear en formación.
    Los que ya tienen coreografía propia —el Lata de la marquesina, el Curioso,
    el Recadero, el Paparazzi, El Freeze de la mesa, el splash y el dúo del
    hero— van a su bola y no llevan la clase. */
-[data-groove] .al-ritmo {
-  /* Un vaivén completo cada dos golpes de cabeza. */
-  animation: al-ritmo-cabeceo calc(120s / var(--bpm, 92)) ease-in-out infinite;
-  animation-delay: calc(var(--fase, 0) * -1.3s);
-  transform-origin: 50% 85%;
-}
-
-/* El Productor cabecea el doble, que para eso es el suyo; las ilustraciones
-   grandes y los que duermen, a lo suyo, más suave. */
-.al-ritmo--fuerte {
-  --vaiven: 4.2deg;
-}
-
-.al-ritmo--suave {
-  --vaiven: 1.1deg;
-}
-
-/* Se anima `rotate` y no `transform` para sumarse al giro que algunos
-   muñecos ya llevan puesto de serie, en vez de pisárselo. */
-@keyframes al-ritmo-cabeceo {
-  0%,
-  100% {
-    rotate: calc(var(--vaiven, 2.2deg) * -1);
-  }
-
-  50% {
-    rotate: var(--vaiven, 2.2deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  /* La web entera cabeceando es lo último que pide quien reduce movimiento. */
   [data-groove] .al-ritmo {
-    animation: none;
+    /* Un vaivén completo cada dos golpes de cabeza. */
+    animation: al-ritmo-cabeceo calc(120s / var(--bpm, 92)) ease-in-out infinite;
+    animation-delay: calc(var(--fase, 0) * -1.3s);
+    transform-origin: 50% 85%;
   }
-}
+
+  /* El Productor cabecea el doble, que para eso es el suyo; las ilustraciones
+   grandes y los que duermen, a lo suyo, más suave. */
+  .al-ritmo--fuerte {
+    --vaiven: 4.2deg;
+  }
+
+  .al-ritmo--suave {
+    --vaiven: 1.1deg;
+  }
+
+  /* Se anima `rotate` y no `transform` para sumarse al giro que algunos
+   muñecos ya llevan puesto de serie, en vez de pisárselo. */
+  @keyframes al-ritmo-cabeceo {
+    0%,
+    100% {
+      rotate: calc(var(--vaiven, 2.2deg) * -1);
+    }
+
+    50% {
+      rotate: var(--vaiven, 2.2deg);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    /* La web entera cabeceando es lo último que pide quien reduce movimiento. */
+    [data-groove] .al-ritmo {
+      animation: none;
+    }
+  }
 }

@@ -35,9 +35,11 @@ async function startCrewRouter({ loggedIn = true } = {}) {
     }),
   };
   const sessions = {
-    read: vi.fn().mockResolvedValue(
-      loggedIn ? { record: { customerTokenId: 'customer-token-record' } } : null
-    ),
+    read: vi
+      .fn()
+      .mockResolvedValue(
+        loggedIn ? { record: { customerTokenId: 'customer-token-record' } } : null
+      ),
   };
   const requireOrigin = (req, res, next) => {
     if (req.get('origin') === 'https://rocky.test') return next();

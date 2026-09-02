@@ -33,9 +33,9 @@ describe('Shopify browser API', () => {
   });
 
   it('sends only variant, quantity and an idempotency key when adding a line', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      jsonResponse({ cart: { totalQuantity: 1, lines: [] }, warnings: [] })
-    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ cart: { totalQuantity: 1, lines: [] }, warnings: [] }));
     vi.stubGlobal('fetch', fetchMock);
 
     await addCartLine({
@@ -84,9 +84,11 @@ describe('Shopify browser API', () => {
   it('surfaces a safe server error and validates checkout URLs defensively', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(
-        jsonResponse({ message: 'El carrito está vacío.', code: 'EMPTY_CART' }, 409)
-      )
+      vi
+        .fn()
+        .mockResolvedValue(
+          jsonResponse({ message: 'El carrito está vacío.', code: 'EMPTY_CART' }, 409)
+        )
     );
 
     await expect(beginCheckout()).rejects.toMatchObject({

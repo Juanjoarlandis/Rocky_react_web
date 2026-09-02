@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import logo from '../images/Rockypng.png';
 import skaterOllie from '../images/optimized/splash/skater-ollie.webp';
 import grafiteroSpray from '../images/optimized/splash/grafitero-spray.webp';

@@ -125,10 +125,12 @@ describe('Rocky IA commerce context', () => {
   });
 
   it('recognizes an abbreviated commerce follow-up from server-owned history', () => {
-    expect(hasCommerceIntent('¿Y esa?', {
-      knownProducts: demoProducts,
-      history: [{ role: 'user', content: 'Enséñame Airwave' }],
-    })).toBe(true);
+    expect(
+      hasCommerceIntent('¿Y esa?', {
+        knownProducts: demoProducts,
+        history: [{ role: 'user', content: 'Enséñame Airwave' }],
+      })
+    ).toBe(true);
   });
 
   it.each([
@@ -233,35 +235,34 @@ describe('Rocky IA commerce context', () => {
     expect(selected.map((product) => product.handle)).toEqual([handle]);
   });
 
-  it.each([
-    null,
-    '',
-    '   ',
-    '0x10',
-    '1e3',
-    '+35.00',
-    '-1.00',
-    '35.000',
-    '123456789.00',
-  ])('rejects malformed Shopify prices instead of showing zero: %j', (amount) => {
-    const malformed = [{
-      ...products[0],
-      variants: [{ ...products[0].variants[1], price: { amount, currencyCode: 'EUR' } }],
-    }];
+  it.each([null, '', '   ', '0x10', '1e3', '+35.00', '-1.00', '35.000', '123456789.00'])(
+    'rejects malformed Shopify prices instead of showing zero: %j',
+    (amount) => {
+      const malformed = [
+        {
+          ...products[0],
+          variants: [{ ...products[0].variants[1], price: { amount, currencyCode: 'EUR' } }],
+        },
+      ];
 
-    expect(selectChatProducts('Rockydz Boyz', malformed)).toEqual([]);
-  });
+      expect(selectChatProducts('Rockydz Boyz', malformed)).toEqual([]);
+    }
+  );
 
-  it.each(['EURO', 'EUR<script>', 'EU', '€']) (
+  it.each(['EURO', 'EUR<script>', 'EU', '€'])(
     'rejects malformed Shopify currency codes instead of truncating them: %s',
     (currencyCode) => {
-      const malformed = [{
-        ...products[0],
-        variants: [{
-          ...products[0].variants[1],
-          price: { amount: '35.00', currencyCode },
-        }],
-      }];
+      const malformed = [
+        {
+          ...products[0],
+          variants: [
+            {
+              ...products[0].variants[1],
+              price: { amount: '35.00', currencyCode },
+            },
+          ],
+        },
+      ];
 
       expect(selectChatProducts('Rockydz Boyz', malformed)).toEqual([]);
     }
@@ -275,20 +276,22 @@ describe('Rocky IA commerce context', () => {
       3
     );
 
-    expect(selected).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        handle: 'rocky-night-runner',
-        isPreview: true,
-        variants: [],
-      }),
-      expect.objectContaining({
-        handle: 'rockydz-boyz',
-        availableForSale: true,
-        variants: expect.arrayContaining([
-          expect.objectContaining({ id: 'gid://shopify/ProductVariant/12' }),
-        ]),
-      }),
-    ]));
+    expect(selected).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          handle: 'rocky-night-runner',
+          isPreview: true,
+          variants: [],
+        }),
+        expect.objectContaining({
+          handle: 'rockydz-boyz',
+          availableForSale: true,
+          variants: expect.arrayContaining([
+            expect.objectContaining({ id: 'gid://shopify/ProductVariant/12' }),
+          ]),
+        }),
+      ])
+    );
   });
 
   it('lets a live Shopify product win an equal preview handle', () => {

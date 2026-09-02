@@ -1,15 +1,15 @@
 @layer pages {
-.crew-head {
+  .crew-head {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     gap: 28px;
     margin-bottom: 26px;
-}
+  }
 
-/* ---------- El marcador del álbum ---------- */
+  /* ---------- El marcador del álbum ---------- */
 
-.crew-marcador {
+  .crew-marcador {
     flex: 0 0 auto;
     margin-top: 10px;
     padding: 14px 20px 16px;
@@ -19,9 +19,9 @@
     box-shadow: var(--shadow-ink-sm);
     transform: rotate(0.8deg);
     max-width: 320px;
-}
+  }
 
-.marcador-titulo {
+  .marcador-titulo {
     margin: 0;
     font-family: var(--font-display);
     font-size: var(--text-base);
@@ -30,90 +30,92 @@
     display: inline-block;
     border-bottom: 3px solid var(--accent);
     transform: rotate(-1deg);
-}
+  }
 
-.marcador-club {
+  .marcador-club {
     margin: 8px 0 0;
     font-family: var(--font-hand);
     font-size: var(--text-base);
     color: var(--muted);
-}
+  }
 
-.marcador-club b {
+  .marcador-club b {
     font-family: var(--font-display);
     font-weight: 400;
     font-size: var(--text-md);
     color: var(--ink);
-}
+  }
 
-/* Una casilla por expediente: se entinta cuando lo abres */
-.marcador-casillas {
+  /* Una casilla por expediente: se entinta cuando lo abres */
+  .marcador-casillas {
     display: flex;
     flex-wrap: wrap;
     gap: 5px;
     margin: 10px 0 0;
     max-width: 272px;
-}
+  }
 
-.marcador-casillas span {
+  .marcador-casillas span {
     width: 15px;
     height: 15px;
     border: 2px solid var(--ink);
     border-radius: 4px 7px 5px 8px;
     background-color: transparent;
-    transition: background-color var(--dur-base) ease, transform var(--dur-base) cubic-bezier(0.3, 1.6, 0.5, 1);
-}
+    transition:
+      background-color var(--dur-base) ease,
+      transform var(--dur-base) cubic-bezier(0.3, 1.6, 0.5, 1);
+  }
 
-.marcador-casillas span:nth-child(2n) {
+  .marcador-casillas span:nth-child(2n) {
     transform: rotate(4deg);
-}
+  }
 
-.marcador-casillas span:nth-child(3n) {
+  .marcador-casillas span:nth-child(3n) {
     transform: rotate(-4deg);
-}
+  }
 
-.marcador-casillas span.is-on {
+  .marcador-casillas span.is-on {
     background-color: var(--accent);
     box-shadow: inset 0 0 0 2px var(--card);
-}
+  }
 
-.marcador-tuyo {
+  .marcador-tuyo {
     margin: 9px 0 0;
     font-family: var(--font-hand);
     font-size: var(--text-base);
     color: var(--ink-soft);
-}
+  }
 
-.marcador-tuyo b {
+  .marcador-tuyo b {
     font-family: var(--font-display);
     font-weight: 400;
     color: var(--accent-dark);
-}
+  }
 
-/* Álbum completo: el marcador se viste de gala */
-.crew-marcador.is-complete {
+  /* Álbum completo: el marcador se viste de gala */
+  .crew-marcador.is-complete {
     background-color: var(--ink-block);
     background-image: var(--spray-speckle);
     color: var(--white);
     transform: rotate(-0.8deg);
     box-shadow: 5px 5px 0 var(--accent);
-}
+  }
 
-.crew-marcador.is-complete .marcador-titulo,
-.crew-marcador.is-complete .marcador-club b {
+  .is-complete .marcador-titulo,
+  .is-complete .marcador-club b {
     color: var(--white);
-}
+  }
 
-.crew-marcador.is-complete .marcador-casillas span {
+  .is-complete .marcador-casillas span {
     border-color: var(--gold);
-}
+  }
 
-.crew-marcador.is-complete .marcador-casillas span.is-on {
+  .is-complete .marcador-casillas .is-on {
     background-color: var(--gold);
     box-shadow: inset 0 0 0 2px var(--ink);
-}
+  }
 
-.marcador-logro {
+  .marcador-logro {
     font-family: var(--font-display);
     font-size: var(--text-md);
     color: var(--gold);
@@ -121,51 +123,53 @@
     text-transform: uppercase;
     display: inline-block;
     transform: rotate(-1.5deg);
-}
+  }
 
-/* ---------- Desfile y contador del álbum ---------- */
+  /* ---------- Desfile y contador del álbum ---------- */
 
-.crew-parade-row {
+  .crew-parade-row {
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
     gap: 24px;
     margin: 26px 0 40px;
     padding-bottom: 12px;
-}
+  }
 
-.crew-parade {
+  .crew-parade {
     display: flex;
     align-items: flex-end;
     gap: clamp(14px, 3vw, 34px);
     padding-left: 6px;
-}
+  }
 
-.crew-parade img {
+  .crew-parade img {
     width: auto;
     user-select: none;
-}
+  }
 
-/* ---------- Las láminas del álbum ---------- */
+  /* ---------- Las láminas del álbum ---------- */
 
-.crew-lamina {
+  .crew-lamina {
+    --cinta-shadow: 4px 4px 0 rgba(var(--accent-rgb), 0.85);
+
     margin-bottom: 54px;
-}
+  }
 
-.crew-lamina:last-child {
+  .crew-lamina:last-child {
     margin-bottom: 0;
-}
+  }
 
-/* Separador: cinta pintada + nota + cuenta, sobre la línea garabateada */
-.lamina-sep {
+  /* Separador: cinta pintada + nota + cuenta, sobre la línea garabateada */
+  .lamina-sep {
     display: flex;
     align-items: baseline;
     gap: 16px;
     margin: 0 0 26px;
     padding-bottom: 14px;
-}
+  }
 
-.lamina-cinta {
+  .lamina-cinta {
     display: inline-flex;
     align-items: baseline;
     gap: 12px;
@@ -177,30 +181,29 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
     border-radius: 4px 14px 6px 16px;
-    box-shadow: 4px 4px 0 rgba(var(--accent-rgb), 0.85);
+    box-shadow: var(--cinta-shadow);
     transform: rotate(-1.2deg);
-}
+  }
 
-.crew-lamina:nth-child(2n) .lamina-cinta {
-    transform: rotate(0.9deg);
-    box-shadow: 4px 4px 0 rgba(var(--blue-rgb), 0.85);
-}
+  .crew-lamina:nth-child(2n) {
+    --cinta-shadow: 4px 4px 0 rgba(var(--blue-rgb), 0.85);
+  }
 
-.lamina-num {
+  .lamina-num {
     font-family: var(--font-hand);
     font-size: var(--text-xs);
     letter-spacing: 0.16em;
     color: var(--on-ink-muted);
-}
+  }
 
-.lamina-nota {
+  .lamina-nota {
     font-family: var(--font-hand);
     font-size: var(--text-md);
     color: var(--muted);
     transform: rotate(-0.6deg);
-}
+  }
 
-.lamina-cuenta {
+  .lamina-cuenta {
     margin-left: auto;
     border: 2px dashed var(--line);
     border-radius: var(--wobble-md);
@@ -208,10 +211,12 @@
     transform: rotate(1deg);
     white-space: nowrap;
     font-size: var(--text-sm);
-}
+  }
 
-/* La vitrina: un marco con celo en las esquinas para las rarezas */
-.crew-vitrina-marco {
+  /* La vitrina: un marco con celo en las esquinas para las rarezas */
+  .crew-vitrina-marco {
+    --tape-h: 30px;
+
     position: relative;
     padding: 26px 22px 22px;
     border: 2px solid var(--ink);
@@ -220,75 +225,72 @@
     background-image: radial-gradient(circle, rgba(var(--dot-rgb), 0.055) 1.2px, transparent 1.2px);
     background-size: 22px 22px;
     box-shadow: var(--shadow-ink-sm);
-}
+  }
 
-/* Tiras de celo sujetando el marco, con el borde más fino */
-.crew-vitrina-marco {
-    --tape-h: 30px;
-}
-
-.crew-vitrina-marco::before,
-.crew-vitrina-marco::after {
+  .crew-vitrina-marco::before,
+  .crew-vitrina-marco::after {
     border: 1px solid rgba(var(--ink-rgb), 0.16);
     top: -15px;
-}
+  }
 
-.crew-vitrina-marco::before {
+  .crew-vitrina-marco::before {
     left: 34px;
     transform: rotate(-8deg);
-}
+  }
 
-.crew-vitrina-marco::after {
+  .crew-vitrina-marco::after {
     right: 34px;
     transform: rotate(7deg);
-}
+  }
 
-.crew-grid {
+  .crew-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     gap: 30px;
-}
+  }
 
-.crew-grid--vitrina {
+  .crew-grid--vitrina {
     grid-template-columns: repeat(auto-fill, minmax(255px, 1fr));
-}
+  }
 
-/* ---------- Aparición escalonada al hacer scroll ----------
+  /* ---------- Aparición escalonada al hacer scroll ----------
    Por defecto todo visible; .is-hidden lo aplica JS solo cuando va a animar */
 
-.crew-card.is-hidden,
-.crew-hueco.is-hidden {
+  .crew-card.is-hidden,
+  .crew-hueco.is-hidden {
     opacity: 0;
     translate: 0 22px;
-}
+  }
 
-.crew-card.is-revealed,
-.crew-hueco.is-revealed {
+  .crew-card.is-revealed,
+  .crew-hueco.is-revealed {
     opacity: 1;
     translate: 0 0;
-    transition: opacity 0.45s ease, translate 0.55s cubic-bezier(0.3, 1.4, 0.5, 1);
+    transition:
+      opacity 0.45s ease,
+      translate 0.55s cubic-bezier(0.3, 1.4, 0.5, 1);
     transition-delay: calc(var(--orden, 0) * 70ms);
-}
+  }
 
-/* ---------- El cromo ---------- */
+  /* ---------- El cromo ---------- */
 
-.crew-card {
+  .crew-card {
     perspective: 1200px;
     height: 430px;
     cursor: pointer;
-}
+  }
 
-/* El anillo de foco lo lleva la carta de dentro, que es la que gira; el
+  /* El anillo de foco lo lleva la carta de dentro, que es la que gira; el
    contorno global sobre el contenedor plano sobraría. */
-.crew-card:focus-visible {
+  .crew-card:focus-visible {
     outline: none;
-}
+  }
 
-.crew-card:focus-visible .crew-card-inner {
+  .crew-card:focus-visible .crew-card-inner {
     box-shadow: var(--ring-accent), var(--shadow-ink);
-}
+  }
 
-.crew-card-inner {
+  .crew-card-inner {
     position: relative;
     width: 100%;
     height: 100%;
@@ -296,40 +298,40 @@
     transition: transform 0.55s cubic-bezier(0.4, 1.4, 0.6, 1);
     border-radius: var(--wobble-md);
     box-shadow: var(--shadow-ink);
-}
+  }
 
-/* Rotaciones tipo pegatina, se enderezan al girar o pasar el ratón */
-.crew-card:nth-child(3n) .crew-card-inner {
+  /* Rotaciones tipo pegatina, se enderezan al girar o pasar el ratón */
+  .crew-card:nth-child(3n) .crew-card-inner {
     transform: rotate(0.7deg);
-}
+  }
 
-.crew-card:nth-child(3n + 1) .crew-card-inner {
+  .crew-card:nth-child(3n + 1) .crew-card-inner {
     transform: rotate(-0.6deg);
-}
+  }
 
-/* Tilt 3D: la carta se inclina siguiendo el ratón */
-.crew-card:hover:not(.is-flipped) .crew-card-inner {
+  /* Tilt 3D: la carta se inclina siguiendo el ratón */
+  .crew-card:hover .crew-card-inner {
     transform: translate(-3px, -3px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
     box-shadow: var(--shadow-ink-lg);
-}
+  }
 
-.crew-card.is-tilting:not(.is-flipped) .crew-card-inner {
+  .is-tilting .crew-card-inner {
     transition: transform 0.09s ease-out;
-}
+  }
 
-.crew-card.is-flipped .crew-card-inner {
+  .crew-card.is-flipped .crew-card-inner {
     transform: rotateY(180deg);
-}
+  }
 
-@media (prefers-reduced-motion: reduce) {
+  @media (prefers-reduced-motion: reduce) {
     .crew-card-inner,
     .marcador-casillas span,
     .crew-hueco.is-revealed {
-        transition: none;
+      transition: none;
     }
-}
+  }
 
-.crew-card-face {
+  .crew-card-face {
     position: absolute;
     inset: 0;
     backface-visibility: hidden;
@@ -341,28 +343,28 @@
     border: 2px solid var(--ink);
     border-radius: var(--wobble-md);
     overflow: hidden;
-}
+  }
 
-.crew-card-back {
+  .crew-card-back {
     transform: rotateY(180deg);
-}
+  }
 
-/* ---------- Frente ---------- */
+  /* ---------- Frente ---------- */
 
-.crew-card-top {
+  .crew-card-top {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-}
+  }
 
-.crew-num {
+  .crew-num {
     font-family: var(--font-display);
     font-size: var(--text-base);
     color: var(--muted);
-}
+  }
 
-.crew-rareza {
+  .crew-rareza {
     font-family: var(--font-hand);
     font-size: var(--text-xs);
     letter-spacing: 0.08em;
@@ -372,29 +374,29 @@
     color: var(--accent);
     transform: rotate(2deg);
     white-space: nowrap;
-}
+  }
 
-.rareza-legendaria {
+  .rareza-legendaria {
     /* Tinta a fuego y no var(--ink): sobre el dorado hace falta trazo oscuro
        también de noche. */
     border-color: var(--ink-fixed);
     color: var(--ink-fixed);
     background-color: var(--gold);
-}
+  }
 
-.rareza-original {
+  .rareza-original {
     border-color: var(--blue);
     color: var(--blue);
-}
+  }
 
-.rareza-la-marca {
+  .rareza-la-marca {
     border-style: solid;
     border-color: var(--ink);
     background-color: var(--accent);
     color: var(--white);
-}
+  }
 
-.crew-card-media {
+  .crew-card-media {
     height: 180px;
     display: flex;
     align-items: center;
@@ -402,30 +404,30 @@
     margin: 8px 0 10px;
     background-image: radial-gradient(circle, rgba(var(--dot-rgb), 0.06) 1.2px, transparent 1.2px);
     background-size: 18px 18px;
-}
+  }
 
-.crew-card-media img {
+  .crew-card-media img {
     max-height: 100%;
     max-width: 82%;
     object-fit: contain;
-}
+  }
 
-.crew-nombre {
+  .crew-nombre {
     margin: 0;
     font-family: var(--font-display);
     font-size: var(--text-lg);
     text-transform: uppercase;
     letter-spacing: 0.02em;
-}
+  }
 
-.crew-rol {
+  .crew-rol {
     margin: 2px 0 10px;
     font-family: var(--font-hand);
     font-size: var(--text-base);
     color: var(--muted);
-}
+  }
 
-.crew-stats {
+  .crew-stats {
     list-style: none;
     margin: auto 0 6px;
     padding: 8px 0 0;
@@ -433,41 +435,41 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
-}
+  }
 
-.crew-stats li {
+  .crew-stats li {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-}
+  }
 
-.stat-label {
+  .stat-label {
     font-family: var(--font-hand);
     font-size: var(--text-sm);
-}
+  }
 
-.stat-dianas {
+  .stat-dianas {
     display: inline-flex;
     gap: 3px;
-}
+  }
 
-.stat-diana {
+  .stat-diana {
     width: 15px;
     height: 15px;
-}
+  }
 
-.crew-girar {
+  .crew-girar {
     margin-top: 8px;
     align-self: flex-end;
     font-family: var(--font-hand);
     font-size: var(--text-sm);
     color: var(--muted);
     transform: rotate(-1deg);
-}
+  }
 
-/* Tampón de expediente abierto, estampado sobre la foto del cromo */
-.sello-fichado {
+  /* Tampón de expediente abierto, estampado sobre la foto del cromo */
+  .sello-fichado {
     position: absolute;
     top: 168px;
     right: 10px;
@@ -489,23 +491,23 @@
     --stamp-scale: 2.1;
     --stamp-opacity: 0.85;
     animation: stamp-in 0.35s cubic-bezier(0.2, 1.4, 0.4, 1);
-}
+  }
 
-.crew-card.especial .sello-fichado {
+  .crew-card.especial .sello-fichado {
     mix-blend-mode: normal;
     color: var(--gold);
     border-color: var(--gold);
-}
+  }
 
-@media (prefers-reduced-motion: reduce) {
+  @media (prefers-reduced-motion: reduce) {
     .sello-fichado {
-        animation: none;
+      animation: none;
     }
-}
+  }
 
-/* ---------- Reverso: expediente ---------- */
+  /* ---------- Reverso: expediente ---------- */
 
-.expediente-titulo {
+  .expediente-titulo {
     margin: 0 0 10px;
     font-family: var(--font-display);
     font-size: var(--text-lg);
@@ -515,34 +517,34 @@
     border-bottom: 3px solid var(--accent);
     align-self: flex-start;
     transform: rotate(-1deg);
-}
+  }
 
-.expediente-datos {
+  .expediente-datos {
     margin: 6px 0 0;
     display: flex;
     flex-direction: column;
     gap: 12px;
-}
+  }
 
-.expediente-datos dd {
+  .expediente-datos dd {
     margin: 2px 0 0;
     font-family: var(--font-body);
     font-size: var(--text-base);
     line-height: 1.35;
-}
+  }
 
-.expediente-enlace {
+  .expediente-enlace {
     color: var(--accent-dark);
     text-decoration: underline wavy var(--accent);
     text-underline-offset: 4px;
-}
+  }
 
-.expediente-enlace:hover {
+  .expediente-enlace:hover {
     color: var(--accent);
-}
+  }
 
-/* Botón de compartir el cromo */
-.expediente-compartir {
+  /* Botón de compartir el cromo */
+  .expediente-compartir {
     margin-top: auto;
     align-self: flex-start;
     border: none;
@@ -555,39 +557,39 @@
     text-underline-offset: 4px;
     cursor: pointer;
     transform: rotate(-1deg);
-}
+  }
 
-.expediente-compartir:hover {
+  .expediente-compartir:hover {
     color: var(--accent);
-}
+  }
 
-/* Número de serie y código de barras garabateado */
-.expediente-serie {
+  /* Número de serie y código de barras garabateado */
+  .expediente-serie {
     display: flex;
     flex-direction: column;
     gap: 3px;
     margin-top: 8px;
     color: var(--muted);
-}
+  }
 
-.expediente-barcode {
+  .expediente-barcode {
     width: 88px;
     height: 13px;
-}
+  }
 
-.expediente-serie span {
+  .expediente-serie span {
     font-family: var(--font-hand);
     font-size: var(--text-2xs);
     letter-spacing: 0.09em;
     text-transform: uppercase;
     /* Deja libre la esquina donde vive el "volver" */
     padding-right: 56px;
-}
+  }
 
-/* Sello de diana estampado en el expediente */
-/* El sello vive arriba a la derecha, en el hueco que deja el título:
+  /* Sello de diana estampado en el expediente */
+  /* El sello vive arriba a la derecha, en el hueco que deja el título:
    abajo estorbaba al botón de compartir. */
-.expediente-sello {
+  .expediente-sello {
     position: absolute;
     right: 12px;
     top: 10px;
@@ -599,101 +601,103 @@
     background-size: contain;
     background-repeat: no-repeat;
     pointer-events: none;
-}
+  }
 
-/* El "volver" del reverso, anclado abajo a la derecha */
-.crew-card-back .crew-girar {
+  /* El "volver" del reverso, anclado abajo a la derecha */
+  .crew-card-back .crew-girar {
     position: absolute;
     right: 16px;
     bottom: 10px;
     margin-top: 0;
-}
+  }
 
-/* ---------- Brillo foil en cartas con rareza ---------- */
+  /* ---------- Brillo foil en cartas con rareza ---------- */
 
-.crew-card.foil .crew-card-front::before {
+  .foil .crew-card-front::before {
     content: '';
     position: absolute;
     inset: 0;
     z-index: 3;
     background: linear-gradient(
-        115deg,
-        transparent 40%,
-        rgba(var(--white-rgb), 0.45) 50%,
-        transparent 60%
+      115deg,
+      transparent 40%,
+      rgba(var(--white-rgb), 0.45) 50%,
+      transparent 60%
     );
     transform: translateX(-130%);
     pointer-events: none;
-}
+    /* El barrido lo enciende el hover de la carta con --foil-sweep */
+    animation: var(--foil-sweep, none);
+  }
 
-.crew-card.foil:hover .crew-card-front::before {
-    animation: foil-sweep 0.9s ease;
-}
+  .foil:hover {
+    --foil-sweep: foil-sweep 0.9s ease;
+  }
 
-@keyframes foil-sweep {
+  @keyframes foil-sweep {
     to {
-        transform: translateX(130%);
+      transform: translateX(130%);
     }
-}
+  }
 
-@media (prefers-reduced-motion: reduce) {
-    .crew-card.foil:hover .crew-card-front::before {
-        animation: none;
+  @media (prefers-reduced-motion: reduce) {
+    .foil:hover {
+      --foil-sweep: none;
     }
-}
+  }
 
-/* ---------- Cromo especial: LOS FUNDADORES ---------- */
+  /* ---------- Cromo especial: LOS FUNDADORES ---------- */
 
-.crew-card.especial .crew-card-face {
+  .crew-card.especial .crew-card-face {
     background-color: var(--ink-block);
     background-image: var(--spray-speckle);
     color: var(--white);
-}
+  }
 
-.crew-card.especial .crew-nombre {
+  .crew-card.especial .crew-nombre {
     color: var(--white);
-}
+  }
 
-.crew-card.especial .crew-rol,
-.crew-card.especial .crew-num,
-.crew-card.especial .crew-girar {
+  .crew-card.especial .crew-rol,
+  .crew-card.especial .crew-num,
+  .crew-card.especial .crew-girar {
     color: var(--on-ink-muted);
-}
+  }
 
-.crew-card.especial .crew-rareza {
+  .crew-card.especial .crew-rareza {
     border-color: var(--gold);
     color: var(--gold);
-}
+  }
 
-/* Es el único cromo sin stats: que la ilustración llene ese hueco
+  /* Es el único cromo sin stats: que la ilustración llene ese hueco
    en vez de dejar un vacío al final de la carta. */
-.crew-card.especial .crew-card-media {
+  .crew-card.especial .crew-card-media {
     background-image: none;
     height: auto;
     flex: 1;
     min-height: 210px;
-}
+  }
 
-.crew-card.especial .expediente-titulo {
+  .crew-card.especial .expediente-titulo {
     color: var(--white);
-}
+  }
 
-.crew-card.especial .expediente-datos dt {
+  .especial .expediente-datos dt {
     color: var(--on-ink-muted);
-}
+  }
 
-.crew-card.especial .expediente-datos dd {
+  .especial .expediente-datos dd {
     color: var(--white);
-}
+  }
 
-.crew-card.especial .expediente-enlace {
+  .crew-card.especial .expediente-enlace {
     color: var(--gold);
     text-decoration-color: var(--gold);
-}
+  }
 
-/* ---------- Huecos por conseguir ---------- */
+  /* ---------- Huecos por conseguir ---------- */
 
-.crew-hueco {
+  .crew-hueco {
     min-height: 430px;
     border: 2px dashed var(--muted);
     border-radius: var(--wobble-md);
@@ -705,206 +709,206 @@
     gap: 10px;
     padding: 20px;
     text-align: center;
-}
+  }
 
-.hueco-silueta {
+  .hueco-silueta {
     width: clamp(96px, 12vw, 128px);
     height: auto;
-}
+  }
 
-.crew-hueco-nota {
+  .crew-hueco-nota {
     margin: 0;
     font-family: var(--font-hand);
     font-size: var(--text-base);
     color: var(--muted);
-}
+  }
 
-.crew-hueco-btn {
+  .crew-hueco-btn {
     padding: 5px 16px;
     font-size: var(--text-base);
-}
+  }
 
-/* ---------- Responsive ---------- */
+  /* ---------- Responsive ---------- */
 
-@media (max-width: 900px) {
+  @media (max-width: 900px) {
     .crew-head {
-        flex-direction: column;
-        gap: 18px;
+      flex-direction: column;
+      gap: 18px;
     }
 
     .crew-marcador {
-        margin-top: 0;
-        max-width: none;
-        align-self: stretch;
+      margin-top: 0;
+      max-width: none;
+      align-self: stretch;
     }
 
     .marcador-casillas {
-        max-width: none;
+      max-width: none;
     }
-}
+  }
 
-@media (max-width: 640px) {
+  @media (max-width: 640px) {
     .crew-grid {
-        grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
-        gap: 18px;
+      grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+      gap: 18px;
     }
 
     .crew-lamina {
-        margin-bottom: 40px;
+      margin-bottom: 40px;
     }
 
     .lamina-sep {
-        flex-wrap: wrap;
-        gap: 10px;
-        row-gap: 6px;
+      flex-wrap: wrap;
+      gap: 10px;
+      row-gap: 6px;
     }
 
     .lamina-cinta {
-        font-size: var(--text-md);
-        padding: 6px 16px 8px;
+      font-size: var(--text-md);
+      padding: 6px 16px 8px;
     }
 
     .lamina-nota {
-        order: 3;
-        width: 100%;
+      order: 3;
+      width: 100%;
     }
 
     .lamina-cuenta {
-        margin-left: auto;
-        font-size: var(--text-xs);
+      margin-left: auto;
+      font-size: var(--text-xs);
     }
 
     .crew-vitrina-marco {
-        padding: 20px 14px 14px;
-        border-radius: var(--wobble-md);
+      padding: 20px 14px 14px;
+      border-radius: var(--wobble-md);
     }
 
     .crew-vitrina-marco::before,
     .crew-vitrina-marco::after {
-        width: 64px;
-        height: 24px;
-        top: -12px;
+      width: 64px;
+      height: 24px;
+      top: -12px;
     }
 
     .sello-fichado {
-        top: 150px;
-        font-size: var(--text-2xs);
+      top: 150px;
+      font-size: var(--text-2xs);
     }
 
     /* En una sola columna la carta es ancha: necesita alto para que el
        expediente respire en vez de apelmazarse al final. */
     .crew-card,
     .crew-hueco {
-        height: 470px;
-        min-height: 470px;
+      height: 470px;
+      min-height: 470px;
     }
 
     .crew-card-media {
-        height: 190px;
+      height: 190px;
     }
 
     .crew-nombre {
-        font-size: var(--text-base);
+      font-size: var(--text-base);
     }
 
     .stat-diana {
-        width: 13px;
-        height: 13px;
+      width: 13px;
+      height: 13px;
     }
 
     /* ----- Reverso: reparto del espacio en móvil ----- */
 
     .crew-card-face {
-        padding: 16px 18px;
+      padding: 16px 18px;
     }
 
     /* El sello sube al hueco libre junto al título y deja el pie despejado */
     .expediente-sello {
-        top: 8px;
-        right: 12px;
-        bottom: auto;
-        width: 62px;
-        height: 62px;
+      top: 8px;
+      right: 12px;
+      bottom: auto;
+      width: 62px;
+      height: 62px;
     }
 
     .expediente-datos {
-        gap: 14px;
+      gap: 14px;
     }
 
     .expediente-compartir {
-        margin-top: auto;
-        margin-bottom: 10px;
-        font-size: var(--text-md);
+      margin-top: auto;
+      margin-bottom: 10px;
+      font-size: var(--text-md);
     }
 
     .expediente-serie {
-        margin-top: 0;
-        margin-bottom: 22px;
-        gap: 5px;
+      margin-top: 0;
+      margin-bottom: 22px;
+      gap: 5px;
     }
 
     .expediente-barcode {
-        width: 104px;
-        height: 15px;
+      width: 104px;
+      height: 15px;
     }
 
     .expediente-serie span {
-        font-size: var(--text-xs);
+      font-size: var(--text-xs);
     }
 
     .crew-card-back .crew-girar {
-        right: 18px;
-        bottom: 12px;
+      right: 18px;
+      bottom: 12px;
     }
 
     /* La silueta crece con la carta ancha de una columna */
     .hueco-silueta {
-        width: 150px;
+      width: 150px;
     }
 
     .crew-parade-row {
-        margin: 18px 0 30px;
-        gap: 6px;
-        flex-wrap: wrap;
+      margin: 18px 0 30px;
+      gap: 6px;
+      flex-wrap: wrap;
     }
 
     .crew-parade {
-        gap: 0;
+      gap: 0;
     }
 
     .crew-parade img {
-        transform: scale(0.72);
-        transform-origin: bottom left;
-        margin-right: -14px;
+      transform: scale(0.72);
+      transform-origin: bottom left;
+      margin-right: -14px;
     }
-}
+  }
 
-/* ---------- Modo neón ----------
+  /* ---------- Modo neón ----------
    El álbum de noche: los cromos beben de las variables; aquí sólo cambian
    la vitrina, el celo y las tramas de puntos que iban en tinta. */
 
-html[data-theme='neon'] .crew-vitrina-marco {
+  [data-theme='neon'] .crew-vitrina-marco {
     background-color: rgba(var(--neon-ink-rgb), 0.02);
-}
+  }
 
-/* El celo, visto a contraluz. */
-html[data-theme='neon'] .crew-vitrina-marco::before,
-html[data-theme='neon'] .crew-vitrina-marco::after {
+  /* El celo, visto a contraluz. */
+  [data-theme='neon'] .crew-vitrina-marco::before,
+  [data-theme='neon'] .crew-vitrina-marco::after {
     background-color: rgba(var(--neon-ink-rgb), 0.14);
     border-color: rgba(var(--neon-ink-rgb), 0.22);
-}
+  }
 
-/* Las sombras de las cintas, del rojo/azul de día al rosa/cian de noche. */
-html[data-theme='neon'] .lamina-cinta {
-    box-shadow: 4px 4px 0 rgba(var(--neon-pink-rgb), 0.75);
-}
+  /* Las sombras de las cintas, del rojo/azul de día al rosa/cian de noche. */
+  [data-theme='neon'] .crew-lamina {
+    --cinta-shadow: 4px 4px 0 rgba(var(--neon-pink-rgb), 0.75);
+  }
 
-html[data-theme='neon'] .crew-lamina:nth-child(2n) .lamina-cinta {
-    box-shadow: 4px 4px 0 rgba(var(--neon-cyan-rgb), 0.75);
-}
+  [data-theme='neon'] .crew-lamina:nth-child(2n) {
+    --cinta-shadow: 4px 4px 0 rgba(var(--neon-cyan-rgb), 0.75);
+  }
 
-/* Sobre el rosa eléctrico el blanco se queda corto: tinta de noche. */
-html[data-theme='neon'] .rareza-la-marca {
+  /* Sobre el rosa eléctrico el blanco se queda corto: tinta de noche. */
+  [data-theme='neon'] .rareza-la-marca {
     color: var(--neon-night);
-}
+  }
 }

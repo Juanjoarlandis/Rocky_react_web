@@ -32,9 +32,9 @@ describe('candado de modelos gratuitos', () => {
   });
 
   it('assertFreeModels revienta si hay un modelo de pago', () => {
-    expect(() =>
-      assertFreeModels(['google/gemma-4-31b-it:free', 'openai/gpt-4o'])
-    ).toThrow(/sólo puede usar modelos gratuitos/i);
+    expect(() => assertFreeModels(['google/gemma-4-31b-it:free', 'openai/gpt-4o'])).toThrow(
+      /sólo puede usar modelos gratuitos/i
+    );
   });
 
   it('assertFreeModels revienta con la lista vacía', () => {
@@ -42,9 +42,9 @@ describe('candado de modelos gratuitos', () => {
   });
 
   it('el arranque falla si el entorno pide un modelo de pago', () => {
-    expect(() =>
-      createConfig({ ...ENV_BASE, OPENROUTER_MODELS: 'openai/gpt-4o' })
-    ).toThrow(/gratuitos/i);
+    expect(() => createConfig({ ...ENV_BASE, OPENROUTER_MODELS: 'openai/gpt-4o' })).toThrow(
+      /gratuitos/i
+    );
   });
 
   it('el arranque acepta modelos gratuitos del entorno', () => {

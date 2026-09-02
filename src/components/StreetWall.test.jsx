@@ -196,10 +196,7 @@ describe('StreetWall: el disparo del Paparazzi', () => {
     // Un scroll rápido puede llegar como dos cruces en la misma llamada.
     act(() => {
       const observer = observerWatching('street-photographer');
-      observer.callback(
-        [{ isIntersecting: false }, { isIntersecting: true }],
-        observer
-      );
+      observer.callback([{ isIntersecting: false }, { isIntersecting: true }], observer);
     });
 
     advance(PRIMERA_MEDIA);

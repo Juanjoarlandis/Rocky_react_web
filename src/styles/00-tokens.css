@@ -4,7 +4,7 @@
 @layer base, utilities, components, pages;
 
 @layer base {
-/* =====================================================================
+  /* =====================================================================
    TOKENS — la única hoja con colores, medidas y tiempos escritos a mano.
    Todo lo demás los referencia. Stylelint (color-no-hex) vigila el resto.
 
@@ -16,184 +16,184 @@
      1200px escritorio ancho (ancho máximo de página)
    ===================================================================== */
 
-:root {
-  /* ---------- Colores base ---------- */
-  --ink: #1a1a1a;
-  --ink-soft: #3a3a3a;
-  --paper: #faf7f0;
-  --card: #fffdf8;
-  --line: #d8d2c4;
-  --muted: #7c7668;
-  --accent: #e63946;
-  --accent-dark: #c92f3c;
-  --blue: #2f6fdb;
-  --white: #fff;
-  --gold: #f4b942;
-  --neon-yellow: #ffd60a;
-  /* Tinta a fuego: no cambia con el tema. Para lo que sigue siendo claro de
+  :root {
+    /* ---------- Colores base ---------- */
+    --ink: #1a1a1a;
+    --ink-soft: #3a3a3a;
+    --paper: #faf7f0;
+    --card: #fffdf8;
+    --line: #d8d2c4;
+    --muted: #7c7668;
+    --accent: #e63946;
+    --accent-dark: #c92f3c;
+    --blue: #2f6fdb;
+    --white: #fff;
+    --gold: #f4b942;
+    --neon-yellow: #ffd60a;
+    /* Tinta a fuego: no cambia con el tema. Para lo que sigue siendo claro de
      noche (la polaroid, el dorado, la miel de la mesa) y pide trazo oscuro. */
-  --ink-fixed: #1a1a1a;
-  --ink-soft-fixed: #3a3a3a;
+    --ink-fixed: #1a1a1a;
+    --ink-soft-fixed: #3a3a3a;
 
-  /* La tinta descompuesta, para velos y retículas: rgba(var(--ink-rgb), α).
+    /* La tinta descompuesta, para velos y retículas: rgba(var(--ink-rgb), α).
      No cambia con el tema: un velo oscuro sigue siendo oscuro de noche. */
-  --ink-rgb: 26, 26, 26;
-  --black-rgb: 0, 0, 0;
-  --paper-rgb: 250, 247, 240;
-  --card-rgb: 255, 253, 248;
-  --white-rgb: 255, 255, 255;
-  --accent-rgb: 230, 57, 70;
-  --blue-rgb: 47, 111, 219;
-  --gold-rgb: 244, 185, 66;
-  --neon-yellow-rgb: 255, 214, 10;
-  /* La luz de noche descompuesta: la tinta clara, el rosa y el cian. Son
+    --ink-rgb: 26, 26, 26;
+    --black-rgb: 0, 0, 0;
+    --paper-rgb: 250, 247, 240;
+    --card-rgb: 255, 253, 248;
+    --white-rgb: 255, 255, 255;
+    --accent-rgb: 230, 57, 70;
+    --blue-rgb: 47, 111, 219;
+    --gold-rgb: 244, 185, 66;
+    --neon-yellow-rgb: 255, 214, 10;
+    /* La luz de noche descompuesta: la tinta clara, el rosa y el cian. Son
      constantes; sólo se usan en reglas del modo neón. */
-  --neon-ink-rgb: 237, 241, 255;
-  --neon-pink-rgb: 255, 46, 196;
-  --neon-cyan-rgb: 41, 229, 255;
-  --neon-paper-rgb: 12, 9, 23;
-  --neon-card-rgb: 23, 17, 41;
-  --neon-night: #16041f;
+    --neon-ink-rgb: 237, 241, 255;
+    --neon-pink-rgb: 255, 46, 196;
+    --neon-cyan-rgb: 41, 229, 255;
+    --neon-paper-rgb: 12, 9, 23;
+    --neon-card-rgb: 23, 17, 41;
+    --neon-night: #16041f;
 
-  /* Bloques entintados (footer, marquesina, cabeceras…): de día son tinta
+    /* Bloques entintados (footer, marquesina, cabeceras…): de día son tinta
      tal cual, de noche un morado más hondo que el asfalto. Así el texto
      claro que llevan encima sobrevive al cambio de tema. */
-  --ink-block: #1a1a1a;
-  --ink-block-text: #faf7f0;
-  /* Texto secundario, acento y «en línea» sobre un bloque entintado. */
-  --on-ink-muted: #b3ada0;
-  --on-ink-accent: #ff7580;
-  --on-ink-ok: #40d47e;
+    --ink-block: #1a1a1a;
+    --ink-block-text: #faf7f0;
+    /* Texto secundario, acento y «en línea» sobre un bloque entintado. */
+    --on-ink-muted: #b3ada0;
+    --on-ink-accent: #ff7580;
+    --on-ink-ok: #40d47e;
 
-  /* ---------- Colores semánticos ---------- */
-  /* Post-it (avisos), ticket (entradas y puntos), superficies apagadas. */
-  --postit: #fff4c7;
-  --postit-ink: #3a3a3a;
-  --postit-line: #1a1a1a;
-  --ticket: #f9dc61;
-  --muted-bg: #ece8df;
-  --placeholder-bg: #f3ecdf;
-  --ok: #1d9e57;
-  --ok-ink: #167441;
-  --ok-bg: #e3f8eb;
-  --danger: #e63946;
-  --danger-ink: #c92f3c;
-  --danger-bg: #ffe5e7;
-  --info: #174f8a;
-  --info-bg: #e5f0ff;
-  /* Celo translúcido que sujeta fotos y marcos. */
-  --tape: rgba(234, 226, 205, 0.88);
+    /* ---------- Colores semánticos ---------- */
+    /* Post-it (avisos), ticket (entradas y puntos), superficies apagadas. */
+    --postit: #fff4c7;
+    --postit-ink: #3a3a3a;
+    --postit-line: #1a1a1a;
+    --ticket: #f9dc61;
+    --muted-bg: #ece8df;
+    --placeholder-bg: #f3ecdf;
+    --ok: #1d9e57;
+    --ok-ink: #167441;
+    --ok-bg: #e3f8eb;
+    --danger: #e63946;
+    --danger-ink: #c92f3c;
+    --danger-bg: #ffe5e7;
+    --info: #174f8a;
+    --info-bg: #e5f0ff;
+    /* Celo translúcido que sujeta fotos y marcos. */
+    --tape: rgba(234, 226, 205, 0.88);
 
-  /* ---------- La mesa de beats ----------
+    /* ---------- La mesa de beats ----------
      Chasis oscuro de caja de ritmos: no cambia con el tema. */
-  --mesa-panel: #232323;
-  --mesa-panel-hi: #2e2e2e;
-  --mesa-panel-lo: #1b1a12;
-  --mesa-screen: #141414;
-  --mesa-line: rgba(255, 253, 248, 0.16);
-  --mesa-cyan: #7fd0ff;
-  --mesa-lilac: #c39bff;
-  --mesa-green: #6fd18b;
-  --mesa-rubber: linear-gradient(180deg, #3c3c3c 0%, #2a2a2a 72%);
-  --mesa-rubber-hover: linear-gradient(180deg, #494949 0%, #333 72%);
+    --mesa-panel: #232323;
+    --mesa-panel-hi: #2e2e2e;
+    --mesa-panel-lo: #1b1a12;
+    --mesa-screen: #141414;
+    --mesa-line: rgba(255, 253, 248, 0.16);
+    --mesa-cyan: #7fd0ff;
+    --mesa-lilac: #c39bff;
+    --mesa-green: #6fd18b;
+    --mesa-rubber: linear-gradient(180deg, #3c3c3c 0%, #2a2a2a 72%);
+    --mesa-rubber-hover: linear-gradient(180deg, #494949 0%, #333 72%);
 
-  /* ---------- Espaciado ---------- */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 24px;
-  --space-6: 32px;
-  --space-7: 48px;
-  --space-8: 64px;
+    /* ---------- Espaciado ---------- */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+    --space-7: 48px;
+    --space-8: 64px;
 
-  /* Anchos de contenedor: texto, página y ancho completo. */
-  --container-text: 760px;
-  --container-page: 1000px;
-  --container-wide: 1200px;
+    /* Anchos de contenedor: texto, página y ancho completo. */
+    --container-text: 760px;
+    --container-page: 1000px;
+    --container-wide: 1200px;
 
-  /* Altura de la navbar; la usan la hoja del menú y lo que se ancla bajo
+    /* Altura de la navbar; la usan la hoja del menú y lo que se ancla bajo
      ella. En móvil la barra es de una fila y baja a 56px (ver al final). */
-  --nav-h: 66px;
+    --nav-h: 66px;
 
-  /* ---------- Radios irregulares, como trazados a mano ---------- */
-  --wobble-xs: 8px 15px 12px 13px;
-  --wobble-sm: 255px 15px 225px 15px / 15px 225px 15px 255px;
-  --wobble-md: 15px 255px 15px 225px / 225px 15px 255px 15px;
-  --wobble-lg: 325px 25px 355px 25px / 25px 355px 25px 325px;
+    /* ---------- Radios irregulares, como trazados a mano ---------- */
+    --wobble-xs: 8px 15px 12px 13px;
+    --wobble-sm: 255px 15px 225px 15px / 15px 225px 15px 255px;
+    --wobble-md: 15px 255px 15px 225px / 225px 15px 255px 15px;
+    --wobble-lg: 325px 25px 355px 25px / 25px 355px 25px 325px;
 
-  /* ---------- Sombras duras, estilo pegatina/cómic ---------- */
-  --shadow-ink-xs: 2px 2px 0 var(--ink);
-  --shadow-ink-sm: 3px 3px 0 var(--ink);
-  --shadow-ink-md: 4px 4px 0 var(--ink);
-  --shadow-ink: 5px 5px 0 var(--ink);
-  --shadow-ink-lg: 8px 8px 0 var(--ink);
-  --shadow-accent-xs: 2px 2px 0 var(--accent);
-  --shadow-accent-sm: 3px 3px 0 var(--accent);
-  --shadow-accent: 4px 4px 0 var(--accent);
-  /* Aro de tinta o de acento alrededor de un elemento (foco, selección). */
-  --ring-ink: 0 0 0 3px var(--ink);
-  --ring-accent: 0 0 0 3px var(--accent);
+    /* ---------- Sombras duras, estilo pegatina/cómic ---------- */
+    --shadow-ink-xs: 2px 2px 0 var(--ink);
+    --shadow-ink-sm: 3px 3px 0 var(--ink);
+    --shadow-ink-md: 4px 4px 0 var(--ink);
+    --shadow-ink: 5px 5px 0 var(--ink);
+    --shadow-ink-lg: 8px 8px 0 var(--ink);
+    --shadow-accent-xs: 2px 2px 0 var(--accent);
+    --shadow-accent-sm: 3px 3px 0 var(--accent);
+    --shadow-accent: 4px 4px 0 var(--accent);
+    /* Aro de tinta o de acento alrededor de un elemento (foco, selección). */
+    --ring-ink: 0 0 0 3px var(--ink);
+    --ring-accent: 0 0 0 3px var(--accent);
 
-  /* ---------- Capas ---------- */
-  --z-doodle: 1;
-  --z-peeker: 900;
-  --z-nav: 1000;
-  --z-runner: 1100;
-  --z-overlay: 1200;
-  --z-splash: 3000;
+    /* ---------- Capas ---------- */
+    --z-doodle: 1;
+    --z-peeker: 900;
+    --z-nav: 1000;
+    --z-runner: 1100;
+    --z-overlay: 1200;
+    --z-splash: 3000;
 
-  /* ---------- Tiempos y curvas ---------- */
-  --dur-fast: 0.15s;
-  --dur-base: 0.2s;
-  --dur-slow: 0.35s;
-  --ease-out: ease;
-  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+    /* ---------- Tiempos y curvas ---------- */
+    --dur-fast: 0.15s;
+    --dur-base: 0.2s;
+    --dur-slow: 0.35s;
+    --ease-out: ease;
+    --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
 
-  /* ---------- Tipografía ---------- */
-  /* Tres familias: la display (rótulos, un solo peso: el 400 lo fija
+    /* ---------- Tipografía ---------- */
+    /* Tres familias: la display (rótulos, un solo peso: el 400 lo fija
      02-base en los encabezados), la de mano (botones, etiquetas, copy
      corto) y la de párrafo largo (descripciones, expedientes, chat, perfil),
      que es la que justifica cargar Archivo. */
-  --font-display: 'Luckiest Guy', 'Arial Black', cursive;
-  --font-hand: 'Fredoka', 'Comic Sans MS', sans-serif;
-  --font-body: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    'Helvetica Neue', sans-serif;
+    --font-display: 'Luckiest Guy', 'Arial Black', cursive;
+    --font-hand: 'Fredoka', 'Comic Sans MS', sans-serif;
+    --font-body:
+      'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
 
-  /* Escala de ocho pasos más la display fluida del título de página. Los
+    /* Escala de ocho pasos más la display fluida del título de página. Los
      rótulos de portada (hero) se miden a mano en su hoja. */
-  --text-2xs: 0.72rem;
-  --text-xs: 0.82rem;
-  --text-sm: 0.92rem;
-  --text-base: 1rem;
-  --text-md: 1.1rem;
-  --text-lg: 1.2rem;
-  --text-xl: 1.5rem;
-  --text-2xl: clamp(1.7rem, 3vw, 2.4rem);
-  --text-display: clamp(1.9rem, 5vw, 2.8rem);
-  --leading-tight: 1.1;
-  --leading-snug: 1.25;
-  --leading-base: 1.5;
+    --text-2xs: 0.72rem;
+    --text-xs: 0.82rem;
+    --text-sm: 0.92rem;
+    --text-base: 1rem;
+    --text-md: 1.1rem;
+    --text-lg: 1.2rem;
+    --text-xl: 1.5rem;
+    --text-2xl: clamp(1.7rem, 3vw, 2.4rem);
+    --text-display: clamp(1.9rem, 5vw, 2.8rem);
+    --leading-tight: 1.1;
+    --leading-snug: 1.25;
+    --leading-base: 1.5;
 
-  /* ---------- Texturas ---------- */
-  /* Subrayado garabateado reutilizable */
-  --squiggle: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='8' viewBox='0 0 48 8'><path d='M2 5 Q 8 1 14 5 T 26 5 T 38 5 T 47 4' fill='none' stroke='%23e63946' stroke-width='3' stroke-linecap='round'/></svg>");
+    /* ---------- Texturas ---------- */
+    /* Subrayado garabateado reutilizable */
+    --squiggle: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='8' viewBox='0 0 48 8'><path d='M2 5 Q 8 1 14 5 T 26 5 T 38 5 T 47 4' fill='none' stroke='%23e63946' stroke-width='3' stroke-linecap='round'/></svg>");
 
-  /* Retícula de puntos del cuaderno: color y opacidad por defecto. Se usa
+    /* Retícula de puntos del cuaderno: color y opacidad por defecto. Se usa
      como rgba(var(--dot-rgb), α) en cada sitio, no como imagen precocinada,
      para que cada bloque pueda subir o bajar su α. */
-  --dot-rgb: var(--ink-rgb);
-  --dot-alpha: 0.07;
-  --dot-grid-size: 26px 26px;
+    --dot-rgb: var(--ink-rgb);
+    --dot-alpha: 0.07;
+    --dot-grid-size: 26px 26px;
 
-  /* Garabatos muy suaves del papel de cuaderno (estrella, diana, nube, rayo). */
-  --notebook-doodles: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'><g fill='none' stroke='%231a1a1a' stroke-opacity='0.05' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M38 30 L41 42 L53 45 L41 48 L38 60 L35 48 L23 45 L35 42 Z'/><g><circle cx='195' cy='72' r='10'/><path d='M181 72 L209 72 M195 58 L195 86'/></g><path d='M52 190 q12 -10 24 0 q10 8 22 0 l-6 -5 m6 5 l-8 4'/><path d='M200 175 l-8 16 h9 l-10 18'/></g></svg>");
+    /* Garabatos muy suaves del papel de cuaderno (estrella, diana, nube, rayo). */
+    --notebook-doodles: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'><g fill='none' stroke='%231a1a1a' stroke-opacity='0.05' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M38 30 L41 42 L53 45 L41 48 L38 60 L35 48 L23 45 L35 42 Z'/><g><circle cx='195' cy='72' r='10'/><path d='M181 72 L209 72 M195 58 L195 86'/></g><path d='M52 190 q12 -10 24 0 q10 8 22 0 l-6 -5 m6 5 l-8 4'/><path d='M200 175 l-8 16 h9 l-10 18'/></g></svg>");
 
-  /* Moteado de spray para zonas oscuras (estilo póster fotocopiado) */
-  --spray-speckle: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'><g fill='white' fill-opacity='0.13'><circle cx='14' cy='22' r='1.6'/><circle cx='52' cy='9' r='1'/><circle cx='88' cy='30' r='2.2'/><circle cx='131' cy='14' r='1.2'/><circle cx='166' cy='38' r='1.7'/><circle cx='30' cy='62' r='1.1'/><circle cx='73' cy='71' r='1.5'/><circle cx='118' cy='58' r='0.9'/><circle cx='152' cy='83' r='2'/><circle cx='9' cy='104' r='1.9'/><circle cx='49' cy='118' r='1.2'/><circle cx='95' cy='106' r='1.4'/><circle cx='137' cy='124' r='1'/><circle cx='171' cy='142' r='1.5'/><circle cx='24' cy='152' r='1.3'/><circle cx='66' cy='165' r='2.1'/><circle cx='108' cy='148' r='1'/><circle cx='147' cy='168' r='1.6'/></g></svg>");
-}
+    /* Moteado de spray para zonas oscuras (estilo póster fotocopiado) */
+    --spray-speckle: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'><g fill='white' fill-opacity='0.13'><circle cx='14' cy='22' r='1.6'/><circle cx='52' cy='9' r='1'/><circle cx='88' cy='30' r='2.2'/><circle cx='131' cy='14' r='1.2'/><circle cx='166' cy='38' r='1.7'/><circle cx='30' cy='62' r='1.1'/><circle cx='73' cy='71' r='1.5'/><circle cx='118' cy='58' r='0.9'/><circle cx='152' cy='83' r='2'/><circle cx='9' cy='104' r='1.9'/><circle cx='49' cy='118' r='1.2'/><circle cx='95' cy='106' r='1.4'/><circle cx='137' cy='124' r='1'/><circle cx='171' cy='142' r='1.5'/><circle cx='24' cy='152' r='1.3'/><circle cx='66' cy='165' r='2.1'/><circle cx='108' cy='148' r='1'/><circle cx='147' cy='168' r='1.6'/></g></svg>");
+  }
 
-/* =====================================================================
+  /* =====================================================================
    MODO NEÓN — la misma calle, de noche.
    Se enciende con html[data-theme='neon'] (interruptor de la navbar,
    src/utils/theme.js). La gramática no cambia: el papel pasa a asfalto,
@@ -201,56 +201,53 @@
    .neon-art en 03-utilities.css).
    ===================================================================== */
 
-html[data-theme='neon'] {
-  --ink: #edf1ff;
-  --ink-soft: #cdd5f5;
-  --paper: #0c0917;
-  --card: #171129;
-  --line: #453d6b;
-  --muted: #9d97c4;
-  --accent: #ff2ec4;
-  --accent-dark: #ff6ad5;
-  --blue: #29e5ff;
-  --ink-block: #120d20;
-  --ink-block-text: #edf1ff;
+  html[data-theme='neon'] {
+    --ink: #edf1ff;
+    --ink-soft: #cdd5f5;
+    --paper: #0c0917;
+    --card: #171129;
+    --line: #453d6b;
+    --muted: #9d97c4;
+    --accent: #ff2ec4;
+    --accent-dark: #ff6ad5;
+    --blue: #29e5ff;
+    --ink-block: #120d20;
+    --ink-block-text: #edf1ff;
 
-  --postit: #241d0a;
-  --postit-ink: #ffe9a8;
-  --postit-line: #ffd60a;
-  --ticket: #241d0a;
-  --muted-bg: #1d1631;
-  --placeholder-bg: #1d1631;
-  --ok: #52f5a0;
-  --ok-ink: #52f5a0;
-  --ok-bg: #0e2a1b;
-  --danger: #ff5470;
-  --danger-ink: #ffc9d2;
-  --danger-bg: #2a0e14;
-  --info: #7cc4ff;
-  --info-bg: #0e1f33;
+    --postit: #241d0a;
+    --postit-ink: #ffe9a8;
+    --postit-line: #ffd60a;
+    --ticket: #241d0a;
+    --muted-bg: #1d1631;
+    --placeholder-bg: #1d1631;
+    --ok: #52f5a0;
+    --ok-ink: #52f5a0;
+    --ok-bg: #0e2a1b;
+    --danger: #ff5470;
+    --danger-ink: #ffc9d2;
+    --danger-bg: #2a0e14;
+    --info: #7cc4ff;
+    --info-bg: #0e1f33;
 
-  /* Las sombras duras siguen siendo duras, pero ahora además irradian. */
-  --shadow-ink-sm: 3px 3px 0 rgba(0, 0, 0, 0.65),
-    0 0 14px rgba(255, 46, 196, 0.22);
-  --shadow-ink: 5px 5px 0 rgba(0, 0, 0, 0.65),
-    0 0 20px rgba(255, 46, 196, 0.25);
-  --shadow-ink-lg: 8px 8px 0 rgba(0, 0, 0, 0.65),
-    0 0 28px rgba(41, 229, 255, 0.22);
+    /* Las sombras duras siguen siendo duras, pero ahora además irradian. */
+    --shadow-ink-sm: 3px 3px 0 rgba(0, 0, 0, 0.65), 0 0 14px rgba(255, 46, 196, 0.22);
+    --shadow-ink: 5px 5px 0 rgba(0, 0, 0, 0.65), 0 0 20px rgba(255, 46, 196, 0.25);
+    --shadow-ink-lg: 8px 8px 0 rgba(0, 0, 0, 0.65), 0 0 28px rgba(41, 229, 255, 0.22);
 
-  /* El garabato de subrayar, en rosa eléctrico. */
-  --squiggle: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='8' viewBox='0 0 48 8'><path d='M2 5 Q 8 1 14 5 T 26 5 T 38 5 T 47 4' fill='none' stroke='%23ff2ec4' stroke-width='3' stroke-linecap='round'/></svg>");
+    /* El garabato de subrayar, en rosa eléctrico. */
+    --squiggle: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='8' viewBox='0 0 48 8'><path d='M2 5 Q 8 1 14 5 T 26 5 T 38 5 T 47 4' fill='none' stroke='%23ff2ec4' stroke-width='3' stroke-linecap='round'/></svg>");
 
-  /* El cuaderno de noche: mismos garabatos y misma retícula, en cian tenue. */
-  --dot-rgb: var(--neon-cyan-rgb);
-  --dot-alpha: 0.09;
-  --notebook-doodles: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'><g fill='none' stroke='%2329e5ff' stroke-opacity='0.06' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M38 30 L41 42 L53 45 L41 48 L38 60 L35 48 L23 45 L35 42 Z'/><g><circle cx='195' cy='72' r='10'/><path d='M181 72 L209 72 M195 58 L195 86'/></g><path d='M52 190 q12 -10 24 0 q10 8 22 0 l-6 -5 m6 5 l-8 4'/><path d='M200 175 l-8 16 h9 l-10 18'/></g></svg>");
+    /* El cuaderno de noche: mismos garabatos y misma retícula, en cian tenue. */
+    --dot-rgb: var(--neon-cyan-rgb);
+    --dot-alpha: 0.09;
+    --notebook-doodles: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'><g fill='none' stroke='%2329e5ff' stroke-opacity='0.06' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M38 30 L41 42 L53 45 L41 48 L38 60 L35 48 L23 45 L35 42 Z'/><g><circle cx='195' cy='72' r='10'/><path d='M181 72 L209 72 M195 58 L195 86'/></g><path d='M52 190 q12 -10 24 0 q10 8 22 0 l-6 -5 m6 5 l-8 4'/><path d='M200 175 l-8 16 h9 l-10 18'/></g></svg>");
 
-  color-scheme: dark;
-}
-
-@media (max-width: 640px) {
-  :root {
-    --nav-h: 56px;
+    color-scheme: dark;
   }
-}
+
+  @media (max-width: 640px) {
+    :root {
+      --nav-h: 56px;
+    }
+  }
 }

@@ -19,7 +19,9 @@ function readStoreDomain(value) {
   if (!value) return '';
   const normalized = value.trim().toLowerCase();
   if (!SHOPIFY_DOMAIN.test(normalized)) {
-    throw new Error('SHOPIFY_STORE_DOMAIN debe ser un dominio canónico *.myshopify.com sin esquema.');
+    throw new Error(
+      'SHOPIFY_STORE_DOMAIN debe ser un dominio canónico *.myshopify.com sin esquema.'
+    );
   }
   return normalized;
 }
@@ -88,11 +90,7 @@ export function createShopifyConfig(env, appConfig) {
     encryptionKey,
     stateStorePath: path.resolve(env.STATE_STORE_PATH || '.data/rocky-state.enc'),
     webhookTopics: new Set(
-      readList(env.SHOPIFY_WEBHOOK_TOPICS, [
-        'app/uninstalled',
-        'app/scopes_update',
-        'orders/paid',
-      ])
+      readList(env.SHOPIFY_WEBHOOK_TOPICS, ['app/uninstalled', 'app/scopes_update', 'orders/paid'])
     ),
     checkoutHosts: new Set([
       ...(storeDomain ? [storeDomain] : []),
@@ -101,7 +99,9 @@ export function createShopifyConfig(env, appConfig) {
     capabilities: {
       catalog: Boolean(storeDomain),
       cart: Boolean(storeDomain && hasStateStore),
-      customerAccounts: Boolean(storeDomain && customerClientId && hasStateStore && hasHttpsCallback),
+      customerAccounts: Boolean(
+        storeDomain && customerClientId && hasStateStore && hasHttpsCallback
+      ),
       admin: Boolean(storeDomain && clientId && clientSecret),
       webhooks: Boolean(storeDomain && clientSecret && hasStateStore),
     },
