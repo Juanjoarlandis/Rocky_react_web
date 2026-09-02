@@ -2,9 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { CREW, POR_FICHAR } from '../data/crew';
 import '../styles/pages/crew.css';
+import { STORAGE_KEYS } from '../config/storageKeys.js';
+import { prefersReducedMotion } from '../utils/media.js';
+import { readJson, writeJson } from '../utils/storage.js';
 
 const TOTAL_CROMOS = CREW.length + POR_FICHAR.length;
-const CLAVE_ABIERTOS = 'rocky-album-abiertos';
+const CLAVE_ABIERTOS = STORAGE_KEYS.albumOpened;
 
 // El álbum se lee por láminas: la vitrina (rarezas), la plantilla y el banquillo
 const VITRINA = [...CREW]
@@ -23,12 +26,9 @@ const DESFILE = [
 ];
 
 function leerAbiertos() {
-  try {
-    const crudo = JSON.parse(localStorage.getItem(CLAVE_ABIERTOS) || '[]');
-    return new Set(crudo.filter((id) => CREW.some((m) => m.id === id)));
-  } catch {
-    return new Set();
-  }
+  const crudo = readJson(CLAVE_ABIERTOS, []);
+  const ids = Array.isArray(crudo) ? crudo : [];
+  return new Set(ids.filter((id) => CREW.some((m) => m.id === id)));
 }
 
 // Mini dianas para las estadísticas de cada cromo (0-5)
@@ -156,7 +156,7 @@ export function CrewCard({
   const alMover = (e) => {
     const card = cardRef.current;
     if (!card || girado) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (prefersReducedMotion()) return;
     const r = card.getBoundingClientRect();
     const px = (e.clientX - r.left) / r.width - 0.5;
     const py = (e.clientY - r.top) / r.height - 0.5;
@@ -339,11 +339,8 @@ function Crew() {
         if (previos.has(id)) return previos;
         const siguientes = new Set(previos);
         siguientes.add(id);
-        try {
-          localStorage.setItem(CLAVE_ABIERTOS, JSON.stringify([...siguientes]));
-        } catch {
-          /* modo incógnito: la colección vive solo esta sesión */
-        }
+        // Modo incógnito: la colección vive solo esta sesión
+        writeJson(CLAVE_ABIERTOS, [...siguientes]);
         return siguientes;
       });
     },
@@ -361,7 +358,7 @@ function Crew() {
     const piezas = [...album.querySelectorAll('.crew-card, .crew-hueco')];
     piezas.forEach((pieza, i) => pieza.style.setProperty('--orden', i % 6));
 
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (prefersReducedMotion()) {
       return undefined;
     }
 

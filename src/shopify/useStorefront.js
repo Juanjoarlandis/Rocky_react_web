@@ -3,7 +3,6 @@ import {
   addCartLine,
   beginCheckout,
   getCart,
-  getCrewProfile,
   getCustomerAccount,
   getShopifyStatus,
   listProducts,
@@ -12,6 +11,8 @@ import {
   updateCartLine,
 } from './api.js';
 import { normalizeCart, normalizeCatalog } from './normalize.js';
+import { useCrewProfile } from './useCrewProfile.js';
+import { errorMessage } from '../utils/errors.js';
 
 const DISABLED_CAPABILITIES = Object.freeze({
   catalog: false,
@@ -23,11 +24,6 @@ const DISABLED_CAPABILITIES = Object.freeze({
 
 const EMPTY_CART = Object.freeze({ items: [], cost: null, totalQuantity: 0 });
 const EMPTY_PRODUCTS = Object.freeze([]);
-const DEFAULT_CREW_AVATAR_ID = 'skater-head';
-
-function errorMessage(error) {
-  return error instanceof Error ? error.message : 'La tienda no ha podido completar la operación.';
-}
 
 export function useStorefront({ demoProducts = EMPTY_PRODUCTS } = {}) {
   const [mode, setMode] = useState('checking');
@@ -38,7 +34,6 @@ export function useStorefront({ demoProducts = EMPTY_PRODUCTS } = {}) {
   // variante se agota entre que se pinta el catalogo y se pulsa anadir.
   const [cartWarnings, setCartWarnings] = useState([]);
   const [account, setAccount] = useState({ loggedIn: false, customer: null });
-  const [crewAvatarId, setCrewAvatarId] = useState(DEFAULT_CREW_AVATAR_ID);
   const [loading, setLoading] = useState(true);
   const [cartBusy, setCartBusy] = useState(false);
   const [error, setError] = useState('');
@@ -139,33 +134,11 @@ export function useStorefront({ demoProducts = EMPTY_PRODUCTS } = {}) {
     };
   }, [demoProducts]);
 
-  useEffect(() => {
-    if (!capabilities.customerAccounts || !account.loggedIn) {
-      setCrewAvatarId(DEFAULT_CREW_AVATAR_ID);
-      return undefined;
-    }
-
-    let active = true;
-    getCrewProfile()
-      .then((response) => {
-        if (active && response.profile?.equippedAvatarId) {
-          setCrewAvatarId(response.profile.equippedAvatarId);
-        }
-      })
-      .catch(() => {
-        // La cuenta sigue siendo util aunque el perfil Crew no responda.
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [account.loggedIn, capabilities.customerAccounts]);
-
-  const updateCrewAvatar = useCallback((avatarId) => {
-    if (typeof avatarId === 'string' && avatarId.trim()) {
-      setCrewAvatarId(avatarId);
-    }
-  }, []);
+  const crewProfile = useCrewProfile({
+    enabled: capabilities.customerAccounts && account.loggedIn,
+  });
+  const crewAvatarId = crewProfile.equippedAvatarId;
+  const updateCrewAvatar = crewProfile.applyAvatar;
 
   const applyServerCart = useCallback((cart) => {
     setCartState(normalizeCart(cart));
@@ -317,6 +290,7 @@ export function useStorefront({ demoProducts = EMPTY_PRODUCTS } = {}) {
     totalItems,
     account,
     crewAvatarId,
+    crewProfile,
     loading,
     cartBusy,
     error,

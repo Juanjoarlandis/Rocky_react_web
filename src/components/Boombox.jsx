@@ -1,5 +1,5 @@
 import '../styles/components/boombox.css';
-import { useMusic } from '../context/MusicContext';
+import { useMusic, useMusicTime } from '../context/MusicContext';
 
 // Radiocasete dibujado a mano: la mesa de control de la radio global.
 // Play/pausa, anterior/siguiente, barra de progreso con seek y ruedas
@@ -330,7 +330,8 @@ export function IconPause() {
 }
 
 function Boombox() {
-  const { track, playing, time, duration, toggle, next, prev, seek } = useMusic();
+  const { track, playing, duration, toggle, next, prev, seek } = useMusic();
+  const time = useMusicTime();
 
   const progress = duration ? (time / duration) * 100 : 0;
 

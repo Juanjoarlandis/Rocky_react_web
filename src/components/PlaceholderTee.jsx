@@ -1,7 +1,7 @@
 import { CURRENT_DROP } from '../config/campaign.js';
+import { PLACEHOLDER_IMAGE } from '../config/commerce.js';
 import '../styles/components/placeholder-tee.css';
 
-const UNRELEASED_MOCKUP = '/products/placeholder-unreleased.webp';
 
 function PlaceholderTee({
   title = '',
@@ -16,7 +16,7 @@ function PlaceholderTee({
       className={`placeholder-tee${compact ? ' placeholder-tee--compact' : ''}`}
     >
       <img
-        src={UNRELEASED_MOCKUP}
+        src={PLACEHOLDER_IMAGE}
         alt=""
         width="1254"
         height="1254"

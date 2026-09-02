@@ -1,4 +1,6 @@
-const PRELOAD_RELOAD_KEY = 'rocky-preload-reload';
+import { STORAGE_KEYS } from './config/storageKeys.js';
+
+const PRELOAD_RELOAD_KEY = STORAGE_KEYS.preloadReload;
 const BOOT_STABILITY_MS = 10_000;
 
 export function recoverFromPreloadError(

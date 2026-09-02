@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router';
 import streetWall from '../data/streetWall';
 import { INSTAGRAM_HANDLE, INSTAGRAM_URL } from '../config/links';
+import { between } from '../utils/math.js';
+import { prefersReducedMotion } from '../utils/media.js';
 import fotografoAgachado from '../images/optimized/shell/fotografo-agachado.webp';
 import dianaJefe from '../images/optimized/splash/diana-jefe.webp';
 import '../styles/components/street-wall.css';
@@ -27,14 +29,6 @@ const CHISPAZO =
   '37.2,47.6 6.1,56.2 41.2,69.4 25.3,96.0 52.0,82.6 53.9,117.7 66.0,79.1 ' +
   '96.2,91.5 83.4,68.8';
 
-function matches(query) {
-  return globalThis.matchMedia?.(query).matches ?? false;
-}
-
-function between([min, max]) {
-  return min + Math.random() * (max - min);
-}
-
 // Muro de fotos tipo pared de habitación: polaroids pegadas con celo,
 // en blanco y negro, con pies de foto en rotulador.
 function StreetWall() {
@@ -52,7 +46,7 @@ function StreetWall() {
     if (!figura) return undefined;
     // Un fogonazo a pantalla completa es justo lo que pide evitar quien
     // activa el movimiento reducido.
-    if (matches('(prefers-reduced-motion: reduce)')) return undefined;
+    if (prefersReducedMotion()) return undefined;
     if (typeof IntersectionObserver !== 'function') return undefined;
 
     let aTiro = false;

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { INSTAGRAM_URL } from '../config/links';
+import { REDUCED_MOTION, prefersReducedMotion } from '../utils/media.js';
 import '../styles/components/ticker.css';
 import '../styles/components/footer.css';
 
@@ -19,12 +20,6 @@ const TICKER_ITEMS = [
   'CUANDO VUELAN, VUELAN',
 ];
 
-const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
-
-function matches(query) {
-  return globalThis.matchMedia?.(query).matches ?? false;
-}
-
 const Footer = () => {
   const year = new Date().getFullYear();
   const tickerRef = useRef(null);
@@ -32,7 +27,7 @@ const Footer = () => {
 
   useEffect(() => {
     const ticker = tickerRef.current;
-    if (!ticker || matches(REDUCED_MOTION)) return undefined;
+    if (!ticker || prefersReducedMotion()) return undefined;
 
     if (typeof IntersectionObserver !== 'function') {
       setLataAnimada(true);

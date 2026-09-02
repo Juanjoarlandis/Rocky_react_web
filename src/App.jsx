@@ -15,6 +15,8 @@ import demoCatalog from './data/demoCatalog.json';
 import previewProducts from '../server/preview-products.mjs';
 import { normalizeDemoCatalog } from './shopify/normalize';
 import { useStorefront } from './shopify/useStorefront';
+import { STORAGE_KEYS } from './config/storageKeys.js';
+import { readStorage, writeStorage } from './utils/storage.js';
 
 // Páginas cargadas bajo demanda
 const ProductDetail = React.lazy(() => import('./components/ProductDetail'));
@@ -25,12 +27,13 @@ const Studio = React.lazy(() => import('./components/Studio'));
 const Crew = React.lazy(() => import('./components/Crew'));
 const CrewProfile = React.lazy(() => import('./components/CrewProfile'));
 
-const SPLASH_KEY = 'rocky-splash-seen';
 const SPLASH_MS = 3000;
 const DEMO_CATALOG = Object.freeze([...normalizeDemoCatalog(demoCatalog), ...previewProducts]);
 
 function App() {
-  const [showSplash, setShowSplash] = useState(() => !sessionStorage.getItem(SPLASH_KEY));
+  const [showSplash, setShowSplash] = useState(
+    () => !readStorage(STORAGE_KEYS.splashSeen, { kind: 'session' })
+  );
   const commerce = useStorefront({
     demoProducts: DEMO_CATALOG,
   });
@@ -58,7 +61,7 @@ function App() {
   useEffect(() => {
     if (!showSplash) return;
     const timer = setTimeout(() => {
-      sessionStorage.setItem(SPLASH_KEY, '1');
+      writeStorage(STORAGE_KEYS.splashSeen, '1', { kind: 'session' });
       setShowSplash(false);
     }, SPLASH_MS);
     return () => clearTimeout(timer);
@@ -176,6 +179,7 @@ function App() {
                     account={commerce.account}
                     onLogout={commerce.logout}
                     onAvatarChange={commerce.updateCrewAvatar}
+                    crewProfile={commerce.crewProfile}
                   />
                 }
               />

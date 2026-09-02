@@ -4,6 +4,8 @@ import '../styles/components/navbar.css';
 
 import { getCrewAvatarImage } from '../data/crewAvatarImages.js';
 import { useLockBodyScroll } from '../hooks/useLockBodyScroll.js';
+import { DEFAULT_AVATAR_ID } from '../config/commerce.js';
+import { ROUTES, accountLoginUrl } from '../config/routes.js';
 import { alternaTema, temaActual } from '../utils/theme.js';
 import logo from '../images/Rockypng.png';
 import cartIcon from '../images/optimized/shell/cart-96.webp';
@@ -51,11 +53,11 @@ const MenuIcon = ({ open }) => (
 );
 
 const DESTINATIONS = [
-  { to: '/', label: 'Tienda', end: true },
-  { to: '/menudrop', label: 'Drops' },
-  { to: '/estudio', label: 'Estudio' },
-  { to: '/crew', label: 'Crew' },
-  { to: '/rockyIA', label: 'Rocky IA' },
+  { to: ROUTES.home, label: 'Tienda', end: true },
+  { to: ROUTES.drops, label: 'Drops' },
+  { to: ROUTES.studio, label: 'Estudio' },
+  { to: ROUTES.crew, label: 'Crew' },
+  { to: ROUTES.chat, label: 'Rocky IA' },
 ];
 
 // react-router marca el destino actual con `active`; aquí se traduce al
@@ -75,7 +77,7 @@ function AccountEntry({ accountEnabled, account, crewAvatarId, className, onNavi
   if (accountEnabled && account.loggedIn) {
     return (
       <NavLink
-        to="/mi-crew"
+        to={ROUTES.myCrew}
         className={({ isActive }) =>
           `${className} navbar-account--avatar${isActive ? ' is-active' : ''}`
         }
@@ -96,13 +98,13 @@ function AccountEntry({ accountEnabled, account, crewAvatarId, className, onNavi
   }
   if (accountEnabled) {
     return (
-      <a href="/api/shopify/account/login?returnPath=%2Fmi-crew" className={className}>
+      <a href={accountLoginUrl(ROUTES.myCrew)} className={className}>
         Mi Crew
       </a>
     );
   }
   return (
-    <NavLink to="/mi-crew" className={className} onClick={onNavigate}>
+    <NavLink to={ROUTES.myCrew} className={className} onClick={onNavigate}>
       Mi Crew
     </NavLink>
   );
@@ -112,7 +114,7 @@ const NavBar = ({
   totalItems,
   accountEnabled = false,
   account = { loggedIn: false, customer: null },
-  crewAvatarId = 'skater-head',
+  crewAvatarId = DEFAULT_AVATAR_ID,
 }) => {
   // El primer valor sale del <html> que dejó preparado index.html.
   const [tema, setTema] = useState(temaActual);
@@ -188,7 +190,7 @@ const NavBar = ({
     <>
       <header className={`navbar${menuOpen ? ' navbar--menu-open' : ''}`}>
         <div className="navbar-inner">
-          <Link to="/" className="navbar-brand" aria-label="Inicio">
+          <Link to={ROUTES.home} className="navbar-brand" aria-label="Inicio">
             <img
               src={logo}
               width="831"
@@ -212,7 +214,7 @@ const NavBar = ({
             />
           </nav>
           <div className="navbar-tools">
-            <NavLink to="/cart" className="navbar-cart" aria-label={cartLabel(totalItems)}>
+            <NavLink to={ROUTES.cart} className="navbar-cart" aria-label={cartLabel(totalItems)}>
               <img
                 src={cartIcon}
                 width="96"

@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 // no hay que voltearlo.
 import corriendoBolsa from '../images/optimized/characters/corriendo-bolsa-600.webp';
 import '../styles/components/cart-runner.css';
+import { clamp } from '../utils/math.js';
+import { prefersReducedMotion } from '../utils/media.js';
 
 const ART = Object.freeze({ width: 589, height: 600 });
 
@@ -20,14 +22,6 @@ const MARGEN_SALIDA = 24;
 const HUECO_BARRA = 10;
 // Trastos fijos de la esquina de arriba por los que no debe pasar por encima.
 const ESTORBOS = '.mini-player';
-
-function clamp(value, min, max) {
-  return Math.min(Math.max(value, min), max);
-}
-
-function matches(query) {
-  return globalThis.matchMedia?.(query).matches ?? false;
-}
 
 /* Cuánto mide a este ancho de ventana, respetando la proporción del dibujo. */
 export function medidas(anchoVentana) {
@@ -83,7 +77,7 @@ export default function CartRunner({ runId = 0, disabled = false }) {
     if (!runId || disabled) return undefined;
     // Con el movimiento reducido no hay carrera: el gesto ES el recorrido,
     // así que sin recorrido no queda nada que enseñar.
-    if (matches('(prefers-reduced-motion: reduce)')) return undefined;
+    if (prefersReducedMotion()) return undefined;
     // En una pestaña de fondo no se vería, y volvería a saltar al enfocarla.
     if (document.hidden) return undefined;
 

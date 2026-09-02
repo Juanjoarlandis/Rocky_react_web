@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { equipCrewReward, getCrewProfile, redeemCrewReward } from '../shopify/api.js';
+import { equipCrewReward, redeemCrewReward } from '../shopify/api.js';
+import { useCrewProfile } from '../shopify/useCrewProfile.js';
 import { CREW } from '../data/crew.js';
 import { getCrewAvatarImage } from '../data/crewAvatarImages.js';
+import { ROUTES, accountLoginUrl } from '../config/routes.js';
 import larguiruchoEsquina from '../images/optimized/characters/larguirucho-esquina-600.webp';
 import { CrewCard } from './Crew.jsx';
 import '../styles/pages/crew-profile.css';
@@ -58,10 +60,7 @@ function CrewGate({ accountEnabled }) {
             Tickets se gastan; tu nivel se queda contigo.
           </p>
           {accountEnabled ? (
-            <a
-              className="btn btn--primary crew-gate-button"
-              href="/api/shopify/account/login?returnPath=%2Fmi-crew"
-            >
+            <a className="btn btn--primary crew-gate-button" href={accountLoginUrl(ROUTES.myCrew)}>
               Entrar en la Crew
             </a>
           ) : (
@@ -218,38 +217,22 @@ export default function CrewProfile({
   account = { loggedIn: false, customer: null },
   onLogout,
   onAvatarChange,
+  crewProfile: sharedProfile = null,
 }) {
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(false);
   const [busyRewardId, setBusyRewardId] = useState('');
   const [error, setError] = useState('');
 
   const isLoggedIn = accountEnabled && account.loggedIn;
 
+  /* El perfil lo trae la tienda (un solo fetch por sesión); si nadie lo pasa,
+     esta página lo pide ella misma. */
+  const ownProfile = useCrewProfile({ enabled: isLoggedIn && !sharedProfile });
+  const crew = sharedProfile ?? ownProfile;
+  const { profile, loading } = crew;
+
   useEffect(() => {
-    if (!isLoggedIn) {
-      setProfile(null);
-      return undefined;
-    }
-    let active = true;
-    setLoading(true);
-    setError('');
-    getCrewProfile()
-      .then((response) => {
-        if (!active) return;
-        setProfile(response.profile);
-        onAvatarChange?.(response.profile.equippedAvatarId);
-      })
-      .catch((requestError) => {
-        if (active) setError(errorText(requestError));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [isLoggedIn, onAvatarChange]);
+    if (profile?.equippedAvatarId) onAvatarChange?.(profile.equippedAvatarId);
+  }, [profile?.equippedAvatarId, onAvatarChange]);
 
   const currentAvatar = useMemo(
     () => profile?.rewards.find((reward) => reward.id === profile.equippedAvatarId),
@@ -261,8 +244,7 @@ export default function CrewProfile({
     setError('');
     try {
       const response = await action();
-      setProfile(response.profile);
-      onAvatarChange?.(response.profile.equippedAvatarId);
+      crew.applyProfile(response.profile);
     } catch (requestError) {
       setError(errorText(requestError));
     } finally {
@@ -285,7 +267,7 @@ export default function CrewProfile({
     return (
       <section className="crew-profile-page crew-profile-loading" aria-live="polite">
         <span className="crew-loading-mark">035</span>
-        <p>{error || 'Abriendo tu taquilla de la Crew…'}</p>
+        <p>{error || crew.error || 'Abriendo tu taquilla de la Crew…'}</p>
       </section>
     );
   }
