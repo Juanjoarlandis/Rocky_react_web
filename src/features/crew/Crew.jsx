@@ -233,6 +233,8 @@ export function CrewCard({
                             más fuerte que nadie, que para eso es lo suyo. */}
             <img
               src={miembro.img}
+              width={miembro.imgWidth}
+              height={miembro.imgHeight}
               alt=""
               loading="lazy"
               className={`neon-art al-ritmo${miembro.id === 'productor' ? ' al-ritmo--fuerte' : ''}`}

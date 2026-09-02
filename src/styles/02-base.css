@@ -66,8 +66,11 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  /* Con width/height en el HTML, la altura sigue a la anchura que ponga el
+     CSS: el atributo sólo reserva sitio mientras carga. */
   img {
     max-width: 100%;
+    height: auto;
   }
 
   /* Los encabezados van en la display, que sólo tiene un peso: sin negrita
