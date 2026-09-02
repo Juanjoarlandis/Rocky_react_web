@@ -6,7 +6,7 @@ import App from './App.jsx';
 /* La tienda se simula: App se prueba como armazón (splash, navbar, muñecos),
    sin fetch a /api/shopify/status en jsdom. */
 const useStorefront = vi.hoisted(() => vi.fn());
-vi.mock('./shopify/useStorefront', () => ({ useStorefront }));
+vi.mock('./features/storefront/useStorefront', () => ({ useStorefront }));
 
 function storefront(overrides = {}) {
   return {

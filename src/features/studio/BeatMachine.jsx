@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { useMusic } from '../../context/MusicContext';
+import { useMusic } from '../music/MusicContext';
 import { IconPlay, IconPause } from '../../components/icons/PlayerIcons';
 import BeatPads from './BeatPads';
 import { createEngine } from '../../audio/engine';

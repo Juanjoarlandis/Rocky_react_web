@@ -5,7 +5,7 @@ import App from './App.jsx';
 
 const useStorefront = vi.hoisted(() => vi.fn());
 
-vi.mock('./shopify/useStorefront', () => ({ useStorefront }));
+vi.mock('./features/storefront/useStorefront', () => ({ useStorefront }));
 
 beforeEach(() => {
   sessionStorage.setItem('rocky-splash-seen', '1');

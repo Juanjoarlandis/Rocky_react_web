@@ -4,17 +4,13 @@ import { describe, expect, it } from 'vitest';
 // Los SVG inline se tiñen con los tokens del tema: un hex incrustado se
 // quedaría del color de día en el modo neón (html[data-theme='neon']).
 const SVG_SOURCES = [
-  'src/components/Boombox.jsx',
-  'src/components/BrandDoodles.jsx',
-  'src/components/EyeIcon.jsx',
-  'src/components/Studio.jsx',
-  'src/components/BeatMachine.jsx',
-  'src/components/BeatPads.jsx',
+  'src/features/music/Boombox.jsx',
+  'src/components/doodles/CrosshairSpinner.jsx',
+  'src/components/icons/EyeIcon.jsx',
+  'src/features/studio/Studio.jsx',
   'src/features/studio/BeatMachine.jsx',
   'src/features/studio/BeatPads.jsx',
   'src/components/icons/PlayerIcons.jsx',
-  'src/components/icons/EyeIcon.jsx',
-  'src/components/doodles/CrosshairSpinner.jsx',
   'src/components/doodles/BeeDoodle.jsx',
   'src/components/doodles/ColmenaSticker.jsx',
   'src/components/doodles/EpCover.jsx',

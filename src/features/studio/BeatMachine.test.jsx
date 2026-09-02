@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import BeatMachine from './BeatMachine.jsx';
-import { MusicProvider } from '../../context/MusicContext.jsx';
+import { MusicProvider } from '../music/MusicContext.jsx';
 import { PAD_TECLAS, TRACKS } from '../../data/mesa';
 import { STEP_COUNT } from '../../utils/beatCodec';
 
