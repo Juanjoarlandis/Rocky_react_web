@@ -165,6 +165,9 @@
     margin: 0;
     padding: 10px 10px 8px;
     background-color: #fff;
+    /* La polaroid es blanca hasta de noche, así que el rotulador del pie va
+       en tinta a fuego y no con var(--ink), que en neón se vuelve luz. */
+    color: #1a1a1a;
     border: 2px solid var(--ink);
     box-shadow: var(--shadow-ink);
     width: clamp(200px, 26vw, 260px);
@@ -218,7 +221,9 @@
     font-family: var(--font-hand);
     font-size: 1.02rem;
     text-align: center;
-    color: var(--ink-soft);
+    /* Rotulador a fuego, como el marco: la polaroid sigue blanca de noche
+       y var(--ink-soft) se volvería luz sobre luz. */
+    color: #3a3a3a;
 }
 
 .street-wall-cta {

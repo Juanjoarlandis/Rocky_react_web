@@ -105,7 +105,7 @@
 
 /* Álbum completo: el marcador se viste de gala */
 .crew-marcador.completo {
-    background-color: var(--ink);
+    background-color: var(--ink-block);
     background-image: var(--spray-speckle);
     color: #fff;
     transform: rotate(-0.8deg);
@@ -192,8 +192,8 @@
     align-items: baseline;
     gap: 12px;
     padding: 7px 22px 9px;
-    background-color: var(--ink);
-    color: var(--paper);
+    background-color: var(--ink-block);
+    color: var(--ink-block-text);
     font-family: var(--font-display);
     font-size: 1.35rem;
     text-transform: uppercase;
@@ -395,8 +395,10 @@
 }
 
 .rareza-legendaria {
-    border-color: var(--ink);
-    color: var(--ink);
+    /* Tinta a fuego y no var(--ink): sobre el dorado hace falta trazo oscuro
+       también de noche. */
+    border-color: #1a1a1a;
+    color: #1a1a1a;
     background-color: #f4b942;
 }
 
@@ -679,7 +681,7 @@
 /* ---------- Cromo especial: LOS FUNDADORES ---------- */
 
 .crew-card.especial .crew-card-face {
-    background-color: var(--ink);
+    background-color: var(--ink-block);
     background-image: var(--spray-speckle);
     color: #fff;
 }
@@ -915,4 +917,38 @@
         transform-origin: bottom left;
         margin-right: -14px;
     }
+}
+
+/* ---------- Modo neón ----------
+   El álbum de noche: los cromos beben de las variables; aquí sólo cambian
+   la vitrina, el celo y las tramas de puntos que iban en tinta. */
+
+html[data-theme='neon'] .crew-vitrina-marco {
+    background-color: rgba(237, 241, 255, 0.02);
+    background-image: radial-gradient(circle, rgba(237, 241, 255, 0.07) 1.2px, transparent 1.2px);
+}
+
+/* El celo, visto a contraluz. */
+html[data-theme='neon'] .crew-vitrina-marco::before,
+html[data-theme='neon'] .crew-vitrina-marco::after {
+    background-color: rgba(237, 241, 255, 0.14);
+    border-color: rgba(237, 241, 255, 0.22);
+}
+
+html[data-theme='neon'] .crew-card-media {
+    background-image: radial-gradient(circle, rgba(237, 241, 255, 0.08) 1.1px, transparent 1.1px);
+}
+
+/* Las sombras de las cintas, del rojo/azul de día al rosa/cian de noche. */
+html[data-theme='neon'] .lamina-cinta {
+    box-shadow: 4px 4px 0 rgba(255, 46, 196, 0.75);
+}
+
+html[data-theme='neon'] .crew-lamina:nth-child(2n) .lamina-cinta {
+    box-shadow: 4px 4px 0 rgba(41, 229, 255, 0.75);
+}
+
+/* Sobre el rosa eléctrico el blanco se queda corto: tinta de noche. */
+html[data-theme='neon'] .rareza-la-marca {
+    color: #16041f;
 }

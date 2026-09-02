@@ -14,11 +14,11 @@ const NotFound = () => {
                     height="1360"
                     decoding="async"
                     alt="Personaje ROCKY perdido, consultando un mapa"
-                    className="notfound-image al-ritmo"
+                    className="notfound-image neon-art al-ritmo"
                     style={{ '--fase': '0.25' }}
                 />
                 {/* El perro de la banda, que sí sabe volver */}
-                <img src={perroRocky} alt="" className="notfound-dog al-ritmo" style={{ '--fase': '0.75' }} />
+                <img src={perroRocky} alt="" className="notfound-dog neon-art al-ritmo" style={{ '--fase': '0.75' }} />
             </div>
             <h1 className="notfound-title">Te has salido del mapa</h1>
             <p className="notfound-text">La página que buscas no existe.</p>

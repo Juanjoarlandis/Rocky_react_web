@@ -647,7 +647,7 @@ export default function CuriousPeeker({ pathname, disabled = false }) {
       >
         <span className="curious-peeker-mirror">
           <img
-            className="curious-peeker-art"
+            className="curious-peeker-art neon-art"
             src={art.src}
             width={art.width}
             height={art.height}

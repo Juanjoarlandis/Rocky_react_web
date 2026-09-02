@@ -66,7 +66,7 @@
     min-height: 92px;
     padding: 14px 24px 14px 20px;
     border-bottom: 3px solid var(--ink);
-    background-color: var(--ink);
+    background-color: var(--ink-block);
     background-image: var(--spray-speckle);
     color: #fff;
 }
@@ -288,7 +288,7 @@
 
 .chat-quick-prompts button:hover:not(:disabled),
 .chat-quick-prompts button:focus-visible {
-    background: var(--ink);
+    background: var(--ink-block);
     color: #fff;
     transform: translateY(-2px) rotate(-1deg);
 }
@@ -361,7 +361,7 @@
 
 .chat-message.user .chat-bubble {
     border-radius: 15px 8px 13px 12px;
-    background: var(--ink);
+    background: var(--ink-block);
     color: #fff;
 }
 
@@ -667,7 +667,7 @@
 
 .chat-send:hover:not(:disabled),
 .chat-send:focus-visible {
-    background: var(--ink);
+    background: var(--ink-block);
     transform: translate(-1px, -1px);
     box-shadow: 4px 4px 0 var(--accent);
 }
@@ -875,4 +875,75 @@
         animation: none;
         transition: none;
     }
+}
+
+/* ---------- Modo neón ----------
+   La tarjeta y las burbujas ya beben de las variables; aquí sólo se pisan
+   los blancos y cremas que iban a fuego. */
+
+/* El velo del papel pasa a velo de asfalto, con la retícula en claro. */
+html[data-theme='neon'] .chat-messages {
+    background-image:
+        linear-gradient(rgba(12, 9, 23, 0.87), rgba(12, 9, 23, 0.87)),
+        var(--spray-speckle),
+        radial-gradient(circle, rgba(237, 241, 255, 0.1) 1px, transparent 1.2px);
+}
+
+html[data-theme='neon'] .chat-header-avatar {
+    border-color: var(--line);
+    background: var(--card);
+}
+
+html[data-theme='neon'] .chat-header-kicker {
+    color: var(--muted);
+}
+
+html[data-theme='neon'] .chat-welcome {
+    background: rgba(23, 17, 41, 0.94);
+}
+
+html[data-theme='neon'] .chat-welcome::before {
+    color: rgba(255, 46, 196, 0.18);
+}
+
+html[data-theme='neon'] .chat-avatar {
+    background: var(--card);
+}
+
+html[data-theme='neon'] .chat-message.error .chat-bubble {
+    background: #2a0e14;
+    color: #ffc9d2;
+}
+
+html[data-theme='neon'] .chat-product-media {
+    background: #1d1631;
+}
+
+/* Los tres estados de stock, en su versión letrero. */
+html[data-theme='neon'] .chat-product-facts .is-available {
+    color: #52f5a0;
+    background: #0e2a1b;
+}
+
+html[data-theme='neon'] .chat-product-facts .is-sold-out {
+    color: #ff9aad;
+    background: #2a0e14;
+}
+
+html[data-theme='neon'] .chat-product-facts .is-preview {
+    color: #7cc4ff;
+    background: #0e1f33;
+}
+
+html[data-theme='neon'] .chat-input-wrap textarea::placeholder {
+    color: var(--muted);
+}
+
+html[data-theme='neon'] .chat-input-mark {
+    color: rgba(237, 241, 255, 0.22);
+}
+
+/* Sobre el rosa eléctrico el blanco se queda corto: tinta de noche. */
+html[data-theme='neon'] .chat-send {
+    color: #16041f;
 }

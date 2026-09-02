@@ -112,7 +112,7 @@ function ChatComponent({
                     height="1598"
                     decoding="async"
                     alt=""
-                    className="chat-lean al-ritmo"
+                    className="chat-lean neon-art al-ritmo"
                     style={{ '--fase': '0.5' }}
                 />
 
@@ -120,7 +120,7 @@ function ChatComponent({
                     <header className="chat-header">
                         <div className="chat-header-identity">
                             <div className="chat-header-avatar-wrap">
-                                <img src={botLogo} alt="" className="chat-header-avatar" />
+                                <img src={botLogo} alt="" className="chat-header-avatar neon-art--icon" />
                                 <span className="chat-online-dot" aria-hidden="true" />
                             </div>
                             <div>
@@ -155,7 +155,7 @@ function ChatComponent({
                                     height="1187"
                                     decoding="async"
                                     alt=""
-                                    className="chat-welcome-doodle al-ritmo"
+                                    className="chat-welcome-doodle neon-art al-ritmo"
                                     style={{ '--fase': '0.9' }}
                                 />
                                 <div className="chat-welcome">
@@ -200,7 +200,7 @@ function ChatComponent({
                                     <img
                                         src={message.sender === 'user' ? userLogo : botLogo}
                                         alt=""
-                                        className="chat-avatar"
+                                        className="chat-avatar neon-art--icon"
                                     />
                                     <p className="chat-bubble">{message.content}</p>
                                 </div>
@@ -227,7 +227,7 @@ function ChatComponent({
                         {isLoading && (
                             <div className="chat-turn ai">
                                 <div className="chat-message ai">
-                                    <img src={botLogo} alt="" className="chat-avatar" />
+                                    <img src={botLogo} alt="" className="chat-avatar neon-art--icon" />
                                     <p
                                         className="chat-bubble chat-typing"
                                         aria-label="Rocky IA está buscando y escribiendo"

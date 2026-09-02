@@ -590,3 +590,9 @@
         display: none;
     }
 }
+
+/* Modo neón: la flecha rosa no contrasta sobre el botón de tinta clara;
+   dentro del CTA va del color del propio botón. */
+html[data-theme='neon'] .product-page-hero-cta-arrow {
+    color: inherit;
+}

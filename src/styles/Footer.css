@@ -3,7 +3,7 @@
     margin-top: 64px;
     margin-left: -10px;
     margin-right: -10px;
-    background-color: var(--ink);
+    background-color: var(--ink-block);
     background-image: var(--spray-speckle);
     color: #fff;
     overflow: visible;
@@ -124,7 +124,7 @@
 
 .footer {
     position: relative;
-    background-color: var(--ink);
+    background-color: var(--ink-block);
     background-image: var(--spray-speckle);
     color: #fff;
     padding: 16px;
@@ -256,4 +256,42 @@
     .ticker-lata {
         --lata-patrulla: 42s;
     }
+}
+
+/* ---------- Modo neón ----------
+   La marquesina y el footer ya eran de noche: aquí sólo se les da corriente.
+   El fondo lo pone --ink-block (morado hondo) desde index.css. */
+
+html[data-theme='neon'] .ticker {
+    /* Los bordes de tinta, que de día se fundían con el fondo, de noche son
+       el canto iluminado del rótulo. */
+    box-shadow: 0 4px 0 rgba(0, 0, 0, 0.45), 0 0 26px rgba(255, 46, 196, 0.2);
+}
+
+html[data-theme='neon'] .ticker-track span {
+    color: #fff;
+    text-shadow: 0 0 10px rgba(41, 229, 255, 0.55);
+}
+
+html[data-theme='neon'] .footer-katakana {
+    color: rgba(41, 229, 255, 0.6);
+    text-shadow: 0 0 12px rgba(41, 229, 255, 0.4);
+}
+
+html[data-theme='neon'] .footer-inner {
+    border-color: rgba(41, 229, 255, 0.5);
+    box-shadow: 0 0 22px rgba(41, 229, 255, 0.12) inset;
+}
+
+html[data-theme='neon'] .footer-social {
+    border-color: rgba(255, 46, 196, 0.6);
+    box-shadow: 0 0 14px rgba(255, 46, 196, 0.18);
+}
+
+html[data-theme='neon'] .footer-social:hover {
+    background-color: rgba(255, 46, 196, 0.14);
+}
+
+html[data-theme='neon'] .footer-legal {
+    color: var(--muted);
 }

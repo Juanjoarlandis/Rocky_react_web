@@ -63,7 +63,7 @@ export default function DropAviso({ producto }) {
                     loading="lazy"
                     decoding="async"
                     alt=""
-                    className="drop-aviso-recadero"
+                    className="drop-aviso-recadero neon-art"
                 />
                 <p className="drop-aviso-sello">Recado apuntado</p>
                 <p className="drop-aviso-nota">

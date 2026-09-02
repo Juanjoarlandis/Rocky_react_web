@@ -41,10 +41,28 @@ function renderWall() {
   );
 }
 
+function observerWatching(className) {
+  return observers.find((observer) =>
+    observer.observed.some((target) => target.classList.contains(className))
+  );
+}
+
 function encuadra(visible) {
+  const observer = observerWatching('street-photographer');
   act(() => {
-    observers[0].callback([{ isIntersecting: visible }], observers[0]);
+    observer.callback([{ isIntersecting: visible }], observer);
   });
+}
+
+function acercaElMuro() {
+  const observer = observerWatching('street-wall-grid');
+  act(() => {
+    observer.callback([{ isIntersecting: true }], observer);
+  });
+}
+
+function wallImages(container) {
+  return [...container.querySelectorAll('.street-photo img')];
 }
 
 function advance(ms) {
@@ -67,12 +85,49 @@ describe('StreetWall: el disparo del Paparazzi', () => {
     vi.unstubAllGlobals();
   });
 
-  it('vigila al fotógrafo, y sólo a él', () => {
+  it('separa la vigilancia del fotógrafo de la carga de las fotos', () => {
     renderWall();
 
-    expect(observers).toHaveLength(1);
-    expect(observers[0].observed).toHaveLength(1);
-    expect(observers[0].observed[0].className).toContain('street-photographer');
+    expect(observers).toHaveLength(2);
+
+    const paparazzi = observerWatching('street-photographer');
+    expect(paparazzi.observed).toHaveLength(1);
+    expect(paparazzi.options).toEqual({ threshold: 0.6 });
+
+    const recursos = observerWatching('street-wall-grid');
+    expect(recursos.observed).toHaveLength(1);
+    expect(recursos.options).toEqual({
+      rootMargin: '400px 0px',
+      threshold: 0,
+    });
+  });
+
+  it('no solicita las fotos del muro durante la carga inicial', () => {
+    const { container } = renderWall();
+
+    for (const image of wallImages(container)) {
+      expect(image).not.toHaveAttribute('src');
+      expect(image).toHaveAttribute('alt', '');
+    }
+  });
+
+  it('solicita las fotos al acercarse y deja de observar', () => {
+    const { container } = renderWall();
+    acercaElMuro();
+
+    const images = wallImages(container);
+    expect(images[0]).toHaveAttribute('src', '/products/rockydz-boyz.webp');
+    expect(images[1]).toHaveAttribute('src', '/products/rocky-racing.webp');
+    expect(images[2]).toHaveAttribute('src', '/products/rocky35-camel.webp');
+    expect(images.every((image) => image.getAttribute('alt'))).toBe(true);
+    expect(observerWatching('street-wall-grid').disconnected).toBe(true);
+  });
+
+  it('carga las fotos normalmente si IntersectionObserver no existe', () => {
+    vi.stubGlobal('IntersectionObserver', undefined);
+    const { container } = renderWall();
+
+    expect(wallImages(container).every((image) => image.getAttribute('src'))).toBe(true);
   });
 
   it('no dispara mientras el muro no está a tiro', () => {
@@ -108,7 +163,7 @@ describe('StreetWall: el disparo del Paparazzi', () => {
 
   it('el fogonazo nace en el objetivo de la cámara, no en el centro', () => {
     renderWall();
-    const figura = observers[0].observed[0];
+    const figura = observerWatching('street-photographer').observed[0];
     figura.getBoundingClientRect = () => ({
       left: 1000,
       top: 300,
@@ -140,9 +195,10 @@ describe('StreetWall: el disparo del Paparazzi', () => {
     renderWall();
     // Un scroll rápido puede llegar como dos cruces en la misma llamada.
     act(() => {
-      observers[0].callback(
+      const observer = observerWatching('street-photographer');
+      observer.callback(
         [{ isIntersecting: false }, { isIntersecting: true }],
-        observers[0]
+        observer
       );
     });
 
@@ -160,8 +216,9 @@ describe('StreetWall: el disparo del Paparazzi', () => {
 
     renderWall();
 
-    // Ni siquiera se pone a vigilar: sin disparo no hay nada que observar.
-    expect(observers).toHaveLength(0);
+    // El paparazzi se apaga, pero las fotos del muro siguen cargando cerca.
+    expect(observerWatching('street-photographer')).toBeUndefined();
+    expect(observerWatching('street-wall-grid')).toBeDefined();
     advance(ENTRE_MAX);
     expect(screen.queryByTestId('paparazzi-flash')).toBeNull();
   });
@@ -171,7 +228,7 @@ describe('StreetWall: el disparo del Paparazzi', () => {
     encuadra(true);
     unmount();
 
-    expect(observers[0].disconnected).toBe(true);
+    expect(observers.every((observer) => observer.disconnected)).toBe(true);
     // Si quedara un timer vivo dispararía sobre un componente desmontado.
     expect(vi.getTimerCount()).toBe(0);
   });

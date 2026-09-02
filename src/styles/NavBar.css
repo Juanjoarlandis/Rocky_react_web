@@ -239,3 +239,55 @@
         padding: 1px;
     }
 }
+
+/* ---------- El interruptor del neón ---------- */
+
+.navbar-theme {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    flex: 0 0 auto;
+    padding: 4px;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+    transition: transform 0.15s ease, color 0.2s ease;
+}
+
+.navbar-theme:hover {
+    transform: rotate(-6deg) scale(1.1);
+}
+
+.navbar-theme:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: var(--wobble-sm);
+}
+
+/* Los rayitos duermen hasta que alguien da al interruptor. */
+.navbar-theme-rays {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.navbar-theme--on {
+    color: #ffd60a;
+    filter: drop-shadow(0 0 7px rgba(255, 214, 10, 0.55));
+}
+
+.navbar-theme--on .navbar-theme-rays {
+    opacity: 1;
+}
+
+/* ---------- Modo neón ---------- */
+
+/* El beige translúcido va cosido a fuego arriba, así que de noche se pisa:
+   mismo truco de cristal esmerilado, pero de asfalto. */
+html[data-theme='neon'] .navbar {
+    background-color: rgba(12, 9, 23, 0.92);
+    box-shadow: 0 1px 0 rgba(41, 229, 255, 0.35),
+        0 4px 22px rgba(255, 46, 196, 0.14);
+}

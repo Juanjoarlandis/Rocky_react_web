@@ -38,7 +38,9 @@ function between([min, max]) {
 // en blanco y negro, con pies de foto en rotulador.
 function StreetWall() {
     const figuraRef = useRef(null);
+    const wallGridRef = useRef(null);
     const [disparo, setDisparo] = useState(null);
+    const [wallImagesReady, setWallImagesReady] = useState(false);
 
     /* La sesión de fotos: cuando el fotógrafo entra en pantalla arma el
        disparo, y cada foto es un chispazo en la cámara más un fogonazo que
@@ -100,6 +102,32 @@ function StreetWall() {
         };
     }, []);
 
+    /* El lazy loading nativo descarga imágenes demasiado alejadas para este
+       muro. Las activamos con margen suficiente para que lleguen antes del
+       scroll, pero fuera de la carga inicial de la portada. */
+    useEffect(() => {
+        const grid = wallGridRef.current;
+        if (!grid) return undefined;
+
+        if (typeof IntersectionObserver !== 'function') {
+            setWallImagesReady(true);
+            return undefined;
+        }
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const entry = entries[entries.length - 1];
+                if (!entry?.isIntersecting) return;
+                setWallImagesReady(true);
+                observer.disconnect();
+            },
+            { rootMargin: '400px 0px', threshold: 0 },
+        );
+
+        observer.observe(grid);
+        return () => observer.disconnect();
+    }, []);
+
     if (!streetWall.length) return null;
 
     return (
@@ -123,6 +151,7 @@ function StreetWall() {
                         loading="lazy"
                         decoding="async"
                         alt=""
+                        className="neon-art"
                     />
                     {disparo && (
                         <span
@@ -178,12 +207,12 @@ function StreetWall() {
                         )}
                 </span>
             </div>
-            <div className="street-wall-grid">
+            <div className="street-wall-grid" ref={wallGridRef}>
                 {streetWall.map((photo) => (
                     <figure key={photo.src} className="street-photo">
                         <img
-                            src={photo.src}
-                            alt={photo.alt}
+                            src={wallImagesReady ? photo.src : undefined}
+                            alt={wallImagesReady ? photo.alt : ''}
                             loading="lazy"
                             decoding="async"
                         />
@@ -200,7 +229,7 @@ function StreetWall() {
                     loading="lazy"
                     decoding="async"
                     alt=""
-                    className="cta-diana al-ritmo"
+                    className="cta-diana neon-art al-ritmo"
                     style={{ '--fase': '0.45' }}
                 />
                 <Link to="/crew" className="btn btn-primary">

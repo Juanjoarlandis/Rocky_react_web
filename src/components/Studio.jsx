@@ -101,7 +101,7 @@ function Studio() {
             <div className="studio-player-wrap">
                 {/* El productor cabeza-hexágono vibra encima del radiocasete.
                     Cuando suena la radio cabecea el doble que nadie: es lo suyo. */}
-                <img src={auricularesSentado} alt="" className="studio-doodle al-ritmo al-ritmo--fuerte" style={{ '--fase': '0' }} />
+                <img src={auricularesSentado} alt="" className="studio-doodle neon-art al-ritmo al-ritmo--fuerte" style={{ '--fase': '0' }} />
                 <div className="studio-player">
                     <ColmenaSticker className="studio-sticker" />
                     <Boombox />
@@ -112,7 +112,7 @@ function Studio() {
                 <h2 className="studio-section-title">Setlist</h2>
                 <div className="setlist-frame">
                 {/* El Luna, de turno de noche, escucha con el móvil en cuclillas */}
-                <img src={lunaMovil} alt="" className="setlist-luna al-ritmo" style={{ '--fase': '0.65' }} />
+                <img src={lunaMovil} alt="" className="setlist-luna neon-art al-ritmo" style={{ '--fase': '0.65' }} />
                 <ol className="setlist-list">
                     {TRACKS.map((track, i) => {
                         const active = i === index;
@@ -147,7 +147,7 @@ function Studio() {
             <section className="mesa-section" aria-label="La mesa de beats">
                 <h2 className="studio-section-title">La mesa de beats</h2>
                 <p className="studio-subtitle mesa-subtitle">
-                    Deja tu ritmo en La Colmena. El Freeze lo baila.
+                    Ocho pistas, dieciséis pads y swing. Deja tu ritmo en La Colmena: El Freeze lo baila.
                 </p>
                 <BeatMachine />
             </section>
@@ -156,7 +156,7 @@ function Studio() {
                 <h2 className="studio-section-title">Escúchalo en serio</h2>
                 <div className="listen-wrap">
                     {/* El Tele viendo la tele que es él mismo, sentado en el reproductor */}
-                    <img src={teleSentado} alt="" className="listen-tele al-ritmo" style={{ '--fase': '0.95' }} />
+                    <img src={teleSentado} alt="" className="listen-tele neon-art al-ritmo" style={{ '--fase': '0.95' }} />
                     <div className="listen-card">
                         <iframe
                             title={`${ARTIST.name} en Spotify`}
@@ -169,7 +169,7 @@ function Studio() {
                         />
                     </div>
                     {/* Uno de la banda colgado del borde del reproductor */}
-                    <img src={colgadoBorde} alt="" className="listen-hanger al-ritmo" style={{ '--fase': '1.25' }} />
+                    <img src={colgadoBorde} alt="" className="listen-hanger neon-art al-ritmo" style={{ '--fase': '1.25' }} />
                 </div>
                 <div className="listen-links">
                     <a className="btn btn-primary" href={ARTIST.spotify} target="_blank" rel="noopener noreferrer">

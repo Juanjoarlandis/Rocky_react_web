@@ -44,7 +44,7 @@ function ProductPage({
                     height="350"
                     decoding="async"
                     alt=""
-                    className="product-empty-run al-ritmo"
+                    className="product-empty-run neon-art al-ritmo"
                     style={{ '--fase': '0.5' }}
                 />
                 <h1 className="page-title">Nada por aquí</h1>
@@ -86,7 +86,7 @@ function ProductPage({
                         <path
                             d="M2 6 Q 10 2 18 6 T 34 6 T 50 6 T 66 6 T 82 6 T 91 5"
                             fill="none"
-                            stroke="#e63946"
+                            stroke="var(--accent)"
                             strokeWidth="3"
                             strokeLinecap="round"
                             vectorEffect="non-scaling-stroke"
@@ -98,7 +98,7 @@ function ProductPage({
                         height="420"
                         decoding="async"
                         alt=""
-                        className="spray-guy"
+                        className="spray-guy neon-art"
                     />
                     {/* El chorro va aparte para poder moverlo: el personaje usa
                         la variante sin los puntos pintados encima. */}
@@ -114,7 +114,7 @@ function ProductPage({
                         height="350"
                         decoding="async"
                         alt=""
-                        className="spray-cruiser"
+                        className="spray-cruiser neon-art"
                     />
                 </div>
             </div>

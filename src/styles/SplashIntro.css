@@ -158,3 +158,10 @@
     to { opacity: 0; }
   }
 }
+
+/* Modo neón: el mismo cuaderno de noche que el body, en cian tenue. */
+html[data-theme='neon'] .splash-intro {
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'><g fill='none' stroke='%2329e5ff' stroke-opacity='0.06' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M38 30 L41 42 L53 45 L41 48 L38 60 L35 48 L23 45 L35 42 Z'/><g><circle cx='195' cy='72' r='10'/><path d='M181 72 L209 72 M195 58 L195 86'/></g><path d='M52 190 q12 -10 24 0 q10 8 22 0 l-6 -5 m6 5 l-8 4'/><path d='M200 175 l-8 16 h9 l-10 18'/></g></svg>"),
+    radial-gradient(circle, rgba(41, 229, 255, 0.09) 1.2px, transparent 1.2px);
+}

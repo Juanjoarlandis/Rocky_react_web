@@ -137,7 +137,7 @@
 
 /* El piloto se enciende con la música. Fijo, sin parpadeo: es un piloto. */
 .bb-art.playing .bb-luz {
-    fill: #e63946;
+    fill: var(--accent);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -219,7 +219,7 @@
 .player-btn-main {
     width: 66px;
     height: 66px;
-    background-color: var(--ink);
+    background-color: var(--ink-block);
     color: var(--card);
     transform: rotate(2deg);
 }

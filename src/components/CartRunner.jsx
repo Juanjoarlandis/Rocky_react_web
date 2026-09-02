@@ -137,7 +137,7 @@ export default function CartRunner({ runId = 0, disabled = false }) {
                 decoding="async"
                 draggable="false"
                 alt=""
-                className="cart-runner-art"
+                className="cart-runner-art neon-art"
             />
         </div>
     );

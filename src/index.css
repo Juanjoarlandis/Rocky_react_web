@@ -11,28 +11,6 @@
 }
 
 @font-face {
-  font-family: 'Patrick Hand';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('./fonts/patrick-hand-latin-400.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6,
-    U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
-    U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-
-@font-face {
-  font-family: 'Permanent Marker';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('./fonts/permanent-marker-latin-400.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6,
-    U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
-    U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-
-@font-face {
   font-family: 'Luckiest Guy';
   font-style: normal;
   font-weight: 400;
@@ -65,6 +43,12 @@
   --accent-dark: #c92f3c;
   --blue: #2f6fdb;
 
+  /* Bloques entintados (footer, marquesina, cabeceras…): de día son tinta
+     tal cual, de noche un morado más hondo que el asfalto. Así el texto
+     claro que llevan encima sobrevive al cambio de tema. */
+  --ink-block: #1a1a1a;
+  --ink-block-text: #faf7f0;
+
   /* Radios irregulares, como trazados a mano */
   --wobble-sm: 255px 15px 225px 15px / 15px 225px 15px 255px;
   --wobble-md: 15px 255px 15px 225px / 225px 15px 255px 15px;
@@ -75,8 +59,7 @@
   --shadow-ink: 5px 5px 0 var(--ink);
   --shadow-ink-lg: 8px 8px 0 var(--ink);
 
-  /* Trazo gordo y redondo, a juego con el line-art de los muñecos.
-     (Las familias antiguas siguen registradas por si hay que volver.) */
+  /* Trazo gordo y redondo, a juego con el line-art de los muñecos. */
   --font-display: 'Luckiest Guy', 'Arial Black', cursive;
   --font-hand: 'Fredoka', 'Comic Sans MS', sans-serif;
   --font-body: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
@@ -401,9 +384,9 @@ a {
   flex-direction: column;
   gap: 2px;
   padding: clamp(7px, 2.4%, 12px) clamp(10px, 3.2%, 18px);
-  border: 2px solid var(--ink);
-  background-color: var(--ink);
-  color: var(--paper);
+  border: 2px solid var(--ink-block);
+  background-color: var(--ink-block);
+  color: var(--ink-block-text);
   box-shadow: 4px 4px 0 var(--accent);
   font-family: var(--font-hand);
   line-height: 1;
@@ -428,4 +411,123 @@ a {
 
 .placeholder-tee--compact .placeholder-tee__image {
   object-fit: cover;
+}
+
+/* =====================================================================
+   MODO NEÓN — la misma calle, de noche.
+   Se enciende con html[data-theme='neon'] (interruptor de la navbar,
+   src/utils/theme.js). La gramática no cambia: el papel pasa a asfalto,
+   la tinta a luz, y los muñecos se vuelven tubo de neón por filtro: el
+   invert convierte el trazo negro en trazo de luz y el hue-rotate
+   devuelve a cada relleno su color de siempre.
+   ===================================================================== */
+
+html[data-theme='neon'] {
+  --ink: #edf1ff;
+  --ink-soft: #cdd5f5;
+  --paper: #0c0917;
+  --card: #171129;
+  --line: #453d6b;
+  --muted: #9d97c4;
+  --accent: #ff2ec4;
+  --accent-dark: #ff6ad5;
+  --blue: #29e5ff;
+  --ink-block: #120d20;
+  --ink-block-text: #edf1ff;
+
+  /* Las sombras duras siguen siendo duras, pero ahora además irradian. */
+  --shadow-ink-sm: 3px 3px 0 rgba(0, 0, 0, 0.65),
+    0 0 14px rgba(255, 46, 196, 0.22);
+  --shadow-ink: 5px 5px 0 rgba(0, 0, 0, 0.65),
+    0 0 20px rgba(255, 46, 196, 0.25);
+  --shadow-ink-lg: 8px 8px 0 rgba(0, 0, 0, 0.65),
+    0 0 28px rgba(41, 229, 255, 0.22);
+
+  /* El garabato de subrayar, en rosa eléctrico. */
+  --squiggle: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='8' viewBox='0 0 48 8'><path d='M2 5 Q 8 1 14 5 T 26 5 T 38 5 T 47 4' fill='none' stroke='%23ff2ec4' stroke-width='3' stroke-linecap='round'/></svg>");
+
+  color-scheme: dark;
+}
+
+/* El cuaderno de noche: mismos garabatos y misma retícula, en cian tenue. */
+html[data-theme='neon'] body {
+  background-color: var(--paper);
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'><g fill='none' stroke='%2329e5ff' stroke-opacity='0.06' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M38 30 L41 42 L53 45 L41 48 L38 60 L35 48 L23 45 L35 42 Z'/><g><circle cx='195' cy='72' r='10'/><path d='M181 72 L209 72 M195 58 L195 86'/></g><path d='M52 190 q12 -10 24 0 q10 8 22 0 l-6 -5 m6 5 l-8 4'/><path d='M200 175 l-8 16 h9 l-10 18'/></g></svg>"),
+    radial-gradient(circle, rgba(41, 229, 255, 0.09) 1.2px, transparent 1.2px);
+  color: var(--ink);
+}
+
+/* ---------- Los muñecos, a tubo de neón ----------
+   Cada <img> de muñeco lleva la clase .neon-art (o su variante --icon para
+   logos e iconos pequeños, con el halo a su escala). El line-art negro se
+   convierte en trazo de luz y el doble drop-shadow dibuja el halo cian y
+   rosa siguiendo la silueta. Las fotos de verdad no llevan la clase. */
+html[data-theme='neon'] .neon-art {
+  filter: invert(1) hue-rotate(180deg) saturate(1.45) brightness(1.05)
+    drop-shadow(0 0 5px rgba(41, 229, 255, 0.55))
+    drop-shadow(0 0 16px rgba(255, 46, 196, 0.4));
+}
+
+html[data-theme='neon'] .neon-art--icon {
+  filter: invert(1) hue-rotate(180deg) saturate(1.3)
+    drop-shadow(0 0 4px rgba(255, 46, 196, 0.5));
+}
+
+/* ---------- Rótulos ---------- */
+
+html[data-theme='neon'] .page-title {
+  color: #fff;
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.5),
+    0 0 18px rgba(255, 46, 196, 0.75), 0 0 42px rgba(255, 46, 196, 0.4);
+  animation: neon-encendido 1.6s ease-out 1;
+}
+
+/* La estrella del título, en rosa y con su halo. */
+html[data-theme='neon'] .page-title::before {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 24 24'><path d='M12 2 L14.6 8.6 L21.5 9.2 L16.3 13.7 L18 20.5 L12 16.8 L6 20.5 L7.7 13.7 L2.5 9.2 L9.4 8.6 Z' fill='none' stroke='%23ff2ec4' stroke-width='2' stroke-linejoin='round'/></svg>");
+  filter: drop-shadow(0 0 6px rgba(255, 46, 196, 0.7));
+}
+
+/* El chisporroteo de un tubo recién encendido, una sola vez por página. */
+@keyframes neon-encendido {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  7% {
+    opacity: 0.72;
+  }
+
+  11% {
+    opacity: 1;
+  }
+
+  19% {
+    opacity: 0.85;
+  }
+
+  25% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme='neon'] .page-title {
+    animation: none;
+  }
+}
+
+/* ---------- Piezas sueltas ---------- */
+
+/* Scrollbar a juego: rosa sobre asfalto. */
+html[data-theme='neon'] ::-webkit-scrollbar-thumb {
+  background-color: var(--accent);
+  border-color: var(--paper);
+}
+
+html[data-theme='neon'] ::selection {
+  background-color: var(--blue);
+  color: #08060f;
 }

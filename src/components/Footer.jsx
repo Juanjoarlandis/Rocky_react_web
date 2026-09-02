@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import '../styles/Footer.css';
 
 import instagramIcon from '../images/optimized/shell/instagram-64.webp';
@@ -17,14 +17,44 @@ const TICKER_ITEMS = [
     'CUANDO VUELAN, VUELAN',
 ];
 
+const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
+
+function matches(query) {
+    return globalThis.matchMedia?.(query).matches ?? false;
+}
+
 const Footer = () => {
     const year = new Date().getFullYear();
+    const tickerRef = useRef(null);
+    const [lataAnimada, setLataAnimada] = useState(false);
+
+    useEffect(() => {
+        const ticker = tickerRef.current;
+        if (!ticker || matches(REDUCED_MOTION)) return undefined;
+
+        if (typeof IntersectionObserver !== 'function') {
+            setLataAnimada(true);
+            return undefined;
+        }
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (!entries.some((entry) => entry.isIntersecting)) return;
+                setLataAnimada(true);
+                observer.disconnect();
+            },
+            { rootMargin: '800px 0px', threshold: 0 },
+        );
+
+        observer.observe(ticker);
+        return () => observer.disconnect();
+    }, []);
 
     const tickerText = TICKER_ITEMS.map((item) => `${item} ✦ `).join('');
 
     return (
         <>
-            <div className="ticker" aria-hidden="true">
+            <div className="ticker" ref={tickerRef} aria-hidden="true">
                 {/* WebP animado con alfa: mismo paseo que el APNG original pero
                     a tamaño de pantalla (663 kB frente a 7,3 MB). CSS sigue
                     controlando recorrido, dirección y extremos, y el póster
@@ -32,17 +62,17 @@ const Footer = () => {
                 <span className="ticker-lata">
                     <picture className="ticker-lata-picture">
                         <source
-                            media="(prefers-reduced-motion: reduce)"
+                            media={REDUCED_MOTION}
                             srcSet={lataPaseoQuieto}
                         />
                         <img
-                            src={lataPaseo}
+                            src={lataAnimada ? lataPaseo : lataPaseoQuieto}
                             width="166"
                             height="224"
                             loading="lazy"
                             decoding="async"
                             alt=""
-                            className="ticker-lata-image"
+                            className="ticker-lata-image neon-art"
                         />
                     </picture>
                 </span>
@@ -63,7 +93,7 @@ const Footer = () => {
                     loading="lazy"
                     decoding="async"
                     alt="Ilustración de tres chicos sentados con ropa ROCKY"
-                    className="footer-illustration al-ritmo al-ritmo--suave"
+                    className="footer-illustration neon-art al-ritmo al-ritmo--suave"
                     style={{ '--fase': '0.2' }}
                 />
                 <a
@@ -80,7 +110,7 @@ const Footer = () => {
                         loading="lazy"
                         decoding="async"
                         alt=""
-                        className="footer-social-icon"
+                        className="footer-social-icon neon-art--icon"
                     />
                     <span>@rocky035</span>
                 </a>

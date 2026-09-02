@@ -125,3 +125,8 @@
         animation: none;
     }
 }
+
+/* Modo neón: el campo del correo, de papel a asfalto. */
+html[data-theme='neon'] .drop-aviso-email {
+    background-color: var(--paper);
+}

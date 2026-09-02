@@ -205,7 +205,7 @@ export function CrewCard({ miembro, autoGirado = false, linkEnabled = true, abie
                             src={miembro.img}
                             alt=""
                             loading="lazy"
-                            className={`al-ritmo${miembro.id === 'productor' ? ' al-ritmo--fuerte' : ''}`}
+                            className={`neon-art al-ritmo${miembro.id === 'productor' ? ' al-ritmo--fuerte' : ''}`}
                             style={{ '--fase': `${((Number(miembro.numero) || 0) % 7) * 0.31}` }}
                         />
                     </div>
@@ -416,6 +416,7 @@ function Crew() {
                                 key={id}
                                 src={miembro.img}
                                 alt=""
+                                className="neon-art"
                                 style={{ height: alto, marginBottom: vuela || 0 }}
                             />
                         );

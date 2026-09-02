@@ -1,7 +1,7 @@
 import React from 'react';
 
-const INK = '#1a1a1a';
-const RED = '#e63946';
+const INK = 'var(--ink)';
+const RED = 'var(--accent)';
 
 /** Diana giratoria para estados de carga. */
 export function CrosshairSpinner(props) {

@@ -211,7 +211,7 @@
 
 .crew-progress-panel {
   position: relative;
-  background: var(--ink);
+  background: var(--ink-block);
   color: #fff;
   background-image: var(--spray-speckle);
 }
@@ -582,7 +582,7 @@
   padding: clamp(20px, 2.4vw, 30px);
   border: 2px solid var(--ink);
   border-radius: var(--wobble-md);
-  background: var(--ink);
+  background: var(--ink-block);
   color: #fff;
   background-image: var(--spray-speckle);
 }
@@ -888,4 +888,68 @@
     animation: none;
     transition: none;
   }
+}
+
+/* ---------- Modo neón ----------
+   El carnet y los paneles ya van con variables; aquí se pisan los cremas
+   a fuego y los post-its pasan a letrero ámbar, que un amarillo pleno de
+   noche deslumbra y deja el texto de tinta sin contraste. */
+
+html[data-theme='neon'] .crew-id-card {
+  background:
+    linear-gradient(150deg, transparent 70%, rgba(255, 46, 196, 0.14) 70%),
+    var(--card);
+}
+
+html[data-theme='neon'] .crew-id-card::before {
+  color: rgba(237, 241, 255, 0.07);
+}
+
+html[data-theme='neon'] .crew-progress-panel,
+html[data-theme='neon'] .crew-section {
+  background-color: rgba(23, 17, 41, 0.88);
+}
+
+/* El panel de progreso conserva su fondo entintado por encima del anterior. */
+html[data-theme='neon'] .crew-progress-panel {
+  background-color: var(--ink-block);
+}
+
+html[data-theme='neon'] .crew-stat--tickets,
+html[data-theme='neon'] .crew-ticket-shop,
+html[data-theme='neon'] .crew-preview-ticket {
+  background: #241d0a;
+  border-color: #ffd60a;
+}
+
+/* Sobre el rosa eléctrico el blanco se queda corto: tinta de noche. */
+html[data-theme='neon'] .crew-id-card__level {
+  color: #16041f;
+}
+
+html[data-theme='neon'] .crew-reward-card--locked {
+  background: #241d36;
+}
+
+html[data-theme='neon'] .crew-reward-visual {
+  background:
+    radial-gradient(circle, rgba(237, 241, 255, 0.09) 1px, transparent 1px),
+    var(--paper);
+  background-size: 18px 18px;
+}
+
+html[data-theme='neon'] .crew-owned-stamp {
+  background: var(--card);
+}
+
+html[data-theme='neon'] .crew-gate-preview {
+  background: rgba(23, 17, 41, 0.9);
+}
+
+html[data-theme='neon'] .crew-preview-card-showcase {
+  background: rgba(23, 17, 41, 0.92);
+}
+
+html[data-theme='neon'] .crew-preview-unlock-label {
+  background: var(--card);
 }

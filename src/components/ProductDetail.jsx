@@ -98,7 +98,7 @@ function ProductDetail({
                     )}
                     <div className="detail-buy">
                         {/* El Nube pasea por la línea de puntos con su paraguas */}
-                        <img src={nubePaseando} alt="" className="detail-nube al-ritmo" style={{ '--fase': '0.4' }} />
+                        <img src={nubePaseando} alt="" className="detail-nube neon-art al-ritmo" style={{ '--fase': '0.4' }} />
                         {price ? (
                             <p className="detail-price">{price}</p>
                         ) : (
@@ -133,7 +133,7 @@ function ProductDetail({
                         height="1186"
                         decoding="async"
                         alt=""
-                        className="detail-doodle al-ritmo"
+                        className="detail-doodle neon-art al-ritmo"
                         style={{ '--fase': '1' }}
                     />
                     <button

@@ -150,7 +150,7 @@
 }
 
 .quantity-btn:hover {
-    background-color: var(--ink);
+    background-color: var(--ink-block);
     color: var(--card);
 }
 

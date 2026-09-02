@@ -37,7 +37,7 @@ function errorText(error) {
 function CrewCornerCharacter({ className = '' }) {
   return (
     <img
-      className={`crew-corner-character al-ritmo ${className}`.trim()}
+      className={`crew-corner-character neon-art al-ritmo ${className}`.trim()}
       style={{ '--fase': '0.7' }}
       src={larguiruchoEsquina}
       width="600"
@@ -93,6 +93,7 @@ function CrewGate({ accountEnabled }) {
               <img
                 src={getCrewAvatarImage('dormido-head')}
                 alt="Vista previa del avatar El Dormido"
+                className="neon-art"
               />
             </div>
             <span className="crew-id-card__level">Del Barrio</span>
@@ -157,7 +158,7 @@ function RewardVisual({ reward }) {
       </div>
     );
   }
-  return <img src={getCrewAvatarImage(reward.id)} alt="" />;
+  return <img src={getCrewAvatarImage(reward.id)} alt="" className="neon-art" />;
 }
 
 function RewardCard({ reward, ticketBalance, busy, onEquip, onRedeem }) {
@@ -328,6 +329,7 @@ export default function CrewProfile({
             <img
               src={getCrewAvatarImage(profile.equippedAvatarId)}
               alt={`Avatar ${currentAvatar?.name || 'ROCKY'}`}
+              className="neon-art"
             />
           </div>
           <span className="crew-id-card__level">{profile.level.name}</span>

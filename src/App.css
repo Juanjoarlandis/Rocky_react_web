@@ -48,4 +48,17 @@
   color: var(--accent-dark);
 }
 
+/* Modo neón: el aviso pasa de post-it a cinta de obra bajo luz ámbar. */
+html[data-theme='neon'] .commerce-notice {
+  background-color: #241d0a;
+  border-color: #ffd60a;
+  color: #ffe9a8;
+}
+
+html[data-theme='neon'] .commerce-notice-error {
+  border-color: #ff5470;
+  background-color: #2a0e14;
+  color: #ffc9d2;
+}
+
 /* Splash de entrada: ver styles/SplashIntro.css */

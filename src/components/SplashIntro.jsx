@@ -63,7 +63,7 @@ export default function SplashIntro() {
             width={m.width}
             height={m.height}
             alt=""
-            className="splash-muneco"
+            className="splash-muneco neon-art"
             style={{
               '--size': m.size,
               '--x': `${m.x}%`,
@@ -83,7 +83,7 @@ export default function SplashIntro() {
           height={h.height}
           alt=""
           aria-hidden="true"
-          className={`splash-head splash-head--${h.corner}`}
+          className={`splash-head neon-art splash-head--${h.corner}`}
           style={{ '--rot': `${h.rot}deg`, '--delay': `${h.delay}s` }}
         />
       ))}
@@ -94,7 +94,7 @@ export default function SplashIntro() {
           width="831"
           height="173"
           alt="Cargando ROCKY 035..."
-          className="splash-logo"
+          className="splash-logo neon-art--icon"
         />
         <svg className="splash-squiggle" viewBox="0 0 240 18" aria-hidden="true">
           <path d="M4 11 Q 19 3 34 11 T 64 11 T 94 11 T 124 11 T 154 11 T 184 11 T 214 11 L 236 9" />
