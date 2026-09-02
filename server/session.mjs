@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { sha256Base64Url } from './lib/hash.mjs';
 
 const SESSION_LIFETIME_MS = 30 * 24 * 60 * 60 * 1_000;
 
@@ -21,7 +22,7 @@ function isValidSessionId(value) {
 }
 
 function hashSessionId(value) {
-  return crypto.createHash('sha256').update(value, 'utf8').digest('base64url');
+  return sha256Base64Url(value);
 }
 
 function sessionCookie(name, value, isProduction) {

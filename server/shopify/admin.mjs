@@ -1,4 +1,5 @@
-import { fetchWithTimeout, requestShopifyGraphql, ShopifyGraphqlError } from './graphql.mjs';
+import { fetchJson } from '../lib/fetch-json.mjs';
+import { requestShopifyGraphql, ShopifyGraphqlError, shopifyTransportError } from './graphql.mjs';
 
 const MAX_TOKEN_LIFETIME_SECONDS = 365 * 24 * 60 * 60;
 
@@ -23,8 +24,9 @@ export function createAdminClient({
 
   async function requestToken() {
     let response;
+    let payload;
     try {
-      response = await fetchWithTimeout({
+      ({ response, payload } = await fetchJson({
         url: `https://${config.storeDomain}/admin/oauth/access_token`,
         fetchImpl,
         options: {
@@ -36,16 +38,10 @@ export function createAdminClient({
             client_secret: config.clientSecret,
           }),
         },
-      });
+      }));
     } catch (error) {
-      throw new ShopifyGraphqlError(
-        error?.name === 'AbortError'
-          ? 'Shopify ha superado el tiempo de espera.'
-          : 'No se ha podido conectar con Shopify.',
-        { code: error?.name === 'AbortError' ? 'TIMEOUT' : 'NETWORK_ERROR' }
-      );
+      throw shopifyTransportError(error);
     }
-    const payload = await response.json().catch(() => null);
     if (!response.ok || !isValidTokenResponse(payload)) {
       throw new ShopifyGraphqlError('No se ha podido obtener el token Admin.', {
         status: response.status === 401 ? 401 : 502,

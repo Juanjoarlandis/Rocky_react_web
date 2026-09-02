@@ -25,6 +25,9 @@ import { createShopifyConfig } from './server/shopify/config.mjs';
 import { createShopifyRouter } from './server/shopify/routes.mjs';
 import { createStorefrontClient } from './server/shopify/storefront.mjs';
 import { createWebhookHandler } from './server/shopify/webhooks.mjs';
+import { describeError } from './server/http/errors.mjs';
+import { errorHandler } from './server/http/middleware/error-handler.mjs';
+import { createLogger, ensureLogger } from './server/lib/logger.mjs';
 import previewProducts from './server/preview-products.mjs';
 
 dotenv.config({ quiet: true });
@@ -37,13 +40,7 @@ const REVALIDATED_PUBLIC_CACHE = 'public, max-age=14400, must-revalidate';
 const REVALIDATED_EDGE_CACHE = 'public, max-age=14400';
 const REVALIDATED_DOCUMENT_CACHE = 'public, max-age=0, must-revalidate';
 
-export function describeError(error) {
-  return {
-    name: error?.name || 'Error',
-    message: error?.message || String(error),
-    stack: error?.stack || null,
-  };
-}
+export { describeError };
 
 function setSpaDocumentHeaders(res, isPrivate = false) {
   if (isPrivate) {
@@ -66,10 +63,11 @@ function setStablePublicHeaders(res, isPrivate = false) {
 export function createApp({
   env = process.env,
   fetchImpl = globalThis.fetch,
-  logger = console,
+  logger: providedLogger = null,
   store,
   staticDirectory = distDirectory,
 } = {}) {
+  const logger = ensureLogger(providedLogger ?? createLogger());
   const config = createConfig(env);
   const shopifyConfig = createShopifyConfig(env, config);
   const stateStore =
@@ -129,7 +127,7 @@ export function createApp({
           if (topic !== 'orders/paid') return;
           const result = await crewRewards.creditPaidOrder(payload);
           if (!result.credited) {
-            logger.info?.('Shopify order skipped for Crew rewards', {
+            logger.info('Shopify order skipped for Crew rewards', {
               reason: result.reason,
             });
           }
@@ -247,27 +245,7 @@ export function createApp({
     });
   }
 
-  app.use((error, req, res, next) => {
-    if (res.headersSent) return next(error);
-    const status =
-      error?.type === 'entity.too.large' ? 413 : error?.type === 'entity.parse.failed' ? 400 : 500;
-    // Nombre, mensaje y stack bastan para diagnosticar: nunca el cuerpo, las
-    // cabeceras ni las cookies de la petición.
-    logger.error('Unhandled request error', {
-      requestId: req.requestId,
-      reason:
-        status === 413 ? 'body_too_large' : status === 400 ? 'invalid_json' : 'internal_error',
-      ...(status === 500 ? describeError(error) : {}),
-    });
-    return res.status(status).json({
-      message:
-        status === 413
-          ? 'Petición demasiado grande.'
-          : status === 400
-            ? 'JSON no válido.'
-            : 'Algo se ha roto en el servidor.',
-    });
-  });
+  app.use(errorHandler({ logger }));
 
   return app;
 }

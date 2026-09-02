@@ -1,14 +1,11 @@
 import crypto from 'node:crypto';
+import { WebhookError } from '../http/errors.mjs';
+import { sha256Hex } from '../lib/hash.mjs';
+import { ensureLogger } from '../lib/logger.mjs';
+
+export { WebhookError };
 
 const WEBHOOK_RETENTION_MS = 90 * 24 * 60 * 60 * 1_000;
-
-export class WebhookError extends Error {
-  constructor(message, status) {
-    super(message);
-    this.name = 'WebhookError';
-    this.status = status;
-  }
-}
 
 export function verifyWebhookHmac(rawBody, providedHmac, secret) {
   if (!Buffer.isBuffer(rawBody) || !providedHmac || !secret) return false;
@@ -30,19 +27,31 @@ export async function processWebhookDelivery({
   clock = () => Date.now(),
 }) {
   if (!verifyWebhookHmac(input.rawBody, input.hmac, config.clientSecret)) {
-    throw new WebhookError('Firma de webhook no válida.', 401);
+    throw new WebhookError('Firma de webhook no válida.', { status: 401, code: 'INVALID_HMAC' });
   }
   if (input.shopDomain?.toLowerCase() !== config.storeDomain) {
-    throw new WebhookError('Tienda de webhook no permitida.', 403);
+    throw new WebhookError('Tienda de webhook no permitida.', {
+      status: 403,
+      code: 'SHOP_MISMATCH',
+    });
   }
   if (!config.webhookTopics.has(input.topic)) {
-    throw new WebhookError('Topic de webhook no permitido.', 403);
+    throw new WebhookError('Topic de webhook no permitido.', {
+      status: 403,
+      code: 'TOPIC_NOT_ALLOWED',
+    });
   }
   if (input.apiVersion !== config.apiVersion) {
-    throw new WebhookError('Versión de webhook no esperada.', 409);
+    throw new WebhookError('Versión de webhook no esperada.', {
+      status: 409,
+      code: 'API_VERSION_MISMATCH',
+    });
   }
   if (!/^[A-Za-z0-9-]{8,100}$/.test(input.webhookId || '')) {
-    throw new WebhookError('Identificador de webhook no válido.', 400);
+    throw new WebhookError('Identificador de webhook no válido.', {
+      status: 400,
+      code: 'INVALID_WEBHOOK_ID',
+    });
   }
 
   const now = clock();
@@ -54,7 +63,7 @@ export async function processWebhookDelivery({
       shopDomain: input.shopDomain,
       topic: input.topic,
       apiVersion: input.apiVersion,
-      payloadHash: crypto.createHash('sha256').update(input.rawBody).digest('hex'),
+      payloadHash: sha256Hex(input.rawBody),
       receivedAt: now,
       status: 'accepted',
     },
@@ -74,7 +83,10 @@ export async function processWebhookDelivery({
     try {
       payload = JSON.parse(input.rawBody.toString('utf8'));
     } catch {
-      throw new WebhookError('Payload de webhook no válido.', 400);
+      throw new WebhookError('Payload de webhook no válido.', {
+        status: 400,
+        code: 'INVALID_PAYLOAD',
+      });
     }
     await onDelivery({
       topic: input.topic,
@@ -87,8 +99,12 @@ export async function processWebhookDelivery({
   return { accepted: true, duplicate: !result.inserted };
 }
 
-export function createWebhookHandler({ config, store, onDelivery, logger = console }) {
-  return async (req, res) => {
+// Handler HTTP: verifica y registra la entrega; los rechazos se anotan aquí
+// (son una señal de seguridad) y la respuesta la da el middleware de errores.
+export function createWebhookHandler({ config, store, onDelivery, logger }) {
+  const log = ensureLogger(logger);
+
+  return async (req, res, next) => {
     try {
       const result = await processWebhookDelivery({
         input: {
@@ -106,21 +122,14 @@ export function createWebhookHandler({ config, store, onDelivery, logger = conso
       });
       return res.status(200).json(result);
     } catch (error) {
-      const expected = error instanceof WebhookError;
-      logger.error('Shopify webhook rejected', {
-        requestId: req.requestId,
-        reason: expected ? error.message : 'internal_error',
-        ...(expected
-          ? {}
-          : {
-              name: error?.name || 'Error',
-              message: error?.message || String(error),
-              stack: error?.stack || null,
-            }),
-      });
-      return res.status(error instanceof WebhookError ? error.status : 500).json({
-        message: error instanceof WebhookError ? error.message : 'No se pudo procesar el webhook.',
-      });
+      if (error instanceof WebhookError) {
+        log.warn('Shopify webhook rejected', {
+          requestId: req.requestId,
+          status: error.status,
+          reason: error.code,
+        });
+      }
+      return next(error);
     }
   };
 }

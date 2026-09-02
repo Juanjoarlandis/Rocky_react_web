@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { createSerialQueue } from './lib/serial-queue.mjs';
 
 const FILE_VERSION = 1;
 const ADDITIONAL_DATA = Buffer.from('rocky035-state-v1', 'utf8');
@@ -46,13 +47,7 @@ export class MemoryStore {
   constructor({ clock = () => Date.now() } = {}) {
     this.clock = clock;
     this.state = emptyState();
-    this.queue = Promise.resolve();
-  }
-
-  withLock(action) {
-    const result = this.queue.then(action, action);
-    this.queue = result.catch(() => {});
-    return result;
+    this.withLock = createSerialQueue();
   }
 
   async get(namespace, key) {
@@ -107,13 +102,7 @@ export class EncryptedStore {
     this.filePath = filePath;
     this.key = decodeEncryptionKey(key);
     this.clock = clock;
-    this.queue = Promise.resolve();
-  }
-
-  withLock(action) {
-    const result = this.queue.then(action, action);
-    this.queue = result.catch(() => {});
-    return result;
+    this.withLock = createSerialQueue();
   }
 
   async readState() {

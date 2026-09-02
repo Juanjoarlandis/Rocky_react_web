@@ -1,26 +1,24 @@
-export class ShopifyGraphqlError extends Error {
-  constructor(message, { status = 502, code = 'SHOPIFY_ERROR', details = [] } = {}) {
-    super(message);
-    this.name = 'ShopifyGraphqlError';
-    this.status = status;
-    this.code = code;
-    this.details = details;
-  }
+import { ShopifyGraphqlError } from '../http/errors.mjs';
+import { fetchJson } from '../lib/fetch-json.mjs';
+
+export { ShopifyGraphqlError };
+
+const TRANSPORT_MESSAGES = Object.freeze({
+  TIMEOUT: 'Shopify ha superado el tiempo de espera.',
+  NETWORK_ERROR: 'No se ha podido conectar con Shopify.',
+});
+
+// Traduce un fallo de transporte (timeout o red) al error de dominio de Shopify.
+export function shopifyTransportError(error) {
+  const code = error?.code === 'TIMEOUT' ? 'TIMEOUT' : 'NETWORK_ERROR';
+  return new ShopifyGraphqlError(TRANSPORT_MESSAGES[code], { code, cause: error });
 }
 
-export async function fetchWithTimeout({
-  url,
-  options = {},
-  fetchImpl = globalThis.fetch,
-  timeoutMs = 15_000,
-}) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetchImpl(url, { ...options, signal: controller.signal });
-  } finally {
-    clearTimeout(timeout);
-  }
+function httpErrorCode(status) {
+  if (status === 429) return 'THROTTLED';
+  if (status === 401) return 'UNAUTHENTICATED';
+  if (status === 403) return 'ACCESS_DENIED';
+  return 'HTTP_ERROR';
 }
 
 export async function requestShopifyGraphql({
@@ -31,8 +29,10 @@ export async function requestShopifyGraphql({
   fetchImpl = globalThis.fetch,
   timeoutMs = 15_000,
 }) {
+  let response;
+  let payload;
   try {
-    const response = await fetchWithTimeout({
+    ({ response, payload } = await fetchJson({
       url: endpoint,
       fetchImpl,
       timeoutMs,
@@ -41,39 +41,25 @@ export async function requestShopifyGraphql({
         headers: { 'Content-Type': 'application/json', ...headers },
         body: JSON.stringify({ query, variables }),
       },
-    });
-    const payload = await response.json().catch(() => null);
-    if (!response.ok) {
-      throw new ShopifyGraphqlError('Shopify no ha aceptado la petición.', {
-        status: [401, 403, 429].includes(response.status) ? response.status : 502,
-        code:
-          response.status === 429
-            ? 'THROTTLED'
-            : response.status === 401
-              ? 'UNAUTHENTICATED'
-              : response.status === 403
-                ? 'ACCESS_DENIED'
-                : 'HTTP_ERROR',
-      });
-    }
-    if (!payload || !payload.data || payload.errors?.length) {
-      const code = payload?.errors?.[0]?.extensions?.code || 'GRAPHQL_ERROR';
-      throw new ShopifyGraphqlError('Shopify ha devuelto un error GraphQL.', {
-        status: code === 'THROTTLED' ? 429 : 502,
-        code,
-        details: payload?.errors || [],
-      });
-    }
-    return { data: payload.data, extensions: payload.extensions || null };
+    }));
   } catch (error) {
-    if (error instanceof ShopifyGraphqlError) throw error;
-    throw new ShopifyGraphqlError(
-      error?.name === 'AbortError'
-        ? 'Shopify ha superado el tiempo de espera.'
-        : 'No se ha podido conectar con Shopify.',
-      { code: error?.name === 'AbortError' ? 'TIMEOUT' : 'NETWORK_ERROR' }
-    );
+    throw shopifyTransportError(error);
   }
+  if (!response.ok) {
+    throw new ShopifyGraphqlError('Shopify no ha aceptado la petición.', {
+      status: [401, 403, 429].includes(response.status) ? response.status : 502,
+      code: httpErrorCode(response.status),
+    });
+  }
+  if (!payload || !payload.data || payload.errors?.length) {
+    const code = payload?.errors?.[0]?.extensions?.code || 'GRAPHQL_ERROR';
+    throw new ShopifyGraphqlError('Shopify ha devuelto un error GraphQL.', {
+      status: code === 'THROTTLED' ? 429 : 502,
+      code,
+      details: payload?.errors || [],
+    });
+  }
+  return { data: payload.data, extensions: payload.extensions || null };
 }
 
 export function assertMutationSucceeded(payload) {

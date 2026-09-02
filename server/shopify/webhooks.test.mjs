@@ -157,7 +157,7 @@ describe('Shopify webhooks', () => {
     ).rejects.toMatchObject({ status: 401 });
     expect(onDelivery).not.toHaveBeenCalled();
   });
-  it('answers 500 with a generic message and logs the real error with its stack', async () => {
+  it('hands internal failures to the application error middleware untouched', async () => {
     class BrokenStore extends MemoryStore {
       async set() {
         throw new TypeError('disco lleno');
@@ -183,20 +183,41 @@ describe('Shopify webhooks', () => {
     };
     const req = { body: rawBody, requestId: 'req-500', get: (name) => headers[name.toLowerCase()] };
     const res = { status: vi.fn().mockReturnThis(), json: vi.fn().mockReturnThis() };
+    const next = vi.fn();
 
-    await handler(req, res);
+    await handler(req, res, next);
 
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ message: 'No se pudo procesar el webhook.' });
-    expect(logger.error).toHaveBeenCalledWith(
-      'Shopify webhook rejected',
-      expect.objectContaining({
-        requestId: 'req-500',
-        reason: 'internal_error',
-        name: 'TypeError',
-        message: 'disco lleno',
-        stack: expect.stringContaining('disco lleno'),
-      })
+    expect(res.status).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith(expect.any(TypeError));
+    expect(next.mock.calls[0][0].message).toBe('disco lleno');
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it('logs rejected deliveries as a security signal before delegating the response', async () => {
+    const logger = { error: vi.fn(), info: vi.fn(), warn: vi.fn() };
+    const handler = createWebhookHandler({
+      config: {
+        clientSecret: secret,
+        storeDomain: 'rocky-dev.myshopify.com',
+        apiVersion: '2026-07',
+        webhookTopics: new Set(['app/uninstalled']),
+      },
+      store: new MemoryStore(),
+      logger,
+    });
+    const req = { body: rawBody, requestId: 'req-401', get: () => undefined };
+    const res = { status: vi.fn().mockReturnThis(), json: vi.fn().mockReturnThis() };
+    const next = vi.fn();
+
+    await handler(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'WebhookError', status: 401, code: 'INVALID_HMAC' })
     );
+    expect(logger.warn).toHaveBeenCalledWith('Shopify webhook rejected', {
+      requestId: 'req-401',
+      status: 401,
+      reason: 'INVALID_HMAC',
+    });
   });
 });

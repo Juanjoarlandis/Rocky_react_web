@@ -1,21 +1,29 @@
 import crypto from 'node:crypto';
-import { fetchWithTimeout, requestShopifyGraphql } from './graphql.mjs';
+import { CustomerAccountError } from '../http/errors.mjs';
+import { fetchJson } from '../lib/fetch-json.mjs';
+import { sha256Base64Url } from '../lib/hash.mjs';
+import { ensureLogger } from '../lib/logger.mjs';
+import { requestShopifyGraphql } from './graphql.mjs';
+
+export { CustomerAccountError };
 
 const OAUTH_TRANSACTION_MS = 10 * 60 * 1_000;
 const CUSTOMER_TOKEN_RETENTION_MS = 30 * 24 * 60 * 60 * 1_000;
 const MAX_TOKEN_LIFETIME_SECONDS = 365 * 24 * 60 * 60;
+const USER_AGENT = 'ROCKY035-Shopify/1.0';
 
-export class CustomerAccountError extends Error {
-  constructor(message, status = 502, code = 'CUSTOMER_ACCOUNT_ERROR') {
-    super(message);
-    this.name = 'CustomerAccountError';
-    this.status = status;
-    this.code = code;
-  }
+const TRANSPORT_MESSAGES = Object.freeze({
+  TIMEOUT: 'Shopify ha superado el tiempo de espera.',
+  NETWORK_ERROR: 'No se ha podido conectar con Shopify.',
+});
+
+function transportError(error) {
+  const code = error?.code === 'TIMEOUT' ? 'TIMEOUT' : 'NETWORK_ERROR';
+  return new CustomerAccountError(TRANSPORT_MESSAGES[code], { status: 502, code, cause: error });
 }
 
-function hash(value) {
-  return crypto.createHash('sha256').update(value, 'utf8').digest('base64url');
+function invalidIdToken(message) {
+  return new CustomerAccountError(message, { status: 401, code: 'INVALID_ID_TOKEN' });
 }
 
 // La ruta de retorno se resuelve contra el origen público y sólo vale si
@@ -38,13 +46,12 @@ export function normalizeReturnPath(value, publicOrigin) {
 
 function requireSessionBinding(value) {
   if (typeof value !== 'string' || value.length < 20 || value.length > 100) {
-    throw new CustomerAccountError(
-      'La sesión de autenticación no es válida.',
-      400,
-      'INVALID_STATE'
-    );
+    throw new CustomerAccountError('La sesión de autenticación no es válida.', {
+      status: 400,
+      code: 'INVALID_STATE',
+    });
   }
-  return hash(value);
+  return sha256Base64Url(value);
 }
 
 function requireHttpsUrl(value) {
@@ -52,18 +59,16 @@ function requireHttpsUrl(value) {
   try {
     url = new URL(value);
   } catch {
-    throw new CustomerAccountError(
-      'Shopify ha devuelto un endpoint no válido.',
-      502,
-      'INSECURE_DISCOVERY_URL'
-    );
+    throw new CustomerAccountError('Shopify ha devuelto un endpoint no válido.', {
+      status: 502,
+      code: 'INSECURE_DISCOVERY_URL',
+    });
   }
   if (url.protocol !== 'https:' || url.username || url.password) {
-    throw new CustomerAccountError(
-      'Shopify ha devuelto un endpoint no seguro.',
-      502,
-      'INSECURE_DISCOVERY_URL'
-    );
+    throw new CustomerAccountError('Shopify ha devuelto un endpoint no seguro.', {
+      status: 502,
+      code: 'INSECURE_DISCOVERY_URL',
+    });
   }
   return value;
 }
@@ -111,27 +116,19 @@ function getCustomerDisplayName(customer) {
     : '';
 }
 
-async function fetchJson(url, fetchImpl) {
+async function fetchDiscovery(url, fetchImpl) {
   requireHttpsUrl(url);
   let response;
+  let payload;
   try {
-    response = await fetchWithTimeout({
+    ({ response, payload } = await fetchJson({
       url,
       fetchImpl,
-      options: {
-        headers: { Accept: 'application/json', 'User-Agent': 'ROCKY035-Shopify/1.0' },
-      },
-    });
+      options: { headers: { Accept: 'application/json', 'User-Agent': USER_AGENT } },
+    }));
   } catch (error) {
-    throw new CustomerAccountError(
-      error?.name === 'AbortError'
-        ? 'Shopify ha superado el tiempo de espera.'
-        : 'No se ha podido conectar con Shopify.',
-      502,
-      error?.name === 'AbortError' ? 'TIMEOUT' : 'NETWORK_ERROR'
-    );
+    throw transportError(error);
   }
-  const payload = await response.json().catch(() => null);
   if (!response.ok || !payload) {
     throw new CustomerAccountError('No se ha podido descubrir la configuración de cuenta.');
   }
@@ -140,11 +137,11 @@ async function fetchJson(url, fetchImpl) {
 
 function parseJwt(token) {
   if (typeof token !== 'string' || token.length === 0 || token.length > 64_000) {
-    throw new CustomerAccountError('ID token no válido.', 401, 'INVALID_ID_TOKEN');
+    throw invalidIdToken('ID token no válido.');
   }
   const parts = token.split('.');
   if (parts?.length !== 3) {
-    throw new CustomerAccountError('ID token no válido.', 401, 'INVALID_ID_TOKEN');
+    throw invalidIdToken('ID token no válido.');
   }
   try {
     return {
@@ -154,16 +151,16 @@ function parseJwt(token) {
       signature: Buffer.from(parts[2], 'base64url'),
     };
   } catch {
-    throw new CustomerAccountError('ID token no válido.', 401, 'INVALID_ID_TOKEN');
+    throw invalidIdToken('ID token no válido.');
   }
 }
 
 async function verifyIdToken({ token, nonce, clientId, discovery, fetchImpl, clock, logger }) {
   const parsed = parseJwt(token);
   if (!['ES256', 'RS256'].includes(parsed.header.alg) || !parsed.header.kid) {
-    throw new CustomerAccountError('Algoritmo de ID token no permitido.', 401, 'INVALID_ID_TOKEN');
+    throw invalidIdToken('Algoritmo de ID token no permitido.');
   }
-  const jwks = await fetchJson(discovery.jwks_uri, fetchImpl);
+  const jwks = await fetchDiscovery(discovery.jwks_uri, fetchImpl);
   const jwk = jwks.keys?.find(
     (candidate) =>
       candidate.kid === parsed.header.kid &&
@@ -172,11 +169,7 @@ async function verifyIdToken({ token, nonce, clientId, discovery, fetchImpl, clo
       (!candidate.key_ops || candidate.key_ops.includes('verify'))
   );
   if (!jwk) {
-    throw new CustomerAccountError(
-      'No se encuentra la clave del ID token.',
-      401,
-      'INVALID_ID_TOKEN'
-    );
+    throw invalidIdToken('No se encuentra la clave del ID token.');
   }
   let verified = false;
   try {
@@ -188,7 +181,7 @@ async function verifyIdToken({ token, nonce, clientId, discovery, fetchImpl, clo
       parsed.signature
     );
   } catch {
-    throw new CustomerAccountError('Firma de ID token no válida.', 401, 'INVALID_ID_TOKEN');
+    throw invalidIdToken('Firma de ID token no válida.');
   }
   const audiences = Array.isArray(parsed.payload.aud) ? parsed.payload.aud : [parsed.payload.aud];
   const nowSeconds = Math.floor(clock() / 1_000);
@@ -219,7 +212,7 @@ async function verifyIdToken({ token, nonce, clientId, discovery, fetchImpl, clo
     .filter(([, isValid]) => !isValid)
     .map(([name]) => name);
   if (failedChecks.length > 0) {
-    logger?.error?.('Shopify ID token claim validation failed', {
+    logger.error('Shopify ID token claim validation failed', {
       failedChecks,
       audienceCount: audiences.length,
       audienceType: Array.isArray(parsed.payload.aud) ? 'array' : typeof parsed.payload.aud,
@@ -230,11 +223,7 @@ async function verifyIdToken({ token, nonce, clientId, discovery, fetchImpl, clo
       notBeforeType: typeof parsed.payload.nbf,
       subjectType: typeof parsed.payload.sub,
     });
-    throw new CustomerAccountError(
-      'Las claims del ID token no son válidas.',
-      401,
-      'INVALID_ID_TOKEN'
-    );
+    throw invalidIdToken('Las claims del ID token no son válidas.');
   }
   return { ...parsed.payload, sub: customerSubject };
 }
@@ -246,13 +235,17 @@ export function createCustomerAccountClient({
   clock = () => Date.now(),
   logger = null,
 }) {
+  const log = ensureLogger(logger);
   let openIdDiscovery = null;
   let apiDiscovery = null;
 
   async function getOpenIdDiscovery() {
     if (!openIdDiscovery) {
       openIdDiscovery = validateOpenIdDiscovery(
-        await fetchJson(`https://${config.storeDomain}/.well-known/openid-configuration`, fetchImpl)
+        await fetchDiscovery(
+          `https://${config.storeDomain}/.well-known/openid-configuration`,
+          fetchImpl
+        )
       );
     }
     return openIdDiscovery;
@@ -260,7 +253,7 @@ export function createCustomerAccountClient({
 
   async function getApiDiscovery() {
     if (!apiDiscovery) {
-      apiDiscovery = await fetchJson(
+      apiDiscovery = await fetchDiscovery(
         `https://${config.storeDomain}/.well-known/customer-account-api`,
         fetchImpl
       );
@@ -274,8 +267,9 @@ export function createCustomerAccountClient({
 
   async function exchangeToken(discovery, body) {
     let response;
+    let token;
     try {
-      response = await fetchWithTimeout({
+      ({ response, payload: token } = await fetchJson({
         url: discovery.token_endpoint,
         fetchImpl,
         options: {
@@ -283,32 +277,24 @@ export function createCustomerAccountClient({
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
             Origin: config.publicOrigin,
-            'User-Agent': 'ROCKY035-Shopify/1.0',
+            'User-Agent': USER_AGENT,
           },
           body: new URLSearchParams(body),
         },
-      });
+      }));
     } catch (error) {
-      throw new CustomerAccountError(
-        error?.name === 'AbortError'
-          ? 'Shopify ha superado el tiempo de espera.'
-          : 'No se ha podido conectar con Shopify.',
-        502,
-        error?.name === 'AbortError' ? 'TIMEOUT' : 'NETWORK_ERROR'
-      );
+      throw transportError(error);
     }
-    const token = await response.json().catch(() => null);
     if (
       !response.ok ||
       !isOpaqueToken(token?.access_token) ||
       !isOpaqueToken(token?.refresh_token) ||
       !isValidTokenLifetime(token?.expires_in)
     ) {
-      throw new CustomerAccountError(
-        'Shopify ha rechazado el intercambio OAuth.',
-        401,
-        'TOKEN_ERROR'
-      );
+      throw new CustomerAccountError('Shopify ha rechazado el intercambio OAuth.', {
+        status: 401,
+        code: 'TOKEN_ERROR',
+      });
     }
     return token;
   }
@@ -336,7 +322,12 @@ export function createCustomerAccountClient({
 
   async function getUsableToken(tokenId) {
     const record = await store.get('customerTokens', tokenId);
-    if (!record) throw new CustomerAccountError('Sesión de cliente no válida.', 401, 'NO_SESSION');
+    if (!record) {
+      throw new CustomerAccountError('Sesión de cliente no válida.', {
+        status: 401,
+        code: 'NO_SESSION',
+      });
+    }
     return record.expiresAt - 30_000 > clock() ? record : refreshToken(tokenId, record);
   }
 
@@ -344,7 +335,10 @@ export function createCustomerAccountClient({
     async beginAuthentication({ returnPath = '/', sessionBinding } = {}) {
       const safeReturnPath = normalizeReturnPath(returnPath, config.publicOrigin);
       if (!safeReturnPath) {
-        throw new CustomerAccountError('Ruta de retorno no permitida.', 400, 'INVALID_RETURN_PATH');
+        throw new CustomerAccountError('Ruta de retorno no permitida.', {
+          status: 400,
+          code: 'INVALID_RETURN_PATH',
+        });
       }
       const sessionBindingHash = requireSessionBinding(sessionBinding);
       const discovery = await getOpenIdDiscovery();
@@ -354,7 +348,7 @@ export function createCustomerAccountClient({
       const challenge = crypto.createHash('sha256').update(verifier).digest('base64url');
       await store.set(
         'oauthTransactions',
-        hash(state),
+        sha256Base64Url(state),
         { nonce, verifier, returnPath: safeReturnPath, sessionBindingHash },
         { expiresAt: clock() + OAUTH_TRANSACTION_MS }
       );
@@ -373,15 +367,17 @@ export function createCustomerAccountClient({
 
     async completeAuthentication({ state, code, sessionBinding }) {
       if (!state || !code) {
-        throw new CustomerAccountError('Callback OAuth incompleto.', 400, 'INVALID_CALLBACK');
+        throw new CustomerAccountError('Callback OAuth incompleto.', {
+          status: 400,
+          code: 'INVALID_CALLBACK',
+        });
       }
-      const transaction = await store.consume('oauthTransactions', hash(state));
+      const transaction = await store.consume('oauthTransactions', sha256Base64Url(state));
       if (!transaction) {
-        throw new CustomerAccountError(
-          'Estado OAuth inválido o reutilizado.',
-          400,
-          'INVALID_STATE'
-        );
+        throw new CustomerAccountError('Estado OAuth inválido o reutilizado.', {
+          status: 400,
+          code: 'INVALID_STATE',
+        });
       }
       const sessionBindingHash = requireSessionBinding(sessionBinding);
       const expectedBinding = Buffer.from(transaction.sessionBindingHash || '', 'utf8');
@@ -390,11 +386,10 @@ export function createCustomerAccountClient({
         expectedBinding.length !== actualBinding.length ||
         !crypto.timingSafeEqual(expectedBinding, actualBinding)
       ) {
-        throw new CustomerAccountError(
-          'Estado OAuth inválido o reutilizado.',
-          400,
-          'INVALID_STATE'
-        );
+        throw new CustomerAccountError('Estado OAuth inválido o reutilizado.', {
+          status: 400,
+          code: 'INVALID_STATE',
+        });
       }
       const discovery = await getOpenIdDiscovery();
       const token = await exchangeToken(discovery, {
@@ -405,11 +400,10 @@ export function createCustomerAccountClient({
         code_verifier: transaction.verifier,
       });
       if (!token.id_token) {
-        throw new CustomerAccountError(
-          'Shopify no ha devuelto un ID token.',
-          401,
-          'MISSING_ID_TOKEN'
-        );
+        throw new CustomerAccountError('Shopify no ha devuelto un ID token.', {
+          status: 401,
+          code: 'MISSING_ID_TOKEN',
+        });
       }
       const claims = await verifyIdToken({
         token: token.id_token,
@@ -418,7 +412,7 @@ export function createCustomerAccountClient({
         discovery,
         fetchImpl,
         clock,
-        logger,
+        logger: log,
       });
       const tokenId = crypto.randomBytes(24).toString('base64url');
       const record = {

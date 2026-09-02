@@ -2,6 +2,7 @@ import express from 'express';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryStore } from '../encrypted-store.mjs';
 import { createCrewRewardsService } from '../crew/rewards.mjs';
+import { errorHandler } from '../http/middleware/error-handler.mjs';
 import { createShopifyRouter } from './routes.mjs';
 
 const runningServers = new Set();
@@ -67,6 +68,7 @@ async function startCrewRouter({ loggedIn = true } = {}) {
   const app = express();
   app.use(express.json());
   app.use('/api/shopify', router);
+  app.use(errorHandler({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
   const server = await new Promise((resolve) => {
     const listener = app.listen(0, '127.0.0.1', () => resolve(listener));
   });

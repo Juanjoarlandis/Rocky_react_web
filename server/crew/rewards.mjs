@@ -1,4 +1,8 @@
-import crypto from 'node:crypto';
+import { CrewRewardsError } from '../http/errors.mjs';
+import { sha256Base64Url } from '../lib/hash.mjs';
+import { createKeyedLock } from '../lib/keyed-lock.mjs';
+
+export { CrewRewardsError };
 
 const CUSTOMER_GID = /^gid:\/\/shopify\/Customer\/[A-Za-z0-9_-]{1,100}$/;
 const ORDER_GID = /^gid:\/\/shopify\/Order\/[A-Za-z0-9_-]{1,100}$/;
@@ -121,15 +125,6 @@ export const CREW_REWARDS = Object.freeze([
 
 const REWARDS_BY_ID = new Map(CREW_REWARDS.map((reward) => [reward.id, reward]));
 
-export class CrewRewardsError extends Error {
-  constructor(message, { status = 400, code = 'CREW_REWARDS_ERROR' } = {}) {
-    super(message);
-    this.name = 'CrewRewardsError';
-    this.status = status;
-    this.code = code;
-  }
-}
-
 function parseEuroCents(value) {
   const normalized = String(value ?? '').trim();
   if (!/^\d{1,9}(?:\.\d{1,2})?$/.test(normalized)) return null;
@@ -177,7 +172,7 @@ function validateCustomerId(customerId) {
 }
 
 function profileKey(customerId) {
-  return crypto.createHash('sha256').update(customerId, 'utf8').digest('base64url');
+  return sha256Base64Url(customerId);
 }
 
 function createProfile(now, displayName = '') {
@@ -248,26 +243,6 @@ function publicProfile(profile) {
       ...entry,
       tickets: ticketTenths === undefined ? undefined : toTicketValue(ticketTenths),
     })),
-  };
-}
-
-function createKeyedLock() {
-  const tails = new Map();
-  return async (key, action) => {
-    const previous = tails.get(key) || Promise.resolve();
-    let release;
-    const gate = new Promise((resolve) => {
-      release = resolve;
-    });
-    const tail = previous.then(() => gate);
-    tails.set(key, tail);
-    await previous;
-    try {
-      return await action();
-    } finally {
-      release();
-      if (tails.get(key) === tail) tails.delete(key);
-    }
   };
 }
 

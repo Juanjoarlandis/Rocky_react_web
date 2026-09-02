@@ -1,5 +1,6 @@
 import express from 'express';
 import { CrewRewardsError } from '../crew/rewards.mjs';
+import { createKeyedLock } from '../lib/keyed-lock.mjs';
 import { createAdminClient } from './admin.mjs';
 import { createCustomerAccountClient, CustomerAccountError } from './customer-account.mjs';
 import { ShopifyGraphqlError } from './graphql.mjs';
@@ -19,26 +20,6 @@ function validateOperationId(value) {
     });
   }
   return value;
-}
-
-function createKeyedLock() {
-  const tails = new Map();
-  return async (key, action) => {
-    const previous = tails.get(key) || Promise.resolve();
-    let release;
-    const gate = new Promise((resolve) => {
-      release = resolve;
-    });
-    const tail = previous.then(() => gate);
-    tails.set(key, tail);
-    await previous;
-    try {
-      return await action();
-    } finally {
-      release();
-      if (tails.get(key) === tail) tails.delete(key);
-    }
-  };
 }
 
 function validateCheckoutUrl(value, allowedHosts) {
@@ -300,7 +281,10 @@ export function createShopifyRouter({
       }
       const previousSession = await sessions.read(req);
       if (!previousSession) {
-        throw new CustomerAccountError('La sesión OAuth ha caducado.', 400, 'INVALID_STATE');
+        throw new CustomerAccountError('La sesión OAuth ha caducado.', {
+          status: 400,
+          code: 'INVALID_STATE',
+        });
       }
       const completed = await customerAccounts.completeAuthentication({
         state: req.query.state,
@@ -401,17 +385,7 @@ export function createShopifyRouter({
     })
   );
 
-  router.use((error, req, res, next) => {
-    if (res.headersSent) return next(error);
-    if (
-      error instanceof ShopifyGraphqlError ||
-      error instanceof CustomerAccountError ||
-      error instanceof CrewRewardsError
-    ) {
-      return res.status(error.status).json({ message: error.message, code: error.code });
-    }
-    return next(error);
-  });
-
+  // Los errores de dominio (ShopifyGraphqlError, CustomerAccountError,
+  // CrewRewardsError) los responde el middleware único de la aplicación.
   return { router, admin, customerAccounts };
 }

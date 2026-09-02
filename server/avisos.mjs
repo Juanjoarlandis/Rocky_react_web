@@ -2,6 +2,9 @@
 // un producto "Próximamente" caiga de verdad. Vive en el store cifrado y de
 // ahí sólo sale con scripts/exportar-avisos.mjs, nunca por la API.
 
+import { ensureLogger } from './lib/logger.mjs';
+import { createSerialQueue } from './lib/serial-queue.mjs';
+
 export const AVISOS_NAMESPACE = 'avisos';
 // Clave interna con la lista de productos que tienen avisos. El store no sabe
 // enumerar claves, así que el índice se lleva a mano. Ningún producto puede
@@ -28,14 +31,10 @@ export function celdaCsvSegura(value) {
 }
 
 export function createAvisosHandler({ store, logger, clock = () => new Date() }) {
+  const log = ensureLogger(logger);
   // Las altas van en fila india: el get y el set del store son atómicos por
   // separado, y dos altas a la vez se pisarían la lista entre medias.
-  let cola = Promise.resolve();
-  const enFila = (accion) => {
-    const paso = cola.then(accion, accion);
-    cola = paso.catch(() => {});
-    return paso;
-  };
+  const enFila = createSerialQueue();
 
   return async (req, res) => {
     const { producto, email, consentimiento, apodo } = req.body ?? {};
@@ -82,7 +81,7 @@ export function createAvisosHandler({ store, logger, clock = () => new Date() })
         }
 
         // A los logs sólo viajan números, nunca el email.
-        logger.info?.('Aviso de drop apuntado', { producto: clave, total: lista.length });
+        log.info('Aviso de drop apuntado', { producto: clave, total: lista.length });
         return { ok: true, repetido: false };
       });
 
@@ -91,7 +90,7 @@ export function createAvisosHandler({ store, logger, clock = () => new Date() })
       }
       return res.json(salida);
     } catch (error) {
-      logger.error?.('Aviso de drop fallido', {
+      log.error('Aviso de drop fallido', {
         requestId: req.requestId,
         reason: error?.message,
       });

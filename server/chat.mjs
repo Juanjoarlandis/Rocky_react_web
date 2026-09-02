@@ -13,6 +13,7 @@ import {
 } from './chat-commerce.mjs';
 
 import { isFreeOpenRouterModel } from './config.mjs';
+import { fetchJson } from './lib/fetch-json.mjs';
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
@@ -223,8 +224,9 @@ export function createChatHandler({
     }
 
     activeRequests += 1;
+    // Si el navegador cuelga, se corta la petición al proveedor; el tiempo de
+    // espera lo pone fetchJson.
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), config.chat.timeoutMs);
     const cancelOnDisconnect = () => {
       if (!res.writableEnded) controller.abort();
     };
@@ -254,24 +256,28 @@ export function createChatHandler({
       const trustedContext = [buildCommerceContext(products), crewContext]
         .filter(Boolean)
         .join('\n\n');
-      const upstream = await fetchImpl(OPENROUTER_URL, {
-        method: 'POST',
+      const { response: upstream, payload: data } = await fetchJson({
+        url: OPENROUTER_URL,
+        fetchImpl,
+        timeoutMs: config.chat.timeoutMs,
         signal: controller.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${config.chat.apiKey}`,
-          'HTTP-Referer': config.publicOrigin,
-          'X-Title': 'Rocky IA',
+        options: {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${config.chat.apiKey}`,
+            'HTTP-Referer': config.publicOrigin,
+            'X-Title': 'Rocky IA',
+          },
+          body: JSON.stringify({
+            ...freeModelRoute(config.chat.models),
+            messages: buildRockyMessages(history, userMessage, trustedContext),
+            max_tokens: 300,
+            temperature: 0.75,
+            usage: { include: true },
+          }),
         },
-        body: JSON.stringify({
-          ...freeModelRoute(config.chat.models),
-          messages: buildRockyMessages(history, userMessage, trustedContext),
-          max_tokens: 300,
-          temperature: 0.75,
-          usage: { include: true },
-        }),
       });
-      const data = await upstream.json().catch(() => null);
       if (!upstream.ok) {
         logger.error('OpenRouter request failed', {
           requestId: req.requestId,
@@ -321,7 +327,7 @@ export function createChatHandler({
     } catch (error) {
       logger.error('OpenRouter request failed', {
         requestId: req.requestId,
-        reason: error?.name === 'AbortError' ? 'timeout_or_disconnect' : 'network_error',
+        reason: error?.code === 'TIMEOUT' ? 'timeout_or_disconnect' : 'network_error',
       });
       if (!res.headersSent) {
         return res.status(502).json({ message: 'La IA no está disponible ahora mismo.' });
@@ -329,7 +335,6 @@ export function createChatHandler({
       return undefined;
     } finally {
       activeRequests -= 1;
-      clearTimeout(timeout);
       req.off('aborted', cancelOnDisconnect);
       res.off('close', cancelOnDisconnect);
     }
