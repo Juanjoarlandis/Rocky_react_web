@@ -160,35 +160,18 @@ describe('CrewProfile', () => {
       />
     );
 
-    expect(
-      screen.getByRole('button', {
-        name: /cromo de el dormilón.*ver el expediente/i,
-      })
-    ).toHaveAttribute('aria-pressed', 'false');
-    expect(
-      screen.getByRole('button', {
-        name: /cromo de el colgao.*ver el expediente/i,
-      })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', {
-        name: /cromo de el ollie.*ver el expediente/i,
-      })
-    ).toBeInTheDocument();
+    const dormilon = screen.getByRole('article', { name: 'Cromo de El Dormilón' });
+    const abrir = within(dormilon).getByRole('button', { name: '↻ expediente' });
+    expect(abrir).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('article', { name: 'Cromo de El Colgao' })).toBeInTheDocument();
+    expect(screen.getByRole('article', { name: 'Cromo de El Ollie' })).toBeInTheDocument();
 
-    await user.click(
-      screen.getByRole('button', {
-        name: /cromo de el dormilón.*ver el expediente/i,
-      })
-    );
-
-    expect(
-      screen.getByRole('button', {
-        name: /cromo de el dormilón.*ver el frente/i,
-      })
-    ).toHaveAttribute('aria-pressed', 'true');
+    await user.click(abrir);
+    expect(abrir).toHaveAttribute('aria-expanded', 'true');
+    expect(dormilon).toHaveClass('is-flipped');
+    expect(within(dormilon).getByRole('button', { name: '↻ volver' })).toBeInTheDocument();
+    expect(api.getCrewProfile).not.toHaveBeenCalled();
   });
-
   it('loads progression and updates the locker after equip and redemption', async () => {
     const initial = profile();
     const equipped = profile({ equippedAvatarId: 'dormido-head' });

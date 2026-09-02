@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useLocation } from 'react-router';
 import { CREW, POR_FICHAR } from '../data/crew';
 import '../styles/pages/crew.css';
 import { STORAGE_KEYS } from '../config/storageKeys.js';
 import { prefersReducedMotion } from '../utils/media.js';
 import { readJson, writeJson } from '../utils/storage.js';
+import { useCopyToClipboard } from '../hooks/useCopyToClipboard.js';
+import { useDocumentTitle } from '../hooks/useDocumentTitle.js';
+import { useRevealOnScroll } from '../hooks/useRevealOnScroll.js';
 
 const TOTAL_CROMOS = CREW.length + POR_FICHAR.length;
 const CLAVE_ABIERTOS = STORAGE_KEYS.albumOpened;
@@ -41,13 +44,13 @@ function StatDianas({ valor }) {
             cx="10"
             cy="10"
             r="6.5"
-            fill={n <= valor ? '#e63946' : 'none'}
-            stroke={n <= valor ? '#1a1a1a' : '#b9b2a2'}
+            fill={n <= valor ? 'var(--accent)' : 'none'}
+            stroke={n <= valor ? 'var(--ink)' : 'var(--line)'}
             strokeWidth="2"
           />
           <path
             d="M10 1.5 L10 5 M10 15 L10 18.5 M1.5 10 L5 10 M15 10 L18.5 10"
-            stroke={n <= valor ? '#1a1a1a' : '#b9b2a2'}
+            stroke={n <= valor ? 'var(--ink)' : 'var(--line)'}
             strokeWidth="1.8"
             strokeLinecap="round"
           />
@@ -74,7 +77,7 @@ function Barcode({ numero }) {
 function SiluetaHueco({ id }) {
   const trazo = {
     fill: 'none',
-    stroke: '#b9b2a2',
+    stroke: 'var(--line)',
     strokeWidth: 3.5,
     strokeDasharray: '7 7',
     strokeLinecap: 'round',
@@ -111,7 +114,7 @@ function SiluetaHueco({ id }) {
         textAnchor="middle"
         fontFamily="'Luckiest Guy', cursive"
         fontSize="34"
-        fill="#b9b2a2"
+        fill="var(--line)"
       >
         ?
       </text>
@@ -126,23 +129,23 @@ export function CrewCard({
   linkEnabled = true,
   abierto = false,
   onAbrir,
+  reveal = 'static',
+  orden = 0,
 }) {
   const [girado, setGirado] = useState(autoGirado);
-  const [copiado, setCopiado] = useState(false);
   const cardRef = useRef(null);
-  const copiadoTimerRef = useRef(null);
-
-  useEffect(() => () => clearTimeout(copiadoTimerRef.current), []);
+  const { copied: copiado, copy } = useCopyToClipboard();
 
   useEffect(() => {
     if (autoGirado && cardRef.current) {
       onAbrir?.(miembro.id);
       const timer = setTimeout(() => {
-        cardRef.current.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        cardRef.current?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
       }, 350);
       return () => clearTimeout(timer);
     }
     return undefined;
+    // Sólo al llegar por enlace directo; abrir el expediente ya se avisa al girar.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoGirado]);
 
@@ -176,46 +179,44 @@ export function CrewCard({
   const compartir = async (e) => {
     e.stopPropagation();
     const url = `${window.location.origin}/crew#${miembro.id}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopiado(true);
-      clearTimeout(copiadoTimerRef.current);
-      copiadoTimerRef.current = setTimeout(() => setCopiado(false), 2200);
-    } catch {
-      window.prompt('Copia el enlace de este cromo:', url);
-    }
+    const ok = await copy(url);
+    if (!ok) window.prompt('Copia el enlace de este cromo:', url);
   };
 
   const esFoil = Boolean(miembro.rareza || miembro.especial);
 
+  const clases = [
+    'crew-card',
+    girado ? 'is-flipped' : '',
+    miembro.especial ? 'especial' : '',
+    esFoil ? 'foil' : '',
+    reveal === 'hidden' ? 'is-hidden' : '',
+    reveal === 'revealed' ? 'is-revealed' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <div
+    /* El control accesible es el botón «expediente»/«volver» de cada cara; el
+       clic sobre toda la carta es un atajo de ratón. */
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/click-events-have-key-events
+    <article
       ref={cardRef}
       id={`cromo-${miembro.id}`}
-      className={`crew-card ${girado ? 'is-flipped' : ''} ${miembro.especial ? 'especial' : ''} ${esFoil ? 'foil' : ''}`}
-      role="button"
-      tabIndex={0}
-      aria-pressed={girado}
-      aria-label={`Cromo de ${miembro.nombre}. Pulsa para ${girado ? 'ver el frente' : 'ver el expediente'}`}
+      className={clases}
+      data-reveal-id={miembro.id}
+      style={{ '--orden': orden }}
+      aria-label={`Cromo de ${miembro.nombre}`}
       onClick={() => {
         alSalir();
         girar();
       }}
       onMouseMove={alMover}
       onMouseLeave={alSalir}
-      onKeyDown={(e) => {
-        // Enter sobre el enlace o el botón del reverso es para ellos,
-        // no para girar el cromo.
-        if (e.target !== e.currentTarget) return;
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          girar();
-        }
-      }}
     >
       <div className="crew-card-inner">
         {/* Frente */}
-        <div className="crew-card-face crew-card-front">
+        <div className="crew-card-face crew-card-front" inert={girado || undefined}>
           <div className="crew-card-top">
             <span className="crew-num">#{miembro.numero}</span>
             {miembro.rareza && (
@@ -255,13 +256,22 @@ export function CrewCard({
               ))}
             </ul>
           )}
-          <span className="crew-girar" aria-hidden="true">
+          <button
+            type="button"
+            className="crew-girar"
+            aria-expanded={girado}
+            onClick={(e) => {
+              e.stopPropagation();
+              alSalir();
+              girar();
+            }}
+          >
             ↻ expediente
-          </span>
+          </button>
         </div>
 
         {/* Reverso: el expediente */}
-        <div className="crew-card-face crew-card-back">
+        <div className="crew-card-face crew-card-back" inert={!girado || undefined}>
           <p className="expediente-titulo">Expediente</p>
           <dl className="expediente-datos">
             <div>
@@ -303,12 +313,19 @@ export function CrewCard({
             </span>
           </div>
           <span className="expediente-sello" aria-hidden="true" />
-          <span className="crew-girar" aria-hidden="true">
+          <button
+            type="button"
+            className="crew-girar"
+            onClick={(e) => {
+              e.stopPropagation();
+              girar();
+            }}
+          >
             ↻ volver
-          </span>
+          </button>
         </div>
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -328,77 +345,34 @@ function LaminaSep({ numero, titulo, nota, cuenta }) {
 
 function Crew() {
   const albumRef = useRef(null);
-  const [hashId] = useState(() => decodeURIComponent(window.location.hash.slice(1)));
+  const { hash } = useLocation();
+  const hashId = decodeURIComponent(hash.slice(1));
+  useDocumentTitle('La Crew');
 
   // Tu colección: expedientes que ya has abierto, guardados en el navegador
   const [abiertos, setAbiertos] = useState(leerAbiertos);
 
-  const abrirExpediente = useMemo(
-    () => (id) => {
-      setAbiertos((previos) => {
-        if (previos.has(id)) return previos;
-        const siguientes = new Set(previos);
-        siguientes.add(id);
-        // Modo incógnito: la colección vive solo esta sesión
-        writeJson(CLAVE_ABIERTOS, [...siguientes]);
-        return siguientes;
-      });
-    },
-    []
-  );
+  // La colección se guarda al cambiar, no dentro del updater.
+  useEffect(() => {
+    // Modo incógnito: la colección vive solo esta sesión
+    writeJson(CLAVE_ABIERTOS, [...abiertos]);
+  }, [abiertos]);
+
+  const abrirExpediente = useCallback((id) => {
+    setAbiertos((previos) => {
+      if (previos.has(id)) return previos;
+      const siguientes = new Set(previos);
+      siguientes.add(id);
+      return siguientes;
+    });
+  }, []);
 
   const albumCompleto = abiertos.size === CREW.length;
 
-  // Los cromos van apareciendo escalonados al entrar en pantalla.
-  // Sin florituras de API: comprobación manual con eventos de scroll,
-  // y por defecto todo visible (la ocultación solo la pone este efecto).
-  useEffect(() => {
-    const album = albumRef.current;
-    if (!album) return undefined;
-    const piezas = [...album.querySelectorAll('.crew-card, .crew-hueco')];
-    piezas.forEach((pieza, i) => pieza.style.setProperty('--orden', i % 6));
-
-    if (prefersReducedMotion()) {
-      return undefined;
-    }
-
-    piezas.forEach((pieza) => pieza.classList.add('is-hidden'));
-    const pendientes = new Set(piezas);
-
-    const revisar = () => {
-      const limite = window.innerHeight * 1.05;
-      pendientes.forEach((pieza) => {
-        const r = pieza.getBoundingClientRect();
-        if (r.top < limite && r.bottom > -40) {
-          pieza.classList.add('is-revealed');
-          pieza.classList.remove('is-hidden');
-          pendientes.delete(pieza);
-        }
-      });
-      if (!pendientes.size) {
-        window.removeEventListener('scroll', alScroll);
-        window.removeEventListener('resize', alScroll);
-      }
-    };
-
-    let esperando = false;
-    const alScroll = () => {
-      if (esperando) return;
-      esperando = true;
-      setTimeout(() => {
-        esperando = false;
-        revisar();
-      }, 80);
-    };
-
-    revisar();
-    window.addEventListener('scroll', alScroll, { passive: true });
-    window.addEventListener('resize', alScroll);
-    return () => {
-      window.removeEventListener('scroll', alScroll);
-      window.removeEventListener('resize', alScroll);
-    };
-  }, []);
+  // Los cromos van apareciendo escalonados al entrar en pantalla: el hook
+  // dice cuáles han entrado ya y cada pieza pinta su clase.
+  const { revealed, animated } = useRevealOnScroll(albumRef);
+  const revealOf = (id) => (animated ? (revealed.has(id) ? 'revealed' : 'hidden') : 'static');
 
   return (
     <div className="page-container crew">
@@ -477,11 +451,13 @@ function Crew() {
           />
           <div className="crew-vitrina-marco tape">
             <div className="crew-grid crew-grid--vitrina">
-              {VITRINA.map((miembro) => (
+              {VITRINA.map((miembro, indice) => (
                 <CrewCard
                   key={miembro.id}
                   miembro={miembro}
                   autoGirado={hashId === miembro.id}
+                  reveal={revealOf(miembro.id)}
+                  orden={indice % 6}
                   abierto={abiertos.has(miembro.id)}
                   onAbrir={abrirExpediente}
                 />
@@ -499,11 +475,13 @@ function Crew() {
             cuenta={`${PLANTILLA.length} cromos`}
           />
           <div className="crew-grid">
-            {PLANTILLA.map((miembro) => (
+            {PLANTILLA.map((miembro, indice) => (
               <CrewCard
                 key={miembro.id}
                 miembro={miembro}
                 autoGirado={hashId === miembro.id}
+                reveal={revealOf(miembro.id)}
+                orden={indice % 6}
                 abierto={abiertos.has(miembro.id)}
                 onAbrir={abrirExpediente}
               />
@@ -520,8 +498,13 @@ function Crew() {
             cuenta={`${POR_FICHAR.length} por fichar`}
           />
           <div className="crew-grid">
-            {POR_FICHAR.map((hueco) => (
-              <div key={hueco.id} className="crew-hueco">
+            {POR_FICHAR.map((hueco, indice) => (
+              <div
+                key={hueco.id}
+                className={`crew-hueco ${revealOf(hueco.id) === 'hidden' ? 'is-hidden' : ''} ${revealOf(hueco.id) === 'revealed' ? 'is-revealed' : ''}`.trim()}
+                data-reveal-id={hueco.id}
+                style={{ '--orden': (CREW.length + indice) % 6 }}
+              >
                 <SiluetaHueco id={hueco.id} />
                 <h3 className="crew-nombre">{hueco.nombre}</h3>
                 <p className="crew-hueco-nota">{hueco.nota}</p>

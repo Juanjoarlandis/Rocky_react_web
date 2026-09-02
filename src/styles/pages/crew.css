@@ -282,11 +282,9 @@
 
   /* El anillo de foco lo lleva la carta de dentro, que es la que gira; el
    contorno global sobre el contenedor plano sobraría. */
-  .crew-card:focus-visible {
-    outline: none;
-  }
-
-  .crew-card:focus-visible .crew-card-inner {
+  /* El foco vive en el botón «expediente»/«volver» de cada cara; la carta
+     entera lo enseña con el aro para que se sepa cuál está activa. */
+  .crew-card:has(:focus-visible) .crew-card-inner {
     box-shadow: var(--ring-accent), var(--shadow-ink);
   }
 
@@ -459,13 +457,26 @@
     height: 15px;
   }
 
+  /* Un botón de verdad, vestido de anotación a lápiz */
   .crew-girar {
     margin-top: 8px;
+    padding: 4px 6px;
     align-self: flex-end;
+    border: 0;
+    background: transparent;
     font-family: var(--font-hand);
     font-size: var(--text-sm);
     color: var(--muted);
+    cursor: pointer;
     transform: rotate(-1deg);
+  }
+
+  .crew-girar:hover {
+    color: var(--accent);
+  }
+
+  .crew-girar:focus-visible {
+    outline: none;
   }
 
   /* Tampón de expediente abierto, estampado sobre la foto del cromo */

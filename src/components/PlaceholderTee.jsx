@@ -2,7 +2,6 @@ import { CURRENT_DROP } from '../config/campaign.js';
 import { PLACEHOLDER_IMAGE } from '../config/commerce.js';
 import '../styles/components/placeholder-tee.css';
 
-
 function PlaceholderTee({
   title = '',
   compact = false,
