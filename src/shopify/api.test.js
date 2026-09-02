@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   addCartLine,
   beginCheckout,
+  listProducts,
   StorefrontApiError,
   updateCartLine,
 } from './api.js';
@@ -18,6 +19,19 @@ function jsonResponse(body, status = 200) {
 }
 
 describe('Shopify browser API', () => {
+  it('requests only the eight Shopify products shown in the storefront', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ products: [] }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await listProducts();
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/shopify/products?first=8', {
+      method: 'GET',
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json' },
+    });
+  });
+
   it('sends only variant, quantity and an idempotency key when adding a line', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       jsonResponse({ cart: { totalQuantity: 1, lines: [] }, warnings: [] })

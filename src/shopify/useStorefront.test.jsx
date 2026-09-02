@@ -192,7 +192,7 @@ describe('useStorefront', () => {
     expect(result.current.crewAvatarId).toBe('colgado-head');
   });
 
-  it('layers non-live previews after Shopify products and lets Shopify win handle collisions', async () => {
+  it('uses only the verified Shopify catalog when Shopify mode is active', async () => {
     api.getShopifyStatus.mockResolvedValue({
       mode: 'shopify',
       capabilities: {
@@ -221,32 +221,18 @@ describe('useStorefront', () => {
     });
     api.getCart.mockResolvedValue({ cart: null });
 
-    const shopifyPreviews = [
-      ...previewProducts,
-      {
-        id: 'rocky-solar-club',
-        handle: 'rocky-solar-club',
-        title: 'Solar Club',
-        isPreview: true,
-      },
-    ];
     const { result } = renderHook(() => useStorefront({
       demoProducts,
-      previewProducts: shopifyPreviews,
+      previewProducts,
     }));
 
     await waitFor(() => expect(result.current.mode).toBe('shopify'));
     expect(result.current.products.map((product) => product.handle)).toEqual([
       'rocky-tee',
       'rocky-airwave',
-      'rocky-solar-club',
     ]);
     expect(result.current.products[1].title).toBe('Airwave publicada');
     expect(result.current.products[1]).not.toHaveProperty('isPreview');
-    expect(result.current.products[2]).toMatchObject({
-      title: 'Solar Club',
-      isPreview: true,
-    });
   });
 
   it('keeps cart and account fail-closed and enables each only after its own initial read', async () => {
@@ -301,10 +287,7 @@ describe('useStorefront', () => {
       },
     });
 
-    const { result } = renderHook(() => useStorefront({
-      demoProducts,
-      previewProducts,
-    }));
+    const { result } = renderHook(() => useStorefront({ demoProducts }));
 
     await waitFor(() => expect(result.current.products[0]?.handle).toBe('rocky-tee'));
     expect(result.current.capabilities.cart).toBe(false);
@@ -355,10 +338,7 @@ describe('useStorefront', () => {
     api.listProducts.mockRejectedValue(new Error('Catálogo no disponible'));
     api.getCart.mockResolvedValue({ cart: null });
 
-    const { result } = renderHook(() => useStorefront({
-      demoProducts,
-      previewProducts,
-    }));
+    const { result } = renderHook(() => useStorefront({ demoProducts }));
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.mode).toBe('shopify');
@@ -391,16 +371,12 @@ describe('useStorefront', () => {
     api.getCart.mockRejectedValue(new Error('Carrito no disponible'));
     api.getCustomerAccount.mockRejectedValue(new Error('Cuenta no disponible'));
 
-    const { result } = renderHook(() => useStorefront({
-      demoProducts,
-      previewProducts,
-    }));
+    const { result } = renderHook(() => useStorefront({ demoProducts }));
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.mode).toBe('shopify');
     expect(result.current.products.map((product) => product.handle)).toEqual([
       'rocky-tee',
-      'rocky-airwave',
     ]);
     expect(result.current.capabilities.cart).toBe(false);
     expect(result.current.capabilities.customerAccounts).toBe(false);

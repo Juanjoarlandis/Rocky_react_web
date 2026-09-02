@@ -48,18 +48,18 @@ beforeEach(() => {
   });
 });
 
-test('passes the local preview layer to Shopify mode and renders it as non-live', () => {
+test('keeps previews in the demo catalog without passing a separate Shopify layer', () => {
   render(
     <MemoryRouter>
       <App />
     </MemoryRouter>
   );
 
-  expect(useStorefront).toHaveBeenCalledWith(expect.objectContaining({
-    previewProducts: expect.arrayContaining([
+  expect(useStorefront).toHaveBeenCalledWith({
+    demoProducts: expect.arrayContaining([
       expect.objectContaining({ handle: 'rocky-airwave', isPreview: true }),
     ]),
-  }));
+  });
   expect(screen.getByText('Airwave')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Vista previa' })).toBeDisabled();
 });

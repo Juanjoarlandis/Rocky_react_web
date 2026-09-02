@@ -33,7 +33,6 @@ function errorMessage(error) {
 
 export function useStorefront({
   demoProducts = EMPTY_PRODUCTS,
-  previewProducts = EMPTY_PRODUCTS,
 } = {}) {
   const [mode, setMode] = useState('checking');
   const [capabilities, setCapabilities] = useState(DISABLED_CAPABILITIES);
@@ -82,11 +81,7 @@ export function useStorefront({
         if (!active) return;
 
         const liveProducts = normalizeCatalog(catalogResponse.products);
-        const liveHandles = new Set(liveProducts.map((product) => product.handle));
-        const localPreviews = previewProducts.filter(
-          (product) => !liveHandles.has(product.handle)
-        );
-        setProducts([...liveProducts, ...localPreviews]);
+        setProducts(liveProducts);
 
         const unavailable = [];
         function reportUnavailable(label) {
@@ -146,7 +141,7 @@ export function useStorefront({
     return () => {
       active = false;
     };
-  }, [demoProducts, previewProducts]);
+  }, [demoProducts]);
 
   useEffect(() => {
     if (!capabilities.customerAccounts || !account.loggedIn) {

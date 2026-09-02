@@ -1,4 +1,5 @@
 const SHOPIFY_API_ROOT = '/api/shopify';
+const STOREFRONT_PRODUCT_LIMIT = 8;
 
 export class StorefrontApiError extends Error {
   constructor(message, { status = 500, code = 'STOREFRONT_REQUEST_FAILED' } = {}) {
@@ -52,7 +53,7 @@ export function getShopifyStatus() {
 }
 
 export function listProducts() {
-  return requestJson('/products?first=50');
+  return requestJson(`/products?first=${STOREFRONT_PRODUCT_LIMIT}`);
 }
 
 export function getCart() {

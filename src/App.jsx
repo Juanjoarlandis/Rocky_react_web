@@ -35,7 +35,6 @@ function App() {
   );
   const commerce = useStorefront({
     demoProducts: DEMO_CATALOG,
-    previewProducts,
   });
   const [carreras, setCarreras] = useState(0);
   const location = useLocation();
