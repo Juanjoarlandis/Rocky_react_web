@@ -5,9 +5,9 @@
 
 const THEME_KEY = 'rocky-theme';
 
-// El color de la barra del navegador acompaña al tema. El de día es el que
-// la web llevaba de siempre en index.html.
-const META_COLORS = { light: '#141414', neon: '#0c0917' };
+// El color de la barra del navegador acompaña al tema: de día la tinta
+// (--ink) que declara index.html, de noche el asfalto del modo neón.
+const META_COLORS = { light: '#1a1a1a', neon: '#0c0917' };
 
 export function temaActual() {
     return document.documentElement.dataset.theme === 'neon'
