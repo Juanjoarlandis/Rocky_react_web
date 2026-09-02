@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import AddToCartButton from './AddToCartButton';
 import PlaceholderTee from './PlaceholderTee';
 import { formatPrice } from '../utils/price';
+import { PURCHASE_STATES, purchaseLabel, purchaseState } from '../features/storefront/availability.js';
 import '../styles/components/chat-product-card.css';
 
 function firstAvailableVariant(variants) {
@@ -38,7 +39,10 @@ function ChatProductCard({
     const hasImageError = Boolean(productImage?.url && failedImageUrl === productImage.url);
     const price = formatPrice(selectedVariant?.price || product.price);
     const productPath = `/product/${encodeURIComponent(product.handle)}`;
-    const canUseCart = commerceMode === 'shopify' && canAddToCart && !product.isPreview;
+    const state = purchaseState(product, selectedVariant, {
+        mode: commerceMode,
+        cartEnabled: canAddToCart,
+    });
     const productForCart = {
         ...product,
         id: product.handle,
@@ -105,15 +109,19 @@ function ChatProductCard({
                     </p>
                 )}
 
-                {canUseCart ? (
+                {state === PURCHASE_STATES.BUY || state === PURCHASE_STATES.SOLD_OUT ? (
                     <AddToCartButton
                         product={productForCart}
                         variantId={selectedVariant?.id || null}
                         addToCart={addToCart}
                         className="chat-product-add"
-                        disabled={!selectedVariant?.availableForSale}
-                        unavailableLabel="Agotado"
+                        disabled={state !== PURCHASE_STATES.BUY}
+                        unavailableLabel={purchaseLabel(state)}
                     />
+                ) : state === PURCHASE_STATES.NOTIFY ? (
+                    <Link to={`${productPath}#aviso`} className="btn btn--ghost chat-product-add">
+                        Avísame
+                    </Link>
                 ) : (
                     <Link to={productPath} className="btn btn--ghost chat-product-add">
                         Ver producto

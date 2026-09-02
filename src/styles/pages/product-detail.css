@@ -157,10 +157,10 @@
     line-height: 1.9;
 }
 
+/* Una estrellita apagada como viñeta: son características, no tachones. */
 .detail-specs li::before {
-    content: '✗ ';
-    color: var(--accent);
-    font-weight: bold;
+    content: '✦ ';
+    color: var(--muted);
 }
 
 .detail-variant {

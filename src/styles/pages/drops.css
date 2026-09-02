@@ -5,10 +5,12 @@
     padding-bottom: 88px;
 }
 
-/* El tumbado se apoya sobre la primera tarjeta de la lista,
-   anclado al contenedor para que funcione en cualquier ancho. */
+/* El tumbado se apoya sobre la primera tarjeta de la lista, anclado al
+   contenedor para que funcione en cualquier ancho. El hueco reserva el
+   estante entero: el skater vuela 26px + 170px por encima de la lista y el
+   subtítulo no debe quedar debajo. */
 .drops-list-wrap {
-    margin-top: clamp(115px, 24vw, 185px);
+    margin-top: clamp(115px, 24vw, 235px);
 }
 
 .drops-illustration {
@@ -59,6 +61,33 @@
     transition: transform var(--dur-fast) ease;
 }
 
+.drops-link-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.drops-link-meta {
+    font-size: var(--text-2xs);
+    letter-spacing: 0.08em;
+}
+
+/* Estado del drop: una pegatina pequeña, roja si ya se puede comprar */
+.drops-link-state {
+    margin-left: auto;
+    padding: 2px 10px;
+    font-size: var(--text-xs);
+    letter-spacing: 0.02em;
+    text-transform: none;
+    transform: rotate(-3deg);
+}
+
+.drops-link-state--available {
+    background-color: var(--accent);
+    color: var(--white);
+}
+
 .drops-link:nth-child(2n) {
     transform: rotate(-0.5deg);
 }
@@ -103,6 +132,15 @@
     }
 
     .drops-skater {
+        display: none;
+    }
+
+    .drops-link {
+        padding: 12px 16px;
+        gap: 10px;
+    }
+
+    .drops-link-state {
         display: none;
     }
 }

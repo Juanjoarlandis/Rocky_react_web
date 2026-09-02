@@ -1,4 +1,15 @@
-const PRODUCT_PLACEHOLDER = '/products/placeholder-unreleased.webp';
+import { PLACEHOLDER_IMAGE as PRODUCT_PLACEHOLDER } from '../config/commerce.js';
+
+/* «35 RED» → «35-red», «ROCKY DROP 4» → «rocky-drop-4»: los handles del
+   catálogo demo salen del título, como haría Shopify. */
+export function slugify(value) {
+  return String(value ?? '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
 
 function firstSellableVariant(variants) {
   return variants.find((variant) => variant.availableForSale) || variants[0] || null;
@@ -25,6 +36,37 @@ export function normalizeCatalog(products = []) {
       availableForSale: Boolean(
         defaultVariant && variants.some((variant) => variant.availableForSale)
       ),
+    };
+  });
+}
+
+/* El catálogo demo (src/data/demoCatalog.json) adopta la misma forma que el
+   de Shopify: handle, dropHandle, variants (ninguna: nada se puede añadir),
+   precio nulo cuando es «??» y la marca de diseño sin revelar. */
+export function normalizeDemoCatalog(products = []) {
+  return products.map((product) => {
+    const handle = slugify(product.handle || product.title);
+    const image = product.image || PRODUCT_PLACEHOLDER;
+    const price = typeof product.price === 'string' && /\d/.test(product.price)
+      ? product.price
+      : null;
+    return {
+      id: handle,
+      handle,
+      demoId: product.id ?? null,
+      title: product.title,
+      description: product.description || '',
+      specifications: Array.isArray(product.specifications) ? [...product.specifications] : [],
+      image,
+      imageAlt: product.imageAlt || product.title,
+      drop: product.drop || 'Tienda',
+      dropHandle: slugify(product.dropHandle || product.drop || 'tienda'),
+      variants: [],
+      defaultVariantId: null,
+      price,
+      availableForSale: false,
+      isPreview: false,
+      isUnreleased: image === PRODUCT_PLACEHOLDER,
     };
   });
 }

@@ -91,4 +91,38 @@ describe('ProductDetail', () => {
     expect(title.compareDocumentPosition(addButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(addButton.compareDocumentPosition(mediaButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
+
+  it('sin precio ofrece «Avísame» y lleva el foco al formulario del drop', () => {
+    const unreleased = {
+      id: '35-red',
+      handle: '35-red',
+      title: '35 RED',
+      drop: 'ROCKY DROP 4',
+      description: 'Roja',
+      specifications: ['Próximamente'],
+      image: '/products/placeholder-unreleased.webp',
+      price: null,
+      variants: [],
+      defaultVariantId: null,
+      availableForSale: false,
+    };
+    render(
+      <MemoryRouter initialEntries={['/product/35-red']}>
+        <Routes>
+          <Route
+            path="/product/:productId"
+            element={
+              <ProductDetail products={[unreleased]} addToCart={vi.fn()} commerceMode="demo" canAddToCart />
+            }
+          />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByRole('button', { name: /añadir al carrito/i })).not.toBeInTheDocument();
+    expect(screen.getByText('Próximamente', { selector: '.badge' })).toBeInTheDocument();
+    // Hay dos «Avísame»: el atajo de la ficha (primero) y el envío del formulario
+    fireEvent.click(screen.getAllByRole('button', { name: 'Avísame' })[0]);
+    expect(document.activeElement).toBe(screen.getByRole('textbox', { name: /tu email/i }));
+  });
 });

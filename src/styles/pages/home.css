@@ -361,6 +361,37 @@
     align-self: flex-start;
 }
 
+/* El bloque de diseños bajo llave: ocupa dos huecos de la retícula, cuenta
+   los que faltan por revelar y ofrece un único aviso para todos. */
+.product-card--locked {
+    grid-column: span 2;
+}
+
+.product-card--locked .product-media--locked {
+    max-height: 260px;
+    aspect-ratio: auto;
+}
+
+.product-card--locked .product-media--locked .placeholder-tee__image {
+    object-position: center 35%;
+}
+
+.product-locked-names {
+    margin: 0;
+    color: var(--muted);
+    font-family: var(--font-hand);
+    font-size: var(--text-sm);
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+}
+
+.product-card--locked .drop-aviso {
+    margin-top: auto;
+}
+
 .product-actions {
     margin-top: auto;
     display: grid;
@@ -408,6 +439,10 @@
     .product-grid {
         grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
         gap: 18px;
+    }
+
+    .product-card--locked {
+        grid-column: 1 / -1;
     }
 
     .product-page-head-row {

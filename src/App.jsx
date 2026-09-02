@@ -11,8 +11,9 @@ import SplashIntro from './components/SplashIntro';
 import ProductPage from './components/ProductPage';
 import CuriousPeeker from './components/CuriousPeeker';
 import CartRunner from './components/CartRunner';
-import demoProducts from './PRODUCTOS_ROCKY.json';
+import demoCatalog from './data/demoCatalog.json';
 import previewProducts from '../server/preview-products.mjs';
+import { normalizeDemoCatalog } from './shopify/normalize';
 import { useStorefront } from './shopify/useStorefront';
 
 // Páginas cargadas bajo demanda
@@ -26,7 +27,7 @@ const CrewProfile = React.lazy(() => import('./components/CrewProfile'));
 
 const SPLASH_KEY = 'rocky-splash-seen';
 const SPLASH_MS = 3000;
-const DEMO_CATALOG = Object.freeze([...demoProducts, ...previewProducts]);
+const DEMO_CATALOG = Object.freeze([...normalizeDemoCatalog(demoCatalog), ...previewProducts]);
 
 function App() {
   const [showSplash, setShowSplash] = useState(

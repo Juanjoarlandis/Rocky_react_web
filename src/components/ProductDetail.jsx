@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useParams, Link } from 'react-router';
+import React, { useEffect, useRef, useState } from 'react';
+import { useLocation, useParams, Link } from 'react-router';
 import Lightbox from './Lightbox';
 import AddToCartButton from './AddToCartButton';
 import EyeIcon from './EyeIcon';
@@ -8,10 +8,10 @@ import DropAviso from './DropAviso';
 import sentadoBordeBlanco from '../images/optimized/characters/sentado-borde-blanco-600.webp';
 import nubePaseando from '../images/optimized/characters/nube-paseando-600.webp';
 import { formatPrice } from '../utils/price';
+import { PLACEHOLDER_IMAGE } from '../config/commerce.js';
+import { PURCHASE_STATES, purchaseLabel, purchaseState } from '../features/storefront/availability.js';
 import '../styles/components/product-media.css';
 import '../styles/pages/product-detail.css';
-
-const PLACEHOLDER = '/products/placeholder-unreleased.webp';
 
 function ProductDetail({
     products,
@@ -20,7 +20,9 @@ function ProductDetail({
     canAddToCart = true,
 }) {
     const { productId } = useParams();
+    const { hash } = useLocation();
     const [zoomOpen, setZoomOpen] = useState(false);
+    const avisoRef = useRef(null);
 
     const product = products.find(
         (candidate) => String(candidate.handle ?? candidate.id) === String(productId)
@@ -35,6 +37,19 @@ function ProductDetail({
         );
     }, [product]);
 
+    // Llegar con #aviso (desde «Avísame» en una tarjeta) deja el foco en el email
+    const focusAviso = () => {
+        const input = avisoRef.current?.querySelector('input[type="email"]');
+        if (!input) return;
+        input.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+        input.focus({ preventScroll: true });
+    };
+
+    useEffect(() => {
+        if (hash === '#aviso') focusAviso();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hash, product]);
+
     if (!product) {
         return (
             <div className="product-empty">
@@ -44,16 +59,14 @@ function ProductDetail({
         );
     }
 
-    const isPlaceholder = product.image === PLACEHOLDER;
+    const isPlaceholder = product.image === PLACEHOLDER_IMAGE;
     const variants = product.variants || [];
     const selectedVariant = variants.find((variant) => variant.id === selectedVariantId);
     const price = formatPrice(selectedVariant?.price || product.price);
-    const selectionRequired = commerceMode === 'shopify';
-    const addDisabled = product.isPreview || (
-        selectionRequired && (
-            !canAddToCart || !selectedVariant || !selectedVariant.availableForSale
-        )
-    );
+    const state = purchaseState(product, selectedVariant, {
+        mode: commerceMode,
+        cartEnabled: canAddToCart,
+    });
 
     return (
         <div className="page-container detail">
@@ -105,23 +118,25 @@ function ProductDetail({
                         ) : (
                             <p className="badge badge--dashed">Próximamente</p>
                         )}
-                        <AddToCartButton
-                            product={product}
-                            variantId={selectedVariantId}
-                            addToCart={addToCart}
-                            disabled={addDisabled}
-                            unavailableLabel={
-                                product.isPreview
-                                    ? 'Vista previa'
-                                    : canAddToCart
-                                        ? 'Agotado'
-                                        : 'Carrito no disponible'
-                            }
-                        />
+                        {state === PURCHASE_STATES.NOTIFY ? (
+                            <button type="button" className="btn btn--primary" onClick={focusAviso}>
+                                Avísame
+                            </button>
+                        ) : (
+                            <AddToCartButton
+                                product={product}
+                                variantId={selectedVariantId}
+                                addToCart={addToCart}
+                                disabled={state !== PURCHASE_STATES.BUY}
+                                unavailableLabel={purchaseLabel(state)}
+                            />
+                        )}
                         {/* Sin precio no hay compra, pero sí recado: el aviso
                             usa la misma identidad con la que se llegó aquí. */}
-                        {!price && (
-                            <DropAviso producto={String(product.handle ?? product.id)} />
+                        {state === PURCHASE_STATES.NOTIFY && (
+                            <div id="aviso" ref={avisoRef}>
+                                <DropAviso producto={String(product.handle ?? product.id)} />
+                            </div>
                         )}
                     </div>
                 </div>

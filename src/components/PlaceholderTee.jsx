@@ -1,9 +1,10 @@
 import React from 'react';
+import { CURRENT_DROP } from '../config/campaign.js';
 import '../styles/components/placeholder-tee.css';
 
 const UNRELEASED_MOCKUP = '/products/placeholder-unreleased.webp';
 
-function PlaceholderTee({ title = '', compact = false, priority = false }) {
+function PlaceholderTee({ title = '', compact = false, priority = false, label = 'Diseño bajo llave' }) {
     return (
         <span
             role="img"
@@ -23,8 +24,8 @@ function PlaceholderTee({ title = '', compact = false, priority = false }) {
             />
             {!compact && (
                 <span className="placeholder-tee__label" aria-hidden="true">
-                    <span>DROP 4 · SIN REVELAR</span>
-                    <strong>DISEÑO BAJO LLAVE</strong>
+                    <span>{CURRENT_DROP.shortTitle} · sin revelar</span>
+                    <strong>{label}</strong>
                 </span>
             )}
         </span>

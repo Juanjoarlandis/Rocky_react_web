@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeCart, normalizeCatalog } from './normalize.js';
+import { normalizeCart, normalizeCatalog, normalizeDemoCatalog, slugify } from './normalize.js';
 
 describe('Shopify UI normalization', () => {
   it('maps products to handles and chooses the first sellable variant', () => {
@@ -84,5 +84,27 @@ describe('Shopify UI normalization', () => {
     });
     expect(cart.cost.totalAmount.amount).toBe('70.00');
     expect(JSON.stringify(cart)).not.toContain('?key=');
+  });
+
+  it('normaliza el catálogo demo con handle, dropHandle y sin variantes', () => {
+    const [tee, revealed] = normalizeDemoCatalog([
+      { id: 1, drop: 'ROCKY DROP 4', title: '35 RED', specifications: ['Próximamente'], price: '??', image: '/products/placeholder-unreleased.webp', description: 'Roja' },
+      { id: 15, drop: 'ROCKY DROP 4', title: 'RockyRacing', price: '35', image: '/products/rocky-racing.webp' },
+    ]);
+    expect(tee).toMatchObject({
+      id: '35-red',
+      handle: '35-red',
+      demoId: 1,
+      dropHandle: 'rocky-drop-4',
+      variants: [],
+      defaultVariantId: null,
+      price: null,
+      availableForSale: false,
+      isPreview: false,
+      isUnreleased: true,
+      imageAlt: '35 RED',
+    });
+    expect(revealed).toMatchObject({ handle: 'rockyracing', price: '35', isUnreleased: false });
+    expect(slugify('Ñandú · Éxito!')).toBe('nandu-exito');
   });
 });

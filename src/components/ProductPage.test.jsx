@@ -3,6 +3,7 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import ProductPage from './ProductPage.jsx';
+import { normalizeDemoCatalog } from '../shopify/normalize.js';
 
 const productPageCss = readFileSync('src/styles/pages/home.css', 'utf8');
 const buttonsCss = readFileSync('src/styles/04-buttons.css', 'utf8');
@@ -105,6 +106,48 @@ describe('ProductPage preview drops', () => {
     expect(screen.queryByRole('button', { name: /añadir al carrito/i })).not.toBeInTheDocument();
     expect(screen.queryByText('HECHO DESDE LA COLMENA')).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Ver Drop 4' })).not.toBeInTheDocument();
+  });
+});
+
+describe('ProductPage catalog grouping', () => {
+  const demoProducts = [
+    ...normalizeDemoCatalog([
+      { id: 1, drop: 'ROCKY DROP 4', title: '35 RED', specifications: ['Próximamente'], price: '??', image: '/products/placeholder-unreleased.webp' },
+      { id: 2, drop: 'ROCKY DROP 4', title: '35 WHITE', specifications: ['Próximamente'], price: '??', image: '/products/placeholder-unreleased.webp' },
+      { id: 15, drop: 'ROCKY DROP 4', title: 'RockyRacing', price: '??', image: '/products/rocky-racing.webp' },
+      { id: 3, drop: 'ROCKY DROP 4', title: 'Dots', price: '??', image: '/products/placeholder-unreleased.webp' },
+    ]),
+    ...previewProducts,
+  ];
+
+  it('muestra primero los diseños con foto y agrupa los que siguen bajo llave con un solo aviso', () => {
+    render(
+      <MemoryRouter>
+        <ProductPage products={demoProducts} addToCart={vi.fn()} commerceMode="demo" />
+      </MemoryRouter>
+    );
+
+    const cards = document.querySelectorAll('.product-grid > .product-card');
+    expect(cards[0]).toHaveTextContent('RockyRacing');
+    expect(cards[1]).toHaveAttribute('data-testid', 'locked-designs');
+    expect(screen.getByRole('heading', { name: '3 diseños bajo llave' })).toBeInTheDocument();
+    expect(screen.getByText('35 RED · 35 WHITE · Dots')).toBeInTheDocument();
+    expect(screen.getAllByTestId('drop-aviso')).toHaveLength(1);
+  });
+
+  it('sin precio conocido ofrece «Avísame» en vez de «Añadir al carrito», en cualquier modo', () => {
+    render(
+      <MemoryRouter>
+        <ProductPage products={demoProducts} addToCart={vi.fn()} commerceMode="demo" canAddToCart />
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByRole('button', { name: /añadir al carrito/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Avísame' })).toHaveAttribute(
+      'href',
+      '/product/rockyracing#aviso'
+    );
+    expect(screen.getAllByRole('button', { name: 'Vista previa' })).toHaveLength(previewProducts.length);
   });
 });
 

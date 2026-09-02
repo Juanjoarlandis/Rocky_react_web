@@ -83,7 +83,7 @@ export const CREW = [
             { label: 'Charla', valor: 2 },
         ],
         frase: 'De este marco no pasa nadie.',
-        vistoEn: { label: 'Las fichas de producto', to: '/product/15' },
+        vistoEn: { label: 'Las fichas de producto', to: '/product/rockyracing' },
     },
     {
         id: 'portero',
@@ -295,7 +295,7 @@ export const CREW = [
             { label: 'Lluvia personal', valor: 3 },
         ],
         frase: 'Yo traigo mi propio clima.',
-        vistoEn: { label: 'Las fichas de producto', to: '/product/15' },
+        vistoEn: { label: 'Las fichas de producto', to: '/product/rockyracing' },
     },
     {
         id: 'tele',

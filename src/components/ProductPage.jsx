@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import Lightbox from './Lightbox';
 import AddToCartButton from './AddToCartButton';
+import DropAviso from './DropAviso';
 import EyeIcon from './EyeIcon';
 import PlaceholderTee from './PlaceholderTee';
 import StreetWall from './StreetWall';
 import { CrosshairSpinner } from './BrandDoodles';
+import { CURRENT_DROP } from '../config/campaign.js';
+import { PLACEHOLDER_IMAGE } from '../config/commerce.js';
+import { PURCHASE_STATES, purchaseLabel, purchaseState } from '../features/storefront/availability.js';
 // Variante sin los puntos de spray pintados: el chorro se anima aparte.
 import grafiteroSpray from '../images/optimized/characters/grafitero-sin-chorro-420.webp';
 import corriendoBolsa from '../images/optimized/splash/corriendo-bolsa.webp';
@@ -14,7 +18,45 @@ import { formatPrice } from '../utils/price';
 import '../styles/components/product-media.css';
 import '../styles/pages/home.css';
 
-const PLACEHOLDER = '/products/placeholder-unreleased.webp';
+/* El catálogo se lee por drops, en el orden en que aparecen: dentro de cada
+   drop van primero los diseños con foto y los que siguen bajo llave se
+   agrupan en un único bloque con su contador y un solo aviso. */
+function groupByDrop(products) {
+    const drops = new Map();
+    products.forEach((product) => {
+        const key = product.dropHandle || product.drop || 'tienda';
+        if (!drops.has(key)) {
+            drops.set(key, { key, title: product.drop, revealed: [], locked: [] });
+        }
+        const group = drops.get(key);
+        (product.image === PLACEHOLDER_IMAGE ? group.locked : group.revealed).push(product);
+    });
+    const items = [];
+    drops.forEach((group) => {
+        group.revealed.forEach((product) => items.push({ kind: 'product', product }));
+        if (group.locked.length) {
+            items.push({ kind: 'locked', key: group.key, title: group.title, products: group.locked });
+        }
+    });
+    return items;
+}
+
+function LockedDesigns({ dropKey, title, products }) {
+    const count = products.length;
+    return (
+        <article className="paper-card product-card product-card--locked" data-testid="locked-designs">
+            <div className="product-media product-media--locked" aria-hidden="true">
+                <PlaceholderTee title={`${count} diseños`} label={`${count} diseños bajo llave`} />
+            </div>
+            <div className="product-body">
+                <p className="kicker product-locked-kicker">{title} · sin revelar</p>
+                <h2 className="product-title">{count} diseños bajo llave</h2>
+                <p className="product-locked-names">{products.map((product) => product.title).join(' · ')}</p>
+                <DropAviso producto={dropKey} />
+            </div>
+        </article>
+    );
+}
 
 function ProductPage({
     products,
@@ -27,11 +69,15 @@ function ProductPage({
     const { category } = useParams();
     const [zoomImage, setZoomImage] = useState(null);
 
-    const visibleProducts = category
-        ? products.filter((product) =>
-            product.drop === category || product.dropHandle === category
-        )
-        : products;
+    const visibleProducts = useMemo(
+        () => (category
+            ? products.filter((product) =>
+                product.drop === category || product.dropHandle === category
+            )
+            : products),
+        [products, category]
+    );
+    const catalogItems = useMemo(() => groupByDrop(visibleProducts), [visibleProducts]);
     const isHome = !category;
     const pageTitle = category ? visibleProducts[0]?.drop || category : 'ROCKY 035';
 
@@ -74,7 +120,7 @@ function ProductPage({
                                     <p className="product-count">{visibleProducts.length} productos</p>
                                 </div>
                                 <a href="#productos" className="btn btn--primary product-page-hero-cta">
-                                    <span>Ver Drop 4</span>
+                                    <span>Ver {CURRENT_DROP.shortTitle}</span>
                                     <span className="product-page-hero-cta-arrow" aria-hidden="true">→</span>
                                 </a>
                             </div>
@@ -125,17 +171,29 @@ function ProductPage({
                 id={isHome ? 'productos' : undefined}
                 aria-busy={loading || undefined}
             >
-                {visibleProducts.map((product, index) => {
-                    const isPlaceholder = product.image === PLACEHOLDER;
+                {catalogItems.map((item, index) => {
+                    if (item.kind === 'locked') {
+                        return (
+                            <LockedDesigns
+                                key={`locked-${item.key}`}
+                                dropKey={item.key}
+                                title={item.title}
+                                products={item.products}
+                            />
+                        );
+                    }
+                    const { product } = item;
+                    const isPlaceholder = product.image === PLACEHOLDER_IMAGE;
                     const isPriorityImage = prioritizeFirstImage && index === 0;
                     const price = formatPrice(product.price);
                     const productPath = product.handle ?? product.id;
                     const variantId = product.defaultVariantId || null;
-                    const unavailable = product.isPreview || (
-                        commerceMode === 'shopify' && (
-                            !canAddToCart || !product.availableForSale || !variantId
-                        )
-                    );
+                    const variant = product.variants?.find((candidate) => candidate.id === variantId)
+                        || (variantId ? { id: variantId, availableForSale: product.availableForSale } : null);
+                    const state = purchaseState(product, variant, {
+                        mode: commerceMode,
+                        cartEnabled: canAddToCart,
+                    });
                     return (
                         <article key={productPath} className="paper-card product-card">
                             <button
@@ -177,20 +235,23 @@ function ProductPage({
                                     <Link to={`/product/${encodeURIComponent(productPath)}`} className="btn btn--ghost btn--sm btn--block">
                                         Detalles
                                     </Link>
-                                    <AddToCartButton
-                                        product={product}
-                                        variantId={variantId}
-                                        addToCart={addToCart}
-                                        className="btn--sm btn--block"
-                                        disabled={unavailable}
-                                        unavailableLabel={
-                                            product.isPreview
-                                                ? 'Vista previa'
-                                                : canAddToCart
-                                                    ? 'Agotado'
-                                                    : 'Carrito no disponible'
-                                        }
-                                    />
+                                    {state === PURCHASE_STATES.NOTIFY ? (
+                                        <Link
+                                            to={`/product/${encodeURIComponent(productPath)}#aviso`}
+                                            className="btn btn--primary btn--sm btn--block"
+                                        >
+                                            Avísame
+                                        </Link>
+                                    ) : (
+                                        <AddToCartButton
+                                            product={product}
+                                            variantId={variantId}
+                                            addToCart={addToCart}
+                                            className="btn--sm btn--block"
+                                            disabled={state !== PURCHASE_STATES.BUY}
+                                            unavailableLabel={purchaseLabel(state)}
+                                        />
+                                    )}
                                 </div>
                             </div>
                         </article>

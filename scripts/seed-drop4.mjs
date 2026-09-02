@@ -1,4 +1,4 @@
-// Crea en Shopify los productos del DROP 4 a partir de src/PRODUCTOS_ROCKY.json.
+// Crea en Shopify los productos del DROP 4 a partir de src/data/demoCatalog.json.
 //
 //   node scripts/seed-drop4.mjs                 # simulacro, no escribe nada
 //   node scripts/seed-drop4.mjs --limit 1       # simulacro de un solo producto
@@ -142,7 +142,7 @@ async function main() {
   const shopifyConfig = createShopifyConfig(process.env, createConfig(process.env));
 
   const source = JSON.parse(
-    fs.readFileSync(path.join(rootDirectory, 'src/PRODUCTOS_ROCKY.json'), 'utf8')
+    fs.readFileSync(path.join(rootDirectory, 'src/data/demoCatalog.json'), 'utf8')
   );
   const catalog = Array.isArray(source) ? source : source.products;
   const products = Number.isInteger(limit) ? catalog.slice(0, limit) : catalog;
