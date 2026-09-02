@@ -72,12 +72,14 @@ export function createApp({
 } = {}) {
   const config = createConfig(env);
   const shopifyConfig = createShopifyConfig(env, config);
-  const stateStore = store || (shopifyConfig.encryptionKey
-    ? new EncryptedStore({
-        filePath: shopifyConfig.stateStorePath,
-        key: shopifyConfig.encryptionKey,
-      })
-    : new MemoryStore());
+  const stateStore =
+    store ||
+    (shopifyConfig.encryptionKey
+      ? new EncryptedStore({
+          filePath: shopifyConfig.stateStorePath,
+          key: shopifyConfig.encryptionKey,
+        })
+      : new MemoryStore());
   const sessions = createSessionManager({
     store: stateStore,
     isProduction: config.isProduction,
@@ -247,28 +249,23 @@ export function createApp({
 
   app.use((error, req, res, next) => {
     if (res.headersSent) return next(error);
-    const status = error?.type === 'entity.too.large'
-      ? 413
-      : error?.type === 'entity.parse.failed'
-        ? 400
-        : 500;
+    const status =
+      error?.type === 'entity.too.large' ? 413 : error?.type === 'entity.parse.failed' ? 400 : 500;
     // Nombre, mensaje y stack bastan para diagnosticar: nunca el cuerpo, las
     // cabeceras ni las cookies de la petición.
     logger.error('Unhandled request error', {
       requestId: req.requestId,
-      reason: status === 413
-        ? 'body_too_large'
-        : status === 400
-          ? 'invalid_json'
-          : 'internal_error',
+      reason:
+        status === 413 ? 'body_too_large' : status === 400 ? 'invalid_json' : 'internal_error',
       ...(status === 500 ? describeError(error) : {}),
     });
     return res.status(status).json({
-      message: status === 413
-        ? 'Petición demasiado grande.'
-        : status === 400
-          ? 'JSON no válido.'
-          : 'Algo se ha roto en el servidor.',
+      message:
+        status === 413
+          ? 'Petición demasiado grande.'
+          : status === 400
+            ? 'JSON no válido.'
+            : 'Algo se ha roto en el servidor.',
     });
   });
 

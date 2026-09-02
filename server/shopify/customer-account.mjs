@@ -38,7 +38,11 @@ export function normalizeReturnPath(value, publicOrigin) {
 
 function requireSessionBinding(value) {
   if (typeof value !== 'string' || value.length < 20 || value.length > 100) {
-    throw new CustomerAccountError('La sesión de autenticación no es válida.', 400, 'INVALID_STATE');
+    throw new CustomerAccountError(
+      'La sesión de autenticación no es válida.',
+      400,
+      'INVALID_STATE'
+    );
   }
   return hash(value);
 }
@@ -168,7 +172,11 @@ async function verifyIdToken({ token, nonce, clientId, discovery, fetchImpl, clo
       (!candidate.key_ops || candidate.key_ops.includes('verify'))
   );
   if (!jwk) {
-    throw new CustomerAccountError('No se encuentra la clave del ID token.', 401, 'INVALID_ID_TOKEN');
+    throw new CustomerAccountError(
+      'No se encuentra la clave del ID token.',
+      401,
+      'INVALID_ID_TOKEN'
+    );
   }
   let verified = false;
   try {
@@ -222,7 +230,11 @@ async function verifyIdToken({ token, nonce, clientId, discovery, fetchImpl, clo
       notBeforeType: typeof parsed.payload.nbf,
       subjectType: typeof parsed.payload.sub,
     });
-    throw new CustomerAccountError('Las claims del ID token no son válidas.', 401, 'INVALID_ID_TOKEN');
+    throw new CustomerAccountError(
+      'Las claims del ID token no son válidas.',
+      401,
+      'INVALID_ID_TOKEN'
+    );
   }
   return { ...parsed.payload, sub: customerSubject };
 }
@@ -240,10 +252,7 @@ export function createCustomerAccountClient({
   async function getOpenIdDiscovery() {
     if (!openIdDiscovery) {
       openIdDiscovery = validateOpenIdDiscovery(
-        await fetchJson(
-          `https://${config.storeDomain}/.well-known/openid-configuration`,
-          fetchImpl
-        )
+        await fetchJson(`https://${config.storeDomain}/.well-known/openid-configuration`, fetchImpl)
       );
     }
     return openIdDiscovery;
@@ -295,7 +304,11 @@ export function createCustomerAccountClient({
       !isOpaqueToken(token?.refresh_token) ||
       !isValidTokenLifetime(token?.expires_in)
     ) {
-      throw new CustomerAccountError('Shopify ha rechazado el intercambio OAuth.', 401, 'TOKEN_ERROR');
+      throw new CustomerAccountError(
+        'Shopify ha rechazado el intercambio OAuth.',
+        401,
+        'TOKEN_ERROR'
+      );
     }
     return token;
   }
@@ -350,10 +363,7 @@ export function createCustomerAccountClient({
       url.searchParams.set('scope', config.customerScopes);
       url.searchParams.set('client_id', config.customerClientId);
       url.searchParams.set('response_type', 'code');
-      url.searchParams.set(
-        'redirect_uri',
-        `${config.publicOrigin}/api/shopify/account/callback`
-      );
+      url.searchParams.set('redirect_uri', `${config.publicOrigin}/api/shopify/account/callback`);
       url.searchParams.set('state', state);
       url.searchParams.set('nonce', nonce);
       url.searchParams.set('code_challenge', challenge);
@@ -367,7 +377,11 @@ export function createCustomerAccountClient({
       }
       const transaction = await store.consume('oauthTransactions', hash(state));
       if (!transaction) {
-        throw new CustomerAccountError('Estado OAuth inválido o reutilizado.', 400, 'INVALID_STATE');
+        throw new CustomerAccountError(
+          'Estado OAuth inválido o reutilizado.',
+          400,
+          'INVALID_STATE'
+        );
       }
       const sessionBindingHash = requireSessionBinding(sessionBinding);
       const expectedBinding = Buffer.from(transaction.sessionBindingHash || '', 'utf8');
@@ -376,7 +390,11 @@ export function createCustomerAccountClient({
         expectedBinding.length !== actualBinding.length ||
         !crypto.timingSafeEqual(expectedBinding, actualBinding)
       ) {
-        throw new CustomerAccountError('Estado OAuth inválido o reutilizado.', 400, 'INVALID_STATE');
+        throw new CustomerAccountError(
+          'Estado OAuth inválido o reutilizado.',
+          400,
+          'INVALID_STATE'
+        );
       }
       const discovery = await getOpenIdDiscovery();
       const token = await exchangeToken(discovery, {
@@ -387,7 +405,11 @@ export function createCustomerAccountClient({
         code_verifier: transaction.verifier,
       });
       if (!token.id_token) {
-        throw new CustomerAccountError('Shopify no ha devuelto un ID token.', 401, 'MISSING_ID_TOKEN');
+        throw new CustomerAccountError(
+          'Shopify no ha devuelto un ID token.',
+          401,
+          'MISSING_ID_TOKEN'
+        );
       }
       const claims = await verifyIdToken({
         token: token.id_token,

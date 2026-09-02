@@ -15,7 +15,9 @@ function hash(value) {
 }
 
 function signIdToken({ privateKey, kid, payload }) {
-  const header = Buffer.from(JSON.stringify({ alg: 'ES256', kid, typ: 'JWT' })).toString('base64url');
+  const header = Buffer.from(JSON.stringify({ alg: 'ES256', kid, typ: 'JWT' })).toString(
+    'base64url'
+  );
   const claims = Buffer.from(JSON.stringify(payload)).toString('base64url');
   const signingInput = `${header}.${claims}`;
   const signature = crypto.sign('sha256', Buffer.from(signingInput), {
@@ -55,10 +57,12 @@ describe('Customer Account OAuth', () => {
       clock: () => 1_000_000,
     });
 
-    const authorizationUrl = new URL(await client.beginAuthentication({
-      returnPath: '/cart',
-      sessionBinding: 'session-binding-for-tests',
-    }));
+    const authorizationUrl = new URL(
+      await client.beginAuthentication({
+        returnPath: '/cart',
+        sessionBinding: 'session-binding-for-tests',
+      })
+    );
     expect(fetchImpl.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
     const state = authorizationUrl.searchParams.get('state');
     const transaction = await store.get('oauthTransactions', hash(state));
@@ -163,9 +167,11 @@ describe('Customer Account OAuth', () => {
       store: new MemoryStore(),
       fetchImpl,
     });
-    const authorizationUrl = new URL(await client.beginAuthentication({
-      sessionBinding: 'original-browser-session',
-    }));
+    const authorizationUrl = new URL(
+      await client.beginAuthentication({
+        sessionBinding: 'original-browser-session',
+      })
+    );
 
     await expect(
       client.completeAuthentication({
@@ -191,9 +197,11 @@ describe('Customer Account OAuth', () => {
       ),
     });
 
-    await expect(client.beginAuthentication({
-      sessionBinding: 'session-binding-for-tests',
-    })).rejects.toMatchObject({
+    await expect(
+      client.beginAuthentication({
+        sessionBinding: 'session-binding-for-tests',
+      })
+    ).rejects.toMatchObject({
       code: 'INSECURE_DISCOVERY_URL',
     });
   });
@@ -208,26 +216,32 @@ describe('Customer Account OAuth', () => {
     const fetchImpl = vi
       .fn()
       .mockResolvedValueOnce(response(discovery))
-      .mockResolvedValueOnce(response({
-        access_token: 'customer-access-token',
-        refresh_token: 'customer-refresh-token',
-        id_token: 'not-reached',
-        expires_in: '600',
-      }));
+      .mockResolvedValueOnce(
+        response({
+          access_token: 'customer-access-token',
+          refresh_token: 'customer-refresh-token',
+          id_token: 'not-reached',
+          expires_in: '600',
+        })
+      );
     const client = createCustomerAccountClient({
       config,
       store: new MemoryStore(),
       fetchImpl,
     });
-    const authorizationUrl = new URL(await client.beginAuthentication({
-      sessionBinding: 'session-binding-for-tests',
-    }));
+    const authorizationUrl = new URL(
+      await client.beginAuthentication({
+        sessionBinding: 'session-binding-for-tests',
+      })
+    );
 
-    await expect(client.completeAuthentication({
-      state: authorizationUrl.searchParams.get('state'),
-      code: 'authorization-code',
-      sessionBinding: 'session-binding-for-tests',
-    })).rejects.toMatchObject({ status: 401, code: 'TOKEN_ERROR' });
+    await expect(
+      client.completeAuthentication({
+        state: authorizationUrl.searchParams.get('state'),
+        code: 'authorization-code',
+        sessionBinding: 'session-binding-for-tests',
+      })
+    ).rejects.toMatchObject({ status: 401, code: 'TOKEN_ERROR' });
   });
 
   it('rejects a signed ID token whose expiration claim is missing', async () => {
@@ -250,9 +264,11 @@ describe('Customer Account OAuth', () => {
       fetchImpl,
       clock: () => 1_000,
     });
-    const authorizationUrl = new URL(await client.beginAuthentication({
-      sessionBinding: 'session-binding-for-tests',
-    }));
+    const authorizationUrl = new URL(
+      await client.beginAuthentication({
+        sessionBinding: 'session-binding-for-tests',
+      })
+    );
     const state = authorizationUrl.searchParams.get('state');
     const transaction = await store.get('oauthTransactions', hash(state));
     const idToken = signIdToken({
@@ -266,19 +282,23 @@ describe('Customer Account OAuth', () => {
       },
     });
     fetchImpl
-      .mockResolvedValueOnce(response({
-        access_token: 'customer-access-token',
-        refresh_token: 'customer-refresh-token',
-        id_token: idToken,
-        expires_in: 600,
-      }))
+      .mockResolvedValueOnce(
+        response({
+          access_token: 'customer-access-token',
+          refresh_token: 'customer-refresh-token',
+          id_token: idToken,
+          expires_in: 600,
+        })
+      )
       .mockResolvedValueOnce(response({ keys: [{ ...publicJwk, kid, alg: 'ES256' }] }));
 
-    await expect(client.completeAuthentication({
-      state,
-      code: 'authorization-code',
-      sessionBinding: 'session-binding-for-tests',
-    })).rejects.toMatchObject({ status: 401, code: 'INVALID_ID_TOKEN' });
+    await expect(
+      client.completeAuthentication({
+        state,
+        code: 'authorization-code',
+        sessionBinding: 'session-binding-for-tests',
+      })
+    ).rejects.toMatchObject({ status: 401, code: 'INVALID_ID_TOKEN' });
   });
 
   it('normalizes the numeric subject returned by Shopify', async () => {
@@ -301,9 +321,11 @@ describe('Customer Account OAuth', () => {
       fetchImpl,
       clock: () => 1_000_000,
     });
-    const authorizationUrl = new URL(await client.beginAuthentication({
-      sessionBinding: 'session-binding-for-tests',
-    }));
+    const authorizationUrl = new URL(
+      await client.beginAuthentication({
+        sessionBinding: 'session-binding-for-tests',
+      })
+    );
     const state = authorizationUrl.searchParams.get('state');
     const transaction = await store.get('oauthTransactions', hash(state));
     const idToken = signIdToken({
@@ -319,12 +341,14 @@ describe('Customer Account OAuth', () => {
       },
     });
     fetchImpl
-      .mockResolvedValueOnce(response({
-        access_token: 'customer-access-token',
-        refresh_token: 'customer-refresh-token',
-        id_token: idToken,
-        expires_in: 600,
-      }))
+      .mockResolvedValueOnce(
+        response({
+          access_token: 'customer-access-token',
+          refresh_token: 'customer-refresh-token',
+          id_token: idToken,
+          expires_in: 600,
+        })
+      )
       .mockResolvedValueOnce(response({ keys: [{ ...publicJwk, kid, alg: 'ES256' }] }));
 
     const completed = await client.completeAuthentication({
@@ -349,20 +373,24 @@ describe('Customer Account OAuth', () => {
     });
     const fetchImpl = vi
       .fn()
-      .mockResolvedValueOnce(response({
-        graphql_api: 'https://shopify.com/customer-account/graphql',
-      }))
-      .mockResolvedValueOnce(response({
-        data: {
-          customer: {
-            id: 'gid://shopify/Customer/1',
-            displayName: 'juanjo.rocky035@example.com',
-            firstName: ' Juanjo ',
-            lastName: ' Rocky ',
-            emailAddress: { emailAddress: 'JUANJO.ROCKY035@example.com' },
+      .mockResolvedValueOnce(
+        response({
+          graphql_api: 'https://shopify.com/customer-account/graphql',
+        })
+      )
+      .mockResolvedValueOnce(
+        response({
+          data: {
+            customer: {
+              id: 'gid://shopify/Customer/1',
+              displayName: 'juanjo.rocky035@example.com',
+              firstName: ' Juanjo ',
+              lastName: ' Rocky ',
+              emailAddress: { emailAddress: 'JUANJO.ROCKY035@example.com' },
+            },
           },
-        },
-      }));
+        })
+      );
     const client = createCustomerAccountClient({ config, store, fetchImpl, clock });
 
     await expect(client.getCustomerProfile('customer-token-id')).resolves.toMatchObject({
@@ -395,9 +423,11 @@ describe('Customer Account OAuth', () => {
       logger,
       clock: () => 1_000_000,
     });
-    const authorizationUrl = new URL(await client.beginAuthentication({
-      sessionBinding: 'session-binding-for-tests',
-    }));
+    const authorizationUrl = new URL(
+      await client.beginAuthentication({
+        sessionBinding: 'session-binding-for-tests',
+      })
+    );
     const state = authorizationUrl.searchParams.get('state');
     const transaction = await store.get('oauthTransactions', hash(state));
     const idToken = signIdToken({
@@ -413,34 +443,35 @@ describe('Customer Account OAuth', () => {
       },
     });
     fetchImpl
-      .mockResolvedValueOnce(response({
-        access_token: 'customer-access-token',
-        refresh_token: 'customer-refresh-token',
-        id_token: idToken,
-        expires_in: 600,
-      }))
+      .mockResolvedValueOnce(
+        response({
+          access_token: 'customer-access-token',
+          refresh_token: 'customer-refresh-token',
+          id_token: idToken,
+          expires_in: 600,
+        })
+      )
       .mockResolvedValueOnce(response({ keys: [{ ...publicJwk, kid, alg: 'ES256' }] }));
 
-    await expect(client.completeAuthentication({
-      state,
-      code: 'authorization-code',
-      sessionBinding: 'session-binding-for-tests',
-    })).rejects.toMatchObject({ status: 401, code: 'INVALID_ID_TOKEN' });
+    await expect(
+      client.completeAuthentication({
+        state,
+        code: 'authorization-code',
+        sessionBinding: 'session-binding-for-tests',
+      })
+    ).rejects.toMatchObject({ status: 401, code: 'INVALID_ID_TOKEN' });
 
-    expect(logger.error).toHaveBeenCalledWith(
-      'Shopify ID token claim validation failed',
-      {
-        failedChecks: ['expiration'],
-        audienceCount: 1,
-        audienceType: 'string',
-        hasAuthorizedParty: false,
-        expirationType: 'undefined',
-        issuedAtType: 'number',
-        hasNotBefore: false,
-        notBeforeType: 'undefined',
-        subjectType: 'string',
-      }
-    );
+    expect(logger.error).toHaveBeenCalledWith('Shopify ID token claim validation failed', {
+      failedChecks: ['expiration'],
+      audienceCount: 1,
+      audienceType: 'string',
+      hasAuthorizedParty: false,
+      expirationType: 'undefined',
+      issuedAtType: 'number',
+      hasNotBefore: false,
+      notBeforeType: 'undefined',
+      subjectType: 'string',
+    });
     expect(JSON.stringify(logger.error.mock.calls)).not.toContain('private@example.com');
     expect(JSON.stringify(logger.error.mock.calls)).not.toContain('sensitive-customer-id');
   });

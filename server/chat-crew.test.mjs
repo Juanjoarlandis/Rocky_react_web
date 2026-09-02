@@ -71,9 +71,9 @@ describe('Rocky IA verified Crew context', () => {
     });
 
     expect(context).toBe('');
-    expect(logger.error).toHaveBeenCalledWith(
-      'Rocky IA Crew context could not be loaded',
-      { requestId: 'request-error', reason: 'crew_context_error' }
-    );
+    expect(logger.error).toHaveBeenCalledWith('Rocky IA Crew context could not be loaded', {
+      requestId: 'request-error',
+      reason: 'crew_context_error',
+    });
   });
 });

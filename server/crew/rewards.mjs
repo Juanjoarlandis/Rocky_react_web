@@ -156,9 +156,7 @@ export function getCrewLevel(value) {
   const level = CREW_LEVELS[index];
   const next = CREW_LEVELS[index + 1] || null;
   const span = next ? next.minXp - level.minXp : 0;
-  const progress = next
-    ? Math.min(100, Math.round(((xp - level.minXp) / span) * 100))
-    : 100;
+  const progress = next ? Math.min(100, Math.round(((xp - level.minXp) / span) * 100)) : 100;
   return {
     ...level,
     currentXp: xp,
@@ -185,7 +183,10 @@ function profileKey(customerId) {
 function createProfile(now, displayName = '') {
   return {
     version: 1,
-    displayName: String(displayName || '').trim().slice(0, 80) || 'Miembro 035',
+    displayName:
+      String(displayName || '')
+        .trim()
+        .slice(0, 80) || 'Miembro 035',
     xp: 0,
     ticketBalanceTenths: 0,
     lifetimeTicketsEarnedTenths: 0,
@@ -225,8 +226,7 @@ function publicProfile(profile) {
       owned,
       available: reward.unlockMode === 'tickets' && levelUnlocked && !owned,
       locked: !levelUnlocked,
-      equipped:
-        profile.equippedAvatarId === reward.id || profile.equippedFrameId === reward.id,
+      equipped: profile.equippedAvatarId === reward.id || profile.equippedFrameId === reward.id,
     };
   });
   return {
@@ -246,9 +246,7 @@ function publicProfile(profile) {
     })),
     activity: profile.activity.map(({ ticketTenths, ...entry }) => ({
       ...entry,
-      tickets: ticketTenths === undefined
-        ? undefined
-        : toTicketValue(ticketTenths),
+      tickets: ticketTenths === undefined ? undefined : toTicketValue(ticketTenths),
     })),
   };
 }
@@ -281,7 +279,10 @@ function orderSummary(order, rewards) {
         .slice(0, 6)
     : [];
   return {
-    orderName: String(order.name || '').trim().slice(0, 40) || 'Pedido ROCKY',
+    orderName:
+      String(order.name || '')
+        .trim()
+        .slice(0, 40) || 'Pedido ROCKY',
     amount: (rewards.eligibleCents / 100).toFixed(2),
     currency: 'EUR',
     xpEarned: rewards.xp,
@@ -299,7 +300,9 @@ export function createCrewRewardsService({ store, clock = () => Date.now() }) {
     const key = profileKey(validateCustomerId(customerId));
     const stored = await store.get('crewProfiles', key);
     const profile = stored || createProfile(clock(), displayName);
-    const nextName = String(displayName || '').trim().slice(0, 80);
+    const nextName = String(displayName || '')
+      .trim()
+      .slice(0, 80);
     if (nextName && nextName !== profile.displayName) profile.displayName = nextName;
     return { key, profile };
   }
@@ -465,9 +468,7 @@ export function createCrewRewardsService({ store, clock = () => Date.now() }) {
     async getContext(customerId) {
       const { profile } = await readPrivateProfile(customerId);
       const view = publicProfile(profile);
-      const equippedAvatar = view.rewards.find(
-        (reward) => reward.id === view.equippedAvatarId
-      );
+      const equippedAvatar = view.rewards.find((reward) => reward.id === view.equippedAvatarId);
       return {
         level: view.level.name,
         xp: view.xp,

@@ -65,12 +65,7 @@ describe('ProductPage preview drops', () => {
   it('reserves the catalog footprint while Shopify is loading', () => {
     const { container } = render(
       <MemoryRouter>
-        <ProductPage
-          products={[]}
-          addToCart={vi.fn()}
-          commerceMode="checking"
-          loading
-        />
+        <ProductPage products={[]} addToCart={vi.fn()} commerceMode="checking" loading />
       </MemoryRouter>
     );
 
@@ -98,9 +93,7 @@ describe('ProductPage preview drops', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
-      'ASPHALT AFTERDARK'
-    );
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('ASPHALT AFTERDARK');
     expect(screen.getByText('2 productos')).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Vista previa' })).toHaveLength(2);
     expect(screen.queryByRole('button', { name: /añadir al carrito/i })).not.toBeInTheDocument();
@@ -112,10 +105,36 @@ describe('ProductPage preview drops', () => {
 describe('ProductPage catalog grouping', () => {
   const demoProducts = [
     ...normalizeDemoCatalog([
-      { id: 1, drop: 'ROCKY DROP 4', title: '35 RED', specifications: ['Próximamente'], price: '??', image: '/products/placeholder-unreleased.webp' },
-      { id: 2, drop: 'ROCKY DROP 4', title: '35 WHITE', specifications: ['Próximamente'], price: '??', image: '/products/placeholder-unreleased.webp' },
-      { id: 15, drop: 'ROCKY DROP 4', title: 'RockyRacing', price: '??', image: '/products/rocky-racing.webp' },
-      { id: 3, drop: 'ROCKY DROP 4', title: 'Dots', price: '??', image: '/products/placeholder-unreleased.webp' },
+      {
+        id: 1,
+        drop: 'ROCKY DROP 4',
+        title: '35 RED',
+        specifications: ['Próximamente'],
+        price: '??',
+        image: '/products/placeholder-unreleased.webp',
+      },
+      {
+        id: 2,
+        drop: 'ROCKY DROP 4',
+        title: '35 WHITE',
+        specifications: ['Próximamente'],
+        price: '??',
+        image: '/products/placeholder-unreleased.webp',
+      },
+      {
+        id: 15,
+        drop: 'ROCKY DROP 4',
+        title: 'RockyRacing',
+        price: '??',
+        image: '/products/rocky-racing.webp',
+      },
+      {
+        id: 3,
+        drop: 'ROCKY DROP 4',
+        title: 'Dots',
+        price: '??',
+        image: '/products/placeholder-unreleased.webp',
+      },
     ]),
     ...previewProducts,
   ];
@@ -147,7 +166,9 @@ describe('ProductPage catalog grouping', () => {
       'href',
       '/product/rockyracing#aviso'
     );
-    expect(screen.getAllByRole('button', { name: 'Vista previa' })).toHaveLength(previewProducts.length);
+    expect(screen.getAllByRole('button', { name: 'Vista previa' })).toHaveLength(
+      previewProducts.length
+    );
   });
 });
 
@@ -182,11 +203,15 @@ describe('ProductPage hero motion', () => {
     // El trazo lleva `non-scaling-stroke`, así que el guion se mide en píxeles
     // de pantalla: tiene que ser más largo que la pista o la línea sale a rayas.
     expect(trazo).toHaveAttribute('vector-effect', 'non-scaling-stroke');
-    expect(productPageCss).toMatch(/\.spray-line\s+path\s*\{[^}]*stroke-dasharray:\s*100cqw\s+100cqw;/);
+    expect(productPageCss).toMatch(
+      /\.spray-line\s+path\s*\{[^}]*stroke-dasharray:\s*100cqw\s+100cqw;/
+    );
     // Negativo: se descubre desde el final del trazo hacia atrás, que es donde
     // está el bote. En positivo saldría del lado contrario al que rocía.
     expect(productPageCss).toMatch(/\.spray-line\s+path\s*\{[^}]*stroke-dashoffset:\s*-95cqw;/);
-    expect(productPageCss).toMatch(/@keyframes\s+spray-linea\s*\{[^}]*\{[^}]*stroke-dashoffset:\s*0;/);
+    expect(productPageCss).toMatch(
+      /@keyframes\s+spray-linea\s*\{[^}]*\{[^}]*stroke-dashoffset:\s*0;/
+    );
   });
 
   it('la escena pasa una sola vez y no se repite', () => {
@@ -211,7 +236,9 @@ describe('ProductPage hero motion', () => {
     );
 
     // La línea, pintada del todo; nadie se queda con media raya.
-    expect(reducido).toMatch(/\.spray-line\s+path\s*\{[^}]*animation:\s*none;[^}]*stroke-dashoffset:\s*0;/);
+    expect(reducido).toMatch(
+      /\.spray-line\s+path\s*\{[^}]*animation:\s*none;[^}]*stroke-dashoffset:\s*0;/
+    );
     expect(reducido).toMatch(/\.spray-cruiser\s*\{[^}]*animation:\s*none;/);
     // Y sin chorro, que sin animación serían tres puntos clavados en el aire.
     expect(reducido).toMatch(/\.spray-chorro\s*\{[^}]*display:\s*none;/);

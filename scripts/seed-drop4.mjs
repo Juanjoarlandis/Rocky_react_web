@@ -64,9 +64,7 @@ export function buildProductInput(product) {
     productType: PRODUCT_TYPE,
     status: 'ACTIVE',
     tags: [product.drop, VENDOR],
-    productOptions: [
-      { name: OPTION_NAME, values: SIZES.map((size) => ({ name: size })) },
-    ],
+    productOptions: [{ name: OPTION_NAME, values: SIZES.map((size) => ({ name: size })) }],
     variants: SIZES.map((size) => ({
       optionValues: [{ optionName: OPTION_NAME, name: size }],
       price: PRICE,

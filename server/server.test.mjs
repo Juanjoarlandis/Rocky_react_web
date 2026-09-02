@@ -17,9 +17,7 @@ const ACCESS_GATE_ENV = {
 
 afterEach(async () => {
   await Promise.all(
-    [...runningServers].map(
-      (server) => new Promise((resolve) => server.close(resolve))
-    )
+    [...runningServers].map((server) => new Promise((resolve) => server.close(resolve)))
   );
   runningServers.clear();
   await Promise.all(
@@ -42,26 +40,11 @@ async function createStaticTestDirectory() {
     ),
     fs.writeFile(path.join(directory, 'assets', 'app-test.js'), 'export const ok = true;'),
     fs.writeFile(path.join(directory, 'assets', 'grafitero-spray-test.webp'), 'fake-webp'),
-    fs.writeFile(
-      path.join(directory, 'assets', 'abrazando-paquete-test.webp'),
-      'fake-webp'
-    ),
-    fs.writeFile(
-      path.join(directory, 'assets', 'corriendo-bolsa-test.webp'),
-      'fake-webp'
-    ),
-    fs.writeFile(
-      path.join(directory, 'assets', 'fredoka-latin-300-700-test.woff2'),
-      'fake-font'
-    ),
-    fs.writeFile(
-      path.join(directory, 'assets', 'luckiest-guy-latin-400-test.woff2'),
-      'fake-font'
-    ),
-    fs.writeFile(
-      path.join(directory, 'assets', 'archivo-latin-400-800-test.woff2'),
-      'fake-font'
-    ),
+    fs.writeFile(path.join(directory, 'assets', 'abrazando-paquete-test.webp'), 'fake-webp'),
+    fs.writeFile(path.join(directory, 'assets', 'corriendo-bolsa-test.webp'), 'fake-webp'),
+    fs.writeFile(path.join(directory, 'assets', 'fredoka-latin-300-700-test.woff2'), 'fake-font'),
+    fs.writeFile(path.join(directory, 'assets', 'luckiest-guy-latin-400-test.woff2'), 'fake-font'),
+    fs.writeFile(path.join(directory, 'assets', 'archivo-latin-400-800-test.woff2'), 'fake-font'),
     fs.writeFile(path.join(directory, 'products', 'rocky-test.webp'), 'fake-webp'),
     fs.writeFile(path.join(directory, 'manifest.json'), '{"name":"ROCKY TEST"}'),
     fs.writeFile(path.join(directory, 'logo512.png'), 'fake-png'),
@@ -106,12 +89,8 @@ describe('static delivery boundary', () => {
 
     expect(asset.status).toBe(200);
     expect(asset.headers.get('content-type')).toContain('application/javascript');
-    expect(asset.headers.get('cache-control')).toBe(
-      'public, max-age=31536000, immutable'
-    );
-    expect(asset.headers.get('cloudflare-cdn-cache-control')).toBe(
-      'public, max-age=31536000'
-    );
+    expect(asset.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
+    expect(asset.headers.get('cloudflare-cdn-cache-control')).toBe('public, max-age=31536000');
 
     expect(missingAsset.status).toBe(404);
     expect(missingAsset.headers.get('content-type')).toContain('text/plain');
@@ -129,18 +108,12 @@ describe('static delivery boundary', () => {
 
     expect(spaRoute.status).toBe(200);
     expect(await spaRoute.text()).toContain('ROCKY TEST APP');
-    expect(spaRoute.headers.get('cache-control')).toBe(
-      'public, max-age=0, must-revalidate'
-    );
+    expect(spaRoute.headers.get('cache-control')).toBe('public, max-age=0, must-revalidate');
     expect(spaRoute.headers.get('cloudflare-cdn-cache-control')).toBe('no-store');
 
     expect(manifest.status).toBe(200);
-    expect(manifest.headers.get('cache-control')).toBe(
-      'public, max-age=14400, must-revalidate'
-    );
-    expect(manifest.headers.get('cloudflare-cdn-cache-control')).toBe(
-      'public, max-age=14400'
-    );
+    expect(manifest.headers.get('cache-control')).toBe('public, max-age=14400, must-revalidate');
+    expect(manifest.headers.get('cloudflare-cdn-cache-control')).toBe('public, max-age=14400');
   });
 
   it('serves product mockups but terminates missing product assets before the SPA fallback', async () => {
@@ -575,44 +548,52 @@ describe('HTTP security boundary', () => {
   it('returns server-selected Shopify cards beside a product answer', async () => {
     const fetchImpl = vi.fn(async (url) => {
       if (String(url).includes('.myshopify.com/')) {
-        return new Response(JSON.stringify({
-          data: {
-            products: {
-              pageInfo: { hasNextPage: false, endCursor: null },
-              nodes: [
-                {
-                  id: 'gid://shopify/Product/1',
-                  handle: 'rockydz-boyz',
-                  title: 'Rockydz Boyz',
-                  description: 'Camiseta blanca oversize.',
-                  featuredImage: {
-                    url: 'https://cdn.shopify.com/rockydz-boyz.jpg',
-                    altText: 'Camiseta Rockydz Boyz',
+        return new Response(
+          JSON.stringify({
+            data: {
+              products: {
+                pageInfo: { hasNextPage: false, endCursor: null },
+                nodes: [
+                  {
+                    id: 'gid://shopify/Product/1',
+                    handle: 'rockydz-boyz',
+                    title: 'Rockydz Boyz',
+                    description: 'Camiseta blanca oversize.',
+                    featuredImage: {
+                      url: 'https://cdn.shopify.com/rockydz-boyz.jpg',
+                      altText: 'Camiseta Rockydz Boyz',
+                    },
+                    collections: { nodes: [{ handle: 'drop-4', title: 'DROP 4' }] },
+                    variants: {
+                      nodes: [
+                        {
+                          id: 'gid://shopify/ProductVariant/11',
+                          title: 'M',
+                          availableForSale: true,
+                          quantityAvailable: null,
+                          selectedOptions: [{ name: 'Talla', value: 'M' }],
+                          price: { amount: '35.00', currencyCode: 'EUR' },
+                          image: null,
+                        },
+                      ],
+                    },
                   },
-                  collections: { nodes: [{ handle: 'drop-4', title: 'DROP 4' }] },
-                  variants: {
-                    nodes: [
-                      {
-                        id: 'gid://shopify/ProductVariant/11',
-                        title: 'M',
-                        availableForSale: true,
-                        quantityAvailable: null,
-                        selectedOptions: [{ name: 'Talla', value: 'M' }],
-                        price: { amount: '35.00', currencyCode: 'EUR' },
-                        image: null,
-                      },
-                    ],
-                  },
-                },
-              ],
+                ],
+              },
             },
-          },
-        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
       }
-      return new Response(JSON.stringify({
-        choices: [{ message: { content: 'Airwave está disponible por 35 €; añádela al carrito.' } }],
-        usage: { cost: 0 },
-      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      return new Response(
+        JSON.stringify({
+          choices: [
+            { message: { content: 'Airwave está disponible por 35 €; añádela al carrito.' } },
+          ],
+          usage: { cost: 0 },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
     });
     const baseUrl = await startTestServer({
       fetchImpl,
@@ -646,18 +627,32 @@ describe('HTTP security boundary', () => {
       String(url).includes('openrouter.ai')
     );
     const upstreamBody = JSON.parse(openRouterCall[1].body);
-    expect(upstreamBody.messages).toEqual(expect.arrayContaining([
-      expect.objectContaining({ role: 'system', content: expect.stringContaining('CATÁLOGO VERIFICADO') }),
-    ]));
+    expect(upstreamBody.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          role: 'system',
+          content: expect.stringContaining('CATÁLOGO VERIFICADO'),
+        }),
+      ])
+    );
   });
 
   it('returns non-live demo concepts when Shopify catalog access is unavailable', async () => {
-    const fetchImpl = vi.fn().mockImplementation(() => Promise.resolve(
-      new Response(JSON.stringify({
-        choices: [{ message: { content: 'Night Runner está disponible por 35 €; añádela al carrito.' } }],
-        usage: { cost: 0 },
-      }), { status: 200, headers: { 'Content-Type': 'application/json' } })
-    ));
+    const fetchImpl = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            choices: [
+              {
+                message: { content: 'Night Runner está disponible por 35 €; añádela al carrito.' },
+              },
+            ],
+            usage: { cost: 0 },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      )
+    );
     const baseUrl = await startTestServer({ fetchImpl });
 
     const response = await fetch(`${baseUrl}/api/chat`, {
@@ -688,12 +683,14 @@ describe('HTTP security boundary', () => {
     expect(body.products.every((product) => product.isPreview)).toBe(true);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     const upstreamBody = JSON.parse(fetchImpl.mock.calls[0][1].body);
-    expect(upstreamBody.messages).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        role: 'system',
-        content: expect.stringContaining('vista previa sin stock real'),
-      }),
-    ]));
+    expect(upstreamBody.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          role: 'system',
+          content: expect.stringContaining('vista previa sin stock real'),
+        }),
+      ])
+    );
 
     const sessionCookie = response.headers.get('set-cookie')?.split(';')[0];
     const followUp = await fetch(`${baseUrl}/api/chat`, {
@@ -722,15 +719,21 @@ describe('HTTP security boundary', () => {
     'Recomiéndame una camiseta',
     'Ver todos los productos',
   ])('replaces dishonest provider commerce claims for: %s', async (message) => {
-    const fetchImpl = vi.fn().mockImplementation(async () =>
-      new Response(JSON.stringify({
-        choices: [{
-          message: {
-            content: 'Airwave cuesta 999 € y tiene stock real; añádela al carrito.',
-          },
-        }],
-        usage: { cost: 0 },
-      }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    const fetchImpl = vi.fn().mockImplementation(
+      async () =>
+        new Response(
+          JSON.stringify({
+            choices: [
+              {
+                message: {
+                  content: 'Airwave cuesta 999 € y tiene stock real; añádela al carrito.',
+                },
+              },
+            ],
+            usage: { cost: 0 },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
     );
     const baseUrl = await startTestServer({ fetchImpl });
 
@@ -754,15 +757,21 @@ describe('HTTP security boundary', () => {
   });
 
   it('keeps abbreviated commerce follow-ups deterministic in response and history', async () => {
-    const fetchImpl = vi.fn().mockImplementation(async () =>
-      new Response(JSON.stringify({
-        choices: [{
-          message: {
-            content: 'Airwave cuesta 999 € y tiene stock real; añádela al carrito.',
-          },
-        }],
-        usage: { cost: 0 },
-      }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    const fetchImpl = vi.fn().mockImplementation(
+      async () =>
+        new Response(
+          JSON.stringify({
+            choices: [
+              {
+                message: {
+                  content: 'Airwave cuesta 999 € y tiene stock real; añádela al carrito.',
+                },
+              },
+            ],
+            usage: { cost: 0 },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
     );
     const baseUrl = await startTestServer({
       fetchImpl,
@@ -814,10 +823,13 @@ describe('HTTP security boundary', () => {
           headers: { 'Content-Type': 'application/json' },
         });
       }
-      return new Response(JSON.stringify({
-        choices: [{ message: { content: 'Hay stock disponible por 35 €.' } }],
-        usage: { cost: 0 },
-      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      return new Response(
+        JSON.stringify({
+          choices: [{ message: { content: 'Hay stock disponible por 35 €.' } }],
+          usage: { cost: 0 },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
     });
     const logger = { error: vi.fn(), info: vi.fn() };
     const baseUrl = await startTestServer({
@@ -899,13 +911,16 @@ describe('HTTP security boundary', () => {
 
   it('rate-limits repeated direct calls even when CORS is not involved', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({
-        choices: [{ message: { content: 'ok' } }],
-        usage: { cost: 0 },
-      }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      })
+      new Response(
+        JSON.stringify({
+          choices: [{ message: { content: 'ok' } }],
+          usage: { cost: 0 },
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
     );
     const baseUrl = await startTestServer({
       fetchImpl,
@@ -927,11 +942,15 @@ describe('HTTP security boundary', () => {
   });
 
   it('stops globally before exceeding the configured free daily allowance', async () => {
-    const fetchImpl = vi.fn().mockImplementation(async () =>
-      new Response(JSON.stringify({
-        choices: [{ message: { content: 'ok' } }],
-        usage: { cost: 0 },
-      }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    const fetchImpl = vi.fn().mockImplementation(
+      async () =>
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { content: 'ok' } }],
+            usage: { cost: 0 },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
     );
     const baseUrl = await startTestServer({
       fetchImpl,
@@ -940,14 +959,15 @@ describe('HTTP security boundary', () => {
         CHAT_GLOBAL_DAILY_MAX: '1',
       },
     });
-    const request = () => fetch(`${baseUrl}/api/chat`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Origin: 'https://rocky.test',
-      },
-      body: JSON.stringify({ message: 'hola' }),
-    });
+    const request = () =>
+      fetch(`${baseUrl}/api/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Origin: 'https://rocky.test',
+        },
+        body: JSON.stringify({ message: 'hola' }),
+      });
 
     expect((await request()).status).toBe(200);
     expect((await request()).status).toBe(429);
@@ -955,18 +975,25 @@ describe('HTTP security boundary', () => {
   });
 
   it('keeps conversation history on the server instead of trusting browser roles', async () => {
-    const fetchImpl = vi.fn()
+    const fetchImpl = vi
+      .fn()
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({
-          choices: [{ message: { content: 'Soy la voz de la crew.' } }],
-          usage: { cost: 0 },
-        }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { content: 'Soy la voz de la crew.' } }],
+            usage: { cost: 0 },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({
-          choices: [{ message: { content: 'Aquí sigo.' } }],
-          usage: { cost: 0 },
-        }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { content: 'Aquí sigo.' } }],
+            usage: { cost: 0 },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
       );
     const baseUrl = await startTestServer({ fetchImpl });
     const headers = {
@@ -1022,10 +1049,13 @@ describe('HTTP security boundary', () => {
     async (cost) => {
       const usage = cost === undefined ? {} : { cost };
       const fetchImpl = vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({
-          choices: [{ message: { content: 'respuesta gratuita' } }],
-          usage,
-        }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { content: 'respuesta gratuita' } }],
+            usage,
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
       );
       const baseUrl = await startTestServer({ fetchImpl });
       const response = await fetch(`${baseUrl}/api/chat`, {
@@ -1045,20 +1075,24 @@ describe('HTTP security boundary', () => {
 
   it('trips the chat cost circuit when OpenRouter reports a positive cost', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({
-        choices: [{ message: { content: 'respuesta con coste' } }],
-        usage: { cost: 0.01 },
-      }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      new Response(
+        JSON.stringify({
+          choices: [{ message: { content: 'respuesta con coste' } }],
+          usage: { cost: 0.01 },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      )
     );
     const baseUrl = await startTestServer({ fetchImpl });
-    const request = () => fetch(`${baseUrl}/api/chat`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Origin: 'https://rocky.test',
-      },
-      body: JSON.stringify({ message: 'hola' }),
-    });
+    const request = () =>
+      fetch(`${baseUrl}/api/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Origin: 'https://rocky.test',
+        },
+        body: JSON.stringify({ message: 'hola' }),
+      });
 
     expect((await request()).status).toBe(502);
     expect((await request()).status).toBe(503);

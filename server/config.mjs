@@ -15,9 +15,7 @@ function readSiteAccess(env) {
   const configuredPassword = String(env.SITE_ACCESS_PASSWORD || '');
 
   if (enabled && configuredPassword.length < 12) {
-    throw new Error(
-      'SITE_ACCESS_PASSWORD es obligatorio y debe tener al menos 12 caracteres.'
-    );
+    throw new Error('SITE_ACCESS_PASSWORD es obligatorio y debe tener al menos 12 caracteres.');
   }
 
   return Object.freeze({
@@ -35,8 +33,7 @@ const DEFAULT_FREE_MODELS = [
 
 export function isFreeOpenRouterModel(model) {
   return (
-    model === 'openrouter/free' ||
-    /^[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*:free$/.test(model)
+    model === 'openrouter/free' || /^[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*:free$/.test(model)
   );
 }
 
@@ -140,11 +137,10 @@ export function createConfig(env = process.env) {
     },
     commerce: {
       rateLimitMax: readPositiveInteger(env.SHOPIFY_RATE_LIMIT_MAX, 120, { max: 2_000 }),
-      rateLimitWindowMs: readPositiveInteger(
-        env.SHOPIFY_RATE_LIMIT_WINDOW_MS,
-        60_000,
-        { min: 1_000, max: 3_600_000 }
-      ),
+      rateLimitWindowMs: readPositiveInteger(env.SHOPIFY_RATE_LIMIT_WINDOW_MS, 60_000, {
+        min: 1_000,
+        max: 3_600_000,
+      }),
     },
     // Apuntarse al aviso de un drop es cosa de una vez: con unas pocas altas
     // por ventana sobra, y el resto son bots probando.

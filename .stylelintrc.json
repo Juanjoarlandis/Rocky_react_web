@@ -1,0 +1,37 @@
+{
+  "extends": ["stylelint-config-standard"],
+  "rules": {
+    "declaration-no-important": true,
+    "color-no-hex": true,
+    "selector-max-specificity": "0,3,0",
+    "no-duplicate-selectors": true,
+    "media-feature-name-value-allowed-list": {
+      "/^(min|max)-width$/": ["480px", "481px", "640px", "641px", "900px", "901px", "1200px"]
+    },
+    "media-feature-range-notation": "prefix",
+    "color-function-notation": null,
+    "color-function-alias-notation": null,
+    "alpha-value-notation": null,
+    "hue-degree-notation": null,
+    "selector-class-pattern": null,
+    "custom-property-pattern": null,
+    "keyframes-name-pattern": null,
+    "property-no-vendor-prefix": null,
+    "value-keyword-case": null,
+    "font-family-name-quotes": null,
+    "declaration-block-no-redundant-longhand-properties": null,
+    "no-descending-specificity": null,
+    "selector-not-notation": null,
+    "custom-property-empty-line-before": null,
+    "declaration-empty-line-before": null,
+    "comment-empty-line-before": null,
+    "rule-empty-line-before": ["always-multi-line", { "except": ["first-nested"], "ignore": ["after-comment"] }],
+    "import-notation": "string"
+  },
+  "overrides": [
+    {
+      "files": ["src/styles/00-tokens.css"],
+      "rules": { "color-no-hex": null }
+    }
+  ]
+}

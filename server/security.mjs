@@ -98,9 +98,8 @@ export function createFixedWindowRateLimiter({
       }
     }
     const current = clients.get(key);
-    const bucket = !current || current.resetAt <= now
-      ? { count: 0, resetAt: now + windowMs }
-      : current;
+    const bucket =
+      !current || current.resetAt <= now ? { count: 0, resetAt: now + windowMs } : current;
 
     bucket.count += 1;
     clients.delete(key);

@@ -1,0 +1,16 @@
+node_modules
+dist
+coverage
+.data
+output
+package-lock.json
+posters
+prompts-munecos
+public/theme-init.js
+docs/cotilla-esquina-preview.html
+docs/design/cotilla-esquina-preview.html
+*.md
+*.woff2
+*.webp
+*.png
+*.json

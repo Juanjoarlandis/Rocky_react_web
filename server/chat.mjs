@@ -108,10 +108,12 @@ async function loadChatProducts({
   logger,
   requestId,
 }) {
-  if (!hasCommerceIntent(userMessage, {
-    history,
-    knownProducts: demoProducts,
-  })) {
+  if (
+    !hasCommerceIntent(userMessage, {
+      history,
+      knownProducts: demoProducts,
+    })
+  ) {
     return { products: [], searchAttempted: false, catalogUnavailable: false };
   }
   if (!storefront) {
@@ -150,9 +152,10 @@ export async function loadCrewChatContext({
   try {
     const customer = await customerAccounts.getCustomerProfile(tokenId);
     const crew = await crewRewards.getContext(customer.id);
-    const progress = crew.nextLevel && crew.nextXp !== null
-      ? `Siguiente nivel: ${crew.nextLevel} al llegar a ${crew.nextXp} XP.`
-      : 'Siguiente nivel: ya está en el escalón máximo.';
+    const progress =
+      crew.nextLevel && crew.nextXp !== null
+        ? `Siguiente nivel: ${crew.nextLevel} al llegar a ${crew.nextXp} XP.`
+        : 'Siguiente nivel: ya está en el escalón máximo.';
 
     return [
       'PERFIL CREW VERIFICADO (datos privados del servidor; no mostrar identificadores ni inventar otros datos)',
@@ -262,11 +265,7 @@ export function createChatHandler({
         },
         body: JSON.stringify({
           ...freeModelRoute(config.chat.models),
-          messages: buildRockyMessages(
-            history,
-            userMessage,
-            trustedContext
-          ),
+          messages: buildRockyMessages(history, userMessage, trustedContext),
           max_tokens: 300,
           temperature: 0.75,
           usage: { include: true },

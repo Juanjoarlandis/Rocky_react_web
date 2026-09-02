@@ -45,9 +45,7 @@ describe('application configuration', () => {
     const defaults = createConfig({ NODE_ENV: 'test' });
     expect(defaults.chat.models.length).toBeGreaterThan(0);
     expect(
-      defaults.chat.models.every(
-        (model) => model === 'openrouter/free' || model.endsWith(':free')
-      )
+      defaults.chat.models.every((model) => model === 'openrouter/free' || model.endsWith(':free'))
     ).toBe(true);
 
     expect(
@@ -59,9 +57,9 @@ describe('application configuration', () => {
   });
 
   it('refuses paid, mixed or empty OpenRouter model lists', () => {
-    expect(() =>
-      createConfig({ NODE_ENV: 'test', OPENROUTER_MODELS: 'openai/gpt-4o' })
-    ).toThrow(/modelos gratuitos/i);
+    expect(() => createConfig({ NODE_ENV: 'test', OPENROUTER_MODELS: 'openai/gpt-4o' })).toThrow(
+      /modelos gratuitos/i
+    );
 
     expect(() =>
       createConfig({
@@ -70,9 +68,9 @@ describe('application configuration', () => {
       })
     ).toThrow(/modelos gratuitos/i);
 
-    expect(() =>
-      createConfig({ NODE_ENV: 'test', OPENROUTER_MODELS: ' , ' })
-    ).toThrow(/al menos un modelo gratuito/i);
+    expect(() => createConfig({ NODE_ENV: 'test', OPENROUTER_MODELS: ' , ' })).toThrow(
+      /al menos un modelo gratuito/i
+    );
   });
 
   it('keeps the site access gate off unless it is explicitly enabled', () => {
@@ -92,9 +90,9 @@ describe('application configuration', () => {
   });
 
   it('fails closed when the site access configuration is incomplete or ambiguous', () => {
-    expect(() =>
-      createConfig({ NODE_ENV: 'test', SITE_ACCESS_ENABLED: 'true' })
-    ).toThrow(/SITE_ACCESS_PASSWORD/);
+    expect(() => createConfig({ NODE_ENV: 'test', SITE_ACCESS_ENABLED: 'true' })).toThrow(
+      /SITE_ACCESS_PASSWORD/
+    );
 
     expect(() =>
       createConfig({
@@ -104,9 +102,9 @@ describe('application configuration', () => {
       })
     ).toThrow(/12 caracteres/);
 
-    expect(() =>
-      createConfig({ NODE_ENV: 'test', SITE_ACCESS_ENABLED: 'yes' })
-    ).toThrow(/SITE_ACCESS_ENABLED/);
+    expect(() => createConfig({ NODE_ENV: 'test', SITE_ACCESS_ENABLED: 'yes' })).toThrow(
+      /SITE_ACCESS_ENABLED/
+    );
   });
 
   it('enables the site access gate without exposing the password to the client config', () => {

@@ -112,16 +112,20 @@ describe('CrewProfile', () => {
       />
     );
 
-    expect(screen.getByRole('heading', {
-      name: /mira lo que vas a desbloquear/i,
-    })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', {
+        name: /mira lo que vas a desbloquear/i,
+      })
+    ).toBeInTheDocument();
     const levels = screen.getByRole('region', { name: /escalones crew/i });
     expect(within(levels).getByText('Del Barrio')).toBeInTheDocument();
     expect(within(levels).getByText('Crew Member')).toBeInTheDocument();
     expect(within(levels).getByText('Leyenda 035')).toBeInTheDocument();
-    expect(screen.getByRole('img', {
-      name: /vista previa del avatar el dormido/i,
-    })).toBeInTheDocument();
+    expect(
+      screen.getByRole('img', {
+        name: /vista previa del avatar el dormido/i,
+      })
+    ).toBeInTheDocument();
     // Va colgado del panel, no suelto en la página: es lo que le da el canto
     // sobre el que se apoya. Suelto parece un muñeco flotando.
     expect(screen.getByTestId('crew-corner-character').parentElement).toHaveClass(
@@ -156,23 +160,33 @@ describe('CrewProfile', () => {
       />
     );
 
-    expect(screen.getByRole('button', {
-      name: /cromo de el dormilón.*ver el expediente/i,
-    })).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getByRole('button', {
-      name: /cromo de el colgao.*ver el expediente/i,
-    })).toBeInTheDocument();
-    expect(screen.getByRole('button', {
-      name: /cromo de el ollie.*ver el expediente/i,
-    })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: /cromo de el dormilón.*ver el expediente/i,
+      })
+    ).toHaveAttribute('aria-pressed', 'false');
+    expect(
+      screen.getByRole('button', {
+        name: /cromo de el colgao.*ver el expediente/i,
+      })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: /cromo de el ollie.*ver el expediente/i,
+      })
+    ).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', {
-      name: /cromo de el dormilón.*ver el expediente/i,
-    }));
+    await user.click(
+      screen.getByRole('button', {
+        name: /cromo de el dormilón.*ver el expediente/i,
+      })
+    );
 
-    expect(screen.getByRole('button', {
-      name: /cromo de el dormilón.*ver el frente/i,
-    })).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      screen.getByRole('button', {
+        name: /cromo de el dormilón.*ver el frente/i,
+      })
+    ).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('loads progression and updates the locker after equip and redemption', async () => {
@@ -211,9 +225,11 @@ describe('CrewProfile', () => {
     expect(onAvatarChange).toHaveBeenLastCalledWith('dormido-head');
 
     await user.click(screen.getByRole('button', { name: /canjear marco trazo rojo/i }));
-    await waitFor(() => expect(api.redeemCrewReward).toHaveBeenCalledWith({
-      rewardId: 'frame-red-squiggle',
-    }));
+    await waitFor(() =>
+      expect(api.redeemCrewReward).toHaveBeenCalledWith({
+        rewardId: 'frame-red-squiggle',
+      })
+    );
     expect(await screen.findByText(/5 Crew Tickets/i)).toBeInTheDocument();
     expect(screen.getByText('#1035')).toBeInTheDocument();
   });

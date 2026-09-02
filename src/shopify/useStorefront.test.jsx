@@ -87,9 +87,7 @@ describe('useStorefront', () => {
     expect(result.current.canCheckout).toBe(false);
 
     await act(() => result.current.addToCart(demoProducts[0]));
-    expect(result.current.cartItems).toMatchObject([
-      { id: 1, title: 'Demo', quantity: 1 },
-    ]);
+    expect(result.current.cartItems).toMatchObject([{ id: 1, title: 'Demo', quantity: 1 }]);
     expect(api.addCartLine).not.toHaveBeenCalled();
   });
 
@@ -150,10 +148,7 @@ describe('useStorefront', () => {
     expect(result.current.canCheckout).toBe(true);
 
     await act(() =>
-      result.current.addToCart(
-        result.current.products[0],
-        'gid://shopify/ProductVariant/2'
-      )
+      result.current.addToCart(result.current.products[0], 'gid://shopify/ProductVariant/2')
     );
 
     expect(api.addCartLine).toHaveBeenCalledWith({
@@ -221,10 +216,12 @@ describe('useStorefront', () => {
     });
     api.getCart.mockResolvedValue({ cart: null });
 
-    const { result } = renderHook(() => useStorefront({
-      demoProducts,
-      previewProducts,
-    }));
+    const { result } = renderHook(() =>
+      useStorefront({
+        demoProducts,
+        previewProducts,
+      })
+    );
 
     await waitFor(() => expect(result.current.mode).toBe('shopify'));
     expect(result.current.products.map((product) => product.handle)).toEqual([
@@ -294,10 +291,9 @@ describe('useStorefront', () => {
     expect(result.current.capabilities.customerAccounts).toBe(false);
     expect(result.current.canCheckout).toBe(false);
 
-    await expect(result.current.addToCart(
-      result.current.products[0],
-      'gid://shopify/ProductVariant/2'
-    )).rejects.toThrow('variante disponible');
+    await expect(
+      result.current.addToCart(result.current.products[0], 'gid://shopify/ProductVariant/2')
+    ).rejects.toThrow('variante disponible');
     expect(api.addCartLine).not.toHaveBeenCalled();
 
     await act(async () => {
@@ -307,10 +303,9 @@ describe('useStorefront', () => {
     await waitFor(() => expect(result.current.capabilities.cart).toBe(true));
     expect(result.current.capabilities.customerAccounts).toBe(false);
 
-    await act(() => result.current.addToCart(
-      result.current.products[0],
-      'gid://shopify/ProductVariant/2'
-    ));
+    await act(() =>
+      result.current.addToCart(result.current.products[0], 'gid://shopify/ProductVariant/2')
+    );
     expect(result.current.totalItems).toBe(1);
 
     await act(async () => {
@@ -375,9 +370,7 @@ describe('useStorefront', () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.mode).toBe('shopify');
-    expect(result.current.products.map((product) => product.handle)).toEqual([
-      'rocky-tee',
-    ]);
+    expect(result.current.products.map((product) => product.handle)).toEqual(['rocky-tee']);
     expect(result.current.capabilities.cart).toBe(false);
     expect(result.current.capabilities.customerAccounts).toBe(false);
     expect(result.current.error).toContain('carrito y la cuenta');

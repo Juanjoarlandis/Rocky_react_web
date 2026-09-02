@@ -1,42 +1,42 @@
 @layer components {
-/* En la pantalla de chat el aviso no cede sitio. */
-.app--chat .commerce-notice {
-  flex-shrink: 0;
-}
-
-/* Una tira fina de post-it a todo el ancho, de 28px como mucho: informa sin
-   empujar la portada. Los errores sí pueden ocupar las líneas que necesiten. */
-.commerce-notice {
-  width: 100%;
-  min-height: 28px;
-  margin: 0;
-  padding: 3px 12px;
-  border: 0;
-  border-bottom: 2px dashed var(--postit-line);
-  background-color: var(--postit);
-  color: var(--postit-ink);
-  font-family: var(--font-hand);
-  font-size: var(--text-sm);
-  line-height: 1.2;
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-@media (max-width: 640px) {
-  .commerce-notice {
-    font-size: var(--text-xs);
+  /* En la pantalla de chat el aviso no cede sitio. */
+  .app--chat .commerce-notice {
+    flex-shrink: 0;
   }
-}
 
-/* De noche el post-it pasa a cinta de obra bajo luz ámbar: lo deciden los
+  /* Una tira fina de post-it a todo el ancho, de 28px como mucho: informa sin
+   empujar la portada. Los errores sí pueden ocupar las líneas que necesiten. */
+  .commerce-notice {
+    width: 100%;
+    min-height: 28px;
+    margin: 0;
+    padding: 3px 12px;
+    border: 0;
+    border-bottom: 2px dashed var(--postit-line);
+    background-color: var(--postit);
+    color: var(--postit-ink);
+    font-family: var(--font-hand);
+    font-size: var(--text-sm);
+    line-height: 1.2;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  @media (max-width: 640px) {
+    .commerce-notice {
+      font-size: var(--text-xs);
+    }
+  }
+
+  /* De noche el post-it pasa a cinta de obra bajo luz ámbar: lo deciden los
    tokens --postit-*, no una regla aparte. */
-.commerce-notice-error {
-  border-color: var(--danger);
-  background-color: var(--danger-bg);
-  color: var(--danger-ink);
-  white-space: normal;
-  padding: 6px 14px;
-}
+  .commerce-notice-error {
+    border-color: var(--danger);
+    background-color: var(--danger-bg);
+    color: var(--danger-ink);
+    white-space: normal;
+    padding: 6px 14px;
+  }
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import asomadoBorde from '../images/optimized/characters/asomado-borde-600.webp';
 // Derivado del original de ImageGen `cotilla-esquina.png` (620x820, en
 // prompts-munecos/): mismo encuadre a 348x460, que sobra para los 115 px que
@@ -123,8 +123,10 @@ export function shadowExtents(boxShadow) {
 /* ¿El primer rectángulo se traga al segundo? */
 function contiene(fuera, dentro) {
   return (
-    fuera.left <= dentro.left + 1 && fuera.right >= dentro.right - 1 &&
-    fuera.top <= dentro.top + 1 && fuera.bottom >= dentro.bottom - 1
+    fuera.left <= dentro.left + 1 &&
+    fuera.right >= dentro.right - 1 &&
+    fuera.top <= dentro.top + 1 &&
+    fuera.bottom >= dentro.bottom - 1
   );
 }
 
@@ -152,8 +154,10 @@ function estaSobreAlgoOpaco(element, rect) {
     const caja = padre.getBoundingClientRect();
     if (
       tieneFondoPropio(window.getComputedStyle(padre)) &&
-      caja.left <= rect.left + 1 && caja.right >= rect.right - 1 &&
-      caja.top <= rect.top + 1 && caja.bottom >= rect.bottom - 1
+      caja.left <= rect.left + 1 &&
+      caja.right >= rect.right - 1 &&
+      caja.top <= rect.top + 1 &&
+      caja.bottom >= rect.bottom - 1
     ) {
       return true;
     }
@@ -360,9 +364,7 @@ export function probeEdge(element, rect, side, samples) {
 export function measureBite(element, placement) {
   const rect = element.getBoundingClientRect();
   if (placement.pose === 'arriba') {
-    const xs = [0.15, 0.35, 0.5, 0.65, 0.85].map(
-      (f) => placement.left + placement.width * f
-    );
+    const xs = [0.15, 0.35, 0.5, 0.65, 0.85].map((f) => placement.left + placement.width * f);
     // Baja hasta el trazo de arriba: la ventana se mete en el bloque.
     return { x: 0, y: probeEdge(element, rect, 'top', xs) + EDGE_BITE };
   }
@@ -447,8 +449,18 @@ export function choosePlacement({ view, scale, spots, zones, avoidKey }) {
     if (arriba) consider({ ...arriba, alongRatio }, spot, `${index}:arriba`, false);
     // Las franjas interiores sólo tienen pintado el canto de arriba.
     if (spot.soloArriba) return;
-    consider(placeAtCorner(spot.rect, 'izq', view, scale, spot.shadow), spot, `${index}:izq`, false);
-    consider(placeAtCorner(spot.rect, 'der', view, scale, spot.shadow), spot, `${index}:der`, false);
+    consider(
+      placeAtCorner(spot.rect, 'izq', view, scale, spot.shadow),
+      spot,
+      `${index}:izq`,
+      false
+    );
+    consider(
+      placeAtCorner(spot.rect, 'der', view, scale, spot.shadow),
+      spot,
+      `${index}:der`,
+      false
+    );
   });
 
   // El filo de abajo de la pantalla también vale: entra desde fuera de cuadro.
@@ -547,9 +559,7 @@ export default function CuriousPeeker({ pathname, disabled = false }) {
       const asoma = niveles.asoma[Math.random() < 0.6 ? 0 : 1];
       const seEstira = Math.random() < 0.65;
       const visibleFor = between(timing.visibleFor);
-      revealFrame = window.requestAnimationFrame(() =>
-        setPeek({ hidden: asoma, beat: 'sale' })
-      );
+      revealFrame = window.requestAnimationFrame(() => setPeek({ hidden: asoma, beat: 'sale' }));
 
       // Asoma lo justo y, si se confía, se estira entero antes de esconderse.
       if (seEstira) {
@@ -642,9 +652,7 @@ export default function CuriousPeeker({ pathname, disabled = false }) {
       <span
         className="curious-peeker-slide"
         style={{
-          transform: esEsquina
-            ? `translateX(${desplazado}px)`
-            : `translateY(${desplazado}px)`,
+          transform: esEsquina ? `translateX(${desplazado}px)` : `translateY(${desplazado}px)`,
         }}
       >
         <span className="curious-peeker-mirror">
@@ -657,9 +665,7 @@ export default function CuriousPeeker({ pathname, disabled = false }) {
               '--fase': `${placement.fase}s`,
               '--mira': placement.mira,
               width: `${placement.art.width}px`,
-              ...(esEsquina
-                ? { right: `${placement.art.cut - placement.art.width}px` }
-                : null),
+              ...(esEsquina ? { right: `${placement.art.cut - placement.art.width}px` } : null),
             }}
             decoding="async"
             draggable="false"

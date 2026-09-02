@@ -63,39 +63,43 @@ describe('Rocky IA shopping experience', () => {
   it('submits a quick product prompt and adds the selected trusted variant', async () => {
     const addToCart = vi.fn().mockResolvedValue(null);
     const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({
-        message: 'Te he sacado una que va fina, tío. Mira la ficha.',
-        products: [product],
-      }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      new Response(
+        JSON.stringify({
+          message: 'Te he sacado una que va fina, tío. Mira la ficha.',
+          products: [product],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      )
     );
     vi.stubGlobal('fetch', fetchMock);
 
     render(
       <MemoryRouter>
-        <ChatComponent
-          addToCart={addToCart}
-          commerceMode="shopify"
-          canAddToCart
-        />
+        <ChatComponent addToCart={addToCart} commerceMode="shopify" canAddToCart />
       </MemoryRouter>
     );
 
     fireEvent.click(screen.getByRole('button', { name: /ver camisetas disponibles/i }));
 
     await screen.findByText(/te he sacado una que va fina/i);
-    expect(fetchMock).toHaveBeenCalledWith('/api/chat', expect.objectContaining({
-      method: 'POST',
-      body: JSON.stringify({ message: 'Ver camisetas disponibles' }),
-    }));
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/chat',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ message: 'Ver camisetas disponibles' }),
+      })
+    );
     expect(screen.getByRole('link', { name: /ver rockydz boyz/i })).toHaveAttribute(
       'href',
       '/product/rockydz-boyz'
     );
     expect(screen.getByText('3 unidades')).toBeInTheDocument();
     fireEvent.error(screen.getByAltText('Camiseta Rockydz Boyz'));
-    expect(await screen.findByRole('img', {
-      name: /rockydz boyz — diseño todavía sin revelar/i,
-    })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('img', {
+        name: /rockydz boyz — diseño todavía sin revelar/i,
+      })
+    ).toBeInTheDocument();
 
     fireEvent.change(screen.getByRole('combobox', { name: /talla para rockydz boyz/i }), {
       target: { value: 'gid://shopify/ProductVariant/13' },
@@ -115,11 +119,7 @@ describe('Rocky IA shopping experience', () => {
   it('shows an honest store state when live cart operations are unavailable', () => {
     render(
       <MemoryRouter>
-        <ChatComponent
-          addToCart={vi.fn()}
-          commerceMode="demo"
-          canAddToCart={false}
-        />
+        <ChatComponent addToCart={vi.fn()} commerceMode="demo" canAddToCart={false} />
       </MemoryRouter>
     );
 
@@ -128,20 +128,22 @@ describe('Rocky IA shopping experience', () => {
   });
 
   it('presents demo recommendations as previews instead of sold-out stock', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({
-        message: 'La Airwave encaja con lo que buscas.',
-        products: [previewProduct],
-      }), { status: 200, headers: { 'Content-Type': 'application/json' } })
-    ));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            message: 'La Airwave encaja con lo que buscas.',
+            products: [previewProduct],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      )
+    );
 
     render(
       <MemoryRouter>
-        <ChatComponent
-          addToCart={vi.fn()}
-          commerceMode="demo"
-          canAddToCart={false}
-        />
+        <ChatComponent addToCart={vi.fn()} commerceMode="demo" canAddToCart={false} />
       </MemoryRouter>
     );
 
@@ -158,20 +160,22 @@ describe('Rocky IA shopping experience', () => {
 
   it('never exposes a preview concept as a Shopify add-to-cart action', async () => {
     const addToCart = vi.fn();
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({
-        message: 'Airwave es un concepto de la casa.',
-        products: [previewProduct],
-      }), { status: 200, headers: { 'Content-Type': 'application/json' } })
-    ));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            message: 'Airwave es un concepto de la casa.',
+            products: [previewProduct],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      )
+    );
 
     render(
       <MemoryRouter>
-        <ChatComponent
-          addToCart={addToCart}
-          commerceMode="shopify"
-          canAddToCart
-        />
+        <ChatComponent addToCart={addToCart} commerceMode="shopify" canAddToCart />
       </MemoryRouter>
     );
 

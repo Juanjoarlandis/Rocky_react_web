@@ -50,9 +50,9 @@ describe('Admin GraphQL client', () => {
         clientId: 'client-id',
         clientSecret: 'client-secret',
       },
-      fetchImpl: vi.fn().mockResolvedValue(
-        response({ access_token: 'admin-token', expires_in: '86399' })
-      ),
+      fetchImpl: vi
+        .fn()
+        .mockResolvedValue(response({ access_token: 'admin-token', expires_in: '86399' })),
     });
 
     await expect(client.getToken()).rejects.toMatchObject({

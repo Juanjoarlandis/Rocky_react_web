@@ -249,7 +249,12 @@ describe('CuriousPeeker: qué vale de escondite', () => {
 
   function conCaja(el, [left, top, width, height]) {
     el.getBoundingClientRect = () => ({
-      left, top, width, height, right: left + width, bottom: top + height,
+      left,
+      top,
+      width,
+      height,
+      right: left + width,
+      bottom: top + height,
     });
     return el;
   }

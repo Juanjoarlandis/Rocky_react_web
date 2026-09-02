@@ -1,17 +1,17 @@
 @layer components {
-/* LA MESA DE BEATS — chasis de caja de ritmos, dibujado a mano.
+  /* LA MESA DE BEATS — chasis de caja de ritmos, dibujado a mano.
    Panel oscuro con moteado de spray, pantalla ámbar, vúmetro y pads. */
 
-.mesa-wrap {
+  .mesa-wrap {
     /* Hueco para El Freeze bailando encima de la mesa */
     margin-top: clamp(92px, 12vw, 118px);
     --celda: clamp(22px, 2.9vw, 32px);
     --hueco-celda: 6px;
     --cabeza: 200px;
-}
+  }
 
-/* El Freeze baila tu beat: el balanceo va a la velocidad del BPM */
-.mesa-dancer {
+  /* El Freeze baila tu beat: el balanceo va a la velocidad del BPM */
+  .mesa-dancer {
     bottom: calc(100% - 10px);
     right: 5%;
     height: clamp(110px, 15vw, 150px);
@@ -21,14 +21,20 @@
     animation-name: mesa-baile;
     animation-timing-function: ease-in-out;
     animation-iteration-count: infinite;
-}
+  }
 
-@keyframes mesa-baile {
-    0%, 100% { transform: rotate(-3deg); }
-    50% { transform: rotate(5deg) translateY(-4px); }
-}
+  @keyframes mesa-baile {
+    0%,
+    100% {
+      transform: rotate(-3deg);
+    }
 
-.mesa {
+    50% {
+      transform: rotate(5deg) translateY(-4px);
+    }
+  }
+
+  .mesa {
     position: relative;
     z-index: 2;
     display: flex;
@@ -41,18 +47,18 @@
     border-radius: var(--wobble-md);
     box-shadow: 6px 6px 0 var(--accent);
     color: var(--ink-block-text);
-}
+  }
 
-/* ---------- Cabecera: marca, pantalla y vúmetro ---------- */
+  /* ---------- Cabecera: marca, pantalla y vúmetro ---------- */
 
-.mesa-cabecera {
+  .mesa-cabecera {
     display: flex;
     align-items: stretch;
     gap: 14px;
     flex-wrap: wrap;
-}
+  }
 
-.mesa-marca {
+  .mesa-marca {
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -60,25 +66,25 @@
     border: 2px solid var(--gold);
     border-radius: var(--wobble-sm);
     transform: rotate(-1.5deg);
-}
+  }
 
-.mesa-marca-nombre {
+  .mesa-marca-nombre {
     font-family: var(--font-display);
     font-size: 1.35rem;
     line-height: 1;
     color: var(--gold);
     letter-spacing: 0.04em;
-}
+  }
 
-.mesa-marca-modelo {
+  .mesa-marca-modelo {
     font-family: var(--font-hand);
     font-size: var(--text-xs);
     letter-spacing: 0.22em;
     color: rgba(var(--card-rgb), 0.7);
-}
+  }
 
-/* Pantallita ámbar del aparato */
-.mesa-lcd {
+  /* Pantallita ámbar del aparato */
+  .mesa-lcd {
     flex: 1;
     min-width: 240px;
     display: flex;
@@ -90,9 +96,9 @@
     border: 2px solid rgba(var(--gold-rgb), 0.45);
     border-radius: 10px;
     box-shadow: inset 0 0 18px rgba(var(--gold-rgb), 0.12);
-}
+  }
 
-.lcd-datos {
+  .lcd-datos {
     display: flex;
     flex-wrap: wrap;
     gap: 6px 18px;
@@ -101,54 +107,56 @@
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: rgba(var(--gold-rgb), 0.62);
-}
+  }
 
-.lcd-datos b {
+  .lcd-datos b {
     font-size: var(--text-md);
     font-weight: 700;
     color: var(--gold);
     text-shadow: 0 0 10px rgba(var(--gold-rgb), 0.45);
-}
+  }
 
-.lcd-rec {
+  .lcd-rec {
     margin-left: auto;
     color: rgba(var(--card-rgb), 0.5);
-}
+  }
 
-.lcd-rec.is-on {
+  .lcd-rec.is-on {
     color: var(--accent);
     text-shadow: 0 0 10px rgba(var(--accent-rgb), 0.6);
     animation: lcd-latido 1s steps(2, end) infinite;
-}
+  }
 
-@keyframes lcd-latido {
-    50% { opacity: 0.35; }
-}
+  @keyframes lcd-latido {
+    50% {
+      opacity: 0.35;
+    }
+  }
 
-/* Los 16 pasos, en chiquitito */
-.lcd-pasos {
+  /* Los 16 pasos, en chiquitito */
+  .lcd-pasos {
     display: flex;
     gap: 4px;
-}
+  }
 
-.lcd-pasos i {
+  .lcd-pasos i {
     flex: 1;
     height: 5px;
     border-radius: 2px;
     background-color: rgba(var(--gold-rgb), 0.26);
-}
+  }
 
-.lcd-pasos i:nth-child(4n + 1) {
+  .lcd-pasos i:nth-child(4n + 1) {
     background-color: rgba(var(--gold-rgb), 0.5);
-}
+  }
 
-.lcd-pasos i.is-on {
+  .lcd-pasos i.is-on {
     background-color: var(--gold);
     box-shadow: 0 0 8px rgba(var(--gold-rgb), 0.8);
-}
+  }
 
-/* Vúmetro: cada segmento se enciende comparando nivel y umbral */
-.mesa-vu {
+  /* Vúmetro: cada segmento se enciende comparando nivel y umbral */
+  .mesa-vu {
     --nivel: 0;
     display: flex;
     flex-direction: column-reverse;
@@ -158,23 +166,28 @@
     background-color: var(--mesa-screen);
     border: 2px solid var(--mesa-line);
     border-radius: 8px;
-}
+  }
 
-.mesa-vu i {
+  .mesa-vu i {
     flex: 1;
     min-height: 5px;
     border-radius: 2px;
     background-color: var(--mesa-green);
     /* Siempre se intuyen los segmentos; se encienden al llegar el nivel */
     opacity: max(0.14, calc((var(--nivel) - var(--umbral)) * 60));
-}
+  }
 
-.mesa-vu i:nth-child(n + 7) { background-color: var(--gold); }
-.mesa-vu i:nth-child(n + 9) { background-color: var(--accent); }
+  .mesa-vu i:nth-child(n + 7) {
+    background-color: var(--gold);
+  }
 
-/* ---------- Transporte ---------- */
+  .mesa-vu i:nth-child(n + 9) {
+    background-color: var(--accent);
+  }
 
-.mesa-transporte {
+  /* ---------- Transporte ---------- */
+
+  .mesa-transporte {
     display: flex;
     align-items: center;
     gap: 12px;
@@ -183,11 +196,11 @@
     background-color: var(--mesa-panel);
     border: 2px solid var(--mesa-line);
     border-radius: 12px;
-}
+  }
 
-.mesa-play,
-.mesa-rec,
-.mesa-tap {
+  .mesa-play,
+  .mesa-rec,
+  .mesa-tap {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -199,111 +212,114 @@
     letter-spacing: 0.06em;
     cursor: pointer;
     box-shadow: 3px 3px 0 rgba(var(--black-rgb), 0.55);
-    transition: transform 0.08s ease, background-color var(--dur-fast) ease, box-shadow 0.08s ease;
-}
+    transition:
+      transform 0.08s ease,
+      background-color var(--dur-fast) ease,
+      box-shadow 0.08s ease;
+  }
 
-.mesa-play {
+  .mesa-play {
     width: 56px;
     height: 56px;
     border-radius: 50%;
     flex-shrink: 0;
-}
+  }
 
-.mesa-play svg {
+  .mesa-play svg {
     width: 22px;
     height: 22px;
     fill: currentColor;
-}
+  }
 
-.mesa-play.sonando {
+  .mesa-play.sonando {
     background-color: var(--gold);
-}
+  }
 
-.mesa-rec,
-.mesa-tap {
+  .mesa-rec,
+  .mesa-tap {
     height: 40px;
     padding: 0 16px;
     border-radius: var(--wobble-sm);
     font-size: var(--text-sm);
-}
+  }
 
-.mesa-play:hover,
-.mesa-rec:hover,
-.mesa-tap:hover {
+  .mesa-play:hover,
+  .mesa-rec:hover,
+  .mesa-tap:hover {
     transform: translate(-1px, -1px);
     box-shadow: 4px 4px 0 rgba(var(--black-rgb), 0.55);
-}
+  }
 
-.mesa-play:active,
-.mesa-rec:active,
-.mesa-tap:active {
+  .mesa-play:active,
+  .mesa-rec:active,
+  .mesa-tap:active {
     transform: translate(2px, 2px);
     box-shadow: none;
-}
+  }
 
-.mesa-rec.is-on {
+  .mesa-rec.is-on {
     background-color: var(--accent);
     color: var(--white);
-}
+  }
 
-.mesa-led {
+  .mesa-led {
     width: 10px;
     height: 10px;
     border-radius: 50%;
     border: 2px solid var(--ink);
     background-color: rgba(var(--accent-rgb), 0.35);
-}
+  }
 
-.mesa-rec.is-on .mesa-led {
+  .mesa-rec.is-on .mesa-led {
     background-color: var(--white);
     box-shadow: 0 0 8px var(--white);
     animation: lcd-latido 1s steps(2, end) infinite;
-}
+  }
 
-/* Mandos deslizantes */
-.mesa-mando {
+  /* Mandos deslizantes */
+  .mesa-mando {
     display: flex;
     align-items: center;
     gap: 9px;
     flex: 1 1 190px;
     min-width: 165px;
-}
+  }
 
-.mando-nombre {
+  .mando-nombre {
     white-space: nowrap;
     color: rgba(var(--card-rgb), 0.62);
-}
+  }
 
-.mando-valor {
+  .mando-valor {
     font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
     font-size: var(--text-xs);
     color: var(--gold);
     min-width: 34px;
     text-align: right;
-}
+  }
 
-.mesa input[type='range'] {
+  .mesa input[type='range'] {
     flex: 1;
     min-width: 60px;
     height: 16px;
     accent-color: var(--gold);
     cursor: pointer;
-}
+  }
 
-/* ---------- Ritmos de fábrica ---------- */
+  /* ---------- Ritmos de fábrica ---------- */
 
-.mesa-presets {
+  .mesa-presets {
     display: flex;
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
-}
+  }
 
-.mesa-presets-titulo {
-  color: rgba(var(--card-rgb), 0.55);
-}
+  .mesa-presets-titulo {
+    color: rgba(var(--card-rgb), 0.55);
+  }
 
-.chip {
+  .chip {
     padding: 5px 13px;
     border: 2px solid var(--mesa-line);
     border-radius: 999px;
@@ -312,93 +328,100 @@
     font-family: var(--font-hand);
     font-size: var(--text-sm);
     cursor: pointer;
-    transition: transform 0.08s ease, background-color var(--dur-fast) ease, color var(--dur-fast) ease;
-}
+    transition:
+      transform 0.08s ease,
+      background-color var(--dur-fast) ease,
+      color var(--dur-fast) ease;
+  }
 
-.chip:hover {
+  .chip:hover {
     transform: translateY(-1px);
     border-color: var(--gold);
-}
+  }
 
-.chip.is-on {
+  .chip.is-on {
     background-color: var(--gold);
     border-color: var(--gold);
     /* Tinta a fuego: sobre la miel hace falta trazo oscuro también con el
        neón puesto, donde var(--ink) se vuelve luz. */
     color: var(--ink-fixed);
     font-weight: 600;
-}
+  }
 
-/* ---------- Secuenciador ---------- */
+  /* ---------- Secuenciador ---------- */
 
-.mesa-seq {
+  .mesa-seq {
     background-color: var(--mesa-panel);
     border: 2px solid var(--mesa-line);
     border-radius: 12px;
     padding: 12px 12px 8px;
-}
+  }
 
-.seq-scroll {
+  .seq-scroll {
     overflow-x: auto;
     padding-bottom: 6px;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
-}
+  }
 
-.seq-regla,
-.seq-fila {
+  .seq-regla,
+  .seq-fila {
+    /* Es un fieldset: fuera el borde y el aire por defecto */
+    margin: 0;
+    padding: 0;
+    border: 0;
     display: flex;
     align-items: center;
     gap: 12px;
     min-width: max-content;
-}
+  }
 
-.seq-hueco,
-.seq-cabeza {
+  .seq-hueco,
+  .seq-cabeza {
     width: var(--cabeza);
     flex-shrink: 0;
     position: sticky;
     left: 0;
     z-index: 2;
     background-color: var(--mesa-panel);
-}
+  }
 
-.seq-cabeza {
+  .seq-cabeza {
     display: flex;
     align-items: center;
     gap: 6px;
     padding-right: 6px;
-}
+  }
 
-.seq-numeros {
+  .seq-numeros {
     display: flex;
     gap: var(--hueco-celda);
-}
+  }
 
-.seq-numeros span {
+  .seq-numeros span {
     width: var(--celda);
     text-align: center;
     font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
     font-size: var(--text-2xs);
     color: rgba(var(--card-rgb), 0.28);
-}
+  }
 
-.seq-numeros span.fuerte {
+  .seq-numeros span.fuerte {
     color: var(--gold);
-}
+  }
 
-.seq-rejilla {
+  .seq-rejilla {
     display: flex;
     flex-direction: column;
     gap: 6px;
     padding-top: 4px;
-}
+  }
 
-.seq-fila.apagada {
+  .seq-fila.apagada {
     opacity: 0.45;
-}
+  }
 
-.pista-nombre {
+  .pista-nombre {
     flex: 1;
     min-width: 0;
     padding: 4px 6px;
@@ -413,18 +436,18 @@
     overflow: hidden;
     text-overflow: ellipsis;
     cursor: pointer;
-}
+  }
 
-.pista-nombre:hover {
+  .pista-nombre:hover {
     border-color: var(--mesa-line);
-}
+  }
 
-.pista-nombre.muda {
+  .pista-nombre.muda {
     text-decoration: line-through;
     color: rgba(var(--card-rgb), 0.45);
-}
+  }
 
-.pista-solo {
+  .pista-solo {
     width: 24px;
     height: 24px;
     flex-shrink: 0;
@@ -435,28 +458,28 @@
     font-family: var(--font-display);
     font-size: var(--text-2xs);
     cursor: pointer;
-}
+  }
 
-.pista-solo.is-on {
+  .pista-solo.is-on {
     background-color: var(--gold);
     border-color: var(--gold);
     color: var(--ink);
-}
+  }
 
-/* El deslizador de pista es fijo: gana al ancho general de los mandos */
-.mesa input.pista-nivel[type='range'] {
+  /* El deslizador de pista es fijo: gana al ancho general de los mandos */
+  .mesa .pista-nivel[type='range'] {
     flex: 0 0 52px;
     width: 52px;
     min-width: 52px;
     height: 12px;
-}
+  }
 
-.seq-celdas {
+  .seq-celdas {
     display: flex;
     gap: var(--hueco-celda);
-}
+  }
 
-.celda {
+  .celda {
     position: relative;
     width: var(--celda);
     height: var(--celda);
@@ -466,93 +489,128 @@
     border-radius: 7px;
     background-color: rgba(var(--card-rgb), 0.05);
     cursor: pointer;
-    transition: transform 0.08s ease, border-color var(--dur-fast) ease;
-}
+    transition:
+      transform 0.08s ease,
+      border-color var(--dur-fast) ease;
+  }
 
-/* Marca de cada pulso: los cuatro cuadros fuertes */
-.celda.marca {
+  /* Marca de cada pulso: los cuatro cuadros fuertes */
+  .celda.marca {
     background-color: rgba(var(--card-rgb), 0.12);
     border-color: rgba(var(--card-rgb), 0.3);
-}
+  }
 
-.celda:hover {
+  .celda:hover {
     transform: translateY(-2px);
     border-color: var(--gold);
-}
+  }
 
-.celda-luz {
+  .celda-luz {
     position: absolute;
     inset: 2px;
     border-radius: 4px;
     background-color: var(--luz, var(--gold));
     transform: scale(0);
-    transition: transform 0.09s ease, opacity 0.09s ease;
-}
+    transition:
+      transform 0.09s ease,
+      opacity 0.09s ease;
+  }
 
-/* Fantasma, golpe y acento */
-.celda.v1 .celda-luz { transform: scale(0.5); opacity: 0.6; }
-.celda.v2 .celda-luz { transform: scale(1); opacity: 0.9; }
-.celda.v3 .celda-luz {
+  /* Fantasma, golpe y acento */
+  .celda.v1 .celda-luz {
+    transform: scale(0.5);
+    opacity: 0.6;
+  }
+
+  .celda.v2 .celda-luz {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+
+  .celda.v3 .celda-luz {
     transform: scale(1);
     opacity: 1;
     box-shadow: 0 0 10px var(--luz, var(--gold));
-}
+  }
 
-/* Columna que está sonando ahora mismo */
-.celda.is-current {
+  /* Columna que está sonando ahora mismo */
+  .celda.is-current {
     border-color: var(--ink-block-text);
     box-shadow: 0 0 0 2px rgba(var(--card-rgb), 0.18);
-}
+  }
 
-/* Cada pista tiene su color de luz */
-.seq-fila:nth-child(1) { --luz: var(--accent); }
-.seq-fila:nth-child(2) { --luz: var(--gold); }
-.seq-fila:nth-child(3) { --luz: var(--mesa-cyan); }
-.seq-fila:nth-child(4) { --luz: var(--mesa-cyan); }
-.seq-fila:nth-child(5) { --luz: var(--gold); }
-.seq-fila:nth-child(6) { --luz: var(--mesa-cyan); }
-.seq-fila:nth-child(7) { --luz: var(--gold); }
-.seq-fila:nth-child(8) { --luz: var(--accent); }
+  /* Cada pista tiene su color de luz */
+  .seq-fila:nth-child(1) {
+    --luz: var(--accent);
+  }
 
-.seq-pista {
+  .seq-fila:nth-child(2) {
+    --luz: var(--gold);
+  }
+
+  .seq-fila:nth-child(3) {
+    --luz: var(--mesa-cyan);
+  }
+
+  .seq-fila:nth-child(4) {
+    --luz: var(--mesa-cyan);
+  }
+
+  .seq-fila:nth-child(5) {
+    --luz: var(--gold);
+  }
+
+  .seq-fila:nth-child(6) {
+    --luz: var(--mesa-cyan);
+  }
+
+  .seq-fila:nth-child(7) {
+    --luz: var(--gold);
+  }
+
+  .seq-fila:nth-child(8) {
+    --luz: var(--accent);
+  }
+
+  .seq-pista {
     margin: 8px 2px 0;
     font-family: var(--font-hand);
     font-size: var(--text-xs);
     color: rgba(var(--card-rgb), 0.45);
-}
+  }
 
-/* ---------- Pads ---------- */
+  /* ---------- Pads ---------- */
 
-.mesa-pads-zona {
+  .mesa-pads-zona {
     background-color: var(--mesa-panel);
     border: 2px solid var(--mesa-line);
     border-radius: 12px;
     padding: 12px;
-}
+  }
 
-.pads-barra {
+  .pads-barra {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
     flex-wrap: wrap;
     margin-bottom: 12px;
-}
+  }
 
-.pads-bancos {
+  .pads-bancos {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
-}
+  }
 
-.pads-tono {
+  .pads-tono {
     display: flex;
     align-items: center;
     gap: 8px;
     color: rgba(var(--card-rgb), 0.55);
-}
+  }
 
-.pads-tono select {
+  .pads-tono select {
     padding: 5px 9px;
     border: 2px solid var(--mesa-line);
     border-radius: 8px;
@@ -561,17 +619,17 @@
     font-family: var(--font-hand);
     font-size: var(--text-sm);
     cursor: pointer;
-}
+  }
 
-.pads-rejilla {
+  .pads-rejilla {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 12px;
     max-width: 760px;
     margin: 0 auto;
-}
+  }
 
-.pad {
+  .pad {
     --fam: var(--gold);
     position: relative;
     display: flex;
@@ -590,13 +648,16 @@
     touch-action: manipulation;
     user-select: none;
     box-shadow:
-        0 4px 0 rgba(var(--black-rgb), 0.6),
-        inset 0 -4px 0 var(--fam),
-        inset 0 1px 0 rgba(var(--white-rgb), 0.09);
-    transition: transform 0.07s ease, box-shadow 0.07s ease, background-color var(--dur-fast) ease;
-}
+      0 4px 0 rgba(var(--black-rgb), 0.6),
+      inset 0 -4px 0 var(--fam),
+      inset 0 1px 0 rgba(var(--white-rgb), 0.09);
+    transition:
+      transform 0.07s ease,
+      box-shadow 0.07s ease,
+      background-color var(--dur-fast) ease;
+  }
 
-.pad-tecla {
+  .pad-tecla {
     font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
     font-size: var(--text-2xs);
     padding: 1px 6px;
@@ -604,69 +665,85 @@
     border-radius: 5px;
     background-color: rgba(var(--black-rgb), 0.42);
     color: rgba(var(--card-rgb), 0.86);
-}
+  }
 
-.pad-label {
+  .pad-label {
     font-family: var(--font-hand);
     font-size: var(--text-xs);
     line-height: 1.1;
     text-align: left;
     color: rgba(var(--card-rgb), 0.92);
-}
+  }
 
-/* Cada familia de sonido, su color */
-.pad--grave { --fam: var(--accent); }
-.pad--medio { --fam: var(--gold); }
-.pad--agudo { --fam: var(--mesa-cyan); }
-.pad--aire { --fam: var(--mesa-lilac); }
-.pad--tecla { --fam: var(--mesa-green); }
+  /* Cada familia de sonido, su color */
+  .pad--grave {
+    --fam: var(--accent);
+  }
 
-.pad:hover {
+  .pad--medio {
+    --fam: var(--gold);
+  }
+
+  .pad--agudo {
+    --fam: var(--mesa-cyan);
+  }
+
+  .pad--aire {
+    --fam: var(--mesa-lilac);
+  }
+
+  .pad--tecla {
+    --fam: var(--mesa-green);
+  }
+
+  .pad:hover {
     background-image: var(--mesa-rubber-hover);
-}
+  }
 
-/* Al golpear, el pad se hunde y se enciende con su color */
-.pad:active,
-.pad--golpe {
+  /* Al golpear, el pad se hunde y se enciende con su color */
+  .pad:active,
+  .pad--golpe {
     transform: translateY(3px);
-    box-shadow: 0 1px 0 rgba(var(--black-rgb), 0.6), inset 0 -2px 0 rgba(var(--black-rgb), 0.25);
-}
+    box-shadow:
+      0 1px 0 rgba(var(--black-rgb), 0.6),
+      inset 0 -2px 0 rgba(var(--black-rgb), 0.25);
+  }
 
-.pad--golpe {
+  .pad--golpe {
     background-image: none;
     background-color: var(--fam);
     color: var(--ink);
-}
+  }
 
-.pad--golpe.pad--grave {
+  .pad--golpe.pad--grave {
     color: var(--white);
-}
+  }
 
-.pad--golpe .pad-label {
+  .pad--golpe .pad-label {
     color: inherit;
-}
+  }
 
-.pad--golpe .pad-tecla {
+  .pad--golpe .pad-tecla {
     background-color: rgba(var(--black-rgb), 0.28);
     border-color: transparent;
     color: inherit;
-}
+  }
 
-.pads-nota {
+  .pads-nota {
     margin: 12px 2px 0;
     font-family: var(--font-hand);
     font-size: var(--text-xs);
     color: rgba(var(--card-rgb), 0.5);
-}
+  }
 
-.pads-nota b {
+  .pads-nota b {
     color: var(--gold);
     font-weight: 600;
-}
+  }
 
-/* ---------- Pie ---------- */
+  /* ---------- Pie ---------- */
 
-.mesa-pie {
+  .mesa-pie {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -674,15 +751,15 @@
     flex-wrap: wrap;
     padding-top: 12px;
     border-top: 2px dashed var(--mesa-line);
-}
+  }
 
-.mesa-acciones {
+  .mesa-acciones {
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
-}
+  }
 
-.mesa-nota {
+  .mesa-nota {
     margin: 0;
     flex: 1;
     min-width: 220px;
@@ -690,91 +767,91 @@
     font-size: var(--text-xs);
     color: rgba(var(--card-rgb), 0.45);
     text-align: right;
-}
+  }
 
-/* ---------- Responsive ---------- */
+  /* ---------- Responsive ---------- */
 
-@media (max-width: 900px) {
+  @media (max-width: 900px) {
     .mesa-wrap {
-        --cabeza: 138px;
+      --cabeza: 138px;
     }
 
     .pista-nivel {
-        display: none;
+      display: none;
     }
-}
+  }
 
-@media (max-width: 640px) {
+  @media (max-width: 640px) {
     .pista-nombre {
-        font-size: var(--text-xs);
-        padding: 4px;
+      font-size: var(--text-xs);
+      padding: 4px;
     }
 
     .mesa-wrap {
-        margin-top: 84px;
-        --celda: 26px;
-        --hueco-celda: 5px;
-        --cabeza: 124px;
+      margin-top: 84px;
+      --celda: 26px;
+      --hueco-celda: 5px;
+      --cabeza: 124px;
     }
 
     .mesa {
-        padding: 14px 12px 12px;
-        gap: 12px;
+      padding: 14px 12px 12px;
+      gap: 12px;
     }
 
     .mesa-cabecera {
-        gap: 10px;
+      gap: 10px;
     }
 
     .mesa-marca {
-        padding: 4px 10px;
+      padding: 4px 10px;
     }
 
     .mesa-lcd {
-        min-width: 180px;
-        padding: 8px 10px;
+      min-width: 180px;
+      padding: 8px 10px;
     }
 
     .mesa-vu {
-        width: 100%;
-        flex-direction: row;
-        height: 20px;
-        padding: 5px;
+      width: 100%;
+      flex-direction: row;
+      height: 20px;
+      padding: 5px;
     }
 
     .mesa-transporte {
-        gap: 10px;
-        padding: 10px;
+      gap: 10px;
+      padding: 10px;
     }
 
     .mesa-mando {
-        flex: 1 1 100%;
+      flex: 1 1 100%;
     }
 
     .pad {
-        aspect-ratio: 1.5 / 1;
-        padding: 5px 6px;
+      aspect-ratio: 1.5 / 1;
+      padding: 5px 6px;
     }
 
     .pad-label {
-        font-size: var(--text-2xs);
+      font-size: var(--text-2xs);
     }
 
     .mesa-nota {
-        text-align: left;
+      text-align: left;
     }
 
     .mesa-dancer {
-        height: 96px;
-        right: 3%;
+      height: 96px;
+      right: 3%;
     }
-}
+  }
 
-@media (prefers-reduced-motion: reduce) {
+  @media (prefers-reduced-motion: reduce) {
     .mesa-dancer,
     .lcd-rec.is-on,
     .mesa-rec.is-on .mesa-led {
-        animation: none;
+      animation: none;
     }
-}
+  }
 }

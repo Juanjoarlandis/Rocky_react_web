@@ -1,52 +1,52 @@
 @layer pages {
-.drops {
+  .drops {
     --container: var(--container-text);
     padding-top: 48px;
     padding-bottom: 88px;
-}
+  }
 
-/* El tumbado se apoya sobre la primera tarjeta de la lista, anclado al
+  /* El tumbado se apoya sobre la primera tarjeta de la lista, anclado al
    contenedor para que funcione en cualquier ancho. El hueco reserva el
    estante entero: el skater vuela 26px + 170px por encima de la lista y el
    subtítulo no debe quedar debajo. */
-.drops-list-wrap {
+  .drops-list-wrap {
     margin-top: clamp(115px, 24vw, 235px);
-}
+  }
 
-.drops-illustration {
+  .drops-illustration {
     bottom: 100%;
     right: 6%;
     width: clamp(170px, 40%, 240px);
     /* El costado del muñeco (53% de la altura del dibujo) apoya en el borde
        y las piernas cuelgan por delante de la tarjeta */
     transform: translateY(46.6%);
-}
+  }
 
-/* El Dado sentado en la misma repisa, en la otra punta */
-.drops-dado {
+  /* El Dado sentado en la misma repisa, en la otra punta */
+  .drops-dado {
     bottom: calc(100% - 8px);
     left: 50%;
     transform: translateX(-50%);
     height: clamp(72px, 9vw, 94px);
     width: auto;
-}
+  }
 
-/* El skater volando sobre la zona izquierda */
-.drops-skater {
+  /* El skater volando sobre la zona izquierda */
+  .drops-skater {
     bottom: calc(100% + 26px);
     left: 3%;
     height: clamp(120px, 17vw, 170px);
     width: auto;
-}
+  }
 
-.drops-list {
+  .drops-list {
     position: relative;
     display: flex;
     flex-direction: column;
     gap: 18px;
-}
+  }
 
-.drops-link {
+  .drops-link {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -59,89 +59,92 @@
     text-transform: uppercase;
     letter-spacing: 0.02em;
     transition: transform var(--dur-fast) ease;
-}
+  }
 
-.drops-link-copy {
+  .drops-link-copy {
     display: flex;
     flex-direction: column;
     gap: 2px;
     min-width: 0;
-}
+  }
 
-.drops-link-meta {
+  .drops-link-meta-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+  }
+
+  .drops-link-meta {
     font-size: var(--text-2xs);
     letter-spacing: 0.08em;
-}
+  }
 
-/* Estado del drop: una pegatina pequeña, roja si ya se puede comprar */
-.drops-link-state {
-    margin-left: auto;
-    padding: 2px 10px;
-    font-size: var(--text-xs);
-    letter-spacing: 0.02em;
+  /* Estado del drop: una pegatina pequeña junto al contador (a la derecha la
+   taparían las piernas del tumbado), roja si ya se puede comprar. */
+  .drops-link-state {
+    padding: 1px 9px;
+    font-size: var(--text-2xs);
+    letter-spacing: 0.04em;
     text-transform: none;
-    transform: rotate(-3deg);
-}
+    transform: rotate(-2deg);
+  }
 
-.drops-link-state--available {
+  .drops-link-state--available {
     background-color: var(--accent);
     color: var(--white);
-}
+  }
 
-.drops-link:nth-child(2n) {
+  .drops-link:nth-child(2n) {
     transform: rotate(-0.5deg);
-}
+  }
 
-.drops-link:nth-child(2n + 1) {
+  .drops-link:nth-child(2n + 1) {
     transform: rotate(0.4deg);
-}
+  }
 
-/* La primera tarjeta se mantiene recta: es la "repisa" del tumbado */
-.drops-link:first-child {
+  /* La primera tarjeta se mantiene recta: es la "repisa" del tumbado */
+  .drops-link:first-child {
     transform: none;
-}
+  }
 
-.drops-link:hover {
+  .drops-link:hover {
     transform: translate(-3px, -3px);
-}
+  }
 
-.drops-arrow {
+  .drops-arrow {
     font-family: var(--font-hand);
     font-size: 1.4rem;
     transition: transform var(--dur-base) ease;
-}
+  }
 
-.drops-link:hover .drops-arrow {
+  .drops-link:hover .drops-arrow {
     transform: translateX(5px) rotate(4deg);
     color: var(--accent);
-}
+  }
 
-@media (max-width: 640px) {
+  @media (max-width: 640px) {
     .drops {
-        padding-top: 28px;
-        padding-bottom: 64px;
+      padding-top: 28px;
+      padding-bottom: 64px;
     }
 
     .drops-list-wrap {
-        margin-top: clamp(90px, 30vw, 140px);
+      margin-top: clamp(90px, 30vw, 140px);
     }
 
     .drops-illustration {
-        right: 2%;
-        width: clamp(150px, 48%, 220px);
+      right: 2%;
+      width: clamp(150px, 48%, 220px);
     }
 
     .drops-skater {
-        display: none;
+      display: none;
     }
 
     .drops-link {
-        padding: 12px 16px;
-        gap: 10px;
+      padding: 12px 16px;
+      gap: 10px;
     }
-
-    .drops-link-state {
-        display: none;
-    }
-}
+  }
 }

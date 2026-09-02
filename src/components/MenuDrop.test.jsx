@@ -32,7 +32,10 @@ describe('Drops', () => {
         <MenuDrop products={products} />
       </MemoryRouter>
     );
-    expect(screen.getByRole('link', { name: /ROCKY DROP 4/ })).toHaveAttribute('href', '/products/rocky-drop-4');
+    expect(screen.getByRole('link', { name: /ROCKY DROP 4/ })).toHaveAttribute(
+      'href',
+      '/products/rocky-drop-4'
+    );
     expect(screen.getByText('22 diseños · 19 bajo llave')).toBeInTheDocument();
     expect(screen.getByText('Sin revelar')).toBeInTheDocument();
     expect(screen.getAllByText('Concepto')).toHaveLength(3);

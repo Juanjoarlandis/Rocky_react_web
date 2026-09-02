@@ -1,10 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../server.mjs';
-import {
-  AVISOS_INDICE,
-  AVISOS_NAMESPACE,
-  celdaCsvSegura,
-} from './avisos.mjs';
+import { AVISOS_INDICE, AVISOS_NAMESPACE, celdaCsvSegura } from './avisos.mjs';
 import { MemoryStore } from './encrypted-store.mjs';
 
 const ORIGEN = 'https://rocky.test';
@@ -12,9 +8,7 @@ const runningServers = new Set();
 
 afterEach(async () => {
   await Promise.all(
-    [...runningServers].map(
-      (server) => new Promise((resolve) => server.close(resolve))
-    )
+    [...runningServers].map((server) => new Promise((resolve) => server.close(resolve)))
   );
   runningServers.clear();
 });

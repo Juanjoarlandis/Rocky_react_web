@@ -1,15 +1,15 @@
 @layer components {
-.footer {
+  .footer {
     position: relative;
     background-color: var(--ink-block);
     background-image: var(--spray-speckle);
     color: var(--white);
     padding: 16px;
     margin-top: -6px;
-}
+  }
 
-/* Katakana vertical, guiño Tokyo streetwear */
-.footer-katakana {
+  /* Katakana vertical, guiño Tokyo streetwear */
+  .footer-katakana {
     position: absolute;
     right: 16px;
     top: 50%;
@@ -20,24 +20,24 @@
     color: rgba(var(--white-rgb), 0.45);
     user-select: none;
     pointer-events: none;
-}
+  }
 
-@media (max-width: 640px) {
+  @media (max-width: 640px) {
     /* Sin `overflow: hidden`: recortaba a El Lata entero, que va por encima del
        canto. El texto ya lo recorta `.ticker-clip`, y sin la inclinación no hay
        nada que se salga —comprobado a 375 px, el documento no se ensancha—. */
     .ticker {
-        margin-left: 0;
-        margin-right: 0;
-        transform: none;
+      margin-left: 0;
+      margin-right: 0;
+      transform: none;
     }
 
     .footer-katakana {
-        display: none;
+      display: none;
     }
-}
+  }
 
-.footer-inner {
+  .footer-inner {
     position: relative;
     max-width: 1100px;
     margin: 0 auto;
@@ -52,18 +52,18 @@
     align-items: center;
     gap: 14px;
     text-align: center;
-}
+  }
 
-/* Los tres chicos se sientan sobre el borde superior del marco */
-.footer-illustration {
+  /* Los tres chicos se sientan sobre el borde superior del marco */
+  .footer-illustration {
     bottom: calc(100% - 14px);
     left: 50%;
     transform: translateX(-50%);
     width: min(60vw, 430px);
     height: auto;
-}
+  }
 
-.footer-social {
+  .footer-social {
     display: inline-flex;
     align-items: center;
     gap: 10px;
@@ -76,81 +76,83 @@
     padding: 6px 20px;
     border: 2px solid rgba(var(--white-rgb), 0.85);
     border-radius: var(--wobble-sm);
-    transition: transform var(--dur-fast) ease, background-color var(--dur-base) ease;
-}
+    transition:
+      transform var(--dur-fast) ease,
+      background-color var(--dur-base) ease;
+  }
 
-.footer-social:hover {
+  .footer-social:hover {
     background-color: rgba(var(--white-rgb), 0.1);
     transform: rotate(-2deg) scale(1.04);
-}
+  }
 
-.footer-social-icon {
+  .footer-social-icon {
     width: 22px;
     height: 22px;
-}
+  }
 
-.footer-brand {
+  .footer-brand {
     margin: 8px 0 0;
     font-family: var(--font-display);
     font-size: var(--text-base);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--white);
-}
+  }
 
-.footer-legal {
+  .footer-legal {
     margin: 0;
     font-family: var(--font-hand);
     font-size: var(--text-base);
     color: var(--on-ink-muted);
-}
+  }
 
-/* La duración del recorrido mantiene una velocidad tranquila en los anchos
+  /* La duración del recorrido mantiene una velocidad tranquila en los anchos
    pequeños; el ciclo corporal ya viene temporizado dentro del vídeo. */
-@media (max-width: 480px) {
+  @media (max-width: 480px) {
     .ticker-lata {
-        --lata-patrulla: 16s;
+      --lata-patrulla: 16s;
     }
-}
+  }
 
-@media (min-width: 481px) and (max-width: 640px) {
+  @media (min-width: 481px) and (max-width: 640px) {
     .ticker-lata {
-        --lata-patrulla: 21s;
+      --lata-patrulla: 21s;
     }
-}
+  }
 
-/* En pantallas muy anchas el recorrido se alarga con la misma duración, y le
+  /* En pantallas muy anchas el recorrido se alarga con la misma duración, y le
    salía un paso de atleta: se le da más tiempo para cruzarla. */
-@media (min-width: 1200px) {
+  @media (min-width: 1200px) {
     .ticker-lata {
-        --lata-patrulla: 42s;
+      --lata-patrulla: 42s;
     }
-}
+  }
 
-/* ---------- Modo neón ----------
+  /* ---------- Modo neón ----------
    La marquesina y el footer ya eran de noche: aquí sólo se les da corriente.
    El fondo lo pone --ink-block (morado hondo) desde index.css. */
 
-html[data-theme='neon'] .footer-katakana {
+  [data-theme='neon'] .footer-katakana {
     color: rgba(var(--neon-cyan-rgb), 0.6);
     text-shadow: 0 0 12px rgba(var(--neon-cyan-rgb), 0.4);
-}
+  }
 
-html[data-theme='neon'] .footer-inner {
+  [data-theme='neon'] .footer-inner {
     border-color: rgba(var(--neon-cyan-rgb), 0.5);
     box-shadow: 0 0 22px rgba(var(--neon-cyan-rgb), 0.12) inset;
-}
+  }
 
-html[data-theme='neon'] .footer-social {
+  [data-theme='neon'] .footer-social {
     border-color: rgba(var(--neon-pink-rgb), 0.6);
     box-shadow: 0 0 14px rgba(var(--neon-pink-rgb), 0.18);
-}
+  }
 
-html[data-theme='neon'] .footer-social:hover {
+  [data-theme='neon'] .footer-social:hover {
     background-color: rgba(var(--neon-pink-rgb), 0.14);
-}
+  }
 
-html[data-theme='neon'] .footer-legal {
+  [data-theme='neon'] .footer-legal {
     color: var(--muted);
-}
+  }
 }

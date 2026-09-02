@@ -1,29 +1,29 @@
 @layer components {
-.street-wall {
+  .street-wall {
     margin-top: 72px;
-}
+  }
 
-.street-wall-head {
+  .street-wall-head {
     position: relative;
     display: flex;
     align-items: baseline;
     gap: 20px;
     margin-bottom: 34px;
-}
+  }
 
-/* El fotógrafo agachado a la derecha, con su línea de suelo garabateada */
-.street-photographer {
+  /* El fotógrafo agachado a la derecha, con su línea de suelo garabateada */
+  .street-photographer {
     right: 2%;
     bottom: -8px;
-}
+  }
 
-.street-photographer img {
+  .street-photographer img {
     display: block;
     height: clamp(120px, 15vw, 158px);
     width: auto;
-}
+  }
 
-.street-photographer::after {
+  .street-photographer::after {
     content: '';
     position: absolute;
     left: -14%;
@@ -33,12 +33,12 @@
     background: repeating-linear-gradient(90deg, var(--ink) 0 12px, transparent 12px 20px);
     border-radius: 2px;
     opacity: 0.75;
-}
+  }
 
-/* El disparo del Paparazzi, primera mitad: el chispazo pegado al objetivo.
+  /* El disparo del Paparazzi, primera mitad: el chispazo pegado al objetivo.
    Las dos animaciones duran lo que DISPARO_MS en StreetWall.jsx: si cambia
    una, cambian las tres. */
-.street-photographer-flash {
+  .street-photographer-flash {
     position: absolute;
     left: 35%;
     top: 40%;
@@ -47,43 +47,43 @@
     color: var(--ink);
     pointer-events: none;
     animation: paparazzi-chispazo 600ms cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
-}
+  }
 
-.street-photographer-flash svg {
+  .street-photographer-flash svg {
     display: block;
     width: 100%;
     height: 100%;
     overflow: visible;
-}
+  }
 
-/* Revienta desde el objetivo y se apaga con un pelín de giro, como un trazo
+  /* Revienta desde el objetivo y se apaga con un pelín de giro, como un trazo
    suelto y no como un icono que aparece. */
-@keyframes paparazzi-chispazo {
+  @keyframes paparazzi-chispazo {
     0% {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(0.3) rotate(-16deg);
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.3) rotate(-16deg);
     }
 
     14% {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1.06) rotate(0deg);
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1.06) rotate(0deg);
     }
 
     34% {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(0.92) rotate(5deg);
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(0.92) rotate(5deg);
     }
 
     100% {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(1.16) rotate(9deg);
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(1.16) rotate(9deg);
     }
-}
+  }
 
-/* Segunda mitad: el fogonazo que llega hasta el espectador. Cubre la ventana
+  /* Segunda mitad: el fogonazo que llega hasta el espectador. Cubre la ventana
    entera pero la luz nace donde está la cámara —las coordenadas las pone el
    componente al disparar—, no del techo. */
-.street-flash-blink {
+  .street-flash-blink {
     position: fixed;
     inset: 0;
     /* Por encima de la barra (1000) y del repartidor (1100): a un flash no se
@@ -92,52 +92,52 @@
     z-index: var(--z-overlay);
     pointer-events: none;
     background: radial-gradient(
-        circle at var(--flash-x, 50%) var(--flash-y, 45%),
-        rgba(var(--white-rgb), 0.95) 0%,
-        rgba(var(--white-rgb), 0.78) 18%,
-        rgba(var(--white-rgb), 0.3) 48%,
-        rgba(var(--white-rgb), 0) 75%
+      circle at var(--flash-x, 50%) var(--flash-y, 45%),
+      rgba(var(--white-rgb), 0.95) 0%,
+      rgba(var(--white-rgb), 0.78) 18%,
+      rgba(var(--white-rgb), 0.3) 48%,
+      rgba(var(--white-rgb), 0) 75%
     );
     opacity: 0;
     animation: paparazzi-fogonazo 600ms ease-out forwards;
-}
+  }
 
-/* Un único golpe de luz por foto: sube de golpe y se va enseguida. Nada de
+  /* Un único golpe de luz por foto: sube de golpe y se va enseguida. Nada de
    parpadear varias veces, que esto va directo a los ojos. */
-@keyframes paparazzi-fogonazo {
+  @keyframes paparazzi-fogonazo {
     0% {
-        opacity: 0;
+      opacity: 0;
     }
 
     12% {
-        opacity: 0.85;
+      opacity: 0.85;
     }
 
     40% {
-        opacity: 0.25;
+      opacity: 0.25;
     }
 
     100% {
-        opacity: 0;
+      opacity: 0;
     }
-}
+  }
 
-@media (prefers-reduced-motion: reduce) {
+  @media (prefers-reduced-motion: reduce) {
     /* Sin movimiento no hay sesión de fotos: el JS ya no dispara, y esto
        remata por si algo llegara a montarse igualmente. */
     .street-photographer-flash,
     .street-flash-blink {
-        display: none;
+      display: none;
     }
-}
+  }
 
-@media (max-width: 640px) {
+  @media (max-width: 640px) {
     .street-photographer {
-        display: none;
+      display: none;
     }
-}
+  }
 
-.street-wall-handle {
+  .street-wall-handle {
     display: inline-flex;
     align-items: center;
     min-height: 44px;
@@ -147,22 +147,25 @@
     color: var(--muted);
     text-decoration: none;
     transform: rotate(-1deg);
-}
+  }
 
-.street-wall-handle:hover {
+  .street-wall-handle:hover {
     color: var(--accent);
     text-decoration: underline wavy var(--accent);
-}
+  }
 
-.street-wall-grid {
+  .street-wall-grid {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
     gap: 34px 28px;
-}
+  }
 
-/* Polaroid pegada con celo */
-.street-photo {
+  /* Polaroid pegada con celo */
+  .street-photo {
+    --tape-w: 74px;
+    --tape-h: 22px;
+
     position: relative;
     margin: 0;
     padding: 10px 10px 8px;
@@ -173,44 +176,41 @@
     border: 2px solid var(--ink);
     box-shadow: var(--shadow-ink);
     width: clamp(200px, 26vw, 260px);
-    transition: transform var(--dur-base) ease, box-shadow var(--dur-base) ease;
-}
+    transition:
+      transform var(--dur-base) ease,
+      box-shadow var(--dur-base) ease;
+  }
 
-.street-photo:nth-child(3n + 1) {
+  .street-photo:nth-child(3n + 1) {
     transform: rotate(-2deg);
-}
+  }
 
-.street-photo:nth-child(3n + 2) {
+  .street-photo:nth-child(3n + 2) {
     transform: rotate(1.4deg) translateY(10px);
-}
+  }
 
-.street-photo:nth-child(3n) {
+  .street-photo:nth-child(3n) {
     transform: rotate(2.2deg);
-}
+  }
 
-.street-photo:hover {
+  .street-photo:hover {
     transform: rotate(0deg) translateY(-4px);
     box-shadow: var(--shadow-ink-lg);
     z-index: 2;
-}
+  }
 
-/* Un solo trozo de celo, arriba y centrado */
-.street-photo {
-    --tape-w: 74px;
-    --tape-h: 22px;
-}
-
-.street-photo::before {
+  /* Un solo trozo de celo, arriba y centrado */
+  .street-photo::before {
     top: -12px;
     left: 50%;
     transform: translateX(-50%) rotate(-4deg);
-}
+  }
 
-.street-photo::after {
+  .street-photo::after {
     display: none;
-}
+  }
 
-.street-photo img {
+  .street-photo img {
     display: block;
     width: 100%;
     aspect-ratio: 1 / 1;
@@ -218,9 +218,9 @@
     /* Blanco y negro, como las fotos del insta */
     filter: grayscale(1) contrast(1.06);
     border: 1px solid var(--line);
-}
+  }
 
-.street-photo figcaption {
+  .street-photo figcaption {
     padding: 8px 2px 2px;
     font-family: var(--font-hand);
     font-size: var(--text-base);
@@ -228,41 +228,41 @@
     /* Rotulador a fuego, como el marco: la polaroid sigue blanca de noche
        y var(--ink-soft) se volvería luz sobre luz. */
     color: var(--ink-soft-fixed);
-}
+  }
 
-.street-wall-cta {
+  .street-wall-cta {
     display: flex;
     justify-content: center;
     align-items: flex-end;
     gap: 20px;
     margin-top: 40px;
-}
+  }
 
-/* El Diana de pie junto al botón, con los pies a la altura de su base */
-.cta-diana {
+  /* El Diana de pie junto al botón, con los pies a la altura de su base */
+  .cta-diana {
     height: clamp(104px, 13vw, 136px);
     width: auto;
     margin-bottom: -4px;
     pointer-events: none;
     user-select: none;
-}
+  }
 
-.street-wall-cta .btn {
+  .street-wall-cta .btn {
     margin-bottom: 8px;
-}
+  }
 
-@media (max-width: 640px) {
+  @media (max-width: 640px) {
     .street-wall {
-        margin-top: 52px;
+      margin-top: 52px;
     }
 
     .street-wall-grid {
-        gap: 26px 18px;
+      gap: 26px 18px;
     }
 
     .street-photo {
-        width: clamp(150px, 42vw, 200px);
-        padding: 7px 7px 5px;
+      width: clamp(150px, 42vw, 200px);
+      padding: 7px 7px 5px;
     }
-}
+  }
 }

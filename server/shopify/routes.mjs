@@ -79,17 +79,15 @@ export function createShopifyRouter({
 }) {
   const router = express.Router();
   const withCartLock = createKeyedLock();
-  const storefront = providedStorefront || (
-    config.capabilities.catalog ? createStorefrontClient({ config, fetchImpl }) : null
-  );
-  const customerAccounts = providedCustomerAccounts || (
-    config.capabilities.customerAccounts
+  const storefront =
+    providedStorefront ||
+    (config.capabilities.catalog ? createStorefrontClient({ config, fetchImpl }) : null);
+  const customerAccounts =
+    providedCustomerAccounts ||
+    (config.capabilities.customerAccounts
       ? createCustomerAccountClient({ config, store, fetchImpl, logger })
-      : null
-  );
-  const admin = config.capabilities.admin
-    ? createAdminClient({ config, fetchImpl })
-    : null;
+      : null);
+  const admin = config.capabilities.admin ? createAdminClient({ config, fetchImpl }) : null;
 
   router.get('/status', (req, res) => {
     res.json({
@@ -310,9 +308,7 @@ export function createShopifyRouter({
         sessionBinding: previousSession.key,
       });
       await sessions.rotate(req, res, {
-        ...(previousSession.record.cartId
-          ? { cartId: previousSession.record.cartId }
-          : {}),
+        ...(previousSession.record.cartId ? { cartId: previousSession.record.cartId } : {}),
         customerTokenId: completed.tokenId,
       });
       return res.redirect(302, completed.returnPath);
@@ -327,9 +323,7 @@ export function createShopifyRouter({
       if (!session?.record.customerTokenId) {
         return res.json({ loggedIn: false, customer: null });
       }
-      const customer = await customerAccounts.getCustomerProfile(
-        session.record.customerTokenId
-      );
+      const customer = await customerAccounts.getCustomerProfile(session.record.customerTokenId);
       return res.json({ loggedIn: true, customer });
     })
   );
@@ -348,9 +342,7 @@ export function createShopifyRouter({
         code: 'CREW_AUTH_REQUIRED',
       });
     }
-    const customer = await customerAccounts.getCustomerProfile(
-      session.record.customerTokenId
-    );
+    const customer = await customerAccounts.getCustomerProfile(session.record.customerTokenId);
     return {
       id: customer.id,
       displayName: customer.displayName || customer.firstName || 'Miembro 035',
@@ -401,9 +393,8 @@ export function createShopifyRouter({
     asyncRoute(async (req, res) => {
       const session = await sessions.read(req);
       const tokenId = session?.record.customerTokenId;
-      const logoutUrl = customerAccounts && tokenId
-        ? await customerAccounts.createLogoutUrl(tokenId)
-        : null;
+      const logoutUrl =
+        customerAccounts && tokenId ? await customerAccounts.createLogoutUrl(tokenId) : null;
       if (customerAccounts && tokenId) await customerAccounts.deleteToken(tokenId);
       await sessions.destroy(req, res);
       return res.json({ loggedIn: false, logoutUrl });

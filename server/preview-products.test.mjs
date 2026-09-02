@@ -13,16 +13,18 @@ describe('preview product catalog', () => {
       return drops;
     }, {});
     expect(Object.values(productsPerDrop).map((products) => products.length)).toEqual([2, 2, 2]);
-    expect(previewProducts.every((product) => (
-      product.isPreview === true && product.price === null
-    ))).toBe(true);
+    expect(
+      previewProducts.every((product) => product.isPreview === true && product.price === null)
+    ).toBe(true);
   });
 
   it('points every concept at a real project-bound WebP asset', async () => {
-    await Promise.all(previewProducts.map(async (product) => {
-      expect(product.image).toMatch(/^\/products\/[a-z0-9-]+\.webp$/);
-      const asset = path.resolve(process.cwd(), 'public', product.image.slice(1));
-      await expect(fs.access(asset)).resolves.toBeUndefined();
-    }));
+    await Promise.all(
+      previewProducts.map(async (product) => {
+        expect(product.image).toMatch(/^\/products\/[a-z0-9-]+\.webp$/);
+        const asset = path.resolve(process.cwd(), 'public', product.image.slice(1));
+        await expect(fs.access(asset)).resolves.toBeUndefined();
+      })
+    );
   });
 });

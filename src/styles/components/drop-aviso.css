@@ -1,7 +1,7 @@
 @layer components {
-/* El mostrador de avisos del drop: papel, tinta y sello de rotulador, como el
+  /* El mostrador de avisos del drop: papel, tinta y sello de rotulador, como el
    resto de la papelería de ROCKY. */
-.drop-aviso {
+  .drop-aviso {
     margin-top: 16px;
     max-width: 440px;
     padding: 14px 16px;
@@ -10,22 +10,22 @@
     border-radius: var(--wobble-sm);
     box-shadow: 4px 4px 0 rgba(var(--ink-rgb), 0.18);
     transform: rotate(-0.4deg);
-}
+  }
 
-.drop-aviso-titulo {
+  .drop-aviso-titulo {
     margin: 0 0 10px;
     font-family: var(--font-hand);
     font-size: var(--text-lg);
     color: var(--ink);
-}
+  }
 
-.drop-aviso-fila {
+  .drop-aviso-fila {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
-}
+  }
 
-.drop-aviso-email {
+  .drop-aviso-email {
     flex: 1 1 180px;
     min-width: 0;
     padding: 10px 12px;
@@ -34,19 +34,19 @@
     background-color: var(--white);
     border: 2px solid var(--ink);
     border-radius: 10px 12px 10px 14px;
-}
+  }
 
-/* El campo trampa vive fuera del papel: los bots lo ven, la gente no. */
-.drop-aviso-apodo {
+  /* El campo trampa vive fuera del papel: los bots lo ven, la gente no. */
+  .drop-aviso-apodo {
     position: absolute;
     left: -9999px;
     width: 1px;
     height: 1px;
     opacity: 0;
     pointer-events: none;
-}
+  }
 
-.drop-aviso-permiso {
+  .drop-aviso-permiso {
     display: flex;
     gap: 8px;
     align-items: flex-start;
@@ -54,26 +54,26 @@
     font-size: var(--text-xs);
     color: var(--muted);
     line-height: 1.35;
-}
+  }
 
-.drop-aviso-permiso input {
+  .drop-aviso-permiso input {
     margin-top: 2px;
     accent-color: var(--accent);
-}
+  }
 
-.drop-aviso-fallo {
+  .drop-aviso-fallo {
     margin: 10px 0 0;
     font-family: var(--font-hand);
     color: var(--accent-dark);
-}
+  }
 
-/* El recibo: sello torcido y el Recadero llevándose el recado. */
-.drop-aviso--listo {
+  /* El recibo: sello torcido y el Recadero llevándose el recado. */
+  .drop-aviso--listo {
     position: relative;
     padding-right: 96px;
-}
+  }
 
-.drop-aviso-sello {
+  .drop-aviso-sello {
     display: inline-block;
     margin: 0;
     padding: 6px 12px;
@@ -86,29 +86,29 @@
     border-radius: 8px 10px 8px 12px;
     transform: rotate(-3deg);
     animation: stamp-in 0.35s cubic-bezier(0.2, 1.4, 0.4, 1) both;
-}
+  }
 
-.drop-aviso-nota {
+  .drop-aviso-nota {
     margin: 10px 0 0;
     font-family: var(--font-hand);
     color: var(--ink-soft);
-}
+  }
 
-.drop-aviso-recadero {
+  .drop-aviso-recadero {
     right: 8px;
     bottom: 6px;
     width: 78px;
     height: auto;
-}
+  }
 
-@media (prefers-reduced-motion: reduce) {
+  @media (prefers-reduced-motion: reduce) {
     .drop-aviso-sello {
-        animation: none;
+      animation: none;
     }
-}
+  }
 
-/* Modo neón: el campo del correo, de papel a asfalto. */
-html[data-theme='neon'] .drop-aviso-email {
+  /* Modo neón: el campo del correo, de papel a asfalto. */
+  [data-theme='neon'] .drop-aviso-email {
     background-color: var(--paper);
-}
+  }
 }

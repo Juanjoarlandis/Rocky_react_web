@@ -47,9 +47,8 @@ export function normalizeDemoCatalog(products = []) {
   return products.map((product) => {
     const handle = slugify(product.handle || product.title);
     const image = product.image || PRODUCT_PLACEHOLDER;
-    const price = typeof product.price === 'string' && /\d/.test(product.price)
-      ? product.price
-      : null;
+    const price =
+      typeof product.price === 'string' && /\d/.test(product.price) ? product.price : null;
     return {
       id: handle,
       handle,

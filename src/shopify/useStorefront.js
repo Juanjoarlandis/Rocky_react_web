@@ -26,14 +26,10 @@ const EMPTY_PRODUCTS = Object.freeze([]);
 const DEFAULT_CREW_AVATAR_ID = 'skater-head';
 
 function errorMessage(error) {
-  return error instanceof Error
-    ? error.message
-    : 'La tienda no ha podido completar la operación.';
+  return error instanceof Error ? error.message : 'La tienda no ha podido completar la operación.';
 }
 
-export function useStorefront({
-  demoProducts = EMPTY_PRODUCTS,
-} = {}) {
+export function useStorefront({ demoProducts = EMPTY_PRODUCTS } = {}) {
   const [mode, setMode] = useState('checking');
   const [capabilities, setCapabilities] = useState(DISABLED_CAPABILITIES);
   const [products, setProducts] = useState(EMPTY_PRODUCTS);
@@ -175,86 +171,96 @@ export function useStorefront({
     setCartState(normalizeCart(cart));
   }, []);
 
-  const runCartMutation = useCallback(async (mutation) => {
-    setCartBusy(true);
-    setError('');
-    try {
-      const response = await mutation();
-      applyServerCart(response.cart);
-      // Solo el texto: `target` lleva el id de linea con el token del carrito.
-      setCartWarnings(
-        (response.warnings || []).map((warning) => ({
-          code: warning.code || 'CART_WARNING',
-          message: warning.message,
-        }))
-      );
-      return response;
-    } catch (mutationError) {
-      setError(errorMessage(mutationError));
-      throw mutationError;
-    } finally {
-      setCartBusy(false);
-    }
-  }, [applyServerCart]);
-
-  const addToCart = useCallback(async (product, variantId) => {
-    if (mode === 'shopify') {
-      if (!capabilities.cart || !variantId) {
-        throw new Error('Este producto no tiene una variante disponible.');
+  const runCartMutation = useCallback(
+    async (mutation) => {
+      setCartBusy(true);
+      setError('');
+      try {
+        const response = await mutation();
+        applyServerCart(response.cart);
+        // Solo el texto: `target` lleva el id de linea con el token del carrito.
+        setCartWarnings(
+          (response.warnings || []).map((warning) => ({
+            code: warning.code || 'CART_WARNING',
+            message: warning.message,
+          }))
+        );
+        return response;
+      } catch (mutationError) {
+        setError(errorMessage(mutationError));
+        throw mutationError;
+      } finally {
+        setCartBusy(false);
       }
-      return runCartMutation(() => addCartLine({ variantId, quantity: 1 }));
-    }
+    },
+    [applyServerCart]
+  );
 
-    setCartState((current) => {
-      const existing = current.items.find((item) => item.id === product.id);
-      const items = existing
-        ? current.items.map((item) =>
-            item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
-          )
-        : [...current.items, { ...product, productId: product.id, quantity: 1 }];
-      return {
-        items,
-        cost: null,
-        totalQuantity: items.reduce((sum, item) => sum + item.quantity, 0),
-      };
-    });
-    return null;
-  }, [capabilities.cart, mode, runCartMutation]);
+  const addToCart = useCallback(
+    async (product, variantId) => {
+      if (mode === 'shopify') {
+        if (!capabilities.cart || !variantId) {
+          throw new Error('Este producto no tiene una variante disponible.');
+        }
+        return runCartMutation(() => addCartLine({ variantId, quantity: 1 }));
+      }
 
-  const removeFromCart = useCallback(async (item) => {
-    if (mode === 'shopify') {
-      return runCartMutation(() => removeCartLine({ lineId: item.lineId }));
-    }
-    setCartState((current) => {
-      const items = current.items.filter((candidate) => candidate.id !== item.id);
-      return {
-        items,
-        cost: null,
-        totalQuantity: items.reduce((sum, candidate) => sum + candidate.quantity, 0),
-      };
-    });
-    return null;
-  }, [mode, runCartMutation]);
+      setCartState((current) => {
+        const existing = current.items.find((item) => item.id === product.id);
+        const items = existing
+          ? current.items.map((item) =>
+              item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+            )
+          : [...current.items, { ...product, productId: product.id, quantity: 1 }];
+        return {
+          items,
+          cost: null,
+          totalQuantity: items.reduce((sum, item) => sum + item.quantity, 0),
+        };
+      });
+      return null;
+    },
+    [capabilities.cart, mode, runCartMutation]
+  );
 
-  const changeQuantity = useCallback(async (item, quantity) => {
-    if (quantity < 1) return removeFromCart(item);
-    if (mode === 'shopify') {
-      return runCartMutation(() =>
-        updateCartLine({ lineId: item.lineId, quantity })
-      );
-    }
-    setCartState((current) => {
-      const items = current.items.map((candidate) =>
-        candidate.id === item.id ? { ...candidate, quantity } : candidate
-      );
-      return {
-        items,
-        cost: null,
-        totalQuantity: items.reduce((sum, candidate) => sum + candidate.quantity, 0),
-      };
-    });
-    return null;
-  }, [mode, removeFromCart, runCartMutation]);
+  const removeFromCart = useCallback(
+    async (item) => {
+      if (mode === 'shopify') {
+        return runCartMutation(() => removeCartLine({ lineId: item.lineId }));
+      }
+      setCartState((current) => {
+        const items = current.items.filter((candidate) => candidate.id !== item.id);
+        return {
+          items,
+          cost: null,
+          totalQuantity: items.reduce((sum, candidate) => sum + candidate.quantity, 0),
+        };
+      });
+      return null;
+    },
+    [mode, runCartMutation]
+  );
+
+  const changeQuantity = useCallback(
+    async (item, quantity) => {
+      if (quantity < 1) return removeFromCart(item);
+      if (mode === 'shopify') {
+        return runCartMutation(() => updateCartLine({ lineId: item.lineId, quantity }));
+      }
+      setCartState((current) => {
+        const items = current.items.map((candidate) =>
+          candidate.id === item.id ? { ...candidate, quantity } : candidate
+        );
+        return {
+          items,
+          cost: null,
+          totalQuantity: items.reduce((sum, candidate) => sum + candidate.quantity, 0),
+        };
+      });
+      return null;
+    },
+    [mode, removeFromCart, runCartMutation]
+  );
 
   const incrementQuantity = useCallback(
     (item) => changeQuantity(item, item.quantity + 1),

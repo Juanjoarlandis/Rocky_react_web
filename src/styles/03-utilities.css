@@ -1,321 +1,340 @@
 @layer utilities {
-/* ---------- Tipografía común ---------- */
+  /* ---------- Tipografía común ---------- */
 
-.page-title {
-  font-family: var(--font-display);
-  font-size: var(--text-display);
-  letter-spacing: 0.01em;
-  text-transform: uppercase;
-  margin: 0;
-  position: relative;
-  display: inline-block;
-}
+  .page-title {
+    font-family: var(--font-display);
+    font-size: var(--text-display);
+    letter-spacing: 0.01em;
+    text-transform: uppercase;
+    margin: 0;
+    position: relative;
+    display: inline-block;
+  }
 
-/* El subrayado garabateado, como pseudo-elemento bajo cualquier rótulo. */
-.page-title::after,
-.squiggle-underline::after {
-  content: '';
-  display: block;
-  height: 8px;
-  margin-top: 2px;
-  background-image: var(--squiggle);
-  background-repeat: repeat-x;
-  background-size: 48px 8px;
-}
+  /* El subrayado garabateado, como pseudo-elemento bajo cualquier rótulo. */
+  .page-title::after,
+  .squiggle-underline::after {
+    content: '';
+    display: block;
+    height: 8px;
+    margin-top: 2px;
+    background-image: var(--squiggle);
+    background-repeat: repeat-x;
+    background-size: 48px 8px;
+  }
 
-/* El mismo garabato como línea de suelo bajo un bloque (desfiles, láminas). */
-.squiggle-baseline {
-  background-image: var(--squiggle);
-  background-repeat: repeat-x;
-  background-position: left bottom;
-  background-size: 48px 8px;
-}
+  /* El mismo garabato como línea de suelo bajo un bloque (desfiles, láminas). */
+  .squiggle-baseline {
+    background-image: var(--squiggle);
+    background-repeat: repeat-x;
+    background-position: left bottom;
+    background-size: 48px 8px;
+  }
 
-/* Estrella garabateada junto a los títulos */
-.page-title::before {
-  content: '';
-  position: absolute;
-  top: -14px;
-  right: -30px;
-  width: 26px;
-  height: 26px;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 24 24'><path d='M12 2 L14.6 8.6 L21.5 9.2 L16.3 13.7 L18 20.5 L12 16.8 L6 20.5 L7.7 13.7 L2.5 9.2 L9.4 8.6 Z' fill='none' stroke='%23e63946' stroke-width='2' stroke-linejoin='round'/></svg>");
-  background-size: contain;
-  background-repeat: no-repeat;
-  transform: rotate(14deg);
-}
+  /* Estrella garabateada junto a los títulos */
+  .page-title::before {
+    content: '';
+    position: absolute;
+    top: -14px;
+    right: -30px;
+    width: 26px;
+    height: 26px;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 24 24'><path d='M12 2 L14.6 8.6 L21.5 9.2 L16.3 13.7 L18 20.5 L12 16.8 L6 20.5 L7.7 13.7 L2.5 9.2 L9.4 8.6 Z' fill='none' stroke='%23e63946' stroke-width='2' stroke-linejoin='round'/></svg>");
+    background-size: contain;
+    background-repeat: no-repeat;
+    transform: rotate(14deg);
+  }
 
-.page-title.no-squiggle::after {
-  display: none;
-}
+  .page-title.no-squiggle::after {
+    display: none;
+  }
 
-/* ---------- Contenedor de página ----------
+  /* Sólo para lectores de pantalla: la leyenda de un fieldset, un texto de apoyo. */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* ---------- Contenedor de página ----------
    Ancho máximo, centrado y el aire de arriba y abajo. Cada página fija su
    ancho con --container (por defecto el ancho completo, 1200px). */
 
-.page-container {
-  width: 100%;
-  max-width: var(--container, var(--container-wide));
-  margin: 0 auto;
-  padding: 40px 24px 72px;
-}
-
-@media (max-width: 640px) {
   .page-container {
-    padding: 24px 16px 56px;
+    width: 100%;
+    max-width: var(--container, var(--container-wide));
+    margin: 0 auto;
+    padding: 40px 24px 72px;
   }
-}
 
-/* Antetítulo: mayúsculas pequeñas y espaciadas, a mano y apagadas. Cada
+  @media (max-width: 640px) {
+    .page-container {
+      padding: 24px 16px 56px;
+    }
+  }
+
+  /* Antetítulo: mayúsculas pequeñas y espaciadas, a mano y apagadas. Cada
    sitio cambia el color si va sobre tinta o en rojo. */
-.kicker {
-  font-family: var(--font-hand);
-  font-size: var(--text-xs);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
+  .kicker {
+    font-family: var(--font-hand);
+    font-size: var(--text-xs);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
 
-/* Subtítulo de página: a mano, apagado y un pelín torcido. */
-.subtitle {
-  margin: 12px 0 0;
-  color: var(--muted);
-  font-family: var(--font-hand);
-  font-size: var(--text-lg);
-  transform: rotate(-0.5deg);
-}
+  /* Subtítulo de página: a mano, apagado y un pelín torcido. */
+  .subtitle {
+    margin: 12px 0 0;
+    color: var(--muted);
+    font-family: var(--font-hand);
+    font-size: var(--text-lg);
+    transform: rotate(-0.5deg);
+  }
 
-/* ---------- Tarjeta de papel ----------
+  /* ---------- Tarjeta de papel ----------
    Papel, borde de tinta, esquinas irregulares y sombra dura. */
 
-.paper-card {
-  background-color: var(--card);
-  border: 2px solid var(--ink);
-  border-radius: var(--wobble-md);
-  box-shadow: var(--shadow-ink);
-}
+  .paper-card {
+    background-color: var(--card);
+    border: 2px solid var(--ink);
+    border-radius: var(--wobble-md);
+    box-shadow: var(--shadow-ink);
+  }
 
-/* La sombra grande del hover vive en un pseudo-elemento y sólo se anima su
+  /* La sombra grande del hover vive en un pseudo-elemento y sólo se anima su
    opacidad; el desplazamiento lo pone cada tarjeta con transform. */
-.lift {
-  position: relative;
-  isolation: isolate;
-}
+  .lift {
+    position: relative;
+    isolation: isolate;
+  }
 
-.lift::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: inherit;
-  box-shadow: var(--shadow-ink-lg);
-  opacity: 0;
-  transition: opacity var(--dur-base) var(--ease-out);
-  pointer-events: none;
-}
+  .lift::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    box-shadow: var(--shadow-ink-lg);
+    opacity: 0;
+    transition: opacity var(--dur-base) var(--ease-out);
+    pointer-events: none;
+  }
 
-.lift:hover::after {
-  opacity: 1;
-}
+  .lift:hover::after {
+    opacity: 1;
+  }
 
-/* ---------- Pegatina ----------
+  /* ---------- Pegatina ----------
    Un rótulo pegado torcido: la usan las cintas, contadores y sellos. */
 
-.sticker {
-  display: inline-block;
-  padding: 4px 12px;
-  border: 2px solid var(--ink);
-  border-radius: var(--wobble-xs);
-  background-color: var(--card);
-  color: var(--ink);
-  box-shadow: var(--shadow-ink-xs);
-  font-family: var(--font-hand);
-  line-height: 1.2;
-  transform: rotate(-2deg);
-}
+  .sticker {
+    display: inline-block;
+    padding: 4px 12px;
+    border: 2px solid var(--ink);
+    border-radius: var(--wobble-xs);
+    background-color: var(--card);
+    color: var(--ink);
+    box-shadow: var(--shadow-ink-xs);
+    font-family: var(--font-hand);
+    line-height: 1.2;
+    transform: rotate(-2deg);
+  }
 
-.sticker--accent {
-  background-color: var(--accent);
-  color: var(--white);
-}
+  .sticker--accent {
+    background-color: var(--accent);
+    color: var(--white);
+  }
 
-.sticker--ink {
-  background-color: var(--ink-block);
-  color: var(--ink-block-text);
-}
+  .sticker--ink {
+    background-color: var(--ink-block);
+    color: var(--ink-block-text);
+  }
 
-/* ---------- Etiqueta ----------
+  /* ---------- Etiqueta ----------
    «Próximamente», «En el horno», «Cromo por conseguir»: texto en rojo con
    borde discontinuo (--dashed) o relleno (--solid). */
 
-.badge {
-  display: inline-block;
-  margin: 0;
-  padding: 2px 14px;
-  border: 2px solid var(--accent);
-  border-radius: var(--wobble-md);
-  color: var(--accent);
-  font-family: var(--font-hand);
-  font-size: var(--text-base);
-  letter-spacing: 0.06em;
-  transform: rotate(-2deg);
-}
+  .badge {
+    display: inline-block;
+    margin: 0;
+    padding: 2px 14px;
+    border: 2px solid var(--accent);
+    border-radius: var(--wobble-md);
+    color: var(--accent);
+    font-family: var(--font-hand);
+    font-size: var(--text-base);
+    letter-spacing: 0.06em;
+    transform: rotate(-2deg);
+  }
 
-.badge--dashed {
-  border-style: dashed;
-}
+  .badge--dashed {
+    border-style: dashed;
+  }
 
-.badge--solid {
-  background-color: var(--accent);
-  color: var(--white);
-}
+  .badge--solid {
+    background-color: var(--accent);
+    color: var(--white);
+  }
 
-/* ---------- Muñecos apoyados ----------
+  /* ---------- Muñecos apoyados ----------
    Un muñeco decorativo se posa sobre el canto de un bloque: va absoluto,
    no atrapa clics ni selección y queda por delante del papel. El bloque que
    hace de repisa lleva .doodle-shelf para que las coordenadas sean suyas. */
 
-.doodle {
-  position: absolute;
-  width: auto;
-  pointer-events: none;
-  user-select: none;
-  z-index: var(--z-doodle);
-}
+  .doodle {
+    position: absolute;
+    width: auto;
+    pointer-events: none;
+    user-select: none;
+    z-index: var(--z-doodle);
+  }
 
-.doodle-shelf {
-  position: relative;
-}
+  .doodle-shelf {
+    position: relative;
+  }
 
-/* ---------- Celo ----------
+  /* ---------- Celo ----------
    Dos tiras de celo translúcido sujetando una foto o un marco; cada sitio
    decide dónde caen (top/left/transform) y si sobra la segunda. */
 
-.tape::before,
-.tape::after {
-  content: '';
-  position: absolute;
-  width: var(--tape-w, 92px);
-  height: var(--tape-h, 26px);
-  background-color: var(--tape);
-  border: 2px solid var(--ink);
-  z-index: 2;
-  pointer-events: none;
-}
+  .tape::before,
+  .tape::after {
+    content: '';
+    position: absolute;
+    width: var(--tape-w, 92px);
+    height: var(--tape-h, 26px);
+    background-color: var(--tape);
+    border: 2px solid var(--ink);
+    z-index: 2;
+    pointer-events: none;
+  }
 
-/* ---------- Retícula de puntos ----------
+  /* ---------- Retícula de puntos ----------
    El cuaderno: rgba(var(--dot-rgb), α) cambia de tinta a luz con el tema. */
 
-.dot-grid {
-  background-image: radial-gradient(circle, rgba(var(--dot-rgb), var(--dot-alpha)) 1.2px, transparent 1.2px);
-  background-size: var(--dot-grid-size);
-}
-
-/* ---------- Estados de página ---------- */
-
-.page-loading {
-  padding: 120px 24px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  color: var(--muted);
-  font-family: var(--font-hand);
-  font-size: var(--text-lg);
-}
-
-.page-loading-spinner {
-  width: 46px;
-  height: 46px;
-  animation: crosshair-spin 1.4s linear infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .page-loading-spinner {
-    animation: none;
+  .dot-grid {
+    background-image: radial-gradient(
+      circle,
+      rgba(var(--dot-rgb), var(--dot-alpha)) 1.2px,
+      transparent 1.2px
+    );
+    background-size: var(--dot-grid-size);
   }
-}
 
-.product-empty {
-  max-width: 640px;
-  margin: 0 auto;
-  padding: 80px 24px;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-}
+  /* ---------- Estados de página ---------- */
 
-.product-empty p {
-  font-family: var(--font-hand);
-  font-size: var(--text-lg);
-  margin: 0;
-}
+  .page-loading {
+    padding: 120px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    color: var(--muted);
+    font-family: var(--font-hand);
+    font-size: var(--text-lg);
+  }
 
-.product-empty-run {
-  width: min(52vw, 220px);
-  transform: rotate(-2deg);
-}
+  .page-loading-spinner {
+    width: 46px;
+    height: 46px;
+    animation: crosshair-spin 1.4s linear infinite;
+  }
 
-/* ---------- Los muñecos, a tubo de neón ----------
+  @media (prefers-reduced-motion: reduce) {
+    .page-loading-spinner {
+      animation: none;
+    }
+  }
+
+  .product-empty {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 80px 24px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .product-empty p {
+    font-family: var(--font-hand);
+    font-size: var(--text-lg);
+    margin: 0;
+  }
+
+  .product-empty-run {
+    width: min(52vw, 220px);
+    transform: rotate(-2deg);
+  }
+
+  /* ---------- Los muñecos, a tubo de neón ----------
    Cada <img> de muñeco lleva la clase .neon-art (o su variante --icon para
    logos e iconos pequeños, con el halo a su escala). El line-art negro se
    convierte en trazo de luz y el doble drop-shadow dibuja el halo cian y
    rosa siguiendo la silueta. Las fotos de verdad no llevan la clase. */
-html[data-theme='neon'] .neon-art {
-  filter: invert(1) hue-rotate(180deg) saturate(1.45) brightness(1.05)
-    drop-shadow(0 0 5px rgba(var(--neon-cyan-rgb), 0.55))
-    drop-shadow(0 0 16px rgba(var(--neon-pink-rgb), 0.4));
-}
-
-html[data-theme='neon'] .neon-art--icon {
-  filter: invert(1) hue-rotate(180deg) saturate(1.3)
-    drop-shadow(0 0 4px rgba(var(--neon-pink-rgb), 0.5));
-}
-
-/* ---------- Rótulos ---------- */
-
-html[data-theme='neon'] .page-title {
-  color: var(--white);
-  text-shadow: 0 0 6px rgba(var(--white-rgb), 0.5),
-    0 0 18px rgba(var(--neon-pink-rgb), 0.75), 0 0 42px rgba(var(--neon-pink-rgb), 0.4);
-  animation: neon-encendido 1.6s ease-out 1;
-}
-
-/* La estrella del título, en rosa y con su halo. */
-html[data-theme='neon'] .page-title::before {
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 24 24'><path d='M12 2 L14.6 8.6 L21.5 9.2 L16.3 13.7 L18 20.5 L12 16.8 L6 20.5 L7.7 13.7 L2.5 9.2 L9.4 8.6 Z' fill='none' stroke='%23ff2ec4' stroke-width='2' stroke-linejoin='round'/></svg>");
-  filter: drop-shadow(0 0 6px rgba(var(--neon-pink-rgb), 0.7));
-}
-
-/* El chisporroteo de un tubo recién encendido, una sola vez por página. */
-@keyframes neon-encendido {
-  0%,
-  100% {
-    opacity: 1;
+  [data-theme='neon'] .neon-art {
+    filter: invert(1) hue-rotate(180deg) saturate(1.45) brightness(1.05)
+      drop-shadow(0 0 5px rgba(var(--neon-cyan-rgb), 0.55))
+      drop-shadow(0 0 16px rgba(var(--neon-pink-rgb), 0.4));
   }
 
-  7% {
-    opacity: 0.72;
+  [data-theme='neon'] .neon-art--icon {
+    filter: invert(1) hue-rotate(180deg) saturate(1.3)
+      drop-shadow(0 0 4px rgba(var(--neon-pink-rgb), 0.5));
   }
 
-  11% {
-    opacity: 1;
+  /* ---------- Rótulos ---------- */
+
+  [data-theme='neon'] .page-title {
+    color: var(--white);
+    text-shadow:
+      0 0 6px rgba(var(--white-rgb), 0.5),
+      0 0 18px rgba(var(--neon-pink-rgb), 0.75),
+      0 0 42px rgba(var(--neon-pink-rgb), 0.4);
+    animation: neon-encendido 1.6s ease-out 1;
   }
 
-  19% {
-    opacity: 0.85;
+  /* La estrella del título, en rosa y con su halo. */
+  [data-theme='neon'] .page-title::before {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 24 24'><path d='M12 2 L14.6 8.6 L21.5 9.2 L16.3 13.7 L18 20.5 L12 16.8 L6 20.5 L7.7 13.7 L2.5 9.2 L9.4 8.6 Z' fill='none' stroke='%23ff2ec4' stroke-width='2' stroke-linejoin='round'/></svg>");
+    filter: drop-shadow(0 0 6px rgba(var(--neon-pink-rgb), 0.7));
   }
 
-  25% {
-    opacity: 1;
-  }
-}
+  /* El chisporroteo de un tubo recién encendido, una sola vez por página. */
+  @keyframes neon-encendido {
+    0%,
+    100% {
+      opacity: 1;
+    }
 
-@media (prefers-reduced-motion: reduce) {
-  html[data-theme='neon'] .page-title {
-    animation: none;
+    7% {
+      opacity: 0.72;
+    }
+
+    11% {
+      opacity: 1;
+    }
+
+    19% {
+      opacity: 0.85;
+    }
+
+    25% {
+      opacity: 1;
+    }
   }
-}
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-theme='neon'] .page-title {
+      animation: none;
+    }
+  }
 }

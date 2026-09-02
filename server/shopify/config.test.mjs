@@ -4,10 +4,13 @@ import { createShopifyConfig } from './config.mjs';
 describe('Shopify configuration', () => {
   it('fails closed on a non-Shopify store domain', () => {
     expect(() =>
-      createShopifyConfig({ SHOPIFY_STORE_DOMAIN: 'https://evil.example' }, {
-        publicOrigin: 'https://rocky.test',
-        isProduction: true,
-      })
+      createShopifyConfig(
+        { SHOPIFY_STORE_DOMAIN: 'https://evil.example' },
+        {
+          publicOrigin: 'https://rocky.test',
+          isProduction: true,
+        }
+      )
     ).toThrow(/SHOPIFY_STORE_DOMAIN/);
   });
 

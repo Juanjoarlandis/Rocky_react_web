@@ -1,16 +1,16 @@
 @layer components {
-.add-to-cart-control {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
+  .add-to-cart-control {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
 
-.commerce-inline-error {
-  max-width: 240px;
-  color: var(--accent-dark);
-  font-family: var(--font-hand);
-  font-size: var(--text-sm);
-  line-height: 1.2;
-}
+  .commerce-inline-error {
+    max-width: 240px;
+    color: var(--accent-dark);
+    font-family: var(--font-hand);
+    font-size: var(--text-sm);
+    line-height: 1.2;
+  }
 }

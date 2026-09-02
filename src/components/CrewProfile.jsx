@@ -1,9 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import {
-  equipCrewReward,
-  getCrewProfile,
-  redeemCrewReward,
-} from '../shopify/api.js';
+import { useEffect, useMemo, useState } from 'react';
+import { equipCrewReward, getCrewProfile, redeemCrewReward } from '../shopify/api.js';
 import { CREW } from '../data/crew.js';
 import { getCrewAvatarImage } from '../data/crewAvatarImages.js';
 import larguiruchoEsquina from '../images/optimized/characters/larguirucho-esquina-600.webp';
@@ -58,8 +54,8 @@ function CrewGate({ accountEnabled }) {
           <span className="crew-kicker">ROCKY CREW REWARDS</span>
           <h1 className="page-title">Tu sitio en la colmena</h1>
           <p>
-            Compra, suma XP, sube escalones y desbloquea los personajes de la banda.
-            Los Crew Tickets se gastan; tu nivel se queda contigo.
+            Compra, suma XP, sube escalones y desbloquea los personajes de la banda. Los Crew
+            Tickets se gastan; tu nivel se queda contigo.
           </p>
           {accountEnabled ? (
             <a
@@ -120,7 +116,10 @@ function CrewGate({ accountEnabled }) {
               </div>
             </section>
 
-            <section className="crew-preview-card-showcase" aria-labelledby="crew-preview-cards-title">
+            <section
+              className="crew-preview-card-showcase"
+              aria-labelledby="crew-preview-cards-title"
+            >
               <div className="crew-preview-card-heading">
                 <div>
                   <span className="crew-section-label">CROMOS DE NIVEL BAJO</span>
@@ -178,9 +177,7 @@ function RewardCard({ reward, ticketBalance, busy, onEquip, onRedeem }) {
       </button>
     );
   } else if (reward.locked) {
-    action = (
-      <span className="crew-reward-state">Se abre con {reward.requiredXp} XP</span>
-    );
+    action = <span className="crew-reward-state">Se abre con {reward.requiredXp} XP</span>;
   } else if (reward.unlockMode === 'tickets') {
     const canAfford = ticketBalance >= reward.ticketCost;
     action = (
@@ -201,17 +198,13 @@ function RewardCard({ reward, ticketBalance, busy, onEquip, onRedeem }) {
   }
 
   return (
-    <article
-      className={`crew-reward-card ${reward.locked ? 'crew-reward-card--locked' : ''}`}
-    >
+    <article className={`crew-reward-card ${reward.locked ? 'crew-reward-card--locked' : ''}`}>
       <div className="crew-reward-visual">
         <RewardVisual reward={reward} />
         {reward.owned && <span className="crew-owned-stamp">TUYO</span>}
       </div>
       <div className="crew-reward-copy">
-        <span className="crew-reward-type">
-          {reward.kind === 'frame' ? 'MARCO' : 'PERSONAJE'}
-        </span>
+        <span className="crew-reward-type">{reward.kind === 'frame' ? 'MARCO' : 'PERSONAJE'}</span>
         <h3>{reward.name}</h3>
         <p>{reward.description}</p>
         {action}
@@ -298,13 +291,9 @@ export default function CrewProfile({
   }
 
   const avatarRewards = profile.rewards.filter(
-    (reward) =>
-      reward.kind === 'avatar' &&
-      (reward.unlockMode === 'level' || reward.owned)
+    (reward) => reward.kind === 'avatar' && (reward.unlockMode === 'level' || reward.owned)
   );
-  const ticketRewards = profile.rewards.filter(
-    (reward) => reward.unlockMode === 'tickets'
-  );
+  const ticketRewards = profile.rewards.filter((reward) => reward.unlockMode === 'tickets');
   const nextXp = profile.level.nextXp;
 
   return (
@@ -320,12 +309,18 @@ export default function CrewProfile({
         </button>
       </header>
 
-      {error && <div className="crew-profile-error" role="alert">{error}</div>}
+      {error && (
+        <div className="crew-profile-error" role="alert">
+          {error}
+        </div>
+      )}
 
       <div className="crew-profile-dashboard">
         <aside className="crew-id-card">
           <span className="crew-id-card__serial">MEMBER // 035</span>
-          <div className={`crew-current-avatar ${profile.equippedFrameId ? `crew-current-avatar--${profile.equippedFrameId}` : ''}`}>
+          <div
+            className={`crew-current-avatar ${profile.equippedFrameId ? `crew-current-avatar--${profile.equippedFrameId}` : ''}`}
+          >
             <img
               src={getCrewAvatarImage(profile.equippedAvatarId)}
               alt={`Avatar ${currentAvatar?.name || 'ROCKY'}`}
@@ -345,9 +340,14 @@ export default function CrewProfile({
                 <span className="crew-section-label">TU ESCALÓN</span>
                 <h2 id="crew-progress-title">{profile.level.name}</h2>
               </div>
-              <strong>{nextXp ? `${profile.xp} / ${nextXp} XP` : `${profile.xp} XP · MÁXIMO`}</strong>
+              <strong>
+                {nextXp ? `${profile.xp} / ${nextXp} XP` : `${profile.xp} XP · MÁXIMO`}
+              </strong>
             </div>
-            <div className="crew-progress-track" aria-label={`${profile.level.progress}% completado`}>
+            <div
+              className="crew-progress-track"
+              aria-label={`${profile.level.progress}% completado`}
+            >
               <span style={{ '--crew-progress-ratio': profile.level.progress / 100 }} />
             </div>
             <p>
@@ -391,7 +391,9 @@ export default function CrewProfile({
                   ticketBalance={profile.ticketBalance}
                   busy={busyRewardId === reward.id}
                   onEquip={(rewardId) => mutateReward(rewardId, () => equipCrewReward(rewardId))}
-                  onRedeem={(rewardId) => mutateReward(rewardId, () => redeemCrewReward({ rewardId }))}
+                  onRedeem={(rewardId) =>
+                    mutateReward(rewardId, () => redeemCrewReward({ rewardId }))
+                  }
                 />
               ))}
             </div>
@@ -403,7 +405,9 @@ export default function CrewProfile({
                 <span className="crew-section-label">ZONA DE TICKETS</span>
                 <h2 id="crew-shop-title">Pilla algo raro</h2>
               </div>
-              <p>Saldo actual: <strong>{profile.ticketBalance} tickets</strong></p>
+              <p>
+                Saldo actual: <strong>{profile.ticketBalance} tickets</strong>
+              </p>
             </div>
             <div className="crew-reward-grid">
               {ticketRewards.map((reward) => (
@@ -413,7 +417,9 @@ export default function CrewProfile({
                   ticketBalance={profile.ticketBalance}
                   busy={busyRewardId === reward.id}
                   onEquip={(rewardId) => mutateReward(rewardId, () => equipCrewReward(rewardId))}
-                  onRedeem={(rewardId) => mutateReward(rewardId, () => redeemCrewReward({ rewardId }))}
+                  onRedeem={(rewardId) =>
+                    mutateReward(rewardId, () => redeemCrewReward({ rewardId }))
+                  }
                 />
               ))}
             </div>
