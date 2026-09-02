@@ -36,7 +36,7 @@
   width: clamp(116px, 10vw, 156px);
 }
 
-@media (max-width: 1080px) {
+@media (max-width: 1200px) {
   .crew-progress-panel > .crew-corner-character {
     display: none;
   }
@@ -729,7 +729,7 @@
   to { transform: rotate(7deg) scale(1.08); }
 }
 
-@media (max-width: 1080px) {
+@media (max-width: 1200px) {
   .crew-profile-dashboard {
     grid-template-columns: minmax(210px, 0.65fr) minmax(0, 1.65fr);
   }
@@ -743,7 +743,7 @@
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .crew-profile-page {
     padding: 28px 14px 76px;
   }

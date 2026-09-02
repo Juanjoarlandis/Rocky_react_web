@@ -236,7 +236,7 @@
     min-height: 44px;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
     .detail {
         padding: 24px 16px 56px;
     }

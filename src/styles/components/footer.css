@@ -109,27 +109,21 @@
 
 /* La duración del recorrido mantiene una velocidad tranquila en los anchos
    pequeños; el ciclo corporal ya viene temporizado dentro del vídeo. */
-@media (max-width: 440px) {
+@media (max-width: 480px) {
     .ticker-lata {
-        --lata-patrulla: 14s;
+        --lata-patrulla: 16s;
     }
 }
 
-@media (min-width: 441px) and (max-width: 540px) {
+@media (min-width: 481px) and (max-width: 640px) {
     .ticker-lata {
-        --lata-patrulla: 18s;
-    }
-}
-
-@media (min-width: 541px) and (max-width: 640px) {
-    .ticker-lata {
-        --lata-patrulla: 22s;
+        --lata-patrulla: 21s;
     }
 }
 
 /* En pantallas muy anchas el recorrido se alarga con la misma duración, y le
    salía un paso de atleta: se le da más tiempo para cruzarla. */
-@media (min-width: 1600px) {
+@media (min-width: 1200px) {
     .ticker-lata {
         --lata-patrulla: 42s;
     }

@@ -100,7 +100,7 @@
     font-size: 0.95rem;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 640px) {
     .mini-player-slot--content {
         width: min(calc(100% - 24px), 1200px);
         padding-top: 8px;

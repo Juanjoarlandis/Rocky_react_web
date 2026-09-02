@@ -239,7 +239,7 @@
         spray-cruiser-tanda-botes 3.2s ease-in-out 2.2s both;
 }
 
-@media (min-width: 1500px) {
+@media (min-width: 1200px) {
     .spray-cruiser {
         --cruiser-carrerilla: 55vw;
     }

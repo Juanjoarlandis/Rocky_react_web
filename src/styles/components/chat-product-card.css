@@ -171,13 +171,13 @@
     font-size: 0.82rem;
 }
 
-@media (min-width: 721px) and (max-width: 1000px) {
+@media (min-width: 641px) and (max-width: 900px) {
     .chat-products {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 640px) {
     .chat-products {
         grid-auto-columns: minmax(230px, 82vw);
         grid-auto-flow: column;

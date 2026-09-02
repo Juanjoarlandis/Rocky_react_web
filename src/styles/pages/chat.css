@@ -523,19 +523,19 @@
 }
 
 /* El Estrella solo aparece cuando hay margen de sobra fuera de la tarjeta */
-@media (max-width: 1400px) {
+@media (max-width: 1200px) {
     .chat-lean {
         display: none;
     }
 }
 
-@media (min-width: 721px) {
+@media (min-width: 641px) {
     .chat-header {
         padding-right: 224px;
     }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 640px) {
     .chat-page {
         padding: 8px 10px 10px;
     }
