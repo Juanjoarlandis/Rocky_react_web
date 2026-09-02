@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router';
 import perdidoMapa from '../images/optimized/characters/perdido-mapa-600.webp';
 import perroRocky from '../images/optimized/characters/perro-rocky-600.webp';
-import '../styles/NotFound.css';
+import '../styles/pages/not-found.css';
 
 const NotFound = () => {
     return (

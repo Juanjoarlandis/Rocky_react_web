@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import AddToCartButton from './AddToCartButton';
 import PlaceholderTee from './PlaceholderTee';
 import { formatPrice } from '../utils/price';
+import '../styles/components/chat-product-card.css';
 
 function firstAvailableVariant(variants) {
     return variants.find((variant) => variant.availableForSale) || variants[0] || null;

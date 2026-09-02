@@ -1,3 +1,4 @@
+@layer pages {
 .drops {
     max-width: 760px;
     margin: 0 auto;
@@ -129,4 +130,5 @@
     .drops-skater {
         display: none;
     }
+}
 }

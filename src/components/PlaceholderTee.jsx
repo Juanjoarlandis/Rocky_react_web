@@ -1,4 +1,5 @@
 import React from 'react';
+import '../styles/components/placeholder-tee.css';
 
 const UNRELEASED_MOCKUP = '/products/placeholder-unreleased.webp';
 

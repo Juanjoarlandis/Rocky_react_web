@@ -1,3 +1,4 @@
+@layer pages {
 .cart {
     max-width: 860px;
     margin: 0 auto;
@@ -368,4 +369,5 @@
         grid-area: remove;
         justify-self: end;
     }
+}
 }

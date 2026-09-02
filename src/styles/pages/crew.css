@@ -1,3 +1,4 @@
+@layer pages {
 .crew {
     max-width: 1200px;
     margin: 0 auto;
@@ -956,4 +957,5 @@ html[data-theme='neon'] .crew-lamina:nth-child(2n) .lamina-cinta {
 /* Sobre el rosa eléctrico el blanco se queda corto: tinta de noche. */
 html[data-theme='neon'] .rareza-la-marca {
     color: #16041f;
+}
 }

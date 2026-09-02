@@ -6,7 +6,7 @@ import emptyCartImage from '../images/optimized/shell/tumbado-800.webp';
 import asomadoBorde from '../images/optimized/characters/asomado-borde-600.webp';
 import dormidoEsperando from '../images/optimized/characters/dormido-esperando-600.webp';
 import bombillaEureka from '../images/optimized/characters/bombilla-eureka-600.webp';
-import '../styles/Cart.css';
+import '../styles/pages/cart.css';
 
 const PLACEHOLDER = '/products/placeholder-unreleased.webp';
 

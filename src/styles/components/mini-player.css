@@ -1,3 +1,4 @@
+@layer components {
 /* Slot propio de la radio: reserva espacio sin tapar el contenido. */
 .mini-player-slot {
     flex: 0 0 auto;
@@ -187,4 +188,5 @@
     .mini-player.playing .mini-player-disc {
         animation: none;
     }
+}
 }

@@ -1,3 +1,4 @@
+@layer components {
 /* El repartidor cruza por encima de la barra y se mete en el icono del carrito.
    Es un gesto de un segundo: no ocupa sitio en la maquetación, no recibe clics y
    no lo cantan los lectores de pantalla, porque el contador del carrito ya dice
@@ -82,4 +83,5 @@
     .cart-runner {
         display: none;
     }
+}
 }

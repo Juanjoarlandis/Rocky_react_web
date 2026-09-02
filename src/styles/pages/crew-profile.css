@@ -1,3 +1,4 @@
+@layer pages {
 .crew-profile-page {
   width: min(1500px, 100%);
   min-width: 0;
@@ -952,4 +953,5 @@ html[data-theme='neon'] .crew-preview-card-showcase {
 
 html[data-theme='neon'] .crew-preview-unlock-label {
   background: var(--card);
+}
 }

@@ -3,7 +3,7 @@ import { Link } from 'react-router';
 import tumbado from '../images/optimized/shell/tumbado-800.webp';
 import skaterOllie from '../images/optimized/characters/skater-ollie-600.webp';
 import dadoSentado from '../images/optimized/characters/dado-sentado-600.webp';
-import '../styles/MenuDrop.css';
+import '../styles/pages/drops.css';
 
 function MenuDrop({ products }) {
     const uniqueDrops = [...products.reduce((drops, product) => {

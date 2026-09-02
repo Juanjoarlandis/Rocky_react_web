@@ -1,0 +1,165 @@
+@layer utilities {
+/* ---------- Tipografía común ---------- */
+
+.page-title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(1.9rem, 5vw, 2.8rem);
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  margin: 0;
+  position: relative;
+  display: inline-block;
+}
+
+.page-title::after {
+  content: '';
+  display: block;
+  height: 8px;
+  margin-top: 2px;
+  background-image: var(--squiggle);
+  background-repeat: repeat-x;
+  background-size: 48px 8px;
+}
+
+/* Estrella garabateada junto a los títulos */
+.page-title::before {
+  content: '';
+  position: absolute;
+  top: -14px;
+  right: -30px;
+  width: 26px;
+  height: 26px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 24 24'><path d='M12 2 L14.6 8.6 L21.5 9.2 L16.3 13.7 L18 20.5 L12 16.8 L6 20.5 L7.7 13.7 L2.5 9.2 L9.4 8.6 Z' fill='none' stroke='%23e63946' stroke-width='2' stroke-linejoin='round'/></svg>");
+  background-size: contain;
+  background-repeat: no-repeat;
+  transform: rotate(14deg);
+}
+
+.page-title.no-squiggle::after {
+  display: none;
+}
+
+/* ---------- Badges ---------- */
+
+.badge-soon {
+  display: inline-block;
+  margin: 0;
+  padding: 2px 14px;
+  border: 2px dashed var(--accent);
+  border-radius: var(--wobble-md);
+  color: var(--accent);
+  font-family: var(--font-hand);
+  font-size: 0.98rem;
+  letter-spacing: 0.06em;
+  transform: rotate(-2deg);
+}
+
+/* ---------- Estados de página ---------- */
+
+.page-loading {
+  padding: 120px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-family: var(--font-hand);
+  font-size: 1.2rem;
+}
+
+.page-loading-spinner {
+  width: 46px;
+  height: 46px;
+  animation: crosshair-spin 1.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-loading-spinner {
+    animation: none;
+  }
+}
+
+.product-empty {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 80px 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.product-empty p {
+  font-family: var(--font-hand);
+  font-size: 1.15rem;
+  margin: 0;
+}
+
+.product-empty-run {
+  width: min(52vw, 220px);
+  transform: rotate(-2deg);
+}
+
+/* ---------- Los muñecos, a tubo de neón ----------
+   Cada <img> de muñeco lleva la clase .neon-art (o su variante --icon para
+   logos e iconos pequeños, con el halo a su escala). El line-art negro se
+   convierte en trazo de luz y el doble drop-shadow dibuja el halo cian y
+   rosa siguiendo la silueta. Las fotos de verdad no llevan la clase. */
+html[data-theme='neon'] .neon-art {
+  filter: invert(1) hue-rotate(180deg) saturate(1.45) brightness(1.05)
+    drop-shadow(0 0 5px rgba(41, 229, 255, 0.55))
+    drop-shadow(0 0 16px rgba(255, 46, 196, 0.4));
+}
+
+html[data-theme='neon'] .neon-art--icon {
+  filter: invert(1) hue-rotate(180deg) saturate(1.3)
+    drop-shadow(0 0 4px rgba(255, 46, 196, 0.5));
+}
+
+/* ---------- Rótulos ---------- */
+
+html[data-theme='neon'] .page-title {
+  color: #fff;
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.5),
+    0 0 18px rgba(255, 46, 196, 0.75), 0 0 42px rgba(255, 46, 196, 0.4);
+  animation: neon-encendido 1.6s ease-out 1;
+}
+
+/* La estrella del título, en rosa y con su halo. */
+html[data-theme='neon'] .page-title::before {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 24 24'><path d='M12 2 L14.6 8.6 L21.5 9.2 L16.3 13.7 L18 20.5 L12 16.8 L6 20.5 L7.7 13.7 L2.5 9.2 L9.4 8.6 Z' fill='none' stroke='%23ff2ec4' stroke-width='2' stroke-linejoin='round'/></svg>");
+  filter: drop-shadow(0 0 6px rgba(255, 46, 196, 0.7));
+}
+
+/* El chisporroteo de un tubo recién encendido, una sola vez por página. */
+@keyframes neon-encendido {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  7% {
+    opacity: 0.72;
+  }
+
+  11% {
+    opacity: 1;
+  }
+
+  19% {
+    opacity: 0.85;
+  }
+
+  25% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme='neon'] .page-title {
+    animation: none;
+  }
+}
+}

@@ -25,7 +25,7 @@ import {
     patternFromRows,
 } from '../utils/beatCodec';
 import breakdanceFreeze from '../images/optimized/characters/breakdance-freeze-600.webp';
-import '../styles/BeatMachine.css';
+import '../styles/components/beat-machine.css';
 
 // LA MESA DE BEATS — la caja de ritmos de La Colmena.
 // Secuenciador de 8 pistas con velocidad y swing, 16 pads tocables con el

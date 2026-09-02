@@ -4,7 +4,7 @@ import asomadoBorde from '../images/optimized/characters/asomado-borde-600.webp'
 // prompts-munecos/): mismo encuadre a 348x460, que sobra para los 115 px que
 // se ve como mucho, y pesa 47 kB en vez de 585 kB.
 import cotillaEsquina from '../images/optimized/characters/cotilla-esquina-460.webp';
-import '../styles/CuriousPeeker.css';
+import '../styles/components/curious-peeker.css';
 
 /* Dos poses, cada una hecha para un canto distinto de un bloque de la página.
 

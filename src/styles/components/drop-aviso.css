@@ -1,3 +1,4 @@
+@layer components {
 /* El mostrador de avisos del drop: papel, tinta y sello de rotulador, como el
    resto de la papelería de ROCKY. */
 .drop-aviso {
@@ -124,4 +125,5 @@
 /* Modo neón: el campo del correo, de papel a asfalto. */
 html[data-theme='neon'] .drop-aviso-email {
     background-color: var(--paper);
+}
 }

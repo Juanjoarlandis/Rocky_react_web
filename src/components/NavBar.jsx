@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, NavLink } from 'react-router';
-import '../styles/NavBar.css';
+import '../styles/components/navbar.css';
 
 import { getCrewAvatarImage } from '../data/crewAvatarImages.js';
 import { alternaTema, temaActual } from '../utils/theme.js';

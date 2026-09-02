@@ -1,14 +1,16 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const globalCss = readFileSync('src/index.css', 'utf8');
-const studioCss = readFileSync('src/styles/Studio.css', 'utf8');
-const cartRunnerCss = readFileSync('src/styles/CartRunner.css', 'utf8');
-const streetWallCss = readFileSync('src/styles/StreetWall.css', 'utf8');
+const utilitiesCss = readFileSync('src/styles/03-utilities.css', 'utf8');
+const motionCss = readFileSync('src/styles/05-motion.css', 'utf8');
+const studioCss = readFileSync('src/styles/pages/studio.css', 'utf8');
+const boomboxCss = readFileSync('src/styles/components/boombox.css', 'utf8');
+const cartRunnerCss = readFileSync('src/styles/components/cart-runner.css', 'utf8');
+const streetWallCss = readFileSync('src/styles/components/street-wall.css', 'utf8');
 
 describe('reduced motion contract', () => {
   it('stops the global loading spinner without removing its status mark', () => {
-    expect(globalCss).toMatch(
+    expect(utilitiesCss).toMatch(
       /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.page-loading-spinner\s*\{[\s\S]*?animation:\s*none;/
     );
   });
@@ -22,7 +24,7 @@ describe('reduced motion contract', () => {
   // La señal de la antena deja de latir, pero se queda encendida: la radio
   // sigue emitiendo aunque no haya movimiento.
   it('keeps the boombox antenna signal steady instead of pulsing', () => {
-    expect(studioCss).toMatch(
+    expect(boomboxCss).toMatch(
       /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.bb-art\.playing \.bb-senal\s*\{[\s\S]*?animation:\s*none;/
     );
   });
@@ -43,7 +45,7 @@ describe('reduced motion contract', () => {
 
   // La web entera cabeceando es lo último que pide quien reduce movimiento.
   it('keeps the groove nod still with reduced motion', () => {
-    expect(globalCss).toMatch(
+    expect(motionCss).toMatch(
       /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*?\[data-groove\] \.al-ritmo\s*\{[\s\S]*?animation:\s*none;/
     );
   });

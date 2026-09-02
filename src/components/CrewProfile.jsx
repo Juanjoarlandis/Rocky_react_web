@@ -8,7 +8,7 @@ import { CREW } from '../data/crew.js';
 import { getCrewAvatarImage } from '../data/crewAvatarImages.js';
 import larguiruchoEsquina from '../images/optimized/characters/larguirucho-esquina-600.webp';
 import { CrewCard } from './Crew.jsx';
-import '../styles/CrewProfile.css';
+import '../styles/pages/crew-profile.css';
 
 const CREW_PREVIEW_CARDS = [
   { id: 'dormilon', unlock: '100 XP · DEL BARRIO' },

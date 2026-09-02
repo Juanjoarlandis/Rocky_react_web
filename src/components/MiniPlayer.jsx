@@ -3,7 +3,7 @@ import { Link } from 'react-router';
 import { useMusic } from '../context/MusicContext';
 import { CrosshairSpinner } from './BrandDoodles';
 import { IconPlay, IconPause } from './Boombox';
-import '../styles/MiniPlayer.css';
+import '../styles/components/mini-player.css';
 
 // App decide dónde se monta; este componente solo presenta el mando de la radio.
 function MiniPlayer({ variant = 'content' }) {

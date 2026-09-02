@@ -14,7 +14,6 @@ import CartRunner from './components/CartRunner';
 import demoProducts from './PRODUCTOS_ROCKY.json';
 import previewProducts from '../server/preview-products.mjs';
 import { useStorefront } from './shopify/useStorefront';
-import './App.css';
 
 // Páginas cargadas bajo demanda
 const ProductDetail = React.lazy(() => import('./components/ProductDetail'));

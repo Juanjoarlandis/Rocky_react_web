@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import recadero from '../images/optimized/characters/corriendo-bolsa-600.webp';
-import '../styles/DropAviso.css';
+import '../styles/components/drop-aviso.css';
 
 /* El mostrador de avisos de un drop que aún no ha caído: dejas tu email y El
    Recadero te lo trae el día que salga. El "apodo" es el campo trampa para

@@ -1,3 +1,4 @@
+@layer pages {
 .detail {
     max-width: 1000px;
     margin: 0 auto;
@@ -268,4 +269,5 @@
     .detail-nube {
         height: 72px;
     }
+}
 }

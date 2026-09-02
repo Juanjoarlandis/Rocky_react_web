@@ -1,0 +1,113 @@
+@layer base {
+* {
+  box-sizing: border-box;
+}
+
+/* Los controles nativos (rango, casillas, textarea) se pintan claros aunque el
+   sistema esté en oscuro; el modo neón lo cambia a dark más abajo. */
+:root {
+  color-scheme: light;
+}
+
+/* Un solo anillo de foco para toda la web: el rojo de la marca, separado del
+   borde. Los componentes que ya llevan su propia señal lo apagan a mano. */
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+::selection {
+  background-color: var(--accent);
+  color: #fff;
+}
+
+/* Scrollbar entintado */
+::-webkit-scrollbar {
+  width: 11px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--ink);
+  border-radius: 999px;
+  border: 3px solid var(--paper);
+}
+
+::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+/* La web queda fija en horizontal: ni desbordes ni rebote táctil lateral.
+   Usamos clip (no hidden) para no romper el sticky de la navbar. */
+html {
+  overflow-x: clip;
+  max-width: 100%;
+  overscroll-behavior-x: none;
+}
+
+body {
+  margin: 0;
+  overflow-x: clip;
+  max-width: 100%;
+  overscroll-behavior-x: none;
+  font-family: var(--font-body);
+  background-color: var(--paper);
+  /* Papel de cuaderno: garabatos muy suaves + retícula de puntos. De noche
+     cambian los tokens, no esta regla. */
+  background-image: var(--notebook-doodles), var(--dot-grid);
+  background-size: 260px 260px, var(--dot-grid-size);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+img {
+  max-width: 100%;
+}
+
+a {
+  color: inherit;
+}
+
+/* ---------- Armazón de la app ---------- */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-main {
+  flex: 1;
+  width: 100%;
+}
+
+/* Pantalla de chat (Rocky IA): la página queda clavada al viewport,
+   sin scroll exterior — solo se desplazan los mensajes por dentro. */
+.app--chat {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.app--chat .app-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.app--chat
+
+/* ---------- Piezas sueltas ---------- */
+
+/* Scrollbar a juego: rosa sobre asfalto. */
+html[data-theme='neon'] ::-webkit-scrollbar-thumb {
+  background-color: var(--accent);
+  border-color: var(--paper);
+}
+
+html[data-theme='neon'] ::selection {
+  background-color: var(--blue);
+  color: #08060f;
+}
+}

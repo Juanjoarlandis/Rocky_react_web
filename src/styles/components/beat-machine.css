@@ -1,3 +1,4 @@
+@layer components {
 /* LA MESA DE BEATS — chasis de caja de ritmos, dibujado a mano.
    Panel oscuro con moteado de spray, pantalla ámbar, vúmetro y pads. */
 
@@ -801,4 +802,5 @@
     .mesa-rec.on .mesa-led {
         animation: none !important;
     }
+}
 }

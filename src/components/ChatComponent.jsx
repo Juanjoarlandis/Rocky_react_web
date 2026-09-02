@@ -4,7 +4,7 @@ import botLogo from '../images/optimized/shell/ia-256.webp';
 import sentadoBordeRojo from '../images/optimized/characters/sentado-borde-rojo-600.webp';
 import estrellaApoyado from '../images/optimized/characters/estrella-apoyado-600.webp';
 import ChatProductCard from './ChatProductCard';
-import '../styles/ChatComponent.css';
+import '../styles/pages/chat.css';
 
 const ERROR_MESSAGE =
     'Ahora mismo no puedo responder (el servidor de la IA no está disponible). Inténtalo más tarde.';

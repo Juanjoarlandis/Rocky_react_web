@@ -8,7 +8,7 @@ import colgadoBorde from '../images/optimized/characters/colgado-borde-600.webp'
 import teleSentado from '../images/optimized/characters/tele-sentado-borde-600.webp';
 import lunaMovil from '../images/optimized/characters/luna-movil-600.webp';
 import BeatMachine from './BeatMachine';
-import '../styles/Studio.css';
+import '../styles/pages/studio.css';
 
 // Abeja garabateada de La Colmena, con su vuelo en trazos discontinuos.
 // Ojo de diana para que sea de la familia.

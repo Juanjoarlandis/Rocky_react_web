@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import ProductPage from './ProductPage.jsx';
 
-const productPageCss = readFileSync('src/styles/ProductPage.css', 'utf8');
+const productPageCss = readFileSync('src/styles/pages/home.css', 'utf8');
 
 const previewProducts = [
   {

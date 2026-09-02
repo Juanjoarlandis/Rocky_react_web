@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { INSTAGRAM_URL } from '../config/links';
-import '../styles/Footer.css';
+import '../styles/components/ticker.css';
+import '../styles/components/footer.css';
 
 import instagramIcon from '../images/optimized/shell/instagram-64.webp';
 import guysSittingImage from '../images/optimized/shell/sentado-860.webp';

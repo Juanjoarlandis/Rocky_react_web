@@ -1,0 +1,63 @@
+@layer components {
+/* ---------- Botones ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 20px;
+  border: 2px solid var(--ink);
+  border-radius: var(--wobble-sm);
+  background-color: var(--card);
+  color: var(--ink);
+  font-family: var(--font-hand);
+  font-size: 1.08rem;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: var(--shadow-ink-sm);
+  transition: transform 0.12s ease, box-shadow 0.12s ease,
+    background-color 0.2s ease, color 0.2s ease;
+}
+
+.btn:hover:not(:disabled) {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--ink);
+}
+
+.btn:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 var(--ink);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn-primary {
+  background-color: var(--ink);
+  color: var(--card);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--accent);
+  border-color: var(--ink);
+  color: #fff;
+}
+
+.btn-primary.btn-added {
+  background-color: #1d9e57;
+}
+
+.btn-ghost {
+  background-color: var(--card);
+}
+
+.btn-ghost:hover {
+  background-color: var(--paper);
+}
+}

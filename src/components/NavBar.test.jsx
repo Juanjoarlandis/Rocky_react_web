@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import NavBar from './NavBar.jsx';
 
-const navBarCss = readFileSync('src/styles/NavBar.css', 'utf8');
+const navBarCss = readFileSync('src/styles/components/navbar.css', 'utf8');
 
 describe('NavBar Crew entry', () => {
   it('keeps Mi Crew discoverable before Shopify Customer Accounts are connected', () => {

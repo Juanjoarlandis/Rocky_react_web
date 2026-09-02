@@ -5,7 +5,7 @@ import streetWall from '../data/streetWall';
 import { INSTAGRAM_HANDLE, INSTAGRAM_URL } from '../config/links';
 import fotografoAgachado from '../images/optimized/shell/fotografo-agachado.webp';
 import dianaJefe from '../images/optimized/splash/diana-jefe.webp';
-import '../styles/StreetWall.css';
+import '../styles/components/street-wall.css';
 
 /* El disparo entero del Paparazzi: chispazo en el objetivo y fogonazo hacia
    quien mira. Las animaciones de StreetWall.css duran exactamente esto. */

@@ -1,3 +1,4 @@
+@layer components {
 .lightbox {
     position: fixed;
     inset: 0;
@@ -52,4 +53,5 @@
     background-color: var(--accent);
     color: #fff;
     transform: rotate(8deg) scale(1.06);
+}
 }

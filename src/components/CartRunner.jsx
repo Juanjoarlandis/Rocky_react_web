@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 // mirando a la derecha, que es justo hacia donde está el carrito en la barra:
 // no hay que voltearlo.
 import corriendoBolsa from '../images/optimized/characters/corriendo-bolsa-600.webp';
-import '../styles/CartRunner.css';
+import '../styles/components/cart-runner.css';
 
 const ART = Object.freeze({ width: 589, height: 600 });
 

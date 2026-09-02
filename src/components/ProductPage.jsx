@@ -11,7 +11,8 @@ import grafiteroSpray from '../images/optimized/characters/grafitero-sin-chorro-
 import corriendoBolsa from '../images/optimized/splash/corriendo-bolsa.webp';
 import cruiserPatinando from '../images/optimized/splash/cruiser-patinando.webp';
 import { formatPrice } from '../utils/price';
-import '../styles/ProductPage.css';
+import '../styles/components/product-media.css';
+import '../styles/pages/home.css';
 
 const PLACEHOLDER = '/products/placeholder-unreleased.webp';
 

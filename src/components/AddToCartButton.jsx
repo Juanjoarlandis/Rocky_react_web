@@ -1,3 +1,4 @@
+import '../styles/components/add-to-cart.css';
 import React, { useEffect, useRef, useState } from 'react';
 
 function AddToCartButton({

@@ -16,7 +16,7 @@ import skaterHead from '../images/optimized/splash/skater-head.webp';
 import bolsaHead from '../images/optimized/splash/bolsa-head.webp';
 import colgadoHead from '../images/optimized/splash/colgado-head.webp';
 import dormidoHead from '../images/optimized/splash/dormido-head.webp';
-import '../styles/SplashIntro.css';
+import '../styles/components/splash-intro.css';
 
 // La crew entra en anillo alrededor del logo, en orden horario desde las 12.
 // size en px de alto sobre un lienzo de referencia 1080x1080 (se escala con --splash-u).

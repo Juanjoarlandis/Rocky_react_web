@@ -1,3 +1,4 @@
+@layer components {
 /* La caja es la ventana por la que se asoma: sus cantos interiores van mordiendo
    los bordes pintados del escondite, así que parece que sale de detrás del
    bloque y que se agarra a su filo. Lo que quede por dentro del bloque se
@@ -193,4 +194,5 @@
     .curious-peeker {
         display: none;
     }
+}
 }

@@ -8,7 +8,8 @@ import DropAviso from './DropAviso';
 import sentadoBordeBlanco from '../images/optimized/characters/sentado-borde-blanco-600.webp';
 import nubePaseando from '../images/optimized/characters/nube-paseando-600.webp';
 import { formatPrice } from '../utils/price';
-import '../styles/ProductDetail.css';
+import '../styles/components/product-media.css';
+import '../styles/pages/product-detail.css';
 
 const PLACEHOLDER = '/products/placeholder-unreleased.webp';
 

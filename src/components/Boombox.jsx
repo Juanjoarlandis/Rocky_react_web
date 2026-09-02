@@ -1,3 +1,4 @@
+import '../styles/components/boombox.css';
 import React from 'react';
 import { useMusic } from '../context/MusicContext';
 

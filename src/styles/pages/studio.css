@@ -1,3 +1,4 @@
+@layer pages {
 .studio {
     max-width: 900px;
     margin: 0 auto;
@@ -85,148 +86,6 @@
     filter: drop-shadow(3px 3px 0 rgba(26, 26, 26, 0.85));
     z-index: 3;
     pointer-events: none;
-}
-
-.bb-art {
-    display: block;
-    width: min(100%, 560px);
-    margin: 0 auto;
-    height: auto;
-}
-
-/* Giros: ruedas del casete y dianas de los altavoces */
-.bb-spool,
-.bb-diana {
-    transform-box: fill-box;
-    transform-origin: center;
-}
-
-.bb-art.playing .bb-spool {
-    animation: bb-spin 1.6s linear infinite;
-}
-
-.bb-art.playing .bb-diana {
-    animation: bb-spin 7s linear infinite;
-}
-
-@keyframes bb-spin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-/* La señal de la antena: en reposo no emite; sonando, late suave. */
-.bb-senal {
-    opacity: 0;
-}
-
-.bb-art.playing .bb-senal {
-    animation: bb-senal-late 1.8s ease-in-out infinite;
-}
-
-@keyframes bb-senal-late {
-    0%,
-    100% {
-        opacity: 0.25;
-    }
-
-    50% {
-        opacity: 1;
-    }
-}
-
-/* El piloto se enciende con la música. Fijo, sin parpadeo: es un piloto. */
-.bb-art.playing .bb-luz {
-    fill: var(--accent);
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .bb-art.playing .bb-spool,
-    .bb-art.playing .bb-diana,
-    .bb-art.playing .bb-senal {
-        animation: none;
-    }
-
-    /* Sin latido, la señal se queda encendida quieta mientras suena. */
-    .bb-art.playing .bb-senal {
-        opacity: 0.9;
-    }
-}
-
-.bb-now {
-    margin: 16px 0 10px;
-    text-align: center;
-    font-family: var(--font-hand);
-    font-size: 1.15rem;
-    color: var(--muted);
-}
-
-.bb-now strong {
-    color: var(--ink);
-    font-weight: 400;
-}
-
-/* Barra de progreso garabateada */
-.bb-progress {
-    height: 18px;
-    width: calc(100% - 16px);
-    margin: 0 8px;
-    accent-color: var(--accent);
-    cursor: pointer;
-}
-
-.bb-controls {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 18px;
-    margin-top: 18px;
-}
-
-.bb-time {
-    font-family: var(--font-hand);
-    font-size: 1.05rem;
-    color: var(--muted);
-    min-width: 44px;
-    text-align: center;
-}
-
-.player-btn {
-    width: 52px;
-    height: 52px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: var(--card);
-    color: var(--ink);
-    border: 2px solid var(--ink);
-    border-radius: var(--wobble-md);
-    box-shadow: var(--shadow-ink-sm);
-    cursor: pointer;
-    transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.2s ease, color 0.2s ease;
-}
-
-.player-btn:hover {
-    transform: translate(-1px, -1px) rotate(-2deg);
-    box-shadow: 4px 4px 0 var(--ink);
-}
-
-.player-btn:active {
-    transform: translate(2px, 2px);
-    box-shadow: 0 0 0 var(--ink);
-}
-
-.player-btn-main {
-    width: 66px;
-    height: 66px;
-    background-color: var(--ink-block);
-    color: var(--card);
-    transform: rotate(2deg);
-}
-
-.player-btn-main:hover {
-    background-color: var(--accent);
-    color: #fff;
 }
 
 /* ---------- Setlist ---------- */
@@ -510,26 +369,8 @@
         padding: 18px 14px 16px;
     }
 
-    .bb-controls {
-        gap: 10px;
-    }
-
-    .bb-time {
-        min-width: 38px;
-        font-size: 0.95rem;
-    }
-
-    .player-btn {
-        width: 46px;
-        height: 46px;
-    }
-
-    .player-btn-main {
-        width: 58px;
-        height: 58px;
-    }
-
     .eps-grid {
         justify-content: center;
     }
+}
 }

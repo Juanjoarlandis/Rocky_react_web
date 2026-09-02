@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { CREW, POR_FICHAR } from '../data/crew';
-import '../styles/Crew.css';
+import '../styles/pages/crew.css';
 
 const TOTAL_CROMOS = CREW.length + POR_FICHAR.length;
 const CLAVE_ABIERTOS = 'rocky-album-abiertos';
