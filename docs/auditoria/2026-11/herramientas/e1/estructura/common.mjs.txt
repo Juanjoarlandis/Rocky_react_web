@@ -1,0 +1,81 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { launchBrowser, openPage, summarize, shot, SCRATCH } from '../harness.mjs';
+export { launchBrowser, summarize, shot, SCRATCH };
+export const ORIGIN = process.env.ORIGIN || 'http://localhost:3201';
+export const OUT = path.join(SCRATCH, 'e1/estructura/out');
+export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Resultados de un script: se guardan en out/<nombre>.json y al final merge.mjs los
+// pasa a resultados-e1/estructura.tsv con record() (así repetir un script no duplica).
+export function results(name) {
+  const list = [];
+  // Con filtro de IDs (argv[2]) se escribe aparte para no pisar la pasada completa.
+  const file = path.join(OUT, process.argv[2] ? `${name}.parcial.json` : `${name}.json`);
+  return {
+    add(r) {
+      list.push(r);
+      console.log(`[${r.resultado.startsWith('OK') ? 'OK' : r.resultado.slice(0, 14)}] ${r.id} ${r.viewport} :: ${String(r.evidencia).slice(0, 400)}`);
+      fs.writeFileSync(file, JSON.stringify(list, null, 1));
+    },
+  };
+}
+
+// Abre contexto+página con el arnés y corta cualquier petición fuera de localhost.
+export async function open(browser, vp, opts = {}) {
+  const o = await openPage(browser, vp, { origin: ORIGIN, ...opts });
+  o.external = [];
+  await o.context.route(
+    (url) => url.hostname !== 'localhost' && url.hostname !== '127.0.0.1',
+    (route) => {
+      o.external.push(route.request().url());
+      return route.abort();
+    }
+  );
+  return o;
+}
+
+export function sum(o) {
+  const base = summarize(o.issues);
+  return o.external?.length ? `${base} ; externas bloqueadas: ${[...new Set(o.external)].join(' | ')}` : base;
+}
+
+// Sin errores de página/consola ni peticiones fallidas. Las cancelaciones (net::ERR_ABORTED)
+// las provoca la propia página al cambiar un src o navegar: se listan pero no cuentan.
+export function clean(o) {
+  // Tampoco cuentan las peticiones a fuera de localhost que corta el propio arnés.
+  const failed = o.issues.failed.filter((f) => !/ERR_ABORTED/.test(f) && !(o.external || []).some((u) => f.includes(u)));
+  return !o.issues.pageErrors.length && !o.issues.console.filter((c) => c.startsWith('error')).length && !failed.length && !o.issues.http.length;
+}
+
+// Datos del elemento enfocado: qué es, si se ve el anillo y si lo tapa otro elemento.
+export async function focusInfo(page) {
+  return page.evaluate(() => {
+    const el = document.activeElement;
+    if (!el || el === document.body) return { tag: el ? el.tagName : null, none: true };
+    const cs = getComputedStyle(el);
+    const r = el.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    const hit = document.elementFromPoint(Math.min(Math.max(cx, 0), innerWidth - 1), Math.min(Math.max(cy, 0), innerHeight - 1));
+    const covered = !(hit && (hit === el || el.contains(hit)));
+    const ring =
+      (cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0) ||
+      (cs.boxShadow && cs.boxShadow !== 'none');
+    return {
+      tag: el.tagName.toLowerCase(),
+      name: (el.getAttribute('aria-label') || el.labels?.[0]?.textContent || el.textContent || el.getAttribute('title') || '').trim().replace(/\s+/g, ' ').slice(0, 60),
+      href: el.getAttribute('href'),
+      outline: `${cs.outlineStyle} ${cs.outlineWidth} ${cs.outlineColor}`,
+      boxShadow: cs.boxShadow,
+      ring: Boolean(ring),
+      focusVisible: el.matches(':focus-visible'),
+      inViewport: r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth && r.width > 0,
+      rect: [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)],
+      covered,
+      coveredBy: covered && hit ? `${hit.tagName.toLowerCase()}.${String(hit.className).slice(0, 40)}` : '',
+    };
+  });
+}
+
+export const fmtFocus = (f) => (f.none ? `(sin foco: ${f.tag})` : `${f.tag}«${f.name}»${f.ring ? '' : ' SIN-ANILLO'}${f.covered ? ` TAPADO-por-${f.coveredBy}` : ''}${f.inViewport ? '' : ' FUERA-VISTA'}`);

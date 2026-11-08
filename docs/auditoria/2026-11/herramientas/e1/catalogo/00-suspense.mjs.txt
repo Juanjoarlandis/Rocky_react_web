@@ -1,0 +1,36 @@
+// Comprueba qué se ve mientras se descarga el trozo diferido de la ficha.
+import { startInstance, launchBrowser, openPage } from '../harness.mjs';
+
+const inst = await startInstance(3202, {});
+const browser = await launchBrowser();
+try {
+  const { page, context } = await openPage(browser, 'escritorio', { origin: inst.origin });
+  await page.route(/\/assets\/ProductDetail-.*\.js$/, async (route) => {
+    console.log('interceptado', route.request().url());
+    await new Promise((r) => setTimeout(r, 2000));
+    await route.continue();
+  });
+  await page.goto(inst.origin + '/');
+  await page.waitForSelector('.commerce-notice');
+  await page.locator('article', { hasText: 'RockyRacing' }).getByRole('link', { name: 'Detalles' }).click();
+  for (const t of [50, 300, 800, 1500, 2500]) {
+    await page.waitForTimeout(t === 50 ? 50 : 400);
+    const s = await page.evaluate(() => ({ url: location.pathname, loading: document.querySelector('.page-loading')?.textContent.trim() ?? null, h1: document.querySelector('main h1')?.textContent.trim(), detail: !!document.querySelector('.detail') }));
+    console.log(t, JSON.stringify(s));
+  }
+  // Carga directa
+  const p2 = await context.newPage();
+  await p2.route(/\/assets\/ProductDetail-.*\.js$/, async (route) => {
+    await new Promise((r) => setTimeout(r, 1500));
+    await route.continue();
+  });
+  await p2.goto(inst.origin + '/product/rockyracing', { waitUntil: 'commit' });
+  for (let i = 0; i < 6; i += 1) {
+    await p2.waitForTimeout(300);
+    console.log('directa', JSON.stringify(await p2.evaluate(() => ({ loading: document.querySelector('.page-loading')?.textContent.trim() ?? null, detail: !!document.querySelector('.detail') }))));
+  }
+  await context.close();
+} finally {
+  await browser.close();
+  inst.stop();
+}

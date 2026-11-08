@@ -1,0 +1,57 @@
+// Vuelca los resultados de los scripts E2 (out/*.json) a resultados-e1/e2.tsv con
+// record() del arnés. Si una ficha se repitió (out/<grupo>-<tag>.json), gana la
+// ejecución más reciente. Imprime el recuento por viewport.
+import fs from 'node:fs';
+import path from 'node:path';
+import { OUT, SCRATCH, harness } from './common.mjs';
+
+const ORDER = 'R-NAV-11 R-CAT-13 R-CAT-14 R-CAT-15 R-CAT-16 R-CART-06 R-CART-07 R-CART-08 R-CART-09 R-CART-10 R-CART-11 R-CART-12 R-CART-13 R-CART-14 R-CART-15 R-CART-16 R-CART-17 R-CART-18 R-CART-19 R-CART-20 R-CART-21 R-CART-22 R-CHK-02 R-CHK-03 R-CHK-04 R-CHK-05 R-ACC-03 R-ACC-04 R-ACC-05 R-ACC-06 R-ACC-07 R-ACC-08 R-ACC-09 R-ACC-10 R-CHAT-07 R-CHAT-08 R-CHAT-09 R-CHAT-10 R-CHAT-11 R-CHAT-12 R-CHAT-13 R-CHAT-14 R-CHAT-15 R-CHAT-16 R-CHAT-17 R-CHAT-19 R-CHAT-20 R-CREW-09 R-CREW-10 R-CREW-11 R-CREW-12 R-CREW-13 R-CREW-14 R-CREW-15 R-CREW-16 R-CREW-17 R-STU-31 R-ERR-10'.split(' ');
+const VP_ORDER = ['escritorio', 'movil', 'api'];
+
+const overrides = fs.existsSync(path.join(OUT, 'overrides.json')) ? JSON.parse(fs.readFileSync(path.join(OUT, 'overrides.json'), 'utf8')) : {};
+
+const files = fs
+  .readdirSync(OUT)
+  .filter((f) => f.endsWith('.json') && !f.includes('extra') && f !== 'overrides.json')
+  .map((f) => ({ f, t: fs.statSync(path.join(OUT, f)).mtimeMs }))
+  .sort((a, b) => a.t - b.t);
+const rows = new Map();
+for (const { f } of files) {
+  const data = JSON.parse(fs.readFileSync(path.join(OUT, f), 'utf8'));
+  if (!Array.isArray(data)) continue;
+  for (const r of data) rows.set(`${r.id}|${r.viewport}`, r);
+}
+const renames = overrides._rename || {};
+for (const [key, patch] of Object.entries(overrides)) {
+  if (key.startsWith('_')) continue;
+  if (rows.has(key)) rows.set(key, { ...rows.get(key), ...patch });
+}
+for (const r of rows.values()) {
+  // Códigos y state OAuth (ficticios del doble) fuera de la evidencia
+  r.evidencia = String(r.evidencia || '').replace(/\b(code|state)=[A-Za-z0-9._~-]{12,}/g, '$1=<…>');
+  for (const [from, to] of Object.entries(renames)) {
+    r.hallazgos = String(r.hallazgos || '').split(from).join(to);
+  }
+}
+const sorted = [...rows.values()].sort((a, b) => {
+  const ia = ORDER.indexOf(a.id) === -1 ? 999 : ORDER.indexOf(a.id);
+  const ib = ORDER.indexOf(b.id) === -1 ? 999 : ORDER.indexOf(b.id);
+  return ia - ib || a.id.localeCompare(b.id) || VP_ORDER.indexOf(a.viewport) - VP_ORDER.indexOf(b.viewport);
+});
+const tsv = path.join(SCRATCH, 'resultados-e1', 'e2.tsv');
+fs.rmSync(tsv, { force: true });
+for (const r of sorted) harness.record('e2', { id: r.id, viewport: r.viewport, resultado: r.resultado, evidencia: r.evidencia, hallazgos: r.hallazgos });
+
+const missing = [];
+for (const id of ORDER) {
+  const vps = sorted.filter((r) => r.id === id).map((r) => r.viewport);
+  if (!vps.length) missing.push(id);
+}
+const tally = {};
+for (const r of sorted) {
+  const k = r.resultado.startsWith('OK') ? 'OK' : r.resultado.startsWith('FALLO') ? 'FALLO' : 'NO EJECUTADO';
+  tally[r.viewport] ??= { OK: 0, FALLO: 0, 'NO EJECUTADO': 0 };
+  tally[r.viewport][k] += 1;
+}
+process.stdout.write(`${sorted.length} líneas en ${tsv}\n${JSON.stringify(tally, null, 1)}\nfichas sin línea: ${missing.join(', ') || 'ninguna'}\n`);
+for (const r of sorted.filter((x) => !x.resultado.startsWith('OK'))) process.stdout.write(`${r.resultado.slice(0, 60)} ${r.id} ${r.viewport}\n`);

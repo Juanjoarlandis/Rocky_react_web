@@ -1,0 +1,837 @@
+// Publicar y ranking: R-STU-18, 19, 20, 22, 23, 24, 25, 26, 27, 28, 29.
+import { run, seed, api, start, presetCode, MESA, codeOf } from './runner.mjs';
+import { open, sum, snap, sleep, gotoStudio, readGrid, gridToRows, mesaInfo, readSaved, audioState } from './common.mjs';
+
+const BOTH = ['escritorio', 'movil'];
+const press = (vp, loc) => (vp === 'movil' ? loc.tap() : loc.click());
+const verdict = (f) => (f.length ? 'FALLO' : 'OK');
+const rowsOf = (id) => { const p = MESA.PRESETS.find((x) => x.id === id); return MESA.TRACK_IDS.map((t) => p.rows[t] || '').join('|'); };
+const inPage = (page, method, p, body) => page.evaluate(async ({ method, p, body }) => {
+  const r = await fetch(p, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined, credentials: 'same-origin' });
+  let data = null; try { data = await r.json(); } catch { /* sin cuerpo */ }
+  return { status: r.status, data };
+}, { method, p, body });
+const rowNames = (page) => page.locator('.ranking-beat .ranking-name').allTextContents();
+const row = (page, name) => page.locator('.ranking-beat', { has: page.locator('.ranking-name', { hasText: new RegExp(`^${name}$`) }) });
+const note = (page) => page.locator('.ranking-note').textContent();
+async function reportAnon(origin, id, n) {
+  const out = [];
+  for (let i = 0; i < n; i += 1) out.push((await api(origin, 'POST', `/api/beats/${id}/report`)).data);
+  return out;
+}
+
+async function publishUi(page, vp, { name, alias }, { open: doOpen = true } = {}) {
+  if (doOpen && !(await page.locator('form.mesa-publicar').count())) await press(vp, page.locator('button', { hasText: 'Publicar en el ranking' }));
+  await page.locator('input[name="nombre"]').fill(name);
+  await page.locator('input[name="apodo"]').fill(alias);
+  const respP = page.waitForResponse((r) => r.url().endsWith('/api/beats') && r.request().method() === 'POST', { timeout: 4000 }).catch(() => null);
+  await press(vp, page.locator('form.mesa-publicar button[type="submit"]'));
+  const resp = await respP;
+  await sleep(250);
+  const n = page.locator('.mesa-publicar-nota');
+  return {
+    status: resp?.status() ?? null,
+    body: resp ? await resp.json().catch(() => null) : null,
+    req: resp ? resp.request().postDataJSON() : null,
+    setCookie: resp ? await resp.headerValue('set-cookie') : null,
+    note: (await n.textContent()).trim(),
+    error: await n.evaluate((e) => e.classList.contains('is-error')),
+    color: await n.evaluate((e) => getComputedStyle(e).color),
+    name: await page.locator('input[name="nombre"]').inputValue(),
+  };
+}
+
+const cases = [];
+
+// ---------------- R-STU-18 ----------------
+cases.push({
+  id: 'R-STU-18',
+  vps: BOTH,
+  fn: async ({ browser, vp, origin }) => {
+    const ev = [];
+    const fails = [];
+    const { page, issues, blocked, context } = await open(browser, vp, origin);
+    await gotoStudio(page, origin);
+    await page.route('**/api/beats', async (r) => { if (r.request().method() === 'POST') await sleep(700); await r.continue(); });
+    await press(vp, page.locator('button', { hasText: 'Publicar en el ranking' }));
+    const layout = await page.evaluate(() => [...document.querySelectorAll('.mesa-publicar-campo')].map((l) => Math.round(l.getBoundingClientRect().left)));
+    await page.locator('input[name="nombre"]').fill('Barro a medianoche');
+    await page.locator('input[name="apodo"]').fill('crew035');
+    const respP = page.waitForResponse((r) => r.url().endsWith('/api/beats') && r.request().method() === 'POST');
+    await press(vp, page.locator('form.mesa-publicar button[type="submit"]'));
+    await sleep(250);
+    const sending = await page.locator('form.mesa-publicar button[type="submit"]').textContent();
+    const resp = await respP;
+    await sleep(900);
+    const body = await resp.json();
+    const req = resp.request().postDataJSON();
+    const setCookie = await resp.headerValue('set-cookie');
+    const noteTxt = (await page.locator('.mesa-publicar-nota').textContent()).trim();
+    const nameAfter = await page.locator('input[name="nombre"]').inputValue();
+    const formOpen = await page.locator('form.mesa-publicar').count();
+    const alias = await page.evaluate(() => localStorage.getItem('rocky-beats-apodo'));
+    const cookies = await context.cookies();
+    const sc = cookies.find((c) => c.name === 'rocky_session');
+    const tabSel = await page.locator('#ranking-tab-nuevos').getAttribute('aria-selected');
+    const newRow = page.locator('.ranking-beat.is-new');
+    const newRowName = await newRow.locator('.ranking-name').textContent().catch(() => null);
+    const newRowReport = await newRow.locator('button', { hasText: 'Reportar' }).count();
+    // Saneado: espacios colapsados en nombre y apodo
+    await page.unroute('**/api/beats');
+    await press(vp, page.locator('button.celda[aria-label="Tom, paso 4"]'));
+    const p2 = await publishUi(page, vp, { name: '  Barro   en  la calle ', alias: ' crew035 ' }, { open: false });
+    await page.reload();
+    await page.waitForSelector('.mesa-play');
+    await press(vp, page.locator('button', { hasText: 'Publicar en el ranking' }));
+    const aliasPrefill = await page.locator('input[name="apodo"]').inputValue();
+    await press(vp, page.locator('form.mesa-publicar button', { hasText: 'Cerrar' }));
+    const closed = await page.locator('form.mesa-publicar').count();
+    ev.push(`«Publicar» → «${sending}»; ${resp.status()} ${JSON.stringify({ duplicate: body.duplicate, name: body.beat?.name, alias: body.beat?.alias, mine: body.beat?.mine, swing: body.beat?.swing })}; claves enviadas ${Object.keys(req).join(',')} (swing ${req.swing})`);
+    ev.push(`nota «${noteTxt}», nombre tras publicar «${nameAfter}», formulario abierto=${formOpen}, localStorage apodo «${alias}»`);
+    ev.push(`Set-Cookie: ${setCookie?.replace(/rocky_session=[^;]+/, 'rocky_session=…')}; cookie httpOnly=${sc?.httpOnly} sameSite=${sc?.sameSite} caduca en ${sc ? Math.round((sc.expires * 1000 - Date.now()) / 86400000) : '?'} días`);
+    ev.push(`ranking: pestaña «Nuevos» aria-selected=${tabSel}, fila is-new «${newRowName}», botón Reportar en la propia=${newRowReport}`);
+    ev.push(`saneado: «  Barro   en  la calle » / « crew035 » → ${p2.status} nombre «${p2.body?.beat?.name}» apodo «${p2.body?.beat?.alias}»`);
+    ev.push(`tras recargar el apodo aparece relleno: «${aliasPrefill}»; «Cerrar» oculta el formulario: ${closed === 0}; campos a la izquierda en x=${layout.join(',')}${vp === 'movil' ? ' (una columna)' : ''}`);
+    if (sending !== 'Publicando…' || resp.status() !== 201 || body.duplicate !== false || body.beat?.mine !== true) fails.push('respuesta');
+    if (Object.keys(req).sort().join() !== 'alias,bpm,code,name,swing,tono') fails.push('cuerpo enviado');
+    if (noteTxt !== 'Publicado. Ya suena en «Nuevos».' || nameAfter !== '' || !formOpen || alias !== 'crew035') fails.push('estado del formulario');
+    if (!sc?.httpOnly || sc.sameSite !== 'Lax' || !/Max-Age=2592000/.test(setCookie || '')) fails.push('cookie');
+    if (tabSel !== 'true' || newRowName !== 'Barro a medianoche' || newRowReport !== 0) fails.push('ranking');
+    if (p2.body?.beat?.name !== 'Barro en la calle' || p2.body?.beat?.alias !== 'crew035') fails.push('saneado');
+    if (aliasPrefill !== 'crew035' || closed !== 0) fails.push('apodo/cerrar');
+    if (vp === 'movil' && new Set(layout).size !== 1) fails.push('dos columnas en móvil');
+    ev.push(sum(issues, blocked));
+    if (fails.length) await snap(page, `R-STU-18-${vp}`);
+    await context.close();
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; '), hallazgos: '' };
+  },
+});
+
+// ---------------- R-STU-19 ----------------
+cases.push({
+  id: 'R-STU-19',
+  vps: BOTH,
+  fn: async ({ browser, vp, origin }) => {
+    const ev = [];
+    const fails = [];
+    const hallazgos = [];
+    const { page, issues, blocked, context } = await open(browser, vp, origin);
+    await gotoStudio(page, origin);
+    let posts = 0;
+    page.on('request', (r) => { if (r.url().endsWith('/api/beats') && r.method() === 'POST') posts += 1; });
+    await press(vp, page.locator('button', { hasText: 'Publicar en el ranking' }));
+    // 1–2: lo para el navegador
+    const blockedBy = [];
+    for (const [name, alias, prop] of [['', 'crew035', 'valueMissing'], ['Algo', 'a', 'tooShort']]) {
+      await page.locator('input[name="nombre"]').fill(name);
+      await page.locator('input[name="apodo"]').fill(alias);
+      const before = posts;
+      await press(vp, page.locator('form.mesa-publicar button[type="submit"]'));
+      await sleep(400);
+      const field = prop === 'valueMissing' ? 'nombre' : 'apodo';
+      const v = await page.locator(`input[name="${field}"]`).evaluate((e, p) => e.validity[p], prop);
+      blockedBy.push(`${field}.${prop}=${v}, POST=${posts - before}`);
+      if (!v || posts !== before) fails.push(`validación del navegador (${prop})`);
+    }
+    await page.locator('input[name="nombre"]').fill('');
+    await page.locator('input[name="nombre"]').pressSequentially('x'.repeat(40));
+    await page.locator('input[name="apodo"]').fill('');
+    await page.locator('input[name="apodo"]').pressSequentially('y'.repeat(25));
+    const lens = `${(await page.locator('input[name="nombre"]').inputValue()).length}/${(await page.locator('input[name="apodo"]').inputValue()).length}`;
+    const tries = [
+      ['3 nombre de espacios', '   ', 'crew035', 'Ponle nombre a tu beat.'],
+      ['3 apodo de espacios', 'Algo', '  ', 'Pon tu apodo.'],
+      ['4 coma', 'Beat, con coma', 'crew035', 'El nombre del beat: hasta 32 letras, números y poco más.'],
+      ['4 emoji', 'Beat 🔥', 'crew035', 'El nombre del beat: hasta 32 letras, números y poco más.'],
+      ['5 apóstrofo', 'Algo', "d'Rocky", 'Tu apodo: de 2 a 20 letras o números.'],
+      ['5 exclamación', 'Algo', 'rocky!', 'Tu apodo: de 2 a 20 letras o números.'],
+      ['6 Hijo de puta', 'Hijo de puta', 'crew035', 'Ese nombre no puede ir en el ranking. Prueba con otro.'],
+      ['6 p u t a', 'p u t a', 'crew035', 'Ese nombre no puede ir en el ranking. Prueba con otro.'],
+      ['6 B1tch', 'B1tch', 'crew035', 'Ese nombre no puede ir en el ranking. Prueba con otro.'],
+      ['7 apodo cabron', 'Ritmo limpio', 'cabron', 'Ese nombre no puede ir en el ranking. Prueba con otro.'],
+      ['8 barro.es', 'barro.es', 'crew035', 'Ese nombre no puede ir en el ranking. Prueba con otro.'],
+      ['8 www', 'www', 'crew035', 'Ese nombre no puede ir en el ranking. Prueba con otro.'],
+      ['8 Beat 123456', 'Beat 123456', 'crew035', 'Ese nombre no puede ir en el ranking. Prueba con otro.'],
+      ['9 Cono de luz', 'Cono de luz', 'crew035', null],
+      ['9 Amar icono', 'Amar icono', 'crew035', null],
+    ];
+    const res = [];
+    let c09 = 0;
+    for (const [label, name, alias, expected] of tries) {
+      const r = await publishUi(page, vp, { name, alias }, { open: false });
+      const ok = expected ? r.status === 400 && r.body?.message === expected && r.note === expected && r.error && r.name === name : null;
+      if (expected === null) {
+        const rejected = r.status === 400 && r.body?.message === 'Ese nombre no puede ir en el ranking. Prueba con otro.';
+        if (rejected) c09 += 1;
+        res.push(`${label}: ${r.status} «${r.note}» (nombre legítimo rechazado=${rejected})`);
+      } else {
+        res.push(`${label}: ${r.status} «${r.note}»${ok ? '' : ' ✗'}`);
+        if (!ok) fails.push(label);
+      }
+      if (!r.setCookie === false) fails.push(`cookie en ${label}`);
+    }
+    const color = await page.locator('.mesa-publicar-nota').evaluate((e) => getComputedStyle(e).color);
+    const cookies = (await context.cookies()).filter((c) => c.name === 'rocky_session');
+    ev.push(`navegador: ${blockedBy.join('; ')}; maxLength deja escribir ${lens} (32/20)`);
+    ev.push(res.join('; '));
+    ev.push(`nota en rojo (is-error, color ${color}) y el nombre no se borra; tras ${tries.length} rechazos 400 no hay cookie de sesión (${cookies.length})`);
+    if (cookies.length) fails.push('abre sesión antes de validar');
+    if (lens !== '32/20') fails.push('maxLength');
+    if (c09 === 2) { fails.push('«Cono de luz» y «Amar icono» se rechazan como ofensivos (C-STU-09)'); hallazgos.push('C-STU-09'); }
+    ev.push(`el apodo ofensivo se rechaza con «Ese nombre…» (C-STU-09, segunda parte)`);
+    ev.push(sum(issues, blocked));
+    if (fails.length) await snap(page, `R-STU-19-${vp}`);
+    await context.close();
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; '), hallazgos: hallazgos.join(', ') };
+  },
+});
+
+// ---------------- R-STU-20 ----------------
+cases.push({
+  id: 'R-STU-20',
+  vps: BOTH,
+  fn: async ({ browser, vp, origin }) => {
+    const ev = [];
+    const fails = [];
+    const hallazgos = [];
+    const A = await open(browser, vp, origin);
+    await gotoStudio(A.page, origin);
+    const p1 = await publishUi(A.page, vp, { name: 'Original', alias: 'autora' });
+    const p2 = await publishUi(A.page, vp, { name: 'Otro nombre', alias: 'otra' }, { open: false });
+    await sleep(500);
+    const newRow = await A.page.locator('.ranking-beat.is-new .ranking-name').textContent().catch(() => null);
+    const tab = await A.page.locator('#ranking-tab-nuevos').getAttribute('aria-selected');
+    await A.page.locator('input[aria-label="Cantidad de swing"]').focus();
+    await A.page.keyboard.press('ArrowRight');
+    const p3 = await publishUi(A.page, vp, { name: 'Swing más', alias: 'autora' }, { open: false });
+    // Otro navegador con Boom bap sin tocar
+    const B = await open(browser, vp, origin);
+    await gotoStudio(B.page, origin);
+    const p4 = await publishUi(B.page, vp, { name: 'Mi boom bap', alias: 'otro' });
+    // Gemelo de un beat oculto por reportes (C-STU-06)
+    const hidden = await seed(origin, { preset: 'trap', bpm: 140, swing: 0, tono: 'do', name: 'Oculto', alias: 'nadie' });
+    const reps = await reportAnon(origin, hidden.id, 3);
+    await press(vp, B.page.locator('.mesa-presets .chip', { hasText: 'Trap' }));
+    const p5 = await publishUi(B.page, vp, { name: 'Mi trap', alias: 'otro' }, { open: false });
+    await sleep(600);
+    const listB = await rowNames(B.page);
+    const isNewB = await B.page.locator('.ranking-beat.is-new').count();
+    // Duplicado fuera de los 30 más nuevos
+    for (let i = 0; i < 30; i += 1) await seed(origin, { preset: 'house', bpm: 61 + i, name: `Relleno ${i + 1}`, alias: 'relleno' });
+    await gotoStudio(A.page, origin);
+    const p6 = await publishUi(A.page, vp, { name: 'Original otra vez', alias: 'autora' });
+    await sleep(600);
+    const isNewA = await A.page.locator('.ranking-beat.is-new').count();
+    const listA = await rowNames(A.page);
+    ev.push(`1.ª publicación ${p1.status}; misma mesa con otro nombre → ${p2.status} duplicate=${p2.body?.duplicate}, devuelve «${p2.body?.beat?.name}» de ${p2.body?.beat?.alias}; nota «${p2.note}»; pestaña Nuevos=${tab}, fila marcada «${newRow}»`);
+    ev.push(`swing +1 % → ${p3.status} duplicate=${p3.body?.duplicate}`);
+    ev.push(`otro navegador con Boom bap sin tocar → ${p4.status} duplicate=${p4.body?.duplicate} «${p4.body?.beat?.name}» de ${p4.body?.beat?.alias} (mine=${p4.body?.beat?.mine})`);
+    ev.push(`beat oculto con 3 reportes sin cookie (${reps.map((r) => r.hidden).join(',')}); publicar su gemelo → ${p5.status} duplicate=${p5.body?.duplicate} id oculto=${p5.body?.beat?.id === hidden.id}; nota «${p5.note}»; la lista (${listB.length}) lo incluye=${listB.includes('Oculto')}, filas marcadas ${isNewB}`);
+    ev.push(`con 30 beats más nuevos, volver a publicar «Original» → ${p6.status} duplicate=${p6.body?.duplicate}; nota «${p6.note}»; está en la lista=${listA.includes('Original')}, filas marcadas ${isNewA}`);
+    if (p1.status !== 201 || p2.status !== 200 || !p2.body?.duplicate || p2.body?.beat?.name !== 'Original' || p2.note !== 'Ese beat ya estaba en el ranking: te lo enseñamos.' || newRow !== 'Original' || tab !== 'true') fails.push('duplicado');
+    if (p3.status !== 201) fails.push('swing distinto');
+    if (p4.status !== 200 || p4.body?.beat?.name !== 'Original' || p4.body?.beat?.mine) fails.push('duplicado entre navegadores');
+    const c06 = p5.status === 200 && p5.body?.beat?.id === hidden.id && !listB.includes('Oculto') && isNewB === 0;
+    if (c06) { fails.push('el gemelo oculto se da como «ya estaba en el ranking: te lo enseñamos» pero no sale en la lista (C-STU-06)'); hallazgos.push('C-STU-06'); }
+    if (reps[2]?.hidden === true) hallazgos.push('C-STU-07');
+    ev.push(`${sum(A.issues, A.blocked)} | B: ${sum(B.issues, B.blocked)}`);
+    if (fails.length) await snap(B.page, `R-STU-20-${vp}`);
+    await A.context.close();
+    await B.context.close();
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; '), hallazgos: hallazgos.join(', ') };
+  },
+});
+
+// ---------------- R-STU-22 ----------------
+cases.push({
+  id: 'R-STU-22',
+  vps: BOTH,
+  fn: async ({ browser, vp, origin }) => {
+    const ev = [];
+    const fails = [];
+    const hallazgos = [];
+    const a = await seed(origin, { preset: 'house', bpm: 90, tono: 'do', name: 'Alfa', alias: 'ana' });
+    await sleep(30);
+    const b = await seed(origin, { preset: 'trap', bpm: 100, tono: 're', name: 'Beta', alias: 'beto' });
+    await sleep(30);
+    const c = await seed(origin, { preset: 'funk', bpm: 110, tono: 'la', name: 'Gamma', alias: 'cris' });
+    await api(origin, 'POST', `/api/beats/${b.id}/like`);
+    await api(origin, 'POST', `/api/beats/${b.id}/like`);
+    await api(origin, 'POST', `/api/beats/${c.id}/like`);
+    const { page, issues, blocked, context } = await open(browser, vp, origin);
+    const getP = page.waitForResponse((r) => r.url().includes('/api/beats?orden=semana'));
+    await gotoStudio(page, origin);
+    const getR = await getP;
+    const hdr = await getR.allHeaders();
+    const cookies0 = (await context.cookies()).length;
+    const top = await rowNames(page);
+    const first = page.locator('.ranking-beat').first();
+    const firstInfo = await first.evaluate((li) => ({
+      cls: li.className, pos: li.querySelector('.ranking-pos')?.textContent, play: li.querySelector('.ranking-play')?.getAttribute('aria-label'),
+      thumb: Boolean(li.querySelector('svg.pattern-thumb')), meta: li.querySelector('.ranking-meta')?.textContent, like: li.querySelector('.ranking-like')?.getAttribute('aria-label'),
+      count: li.querySelector('.ranking-like span')?.textContent, actions: [...li.querySelectorAll('.ranking-actions button')].map((x) => x.textContent).join('/'),
+    }));
+    const tabsA = await page.locator('[role="tab"]').evaluateAll((t) => t.map((x) => `${x.textContent}:${x.getAttribute('aria-selected')}`).join(' '));
+    await page.route('**/api/beats?orden=nuevos', async (r) => { await sleep(900); await r.continue(); });
+    await press(vp, page.locator('#ranking-tab-nuevos'));
+    await sleep(250);
+    const during = { busy: await page.locator('#ranking-panel').getAttribute('aria-busy'), rows: (await rowNames(page)).join(',') };
+    await page.waitForFunction(() => !document.querySelector('#ranking-panel[aria-busy]'));
+    const nuevos = await rowNames(page);
+    const nuevosMeta = await page.locator('.ranking-beat .ranking-meta').first().textContent();
+    await press(vp, page.locator('#ranking-tab-semana'));
+    await page.waitForFunction(() => !document.querySelector('#ranking-panel[aria-busy]'));
+    const bad = await api(origin, 'GET', '/api/beats?orden=otro', undefined, { originHeader: null });
+    // Sin límite de lectura (C-STU-08)
+    const statuses = await Promise.all(Array.from({ length: 150 }, () => api(origin, 'GET', '/api/beats', undefined, { originHeader: null }).then((r) => `${r.status}${r.headers['ratelimit-limit'] ? '/rl' : ''}`)));
+    const counts = statuses.reduce((m, s) => ({ ...m, [s]: (m[s] || 0) + 1 }), {});
+    // Tope de 30 por lista
+    for (let i = 0; i < 30; i += 1) await seed(origin, { preset: 'boombap', bpm: 120 + i, name: `Relleno ${i + 1}`, alias: 'relleno' });
+    const lim = { semana: (await api(origin, 'GET', '/api/beats?orden=semana', undefined, { originHeader: null })).data.beats.length, nuevos: (await api(origin, 'GET', '/api/beats?orden=nuevos', undefined, { originHeader: null })).data.beats.length };
+    const mobile = await page.evaluate(() => {
+      const li = document.querySelector('.ranking-beat');
+      return { pos: getComputedStyle(li.querySelector('.ranking-pos')).display, thumb: Math.round(li.querySelector('.pattern-thumb').getBoundingClientRect().width), h: Math.round(li.getBoundingClientRect().height) };
+    });
+    ev.push(`GET inicial: Cache-Control «${hdr['cache-control']}», Set-Cookie=${Boolean(hdr['set-cookie'])}, cookies tras cargar ${cookies0}`);
+    ev.push(`Top: ${top.join(' > ')}; primera fila clase «${firstInfo.cls}», pos ${firstInfo.pos}, «${firstInfo.play}», miniatura=${firstInfo.thumb}, meta «${firstInfo.meta}», «${firstInfo.like}» contador ${firstInfo.count}, acciones ${firstInfo.actions}; pestañas ${tabsA}`);
+    ev.push(`mientras carga «Nuevos»: aria-busy=${during.busy}, se ve la lista anterior (${during.rows}); Nuevos: ${nuevos.join(' > ')} (meta «${nuevosMeta}», sin coletilla semanal)`);
+    ev.push(`?orden=otro → ${bad.status} «${bad.data?.message}»; 150 GET seguidos → ${JSON.stringify(counts)} (sin cabeceras RateLimit: C-STU-08)`);
+    ev.push(`con 33 beats: semana ${lim.semana}, nuevos ${lim.nuevos}`);
+    ev.push(`fila: posición display=${mobile.pos}, miniatura ${mobile.thumb}px, alto ${mobile.h}px`);
+    if (hdr['cache-control'] !== 'no-store' || hdr['set-cookie'] || cookies0) fails.push('lectura con sesión o caché');
+    if (top.join() !== 'Beta,Gamma,Alfa' || !/is-top/.test(firstInfo.cls) || firstInfo.pos !== '01' || firstInfo.meta !== 'de beto · 100 BPM · Re m · 2 esta semana' || firstInfo.like !== 'Me mola «Beta» (2)' || !firstInfo.thumb) fails.push('Top');
+    if (during.busy !== 'true' || !during.rows) fails.push('carga');
+    if (nuevos.join() !== 'Gamma,Beta,Alfa') fails.push('Nuevos');
+    if (bad.status !== 400 || bad.data?.message !== 'Ese orden no existe.') fails.push('orden inválido');
+    if (lim.semana !== 30 || lim.nuevos !== 30) fails.push('tope 30');
+    if (vp === 'movil' && (mobile.pos !== 'none' || mobile.thumb !== 64)) fails.push('maquetación móvil');
+    if (counts['200'] === 150) hallazgos.push('C-STU-08');
+    hallazgos.push('C-STU-15');
+    ev.push(sum(issues, blocked));
+    if (fails.length) await snap(page, `R-STU-22-${vp}`);
+    await context.close();
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; '), hallazgos: hallazgos.join(', ') };
+  },
+});
+
+// ---------------- R-STU-23 ----------------
+cases.push({
+  id: 'R-STU-23',
+  vps: BOTH,
+  fn: async ({ browser, vp, origin }) => {
+    const ev = [];
+    const fails = [];
+    const { page, issues, blocked, context } = await open(browser, vp, origin);
+    await gotoStudio(page, origin);
+    const empty = (await page.locator('#ranking-panel').textContent()).trim();
+    await seed(origin, { name: 'Superviviente', alias: 'uno' });
+    await page.route('**/api/beats?*', (r) => r.abort('connectionrefused'));
+    await press(vp, page.locator('#ranking-tab-nuevos'));
+    await sleep(500);
+    const err = (await page.locator('#ranking-panel').textContent()).trim();
+    const retryBtn = await page.locator('#ranking-panel button', { hasText: 'Reintentar' }).count();
+    const rowsDuring = await page.locator('.ranking-beat').count();
+    await page.unroute('**/api/beats?*');
+    await press(vp, page.locator('#ranking-panel button', { hasText: 'Reintentar' }));
+    await sleep(600);
+    const after = await rowNames(page);
+    // Cambios muy rápidos
+    let aborted = 0;
+    page.on('requestfailed', (r) => { if (r.url().includes('/api/beats?') && /ABORTED/.test(r.failure()?.errorText || '')) aborted += 1; });
+    await page.route('**/api/beats?*', async (r) => { await sleep(300); await r.continue().catch(() => {}); });
+    for (let i = 0; i < 6; i += 1) { await press(vp, page.locator(i % 2 ? '#ranking-tab-nuevos' : '#ranking-tab-semana')); await sleep(60); }
+    await sleep(900);
+    const final = { text: (await page.locator('#ranking-panel').textContent()).trim().slice(0, 60), sel: await page.locator('[role="tab"][aria-selected="true"]').textContent() };
+    ev.push(`vacío: «${empty}»`, `con /api/beats caído: «${err.slice(0, 60)}», botón Reintentar=${retryBtn}, filas ${rowsDuring}`, `Reintentar con la API de vuelta → ${after.join(',')}`);
+    ev.push(`6 cambios de pestaña en 360 ms → ${aborted} peticiones abortadas, estado final «${final.text}» en «${final.sel}»`);
+    if (!empty.startsWith('Aún no hay beats. Monta uno en la mesa y publícalo: el primero se queda arriba.')) fails.push('vacío');
+    if (!err.startsWith('El ranking no responde ahora mismo.') || retryBtn !== 1 || rowsDuring !== 0) fails.push('caído');
+    if (after.join() !== 'Superviviente') fails.push('reintentar');
+    if (aborted < 3 || /no responde/.test(final.text) || final.sel !== 'Nuevos') fails.push('abortos');
+    const filtered = { ...issues, failed: issues.failed.filter((f) => !/api\/beats\?/.test(f)), console: issues.console.filter((c) => !/ERR_CONNECTION_REFUSED|Failed to load resource/.test(c)) };
+    ev.push(`${sum(filtered, blocked)} (sin contar los fallos provocados)`);
+    if (fails.length) await snap(page, `R-STU-23-${vp}`);
+    await context.close();
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; '), hallazgos: '' };
+  },
+});
+
+// ---------------- R-STU-24 ----------------
+async function ivals(page, ctx, from) {
+  return page.evaluate(({ ctx, from }) => {
+    const w = [...new Set(window.__starts.slice(from).filter((s) => s.ctx === ctx).map((s) => s.when.toFixed(4)))].map(Number).sort((a, b) => a - b);
+    return w.slice(1).map((x, i) => Math.round((x - w[i]) * 1000));
+  }, { ctx, from });
+}
+cases.push({
+  id: 'R-STU-24',
+  vps: BOTH,
+  fn: async ({ browser, vp, origin }) => {
+    const ev = [];
+    const fails = [];
+    const hallazgos = [];
+    const HAT = codeOf({ hat: 'xxxxxxxxxxxxxxxx', sub: 'X.......X.......', bombo: 'X.......X.......' });
+    const beat = await seed(origin, { code: HAT, bpm: 120, swing: 0.1, tono: 're', name: 'Escucha', alias: 'oyente' });
+    const { page, issues, blocked, context } = await open(browser, vp, origin);
+    await gotoStudio(page, origin);
+    // La mesa: Bombo silenciado y un toque para crear su motor
+    await press(vp, page.locator('button.pista-nombre', { hasText: 'Bombo' }));
+    await press(vp, page.locator('.mesa-play')); await sleep(300); await press(vp, page.locator('.mesa-play'));
+    const mesaBefore = { grid: gridToRows(await readGrid(page)), info: await mesaInfo(page) };
+    await press(vp, page.locator('button.setlist-row').first());
+    await sleep(800);
+    const radioOn = await page.evaluate(() => !document.querySelector('audio').paused);
+    await page.evaluate(() => { window.__rampHist = {}; });
+    const from = await page.evaluate(() => window.__starts.length);
+    const playBtn = row(page, 'Escucha').locator('.ranking-play');
+    const label0 = await playBtn.getAttribute('aria-label');
+    await press(vp, playBtn);
+    await sleep(1500);
+    const st = await row(page, 'Escucha').evaluate((li) => ({ cls: li.className, pressed: li.querySelector('.ranking-play').getAttribute('aria-pressed'), label: li.querySelector('.ranking-play').getAttribute('aria-label'), head: Boolean(li.querySelector('.pattern-thumb__head')) }));
+    const au = await audioState(page);
+    const radioPaused = await page.evaluate(() => document.querySelector('audio').paused);
+    const iv = (await ivals(page, 1, from)).slice(0, 6);
+    const ramps = await page.evaluate(() => window.__rampHist);
+    const mesaAfter = { grid: gridToRows(await readGrid(page)), info: await mesaInfo(page) };
+    await press(vp, playBtn);
+    await sleep(300);
+    const s1 = (await audioState(page)).starts;
+    await sleep(800);
+    const au2 = await audioState(page);
+    const stopped = await row(page, 'Escucha').evaluate((li) => ({ cls: li.className, head: Boolean(li.querySelector('.pattern-thumb__head')) }));
+    ev.push(`«${label0}» con la radio sonando (${radioOn}) → radio pausada=${radioPaused}; fila «${st.cls}», aria-pressed=${st.pressed}, «${st.label}», cabezal en la miniatura=${st.head}`);
+    ev.push(`AudioContext: ${au.ctxs.length} (${au.ctxs.map((c) => c.state).join(',')}); intervalos del ranking a 120 BPM y 10 % de swing: ${iv.join(',')} ms; 808 en Re m (73,42 Hz) ${ramps['73.42'] ? 'sí' : 'no'}; bombo del beat suena aunque la mesa lo tenga silenciado (52 Hz ×${ramps['52'] || 0})`);
+    ev.push(`mesa sin cambios: ${mesaBefore.grid === mesaAfter.grid && mesaBefore.info.lcd.join() === mesaAfter.info.lcd.join()}`);
+    ev.push(`■ → fila «${stopped.cls}», cabezal=${stopped.head}; voces tras parar ${s1}→${au2.starts}; el AudioContext del ranking sigue ${au2.ctxs[1]?.state}`);
+    if (!radioOn || !radioPaused || !/is-playing/.test(st.cls) || st.pressed !== 'true' || st.label !== 'Parar «Escucha»' || !st.head) fails.push('reproducir');
+    if (au.ctxs.length !== 2 || !(Math.abs(iv[0] - 131) <= 2 && Math.abs(iv[1] - 119) <= 2)) fails.push('motor/tempo/swing');
+    if (!ramps['73.42'] || !ramps['52']) fails.push('tónica/mezcla de fábrica');
+    if (mesaBefore.grid !== mesaAfter.grid) fails.push('toca la mesa');
+    if (/is-playing/.test(stopped.cls) || au2.starts !== s1 || au2.ctxs[1]?.state !== 'running') fails.push('parar');
+    if (au.ctxs.length === 2 && au2.ctxs.every((c) => c.state === 'running')) hallazgos.push('C-STU-19');
+    ev.push(sum(issues, blocked));
+    if (fails.length) await snap(page, `R-STU-24-${vp}`);
+    await context.close();
+    const na = await open(browser, vp, origin, { audio: false, initScripts: [() => { delete window.AudioContext; delete window.webkitAudioContext; }] });
+    await gotoStudio(na.page, origin);
+    await press(vp, row(na.page, 'Escucha').locator('.ranking-play'));
+    await sleep(300);
+    const naCls = await row(na.page, 'Escucha').getAttribute('class');
+    ev.push(`sin Web Audio: fila «${naCls}», nota «${(await note(na.page)).trim().slice(0, 40)}…», errores ${na.issues.pageErrors.length}`);
+    if (/is-playing/.test(naCls) || na.issues.pageErrors.length) fails.push('sin Web Audio');
+    await na.context.close();
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; '), hallazgos: hallazgos.join(', ') };
+  },
+});
+
+// ---------------- R-STU-25 ----------------
+const headStep = (page, name) => row(page, name).locator('.pattern-thumb__head').evaluate((r) => Math.round((Number(r.getAttribute('x')) + 0.5) / 5)).catch(() => -1);
+cases.push({
+  id: 'R-STU-25',
+  vps: BOTH,
+  fn: async ({ browser, vp, origin }) => {
+    const ev = [];
+    const fails = [];
+    const hallazgos = [];
+    const A = await seed(origin, { preset: 'trap', bpm: 70, name: 'Lento', alias: 'uno' });
+    await sleep(20);
+    await seed(origin, { preset: 'house', bpm: 70, name: 'Otro lento', alias: 'dos' });
+    const { page, issues, blocked, context } = await open(browser, vp, origin);
+    await gotoStudio(page, origin);
+    // 1. Cambiar de beat del ranking a otro sonando
+    await press(vp, row(page, 'Lento').locator('.ranking-play'));
+    await sleep(1300);
+    const trail = [];
+    for (let i = 0; i < 3; i += 1) { trail.push(await headStep(page, 'Lento')); await sleep(60); }
+    await press(vp, row(page, 'Otro lento').locator('.ranking-play'));
+    await sleep(30);
+    const afterSwitch = [];
+    for (let i = 0; i < 4; i += 1) { afterSwitch.push(await headStep(page, 'Otro lento')); await sleep(60); }
+    const playingRows = await page.locator('.ranking-beat.is-playing .ranking-name').allTextContents();
+    // 2. Ranking sonando → play de la mesa
+    await press(vp, page.locator('.mesa-play'));
+    await sleep(400);
+    const s2 = { rows: await page.locator('.ranking-beat.is-playing').count(), lcd: await page.locator('.lcd-rec').textContent() };
+    // 3. Mesa con REC → ranking
+    await press(vp, page.locator('.mesa-rec'));
+    await press(vp, row(page, 'Lento').locator('.ranking-play'));
+    await sleep(400);
+    const s3 = { lcd: await page.locator('.lcd-rec').textContent(), rec: await page.locator('.mesa-rec').getAttribute('aria-pressed'), rows: await page.locator('.ranking-beat.is-playing .ranking-name').allTextContents() };
+    // 4. Ranking sonando → fila del setlist; mesa sonando → play del radiocasete
+    await press(vp, page.locator('button.setlist-row').first());
+    await sleep(900);
+    const s4a = { rows: await page.locator('.ranking-beat.is-playing').count(), radio: await page.evaluate(() => !document.querySelector('audio').paused) };
+    await press(vp, page.locator('.mesa-play'));
+    await sleep(500);
+    const radioAfterMesa = await page.evaluate(() => document.querySelector('audio').paused);
+    await press(vp, page.locator('.boombox button[aria-label="Reproducir"]'));
+    await sleep(900);
+    const s4b = { lcd: await page.locator('.lcd-rec').textContent(), radio: await page.evaluate(() => !document.querySelector('audio').paused) };
+    await press(vp, page.locator('.boombox button[aria-label="Pausar"]'));
+    // 5. Ranking sonando y la fila desaparece (oculta por reportes) — C-STU-03
+    await press(vp, row(page, 'Lento').locator('.ranking-play'));
+    await sleep(500);
+    await reportAnon(origin, A.id, 2);
+    const rep = row(page, 'Lento').locator('button', { hasText: 'Reportar' });
+    await press(vp, rep);
+    await press(vp, row(page, 'Lento').locator('button', { hasText: '¿Reportar?' }));
+    await sleep(700);
+    const gone = await row(page, 'Lento').count();
+    const c0 = (await audioState(page)).starts;
+    await sleep(2500);
+    const c1 = (await audioState(page)).starts;
+    const stopButtons = await page.locator('.ranking-play[aria-pressed="true"]').count();
+    const meterNote = (await note(page)).trim();
+    ev.push(`1) «Lento» en pasos ${trail.join(',')} → ▶ «Otro lento»: su cabezal sigue en ${afterSwitch.join(',')} (no vuelve al 1), filas sonando [${playingRows.join(',')}]`);
+    ev.push(`2) play de la mesa con el ranking sonando → filas sonando ${s2.rows}, LCD «${s2.lcd}»`);
+    ev.push(`3) mesa con REC → ▶ ranking: LCD «${s3.lcd}», REC aria-pressed=${s3.rec}, suena [${s3.rows.join(',')}]`);
+    ev.push(`4) fila del setlist → ranking sonando ${s4a.rows}, radio sonando=${s4a.radio}; play de la mesa la pausa (${radioAfterMesa}); play del radiocasete con la mesa sonando → LCD «${s4b.lcd}», radio=${s4b.radio}`);
+    ev.push(`5) «Lento» sonando y oculto por el 3.er reporte (nota «${meterNote}»): fila presente=${gone}, voces en 2,5 s después ${c1 - c0}, botones de parar visibles ${stopButtons}`);
+    const c18 = afterSwitch[0] > 0 && afterSwitch.every((s) => s !== 0 || afterSwitch.indexOf(s) > 1);
+    if (c18) hallazgos.push('C-STU-18');
+    if (playingRows.join() !== 'Otro lento') fails.push('1');
+    if (s2.rows !== 0 || s2.lcd.trim() !== '▶ PLAY') fails.push('2');
+    if (s3.lcd.trim() !== '■ STOP' || s3.rec !== 'false' || s3.rows.join() !== 'Lento') fails.push('3');
+    if (s4a.rows !== 0 || !s4a.radio || !radioAfterMesa || s4b.lcd.trim() !== '■ STOP' || !s4b.radio) fails.push('4');
+    const c03 = gone === 0 && c1 - c0 > 0 && stopButtons === 0;
+    if (c03) { fails.push('el beat oculto sigue sonando y no queda ningún botón para pararlo (C-STU-03)'); hallazgos.push('C-STU-03'); }
+    ev.push(sum(issues, blocked));
+    if (fails.length) await snap(page, `R-STU-25-${vp}`);
+    await context.close();
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; '), hallazgos: hallazgos.join(', ') };
+  },
+});
+
+// ---------------- R-STU-26 ----------------
+async function goStudioSpa(page, vp) {
+  if (vp === 'movil') {
+    await page.locator('button[aria-controls]').filter({ visible: true }).first().tap();
+    await sleep(300);
+  }
+  await page.locator('a[href="/estudio"]').filter({ visible: true }).first().click();
+  await page.waitForSelector('.mesa-play');
+  await sleep(300);
+}
+cases.push({
+  id: 'R-STU-26',
+  vps: BOTH,
+  fn: async ({ browser, vp, origin }) => {
+    const ev = [];
+    const fails = [];
+    await seed(origin, { preset: 'funk', name: 'Para salir', alias: 'tres' });
+    const { page, issues, blocked, context } = await open(browser, vp, origin);
+    await page.goto(`${origin}/`);
+    await page.waitForLoadState('networkidle');
+    const t0 = await page.title();
+    await goStudioSpa(page, vp);
+    const tStudio = await page.title();
+    // 1. Mesa sonando y salir
+    await press(vp, page.locator('.mesa-play'));
+    await sleep(500);
+    await page.locator('a.navbar-brand').click();
+    await page.waitForURL(`${origin}/`);
+    await sleep(400);
+    const a1 = await audioState(page);
+    await sleep(600);
+    const a1b = await audioState(page);
+    const t1 = await page.title();
+    // 2. Ranking sonando y salir
+    await goStudioSpa(page, vp);
+    await press(vp, row(page, 'Para salir').locator('.ranking-play'));
+    await sleep(500);
+    await page.locator('a.navbar-brand').click();
+    await page.waitForURL(`${origin}/`);
+    await sleep(400);
+    const a2 = await audioState(page);
+    // 3. Radio sonando y salir
+    await goStudioSpa(page, vp);
+    await press(vp, page.locator('button.setlist-row').first());
+    await sleep(800);
+    await page.locator('a.navbar-brand').click();
+    await page.waitForURL(`${origin}/`);
+    const r0 = await page.evaluate(() => document.querySelector('audio').currentTime);
+    await sleep(1000);
+    const r1 = await page.evaluate(() => ({ paused: document.querySelector('audio').paused, t: document.querySelector('audio').currentTime }));
+    // 4. Volver
+    await goStudioSpa(page, vp);
+    const back = { lcd: await page.locator('.lcd-rec').textContent(), info: await mesaInfo(page) };
+    const a4 = await audioState(page);
+    // 5. Atrás y adelante con la mesa sonando
+    await press(vp, page.locator('.mesa-play'));
+    await sleep(500);
+    const n5 = (await audioState(page)).ctxs.length;
+    await page.goBack();
+    await page.waitForURL(`${origin}/`);
+    await sleep(400);
+    const a5 = await audioState(page);
+    await page.goForward();
+    await page.waitForSelector('.mesa-play');
+    await sleep(300);
+    const fwd = await page.locator('.lcd-rec').textContent();
+    ev.push(`títulos: inicio «${t0}», estudio «${tStudio}», al salir «${t1}»`);
+    ev.push(`1) mesa sonando → inicio: AudioContext ${a1.ctxs.map((c) => c.state).join(',')}, voces ${a1.starts}→${a1b.starts}`);
+    ev.push(`2) ranking sonando → inicio: AudioContext ${a2.ctxs.map((c) => c.state).join(',')}`);
+    ev.push(`3) radio sonando → inicio: paused=${r1.paused}, t ${r0.toFixed(1)}→${r1.t.toFixed(1)} s`);
+    ev.push(`4) de vuelta: LCD «${back.lcd}», ${back.info.lcd.slice(0, 3).join(' / ')}; AudioContext vivos de visitas anteriores: ${a4.ctxs.filter((c) => c.state !== 'closed').length}`);
+    ev.push(`5) mesa sonando → atrás: AudioContext ${a5.ctxs.slice(n5 - 1).map((c) => c.state).join(',')}; adelante → LCD «${fwd}»`);
+    if (tStudio !== 'La Colmena · ROCKY 035' || t1 !== t0) fails.push('títulos');
+    if (a1.ctxs[0]?.state !== 'closed' || a1b.starts !== a1.starts) fails.push('1');
+    if (a2.ctxs.some((c) => c.state !== 'closed')) fails.push('2');
+    if (r1.paused || !(r1.t > r0)) fails.push('3');
+    if (back.lcd.trim() !== '■ STOP' || a4.ctxs.some((c) => c.state !== 'closed')) fails.push('4');
+    if (a5.ctxs.some((c) => c.state !== 'closed') || fwd.trim() !== '■ STOP') fails.push('5');
+    ev.push(sum(issues, blocked));
+    if (fails.length) await snap(page, `R-STU-26-${vp}`);
+    await context.close();
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; '), hallazgos: '' };
+  },
+});
+
+// ---------------- R-STU-27 ----------------
+cases.push({
+  id: 'R-STU-27',
+  vps: BOTH,
+  fn: async ({ browser, vp, origin }) => {
+    const ev = [];
+    const fails = [];
+    const hallazgos = [];
+    const beat = await seed(origin, { preset: 'dembow', name: 'Me gusta', alias: 'cuatro' });
+    const other = await seed(origin, { preset: 'house', name: 'Otro', alias: 'cinco' });
+    const { page, issues, blocked, context } = await open(browser, vp, origin);
+    await gotoStudio(page, origin);
+    const heart = () => row(page, 'Me gusta').locator('.ranking-like');
+    const hs = async () => heart().evaluate((b) => `${b.getAttribute('aria-pressed')}/${b.querySelector('span').textContent}/${b.classList.contains('is-liked')}`);
+    // 1. Optimista
+    await page.route('**/api/beats/*/like', async (r) => { await sleep(600); await r.continue(); });
+    const rp = page.waitForResponse((r) => r.url().endsWith('/like'));
+    await press(vp, heart());
+    await sleep(150);
+    const optimistic = await hs();
+    const r1 = await rp;
+    const b1 = await r1.json();
+    await sleep(100);
+    const confirmed = await hs();
+    const cookie = (await context.cookies()).some((c) => c.name === 'rocky_session');
+    await page.unroute('**/api/beats/*/like');
+    // 2–3
+    await page.reload(); await page.waitForSelector('.ranking-like');
+    await sleep(300);
+    const afterReload = await hs();
+    await press(vp, heart()); await sleep(400);
+    const unliked = await hs();
+    // 4. Doble clic
+    const seen = [];
+    const h = (r) => { if (r.url().endsWith('/like')) r.json().then((j) => seen.push(`${r.status()}:${j.liked}/${j.likes}`)).catch(() => {}); };
+    page.on('response', h);
+    if (vp === 'movil') { await heart().tap(); await heart().tap(); } else await heart().dblclick();
+    await sleep(800);
+    page.off('response', h);
+    const afterDbl = await hs();
+    const server = (await inPage(page, 'GET', '/api/beats?orden=nuevos')).data.beats.find((x) => x.id === beat.id);
+    // 5. Sin cookie
+    const before5 = server.likes;
+    await context.clearCookies();
+    await page.reload(); await page.waitForSelector('.ranking-like');
+    await sleep(300);
+    await press(vp, heart()); await sleep(400);
+    const after5 = await hs();
+    // 7. Beat ocultado entretanto
+    await reportAnon(origin, beat.id, 3);
+    const r7p = page.waitForResponse((r) => r.url().endsWith('/like'));
+    await press(vp, heart());
+    const r7 = await r7p;
+    await sleep(300);
+    const after7 = await hs();
+    const note7 = (await note(page)).trim();
+    // C-STU-27: un like bueno después no limpia el mensaje
+    await press(vp, row(page, 'Otro').locator('.ranking-like'));
+    await sleep(500);
+    const noteAfterOk = (await note(page)).trim();
+    ev.push(`1) optimista ${optimistic} (aria-pressed/contador/is-liked) antes de la respuesta; servidor ${r1.status()} ${JSON.stringify(b1)} → ${confirmed}; cookie de sesión creada=${cookie}`);
+    ev.push(`2) tras recargar ${afterReload}; 3) otra vez → ${unliked}`);
+    ev.push(`4) doble ${vp === 'movil' ? 'toque' : 'clic'} → respuestas ${seen.join(' , ')}; queda ${afterDbl}; servidor likes=${server.likes} liked=${server.liked}`);
+    ev.push(`5) sin cookie (${before5} likes) → ${after5}`);
+    ev.push(`7) oculto entretanto → ${r7.status()} «${(await r7.json()).message}», el corazón vuelve al estado previo ${after7} (antes ${after5}); nota «${note7}»`);
+    ev.push(`tras un «me mola» correcto en otro beat la nota sigue «${noteAfterOk}»`);
+    if (!optimistic.startsWith('true/1/true') || r1.status() !== 200 || !b1.liked || b1.likes !== 1 || !cookie) fails.push('1');
+    if (!afterReload.startsWith('true/1') || !unliked.startsWith('false/0')) fails.push('2-3');
+    if (seen.length !== 2 || afterDbl.split('/')[0] !== String(server.liked)) fails.push('4');
+    if (!after5.startsWith(`true/${before5 + 1}`)) fails.push('5');
+    else hallazgos.push('C-STU-07');
+    if (r7.status() !== 404 || after7 !== after5 || note7 !== 'Ese beat no existe.') fails.push('7');
+    const c27 = noteAfterOk === 'Ese beat no existe.';
+    if (c27) { fails.push('el mensaje de error se queda en la nota del ranking después de un «me mola» correcto (C-STU-27)'); hallazgos.push('C-STU-27'); }
+    ev.push(sum({ ...issues, console: issues.console.filter((c) => !/404/.test(c)), http: issues.http.filter((x) => !/404 POST .*\/like/.test(x)) }, blocked) + ' (sin contar el 404 provocado)');
+    if (fails.length) await snap(page, `R-STU-27-${vp}`);
+    await context.close();
+    // 6. Límite de 60 por 10 minutos en una instancia con los valores por defecto
+    const lim = await start(3307, {});
+    try {
+      const b6 = await seed(lim.origin, { preset: 'funk', name: 'Límite', alias: 'seis' });
+      const L = await open(browser, vp, lim.origin);
+      await gotoStudio(L.page, lim.origin);
+      const statuses = [];
+      for (let i = 0; i < 60; i += 1) statuses.push((await inPage(L.page, 'POST', `/api/beats/${b6.id}/like`)).status);
+      await L.page.reload(); await L.page.waitForSelector('.ranking-like');
+      await sleep(300);
+      const pre = await row(L.page, 'Límite').locator('.ranking-like').evaluate((b) => `${b.getAttribute('aria-pressed')}/${b.querySelector('span').textContent}`);
+      const rp6 = L.page.waitForResponse((r) => r.url().endsWith('/like'));
+      await press(vp, row(L.page, 'Límite').locator('.ranking-like'));
+      const r6 = await rp6;
+      await sleep(300);
+      const post = await row(L.page, 'Límite').locator('.ranking-like').evaluate((b) => `${b.getAttribute('aria-pressed')}/${b.querySelector('span').textContent}`);
+      const n6 = (await note(L.page)).trim();
+      const n6color = await L.page.locator('.ranking-note').evaluate((e) => getComputedStyle(e).color);
+      const counts = statuses.reduce((m, s) => ({ ...m, [s]: (m[s] || 0) + 1 }), {});
+      ev.push(`6) instancia con límites por defecto: 60 likes ${JSON.stringify(counts)}; el 61.º desde la interfaz → ${r6.status()} Retry-After=${r6.headers()['retry-after']} s; corazón ${pre} → ${post} (se deshace); nota bajo el ranking «${n6}» (color ${n6color}, sin estilo de error)`);
+      if (r6.status() !== 429 || n6 !== 'Demasiadas peticiones. Inténtalo más tarde.' || pre !== post) fails.push('6');
+      await L.context.close();
+    } finally { await lim.stop(); }
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; '), hallazgos: hallazgos.join(', ') };
+  },
+});
+
+// ---------------- R-STU-28 ----------------
+cases.push({
+  id: 'R-STU-28',
+  vps: BOTH,
+  fn: async ({ browser, vp, origin }) => {
+    const ev = [];
+    const fails = [];
+    const beat = await seed(origin, { preset: 'drill', name: 'Reportable', alias: 'siete' });
+    const ctxs = [];
+    const doReport = async (page) => {
+      const btn = row(page, 'Reportable').locator('.ranking-link--muted');
+      await press(vp, btn);
+      const t = await btn.textContent();
+      const rp = page.waitForResponse((r) => r.url().endsWith('/report'));
+      await press(vp, btn);
+      const r = await rp;
+      await sleep(300);
+      return { ask: t, status: r.status(), body: await r.json(), note: (await note(page)).trim() };
+    };
+    const one = await open(browser, vp, origin);
+    ctxs.push(one);
+    await gotoStudio(one.page, origin);
+    const btn = row(one.page, 'Reportable').locator('.ranking-link--muted');
+    await press(vp, btn);
+    const t1 = await btn.textContent();
+    await sleep(4000);
+    const t2 = await btn.textContent();
+    const r3 = await doReport(one.page);
+    const r4 = await doReport(one.page);
+    const two = await open(browser, vp, origin);
+    ctxs.push(two);
+    await gotoStudio(two.page, origin);
+    const r5a = await doReport(two.page);
+    const three = await open(browser, vp, origin);
+    ctxs.push(three);
+    await gotoStudio(three.page, origin);
+    const r5b = await doReport(three.page);
+    const present = await row(three.page, 'Reportable').count();
+    const lists = {
+      semana: (await api(origin, 'GET', '/api/beats?orden=semana', undefined, { originHeader: null })).data.beats.some((b) => b.id === beat.id),
+      nuevos: (await api(origin, 'GET', '/api/beats?orden=nuevos', undefined, { originHeader: null })).data.beats.some((b) => b.id === beat.id),
+    };
+    const like = await api(origin, 'POST', `/api/beats/${beat.id}/like`);
+    // Beat propio
+    const own = await publishUi(one.page, vp, { name: 'Mío', alias: 'yo' });
+    await sleep(500);
+    const ownReportBtn = await row(one.page, 'Mío').locator('button', { hasText: 'Reportar' }).count();
+    const ownReport = await inPage(one.page, 'POST', `/api/beats/${own.body.beat.id}/report`);
+    const unhide = await one.page.getByText(/mostrar|restaurar|deshacer/i).count();
+    ev.push(`«Reportar» → «${t1}», a los 4 s «${t2}»`);
+    ev.push(`confirmado → ${r3.status} ${JSON.stringify(r3.body)} «${r3.note}»; misma sesión otra vez → ${r4.status} ${JSON.stringify(r4.body)} «${r4.note}»`);
+    ev.push(`2.ª sesión → ${JSON.stringify(r5a.body)}; 3.ª sesión → ${JSON.stringify(r5b.body)}; fila presente=${present}; en lecturas: semana=${lists.semana}, nuevos=${lists.nuevos}; like → ${like.status} «${like.data?.message}»`);
+    ev.push(`beat propio: botón Reportar=${ownReportBtn}; reportarlo a mano → ${ownReport.status} ${JSON.stringify(ownReport.data)}; controles para volver a mostrar=${unhide}`);
+    if (t1 !== '¿Reportar?' || t2 !== 'Reportar') fails.push('1-2');
+    if (r3.status !== 200 || r3.body.hidden !== false || r3.note !== 'Gracias: lo miramos.' || r4.body.hidden !== false || r4.note !== 'Gracias: lo miramos.') fails.push('3-4');
+    if (r5a.body.hidden !== false || r5b.body.hidden !== true || present || lists.semana || lists.nuevos || like.status !== 404) fails.push('5');
+    if (ownReportBtn !== 0 || ownReport.status !== 200) fails.push('6');
+    ev.push(ctxs.map((c) => sum(c.issues, c.blocked)).join(' | '));
+    if (fails.length) await snap(three.page, `R-STU-28-${vp}`);
+    for (const c of ctxs) await c.context.close();
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; '), hallazgos: 'C-STU-27' };
+  },
+});
+
+// ---------------- R-STU-29 ----------------
+cases.push({
+  id: 'R-STU-29',
+  vps: BOTH,
+  fn: async ({ browser, vp, origin }) => {
+    const ev = [];
+    const fails = [];
+    const hallazgos = [];
+    const beat = await seed(origin, { preset: 'drill', bpm: 133, swing: 0.12, tono: 'la', name: 'Para remezclar', alias: 'ocho' });
+    await seed(origin, { preset: 'house', bpm: 77, swing: 0.05, tono: 'mi', name: 'Segundo remix', alias: 'nueve' });
+    const targets = [
+      { name: 'Para remezclar', preset: 'drill', bpm: '133', swing: '0.12', tono: 'la' },
+      { name: 'Segundo remix', preset: 'house', bpm: '77', swing: '0.05', tono: 'mi' },
+    ];
+    const { page, issues, blocked, context } = await open(browser, vp, origin);
+    await gotoStudio(page, origin);
+    const attempts = [];
+    for (let k = 0; k < 2; k += 1) {
+      const T = targets[k];
+      // La mesa con cambios propios
+      await press(vp, page.locator('button', { hasText: 'Sorpréndeme' }));
+      await page.locator('input[aria-label="Tempo en pulsos por minuto"]').focus();
+      await page.keyboard.press('Home');
+      const mine = gridToRows(await readGrid(page));
+      await press(vp, row(page, T.name).locator('.ranking-play'));
+      await sleep(400);
+      await page.evaluate(() => { document.querySelector('.mesa-wrap').dataset.vieja = '1'; window.scrollTo(0, document.body.scrollHeight * 0.6); });
+      await sleep(200);
+      const scrolledTo = await page.evaluate(() => Math.round(window.scrollY));
+      const hist = await page.evaluate(() => history.length);
+      const btn = row(page, T.name).locator('.ranking-actions button').first();
+      await press(vp, btn);
+      const ask = await btn.textContent();
+      await press(vp, btn);
+      await sleep(1500);
+      const r = {
+        ask,
+        playing: await page.locator('.ranking-beat.is-playing').count(),
+        search: await page.evaluate(() => location.search),
+        hist: (await page.evaluate(() => history.length)) - hist,
+        remount: await page.evaluate(() => !document.querySelector('.mesa-wrap').dataset.vieja),
+        top: await page.evaluate(() => Math.round(document.querySelector('.mesa-section').getBoundingClientRect().top)),
+        scrollY: await page.evaluate(() => Math.round(window.scrollY)),
+        before: scrolledTo,
+        grid: gridToRows(await readGrid(page)),
+        info: await mesaInfo(page),
+        saved: await readSaved(page),
+      };
+      r.bpmExpected = T.bpm;
+      r.target = `${T.name} (${T.preset} ${T.bpm}/${T.swing}/${T.tono})`;
+      r.loaded = r.grid === rowsOf(T.preset) && r.info.ranges[0] === T.bpm && r.info.ranges[1] === T.swing && r.info.tono === T.tono;
+      r.keptMine = r.grid === mine && r.info.ranges[0] === '60';
+      r.previous = k > 0 && r.grid === rowsOf(targets[k - 1].preset) && r.info.ranges[0] === targets[k - 1].bpm;
+      if (k === 0 && !r.loaded) { await page.locator('.mesa-section').scrollIntoViewIfNeeded(); r.shot = await snap(page, `R-STU-29-${vp}`); }
+      attempts.push(r);
+      // la segunda vuelta, en la misma página (sin recargar)
+    }
+    // 4. Editar y recargar con la URL del remix (C-STU-02)
+    await gotoStudio(page, origin, `?beat=${beat.code}&bpm=133&swing=0.12&tono=la`);
+    await press(vp, page.locator('button.celda[aria-label="Diana, paso 2"]'));
+    await page.reload(); await page.waitForSelector('.mesa-play');
+    const dianaAfter = await page.locator('button.celda[aria-label="Diana, paso 2"]').getAttribute('aria-pressed');
+    attempts.forEach((r, i) => ev.push(`intento ${i + 1}: «${r.ask}»; ranking sonando tras confirmar ${r.playing}; URL ${r.search.replace(/beat=2[0-9a-f]+/, 'beat=2…')}; entradas de historial nuevas ${r.hist}; mesa remontada ${r.remount}; scroll ${r.before}→${r.scrollY} px y la sección de la mesa queda a ${r.top}px del borde superior; remezcla «${r.target}»: mesa = ese beat ${r.loaded}; mesa = la mía de antes ${r.keptMine}; mesa = el beat remezclado antes ${r.previous} (LCD ${r.info.lcd.slice(0, 3).join(' / ')}); localStorage bpm ${r.saved?.bpm}`));
+    ev.push(`4) con esa URL, editar «Diana, paso 2» y recargar → aria-pressed ${dianaAfter} (se pierde: C-STU-02)`);
+    const base = attempts.every((r) => r.ask === '¿Sustituir tu mesa?' && r.playing === 0 && r.search.includes(`bpm=${r.bpmExpected}&`) && r.hist === 0 && r.remount);
+    if (!base) fails.push('confirmación/URL/remontaje');
+    const badScroll = attempts.filter((r) => Math.abs(r.top) > 120);
+    if (badScroll.length) { fails.push(`la página no baja a la mesa en ${badScroll.length} de ${attempts.length} intentos (sube a scrollY ${badScroll.map((r) => r.scrollY).join(',')})`); hallazgos.push('NUEVO-remix-scroll'); }
+    const c01 = attempts.some((r) => !r.loaded && (r.keptMine || r.previous));
+    if (c01) { fails.push(`remezclar no carga el beat pedido en ${attempts.filter((r) => !r.loaded).length} de 2 intentos: la mesa se vuelve a montar leyendo la URL anterior (C-STU-01)`); hallazgos.push('C-STU-01'); }
+    else if (attempts.some((r) => !r.loaded)) fails.push('la mesa no carga el beat');
+    if (dianaAfter === 'false') hallazgos.push('C-STU-02');
+    ev.push(sum(issues, blocked));
+    if (fails.length && !attempts[0].shot) await snap(page, `R-STU-29-${vp}`);
+    await context.close();
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; '), hallazgos: hallazgos.join(', ') };
+  },
+});
+
+await run('s03-ranking', cases);

@@ -1,0 +1,62 @@
+// Capturas para la revisión de arte (tarea 5.4): cada pantalla en los cortes del
+// proyecto, por encima del pliegue y a página completa, de día y de noche.
+import fs from 'node:fs';
+import path from 'node:path';
+import { startInstance, launchBrowser, SCRATCH } from './harness.mjs';
+
+const OUT = path.join(SCRATCH, 'arte');
+fs.mkdirSync(OUT, { recursive: true });
+const WIDTHS = [480, 640, 900, 1200, 1440];
+const SCREENS = [
+  ['portada', '/'],
+  ['listado', '/products'],
+  ['ficha', '/product/rockydz-boyz'],
+  ['menudrop', '/menudrop'],
+  ['carrito', '/cart'],
+  ['rockyia', '/rockyIA'],
+  ['crew', '/crew'],
+  ['micrew', '/mi-crew'],
+  ['estudio', '/estudio'],
+  ['legal', '/legal/privacidad'],
+  ['404', '/no-existe'],
+];
+const NIGHT = new Set(['portada', 'ficha', 'crew', 'estudio', '404']);
+
+const inst = await startInstance(3291, { SHOPIFY_RATE_LIMIT_MAX: '1000' });
+const browser = await launchBrowser();
+try {
+  for (const [name, route] of SCREENS) {
+    for (const w of WIDTHS) {
+      for (const theme of NIGHT.has(name) ? ['dia', 'noche'] : ['dia']) {
+        const ctx = await browser.newContext({ viewport: { width: w, height: 900 }, reducedMotion: 'reduce', locale: 'es-ES' });
+        await ctx.addInitScript(() => sessionStorage.setItem('rocky-splash-seen', '1'));
+        await ctx.route(/^(?!http:\/\/localhost)/, (r) => r.abort());
+        const page = await ctx.newPage();
+        await page.goto(inst.origin + route, { waitUntil: 'networkidle' });
+        if (theme === 'noche') {
+          const bulb = page.getByRole('button', { name: 'Activar el descontrol' });
+          if (!(await bulb.first().isVisible())) {
+            await page.getByRole('button', { name: 'Abrir el menú' }).click();
+            await page.waitForTimeout(300);
+          }
+          await bulb.first().click();
+          const close = page.getByRole('button', { name: 'Cerrar el menú' });
+          if (await close.isVisible().catch(() => false)) await close.click();
+          await page.waitForTimeout(900);
+          if ((await page.evaluate(() => document.documentElement.dataset.theme)) !== 'neon') {
+            throw new Error(`No se activó la noche en ${name} a ${w}px`);
+          }
+        }
+        await page.waitForTimeout(500);
+        const base = path.join(OUT, `${name}-${theme}-${w}`);
+        await page.screenshot({ path: `${base}-pliegue.png` });
+        await page.screenshot({ path: `${base}-completa.png`, fullPage: true });
+        await ctx.close();
+      }
+    }
+    console.log('ok', name);
+  }
+} finally {
+  await browser.close();
+  inst.stop();
+}

@@ -1,0 +1,17 @@
+import { launchBrowser, open, sum, ORIGIN, sleep } from './common.mjs';
+const b = await launchBrowser();
+try {
+  const o = await open(b, 'escritorio');
+  await o.page.goto(ORIGIN + '/');
+  await sleep(1500);
+  const p2 = await o.context.newPage();
+  await p2.goto(ORIGIN + '/legal/cookies');
+  await p2.bringToFront();
+  await sleep(500);
+  console.log('A visibility tras traer B:', await o.page.evaluate(() => document.visibilityState));
+  await o.page.bringToFront();
+  await sleep(300);
+  console.log('A tras volver:', await o.page.evaluate(() => document.visibilityState), 'B:', await p2.evaluate(() => document.visibilityState));
+  console.log(await o.page.title(), await o.page.locator('.commerce-notice').textContent().catch(()=>null));
+  console.log(sum(o));
+} finally { await b.close(); }

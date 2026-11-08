@@ -1,0 +1,25 @@
+import { startInstance, launchBrowser, openPage } from '../harness.mjs';
+import { PORT, nightOn, touchDrag, line } from './lib.mjs';
+const inst = await startInstance(PORT);
+const b = await launchBrowser();
+const test = async (label, night, spray, delay) => {
+  const { page, context } = await openPage(b, 'movil', { origin: inst.origin });
+  await page.goto(inst.origin + '/crew'); await page.waitForTimeout(1500);
+  if (night) await nightOn(page, 'movil');
+  if (spray) await page.locator('.spray-fab').tap();
+  await page.waitForTimeout(300);
+  await touchDrag(page, line(12, 300, 20, 480, 14));
+  await page.waitForTimeout(delay);
+  await page.locator('button.navbar-menu').tap();
+  await page.waitForTimeout(300);
+  console.log(label, delay, await page.evaluate(() => document.querySelector('button.navbar-menu').getAttribute('aria-expanded')));
+  await context.close();
+};
+try {
+  await test('dia', false, false, 0);
+  await test('dia', false, false, 600);
+  await test('noche sin spray', true, false, 0);
+  await test('noche spray', true, true, 0);
+  await test('noche spray', true, true, 600);
+  await test('noche spray', true, true, 1500);
+} finally { await b.close(); inst.stop(); }

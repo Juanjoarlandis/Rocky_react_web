@@ -1,0 +1,11 @@
+// Mantiene viva una instancia propia (puerto por argumento) hasta SIGTERM/SIGINT.
+import { startInstance } from '../harness.mjs';
+const port = Number(process.argv[2] || 3201);
+const extra = process.argv[3] ? JSON.parse(process.argv[3]) : {};
+const inst = await startInstance(port, extra);
+console.log(`instancia lista en ${inst.origin} (pid hijo ${inst.child.pid})`);
+const bye = () => { try { inst.stop(); } finally { setTimeout(() => process.exit(0), 300); } };
+process.on('SIGTERM', bye);
+process.on('SIGINT', bye);
+inst.child.on('exit', (c) => { console.log('la instancia salió', c, inst.log.join('').slice(-1500)); process.exit(1); });
+setInterval(() => {}, 1 << 30);

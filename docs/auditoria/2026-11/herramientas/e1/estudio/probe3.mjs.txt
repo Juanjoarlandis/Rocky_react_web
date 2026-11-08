@@ -1,0 +1,11 @@
+import { start, api } from './runner.mjs';
+const inst = await start(3205);
+try {
+  const js = '/assets/' + (await import('node:fs')).readdirSync('/RUTA/AL/REPO/dist/assets').find((f) => /^index-.*\.js$/.test(f));
+  for (const o of [null, inst.origin, 'http://127.0.0.1:3205', 'https://www.rocky035.com']) {
+    const r = await fetch(inst.origin + js, { headers: o ? { Origin: o } : {} });
+    console.log('JS', o, r.status);
+  }
+  const h = await fetch(inst.origin + '/estudio', { headers: { Origin: 'http://127.0.0.1:3205' } });
+  console.log('HTML con Origin ajeno', h.status);
+} finally { await inst.stop(); }

@@ -1,0 +1,148 @@
+// R-EGG-07: el flash del Paparazzi en el muro «La banda». Cada caso con su propio navegador.
+import { launchBrowser, open, sum, clean, shot, ORIGIN, sleep, results } from './common.mjs';
+
+const R = results('paparazzi');
+
+const flashLog = () => {
+  window.__flash = [];
+  new MutationObserver((muts) => {
+    for (const m of muts) {
+      for (const n of m.addedNodes) {
+        if (n.nodeType === 1 && n.matches?.('[data-testid="paparazzi-fogonazo"]')) {
+          const cs = getComputedStyle(n);
+          const chis = document.querySelector('[data-testid="paparazzi-flash"]');
+          window.__flash.push({ t: Math.round(performance.now()), z: cs.zIndex, pe: cs.pointerEvents, pos: cs.position, disp: cs.display, x: n.style.getPropertyValue('--flash-x'), y: n.style.getPropertyValue('--flash-y'), chispazo: Boolean(chis), anim: cs.animationName, dur: cs.animationDuration });
+        }
+      }
+      for (const n of m.removedNodes) {
+        if (n.nodeType === 1 && n.matches?.('[data-testid="paparazzi-fogonazo"]')) {
+          const last = window.__flash[window.__flash.length - 1];
+          if (last && !last.gone) last.gone = Math.round(performance.now());
+        }
+      }
+    }
+  }).observe(document, { childList: true, subtree: true });
+};
+
+const fakeHidden = () => {
+  const dh = Object.getOwnPropertyDescriptor(Document.prototype, 'hidden');
+  Object.defineProperty(Document.prototype, 'hidden', { configurable: true, get() { return window.__fakeHidden === true ? true : dh.get.call(this); } });
+};
+
+async function toWall(page) {
+  await page.evaluate(() => {
+    const ph = document.querySelector('.street-photographer');
+    const r = ph.getBoundingClientRect();
+    window.scrollBy(0, r.top + r.height / 2 - innerHeight / 2);
+  });
+  await sleep(150);
+  return page.evaluate(() => {
+    const ph = document.querySelector('.street-photographer');
+    const r = ph.getBoundingClientRect();
+    const visH = Math.min(r.bottom, innerHeight) - Math.max(r.top, 0);
+    return { t: Math.round(performance.now()), display: getComputedStyle(ph).display, ratio: r.height ? +(visH / r.height).toFixed(2) : 0 };
+  });
+}
+
+async function desktop() {
+  const b = await launchBrowser();
+  try {
+    const o = await open(b, 'escritorio');
+    const { page } = o;
+    await o.context.addInitScript(flashLog);
+    await o.context.addInitScript(fakeHidden);
+    await page.goto(ORIGIN + '/');
+    await sleep(1200);
+    const w = await toWall(page);
+    await sleep(42000);
+    const f1 = await page.evaluate(() => window.__flash);
+    const first = f1[0] ? (f1[0].t - w.t) / 1000 : null;
+    const gaps = f1.slice(1).map((f, i) => (f.t - f1[i].t) / 1000);
+    const life = f1.filter((f) => f.gone).map((f) => f.gone - f.t);
+    // Fuera de cuadro y vuelta
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await sleep(3000);
+    const nOut = (await page.evaluate(() => window.__flash.length)) - f1.length;
+    const w2 = await toWall(page);
+    await sleep(3500);
+    const f2 = await page.evaluate(() => window.__flash);
+    const back = f2.find((f) => f.t > w2.t);
+    const backDelay = back ? (back.t - w2.t) / 1000 : null;
+    // Pestaña oculta con el muro en pantalla
+    await page.evaluate(() => { window.__fakeHidden = true; document.dispatchEvent(new Event('visibilitychange')); });
+    const tH = await page.evaluate(() => performance.now());
+    await sleep(20000);
+    const hiddenFlashes = (await page.evaluate(() => window.__flash)).filter((f) => f.t > tH).length;
+    await page.evaluate(() => { window.__fakeHidden = false; document.dispatchEvent(new Event('visibilitychange')); });
+    const tV = await page.evaluate(() => performance.now());
+    await sleep(3600);
+    const afterVisible = (await page.evaluate(() => window.__flash)).find((f) => f.t > tV);
+    const s = f1[0] || {};
+    const clickThrough = await (async () => {
+      // ¿Bloquea clics? Durante un fogonazo, elementFromPoint en el centro de la pantalla
+      await page.waitForSelector('[data-testid="paparazzi-fogonazo"]', { timeout: 17000 }).catch(() => {});
+      return page.evaluate(() => {
+        const h = document.elementFromPoint(innerWidth / 2, innerHeight / 2);
+        return h?.closest('[data-testid="paparazzi-fogonazo"]') ? 'el fogonazo' : `${h?.tagName.toLowerCase()}.${String(h?.className).split(' ')[0]}`;
+      });
+    })();
+    const ok = w.display !== 'none' && w.ratio >= 0.6 && first !== null && first >= 1.5 && first <= 2.8 && gaps.every((g) => g >= 8.8 && g <= 16.8) && life.every((l) => l >= 550 && l <= 800) && Number(s.z) > 1000 && s.pe === 'none' && s.pos === 'fixed' && s.chispazo && nOut === 0 && backDelay !== null && backDelay <= 2.8 && hiddenFlashes === 0 && Boolean(afterVisible) && clickThrough !== 'el fogonazo' && clean(o);
+    R.add({
+      id: 'R-EGG-07',
+      viewport: 'escritorio',
+      resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `fotógrafo visible ${Math.round(w.ratio * 100)} %; primera foto a ${first?.toFixed(2)} s de quedar a tiro; ${f1.length} fotos en 42 s, huecos ${gaps.map((g) => g.toFixed(1)).join('/')} s; fogonazo dura ${life.join('/')} ms, ${s.pos}, z-index ${s.z} (barra 1000), pointer-events ${s.pe}, animación ${s.anim} ${s.dur}, nace en (${s.x}, ${s.y}), chispazo en la cámara=${s.chispazo}; centro de pantalla durante el fogonazo → ${clickThrough}; fuera de cuadro 3 s → ${nOut} fotos; al volver dispara a ${backDelay?.toFixed(2)} s; pestaña oculta (document.hidden emulado) 20 s → ${hiddenFlashes} fotos; al volver a visible dispara=${Boolean(afterVisible)} a ${afterVisible ? ((afterVisible.t - tV) / 1000).toFixed(1) : '—'} s; ${sum(o)}`,
+    });
+    if (!ok) await shot(page, 'estructura', 'R-EGG-07-escritorio');
+  } finally {
+    await b.close();
+  }
+}
+
+async function mobile() {
+  const b = await launchBrowser();
+  try {
+    const o = await open(b, 'movil');
+    const { page } = o;
+    await o.context.addInitScript(flashLog);
+    await page.goto(ORIGIN + '/');
+    await sleep(1200);
+    const w = await toWall(page);
+    await sleep(20000);
+    const f = await page.evaluate(() => window.__flash);
+    const ok = w.display === 'none' && f.length === 0 && clean(o);
+    R.add({ id: 'R-EGG-07', viewport: 'movil', resultado: ok ? 'OK' : 'FALLO', evidencia: `375 px: fotógrafo display=${w.display}; 20 s con el muro en pantalla → ${f.length} fotos; ${sum(o)}` });
+  } finally {
+    await b.close();
+  }
+}
+
+async function reduced() {
+  const b = await launchBrowser();
+  try {
+    const o = await open(b, 'escritorio', { reducedMotion: 'reduce' });
+    const { page } = o;
+    await o.context.addInitScript(flashLog);
+    await page.goto(ORIGIN + '/');
+    await sleep(1200);
+    const w = await toWall(page);
+    await sleep(20000);
+    const f = await page.evaluate(() => window.__flash);
+    // El CSS además oculta los destellos: se fuerza uno para comprobarlo
+    const css = await page.evaluate(() => {
+      const s = document.createElement('span');
+      s.className = 'street-flash-blink';
+      document.body.appendChild(s);
+      const d = getComputedStyle(s).display;
+      s.remove();
+      return d;
+    });
+    const ok = w.ratio >= 0.6 && f.length === 0 && css === 'none' && clean(o);
+    R.add({ id: 'R-EGG-07', viewport: 'escritorio', resultado: ok ? 'OK' : 'FALLO', evidencia: `(movimiento reducido) fotógrafo visible ${Math.round(w.ratio * 100)} %, 20 s → ${f.length} fotos; un .street-flash-blink forzado queda display=${css}; ${sum(o)}` });
+  } finally {
+    await b.close();
+  }
+}
+
+const res = await Promise.allSettled([desktop(), mobile(), reduced()]);
+for (const r of res) if (r.status === 'rejected') console.error('ERROR', r.reason);

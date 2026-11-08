@@ -1,0 +1,23 @@
+import { launchBrowser, open, ORIGIN, sleep } from './common.mjs';
+const b = await launchBrowser();
+try {
+  const o = await open(b, 'movil');
+  const { page } = o;
+  await page.goto(ORIGIN + '/');
+  await sleep(1000);
+  const y = () => page.evaluate(() => Math.round(scrollY));
+  for (const how of ['Escape', 'botón Cerrar', 'destino actual (Tienda)']) {
+    await page.evaluate(() => scrollTo(0, 1500));
+    await sleep(300);
+    const y0 = await y();
+    await page.locator('header .navbar-menu').click();
+    await sleep(300);
+    const yOpen = await y();
+    const navTop = await page.evaluate(() => Math.round(document.querySelector('header.navbar').getBoundingClientRect().top));
+    if (how === 'Escape') await page.keyboard.press('Escape');
+    else if (how === 'botón Cerrar') await page.locator('header .navbar-menu').click();
+    else await page.getByRole('dialog', { name: 'Menú' }).getByRole('link', { name: 'Tienda' }).click();
+    await sleep(500);
+    console.log(how, { y0, yOpen, navTopConHojaAbierta: navTop, yDespues: await y() });
+  }
+} finally { await b.close(); }

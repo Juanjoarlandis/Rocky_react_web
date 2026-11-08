@@ -1,0 +1,26 @@
+import { startInstance, launchBrowser, openPage, summarize } from '../harness.mjs';
+const inst = await startInstance(3207, {});
+const b = await launchBrowser();
+try {
+  const { page, issues, context } = await openPage(b, 'escritorio', {});
+  await page.goto('http://localhost:3207/', { waitUntil: 'networkidle' });
+  console.log('home aviso forms:', await page.locator('[data-testid="drop-aviso"]').count());
+  const hrefs = await page.locator('a[href^="/product/"]').evaluateAll((as) => [...new Set(as.map((a) => a.getAttribute('href')))]);
+  console.log(hrefs.length, hrefs.slice(0, 40).join(' '));
+  for (const h of hrefs.slice(0, 40)) {
+    await page.goto('http://localhost:3207' + h, { waitUntil: 'networkidle' });
+    const n = await page.locator('[data-testid="drop-aviso"]').count();
+    if (n) { console.log('aviso en', h); break; }
+  }
+  await page.goto('http://localhost:3207/product/rocky-night-runner', { waitUntil: 'networkidle' });
+  console.log('night-runner text:', (await page.locator('main').innerText()).slice(0, 300).replace(/\s+/g,' '));
+  await context.close();
+  // route header stripping test
+  const p2 = await openPage(b, 'escritorio', {});
+  const seen = [];
+  p2.page.on('request', (r) => { if (r.url().includes('/assets/index-')) seen.push(r.headers()['origin'] || 'sin-origin'); });
+  await p2.page.route('**/*', (route) => { const req = route.request(); if (req.method() === 'GET') { const h = { ...req.headers() }; delete h.origin; return route.continue({ headers: h }); } return route.continue(); });
+  await p2.page.goto('http://127.0.0.1:3207/rockyIA', { waitUntil: 'networkidle' });
+  console.log('sim root len', await p2.page.evaluate(() => document.getElementById('root')?.innerHTML.length), seen, summarize(p2.issues).slice(0, 600));
+  await p2.context.close();
+} finally { await b.close(); inst.stop(); }

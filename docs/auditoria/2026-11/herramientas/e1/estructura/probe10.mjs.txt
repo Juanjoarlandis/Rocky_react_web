@@ -1,0 +1,18 @@
+import { launchBrowser, open, ORIGIN, sleep } from './common.mjs';
+const b = await launchBrowser();
+try {
+  for (const vp of ['escritorio', 'movil']) {
+    const o = await open(b, vp);
+    await o.page.goto(ORIGIN + '/estudio');
+    await sleep(2500);
+    const y = await o.page.evaluate(() => ({ y: scrollY, iframeTop: Math.round(document.querySelector('iframe[title*="Spotify"]').getBoundingClientRect().top), vh: innerHeight }));
+    console.log(vp, 'sin scroll', y, 'externas:', o.external);
+    await o.page.locator('iframe[title*="Spotify"]').scrollIntoViewIfNeeded();
+    await sleep(1000);
+    console.log(vp, 'tras scroll externas:', o.external);
+    await o.page.goto(ORIGIN + '/');
+    await sleep(2000);
+    console.log(vp, 'portada externas acumuladas:', o.external.length);
+    await o.context.close();
+  }
+} finally { await b.close(); }

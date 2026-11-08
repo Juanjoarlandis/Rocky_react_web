@@ -1,0 +1,23 @@
+import { start } from './runner.mjs';
+import { launchBrowser } from '../harness.mjs';
+import { open, gotoStudio, snap, sleep } from './common.mjs';
+const inst = await start(3205);
+const b = await launchBrowser();
+try {
+  for (const w of [1440, 1200, 1024]) {
+    const { page, context } = await open(b, 'escritorio', inst.origin);
+    await page.setViewportSize({ width: w, height: 900 });
+    await gotoStudio(page, inst.origin);
+    const m = await page.evaluate(() => {
+      const s = document.querySelector('.seq-scroll');
+      const r = document.querySelector('.seq-rejilla');
+      const fila = document.querySelector('.seq-fila');
+      const last = [...fila.querySelectorAll('.celda')].pop().getBoundingClientRect();
+      return { sw: s.scrollWidth, cw: s.clientWidth, ox: getComputedStyle(s).overflowX, sRight: Math.round(s.getBoundingClientRect().right), lastRight: Math.round(last.right), cabeza: Math.round(fila.querySelector('.seq-cabeza').getBoundingClientRect().width), mesaW: Math.round(document.querySelector('.mesa').getBoundingClientRect().width) };
+    });
+    console.log(w, JSON.stringify(m));
+    await page.locator('.mesa-seq').scrollIntoViewIfNeeded();
+    if (w === 1440) await snap(page, 'probe-seq-1440', { clip: await page.locator('.mesa-seq').boundingBox() });
+    await context.close();
+  }
+} finally { await b.close(); await inst.stop(); }

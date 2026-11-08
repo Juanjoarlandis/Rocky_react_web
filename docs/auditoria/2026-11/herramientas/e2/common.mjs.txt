@@ -1,0 +1,260 @@
+// Utilidades comunes de los recorridos E2 (simulado) de la auditoría 2026-11.
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { createRequire } from 'node:module';
+
+export const SCRATCH = '/RUTA/AL/SCRATCH';
+export const E2SIM = `${SCRATCH}/e2sim`;
+export const E2DIR = `${SCRATCH}/e2`;
+export const OUT = `${E2DIR}/out`;
+export const STATE = `${E2DIR}/state`;
+fs.mkdirSync(OUT, { recursive: true });
+fs.mkdirSync(STATE, { recursive: true });
+
+export const sim = await import(`${E2SIM}/start-e2sim.mjs`);
+export const hooks = await import(`${E2SIM}/send-webhook.mjs`);
+export const fixtures = await import(`${E2SIM}/fixtures.mjs`);
+export const harness = await import(`${SCRATCH}/e1/harness.mjs`);
+export const { chromium } = createRequire(`${SCRATCH}/e1/package.json`)('playwright');
+
+// Límites altos para las fichas que no tratan de límites (valores dentro de
+// los máximos que admite server/config/app.mjs; por encima, vuelve al defecto).
+export const HIGH_LIMITS = {
+  CHAT_RATE_LIMIT_MAX: '50',
+  CHAT_RATE_LIMIT_WINDOW_MS: '1000',
+  CHAT_GLOBAL_DAILY_MAX: '50',
+  SHOPIFY_RATE_LIMIT_MAX: '2000',
+  SHOPIFY_RATE_LIMIT_WINDOW_MS: '60000',
+  AVISOS_RATE_LIMIT_MAX: '100',
+};
+
+export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Arranca una instancia E2 con el observador (OpenRouter + RockyProducts) y,
+// si se pide, con clave y almacén propios para poder reiniciar conservando estado.
+export async function start(port, envExtra = {}, opts = {}) {
+  const obsFile = path.join(STATE, `obs-${port}.jsonl`);
+  if (!opts.keepObs) fs.writeFileSync(obsFile, '');
+  const env = {
+    ...HIGH_LIMITS,
+    NODE_OPTIONS: `--import ${E2SIM}/mock-preload.mjs --import ${E2DIR}/observer-preload.mjs`,
+    E2OBS_FILE: obsFile,
+    ...envExtra,
+  };
+  const inst = await sim.startE2Instance(port, env, opts);
+  inst.obsFile = obsFile;
+  inst.obs = (kind = 'openrouter') =>
+    fs
+      .readFileSync(obsFile, 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .map((l) => JSON.parse(l))
+      .filter((e) => !kind || e.kind === kind);
+  inst.logText = () => inst.log.join('');
+  return inst;
+}
+
+// Clave y ruta de almacén fijas: permiten parar y volver a arrancar la misma
+// «máquina» conservando sesiones y perfiles (no el estado en memoria del doble).
+export function persistentStore(name) {
+  const file = path.join(STATE, `${name}.enc`);
+  fs.rmSync(file, { force: true });
+  return { APP_ENCRYPTION_KEY: crypto.randomBytes(32).toString('base64'), STATE_STORE_PATH: file };
+}
+
+export async function openPage(browser, inst, opts = {}) {
+  const res = await sim.openE2Page(browser, inst, opts);
+  return res;
+}
+
+export function sumIssues(issues, routes) {
+  const parts = [];
+  if (issues.pageErrors.length) parts.push(`errores de página: ${issues.pageErrors.join(' | ')}`);
+  if (issues.console.length) parts.push(`consola: ${[...new Set(issues.console)].slice(0, 6).join(' | ')}`);
+  if (issues.failed.length) parts.push(`fallidas: ${[...new Set(issues.failed)].slice(0, 6).join(' | ')}`);
+  if (issues.http.length) parts.push(`HTTP>=400: ${[...new Set(issues.http)].slice(0, 8).join(' | ')}`);
+  if (routes?.blocked?.length) parts.push(`bloqueadas por la barrera: ${[...new Set(routes.blocked)].join(' | ')}`);
+  return parts.join(' ; ') || 'sin errores de consola ni de red';
+}
+
+// Espera la respuesta de una ruta de la API con método.
+export function waitApi(page, pathEnd, method = 'GET', timeout = 20_000) {
+  return page.waitForResponse(
+    (r) => new URL(r.url()).pathname === pathEnd && r.request().method() === method,
+    { timeout }
+  );
+}
+
+export async function jsonOf(res) {
+  try {
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+export const variantId = (alias) => fixtures.findVariant(alias).id;
+export const opId = () => crypto.randomUUID();
+
+// Peticiones de máquina (sin navegador) contra la instancia.
+export async function api(inst, method, p, { body, cookie, origin = inst.origin, headers = {}, base } = {}) {
+  const url = `${base || inst.httpOrigin}${p}`;
+  const h = { ...headers };
+  if (origin) h.origin = origin;
+  if (cookie) h.cookie = cookie;
+  if (body !== undefined) h['content-type'] = 'application/json';
+  const res = await fetch(url, { method, headers: h, body: body === undefined ? undefined : typeof body === 'string' ? body : JSON.stringify(body), redirect: 'manual' });
+  const text = await res.text();
+  let json = null;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    json = null;
+  }
+  return { status: res.status, headers: res.headers, json, text, setCookie: res.headers.get('set-cookie') };
+}
+
+export const cookieFrom = (setCookie) => (setCookie ? setCookie.split(';')[0] : null);
+
+// Runner de casos: cada caso devuelve { resultado, evidencia, hallazgos }.
+// Una excepción del script se registra como NO EJECUTADO (error del script),
+// nunca como FALLO de la web.
+export function createRunner(group) {
+  const results = [];
+  const file = path.join(OUT, `${group}${process.env.E2_TAG ? `-${process.env.E2_TAG}` : ''}.json`);
+  return {
+    results,
+    async run(id, viewport, fn) {
+      const t0 = Date.now();
+      let r;
+      try {
+        r = await fn();
+      } catch (error) {
+        r = { resultado: `NO EJECUTADO: error del script: ${String(error?.message || error).split('\n')[0].slice(0, 200)}`, evidencia: String(error?.stack || '').slice(0, 400), hallazgos: '' };
+      }
+      const row = { id, viewport, resultado: r.resultado, evidencia: r.evidencia || '', hallazgos: r.hallazgos || '', ms: Date.now() - t0 };
+      results.push(row);
+      process.stdout.write(`${row.resultado.slice(0, 40).padEnd(40)} ${id} ${viewport} (${row.ms} ms) — ${String(row.evidencia).slice(0, 260)}\n`);
+      fs.writeFileSync(file, JSON.stringify(results, null, 2));
+      return row;
+    },
+    save(extra = {}) {
+      fs.writeFileSync(file, JSON.stringify(results, null, 2));
+      if (Object.keys(extra).length) fs.writeFileSync(path.join(OUT, `${group}-extra.json`), JSON.stringify(extra, null, 2));
+    },
+  };
+}
+
+// Construye el veredicto a partir de comprobaciones [{ ok, txt }].
+export function verdict(checks, { notes = [], hallazgos = [] } = {}) {
+  const failed = checks.filter((c) => c.ok === false);
+  const ev = checks.map((c) => `${c.ok === false ? '✗ ' : c.ok === null ? '· ' : ''}${c.txt}`).concat(notes).join(' ; ');
+  return {
+    resultado: failed.length ? 'FALLO (E2 simulado)' : 'OK (E2 simulado)',
+    evidencia: (failed.length ? `falla: ${failed.map((c) => c.txt.split(':')[0]).join(' | ')}. ` : '') + ev,
+    hallazgos: [...new Set(hallazgos)].join(', '),
+  };
+}
+
+export const check = (ok, txt) => ({ ok: ok === null ? null : Boolean(ok), txt });
+
+export async function shotE2(page, name) {
+  try {
+    return await harness.shot(page, 'e2', name, { fullPage: false });
+  } catch {
+    return null;
+  }
+}
+
+// Texto del aviso global de la tienda (o '').
+export async function noticeText(page) {
+  const n = page.locator('.commerce-notice');
+  return (await n.count()) ? ((await n.first().textContent()) || '').trim() : '';
+}
+
+export async function noticeRole(page) {
+  const n = page.locator('.commerce-notice');
+  return (await n.count()) ? n.first().getAttribute('role') : null;
+}
+
+// Espera a que la tienda termine de arrancar (estado + productos + carrito/cuenta).
+export async function waitStore(page, { timeout = 15_000 } = {}) {
+  await page.waitForFunction(() => !document.querySelector('.product-grid--loading') && !document.querySelector('.page-loading'), null, { timeout }).catch(() => {});
+  await page.waitForLoadState('networkidle', { timeout }).catch(() => {});
+}
+
+export async function focusDesc(page) {
+  return page.evaluate(() => {
+    const el = document.activeElement;
+    if (!el || el === document.body) return { d: '<body>', visible: false };
+    const cs = getComputedStyle(el);
+    const outline = cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0 ? `${cs.outlineWidth} ${cs.outlineStyle} ${cs.outlineColor}` : '';
+    const shadow = cs.boxShadow !== 'none' ? cs.boxShadow.slice(0, 60) : '';
+    const label = (el.getAttribute('aria-label') || el.innerText || el.value || '').trim().replace(/\s+/g, ' ').slice(0, 50);
+    return { d: `${el.tagName.toLowerCase()}${label ? `«${label}»` : ''}`, visible: Boolean(outline || shadow), outline, shadow, fv: el.matches(':focus-visible') };
+  });
+}
+
+export async function tabs(page, n, shift = false) {
+  const out = [];
+  for (let i = 0; i < n; i += 1) {
+    await page.keyboard.press(shift ? 'Shift+Tab' : 'Tab');
+    await sleep(40);
+    out.push(await focusDesc(page));
+  }
+  return out;
+}
+
+export const fmtTabs = (list) => list.map((f) => `${f.d}${f.visible ? '' : ' [sin foco visible]'}`).join(' › ');
+
+export function saveJson(name, data) {
+  fs.writeFileSync(path.join(OUT, `${name}.json`), JSON.stringify(data, null, 2));
+}
+
+// Para la instancia y espera a que su puerto deje de responder (evita que un
+// arranque inmediato en el mismo puerto compruebe la salud del proceso viejo).
+export async function stopWait(inst) {
+  // stop() del doble espera a que el proxy HTTPS cierre todas sus conexiones;
+  // si una página sigue con una petición abierta, no acaba nunca: tras 8 s se
+  // mata el proceso del servidor (el proxy ya no escucha).
+  const done = await Promise.race([inst.stop().then(() => true), sleep(8000).then(() => false)]);
+  if (!done && inst.child.exitCode === null && inst.child.signalCode === null) {
+    inst.child.kill('SIGTERM');
+    await sleep(1500);
+    if (inst.child.exitCode === null && inst.child.signalCode === null) inst.child.kill('SIGKILL');
+  }
+  const ports = [inst.port, inst.httpsPort].filter(Boolean);
+  for (let i = 0; i < 60; i += 1) {
+    let alive = false;
+    for (const p of ports) {
+      try {
+        await fetch(`http://localhost:${p}/api/health`, { signal: AbortSignal.timeout(300) });
+        alive = true;
+      } catch {
+        /* cerrado */
+      }
+    }
+    if (!alive) return;
+    await sleep(250);
+  }
+  throw new Error(`el puerto ${inst.port} sigue respondiendo tras parar la instancia`);
+}
+
+// Lee (sin escribir) el almacén cifrado de una instancia con clave conocida y
+// devuelve sólo recuentos y formas: nunca tokens ni identificadores completos.
+export async function inspectStore(filePath, key) {
+  const { EncryptedFileStore } = await import('/RUTA/AL/REPO/server/storage/encrypted-file-store.mjs');
+  const store = new EncryptedFileStore({ filePath, key });
+  const state = await store.readState();
+  const ns = state.namespaces || {};
+  const counts = Object.fromEntries(Object.entries(ns).map(([k, v]) => [k, Object.keys(v).length]));
+  const sessions = Object.values(ns.sessions || {}).map((r) => r.value || {});
+  return {
+    counts,
+    sessionsWithChat: sessions.filter((s) => Array.isArray(s.chatHistory) && s.chatHistory.length).map((s) => ({ messages: s.chatHistory.length, roles: s.chatHistory.map((m) => m.role[0]).join(''), first: String(s.chatHistory[0]?.content || '').slice(0, 40), customer: Boolean(s.customerTokenId), cart: Boolean(s.cartId) })),
+    sessionsWithCustomer: sessions.filter((s) => s.customerTokenId).length,
+    sessionsWithCart: sessions.filter((s) => s.cartId).length,
+    sessionKeys: [...new Set(sessions.flatMap((s) => Object.keys(s)))],
+  };
+}

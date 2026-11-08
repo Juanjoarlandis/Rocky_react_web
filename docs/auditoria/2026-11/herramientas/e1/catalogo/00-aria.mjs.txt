@@ -1,0 +1,37 @@
+// Nombres accesibles reales (árbol de accesibilidad de Chrome) en menú drop, tarjetas y ficha,
+// y captura del anillo de foco de la foto de una tarjeta.
+import { startInstance, launchBrowser, openPage, shot } from '../harness.mjs';
+
+const inst = await startInstance(3202, {});
+const browser = await launchBrowser();
+try {
+  const { page, context } = await openPage(browser, 'escritorio', { origin: inst.origin, reducedMotion: 'reduce' });
+  await page.goto(inst.origin + '/menudrop');
+  await page.waitForSelector('nav[aria-label="Categorías"] a');
+  console.log(await page.locator('nav[aria-label="Categorías"]').ariaSnapshot());
+  await page.goto(inst.origin + '/');
+  await page.waitForSelector('.commerce-notice');
+  console.log(await page.locator('.product-grid > article').first().ariaSnapshot());
+  console.log(await page.locator('[data-testid="locked-designs"]').ariaSnapshot());
+  await page.goto(inst.origin + '/product/35-red');
+  await page.waitForSelector('.detail');
+  console.log(await page.locator('.detail').ariaSnapshot());
+  await page.goto(inst.origin + '/product/rocky-night-runner');
+  await page.waitForSelector('.detail');
+  console.log(await page.locator('.detail-media-wrap').ariaSnapshot());
+  // Anillo de foco de la foto de la tarjeta
+  await page.goto(inst.origin + '/');
+  await page.waitForSelector('.commerce-notice');
+  for (let i = 0; i < 30; i += 1) {
+    await page.keyboard.press('Tab');
+    if ((await page.evaluate(() => document.activeElement?.getAttribute('aria-label'))) === 'Ver Night Runner en grande') break;
+  }
+  await page.waitForTimeout(400);
+  const card = page.locator('article', { hasText: 'Night Runner' });
+  const b = await card.boundingBox();
+  console.log(await shot(page, 'catalogo', 'NUEVO-foco-foto-tarjeta-escritorio', { clip: { x: b.x - 12, y: b.y - 12, width: b.width + 24, height: Math.min(b.height + 24, 520) } }));
+  await context.close();
+} finally {
+  await browser.close();
+  inst.stop();
+}

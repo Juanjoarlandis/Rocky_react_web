@@ -1,0 +1,68 @@
+// R-CART-05: límite de peticiones de /api/shopify con los valores por defecto (120/min).
+import { startInstance, launchBrowser, summarize, shot } from '../harness.mjs';
+import { guardedPage, save, call, brief } from './common.mjs';
+
+const inst = await startInstance(3303, {});
+const W = inst.origin;
+const browser = await launchBrowser();
+const out = { browser: {} };
+
+async function snapshot(page) {
+  return {
+    notice: await page.locator('.commerce-notice').innerText().catch(() => null),
+    role: await page.locator('.commerce-notice').getAttribute('role').catch(() => null),
+    cards: await page.locator('article.product-card').count(),
+    emptyText: (await page.locator('main').innerText()).slice(0, 400).replace(/\s+/g, ' '),
+  };
+}
+
+try {
+  const t0 = Date.now();
+  const codes = {};
+  for (let i = 0; i < 125; i += 1) {
+    const r = await fetch(`${W}/api/shopify/status`);
+    await r.arrayBuffer();
+    codes[r.status] = (codes[r.status] || 0) + 1;
+  }
+  out.codes = codes;
+  const extra = await call(`${W}/api/shopify/status`);
+  out.extra = { brief: brief(extra), headers: extra.headers };
+  const resetAt = Number(extra.headers['ratelimit-reset']) * 1000;
+  out.burstMs = Date.now() - t0;
+
+  const ctxs = {};
+  for (const vp of ['escritorio', 'movil']) {
+    const p = await guardedPage(browser, vp, { origin: W });
+    ctxs[vp] = p;
+    await p.page.goto(`${W}/`);
+    await p.page.waitForTimeout(1500);
+    const home = await snapshot(p.page);
+    await shot(p.page, 'carrito', `R-CART-05-limite-${vp}`);
+    await p.page.goto(`${W}/cart`);
+    await p.page.waitForTimeout(1500);
+    const cart = await snapshot(p.page);
+    cart.h1 = await p.page.locator('.cart-empty h1').textContent().catch(() => null);
+    out.browser[vp] = { withinWindow: { home, cart, at: Date.now() < resetAt } };
+  }
+  out.waitMs = Math.max(0, resetAt - Date.now()) + 1500;
+  await new Promise((r) => setTimeout(r, out.waitMs));
+  for (const vp of ['escritorio', 'movil']) {
+    const { page, issues, context } = ctxs[vp];
+    await page.goto(`${W}/`);
+    await page.waitForTimeout(1500);
+    const home = await snapshot(page);
+    await page.goto(`${W}/cart`);
+    await page.waitForTimeout(1000);
+    const cart = await snapshot(page);
+    out.browser[vp].afterWindow = { home, cart };
+    out.browser[vp].issues = summarize(issues);
+    await context.close();
+  }
+} catch (e) {
+  out.error = String(e.stack || e);
+} finally {
+  await browser.close();
+  inst.stop();
+}
+save('carrito-limite', out);
+console.log(JSON.stringify(out, null, 1));

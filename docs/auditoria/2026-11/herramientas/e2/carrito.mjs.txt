@@ -1,0 +1,1160 @@
+// Fichas E2 de carrito y checkout: R-CART-07..22, R-CHK-02..05 y la pasada de
+// teclado del carrito. Puerto 3411 (HTTP).
+import {
+  start, sim, chromium, openPage, createRunner, verdict, check, waitApi, waitStore, noticeText, noticeRole,
+  api, shotE2, sumIssues, sleep, saveJson, variantId, opId, cookieFrom, focusDesc, tabs, fmtTabs, stopWait,
+} from './common.mjs';
+
+const R = createRunner('carrito');
+const VPS = (process.env.E2_VPS || 'escritorio,movil').split(',');
+const ONLY = process.env.E2_ONLY ? new Set(process.env.E2_ONLY.split(',')) : null;
+const want = (id) => !ONLY || ONLY.has(id);
+const nb = (s) => String(s ?? '').replace(/ /g, ' ').replace(/\s+/g, ' ').trim();
+const extra = {};
+let A;
+let browser;
+
+async function seed(context, lines) {
+  const out = [];
+  for (const [alias, quantity] of lines) {
+    const res = await context.request.post(`${A.origin}/api/shopify/cart/lines`, {
+      headers: { Origin: A.origin },
+      data: { variantId: variantId(alias), quantity, operationId: opId() },
+    });
+    out.push(res.status());
+  }
+  return out;
+}
+
+async function gotoCart(page) {
+  const p = waitApi(page, '/api/shopify/cart');
+  await page.goto(`${A.origin}/cart`);
+  await p;
+  await sleep(350);
+}
+
+async function rows(page) {
+  return page.evaluate(() =>
+    [...document.querySelectorAll('.cart-item')].map((li) => ({
+      title: li.querySelector('.cart-item-title')?.textContent.trim(),
+      href: li.querySelector('.cart-item-title')?.getAttribute('href'),
+      mediaHref: li.querySelector('.cart-item-media')?.getAttribute('href'),
+      img: Boolean(li.querySelector('img.cart-item-image')),
+      variant: li.querySelector('.cart-item-variant')?.textContent.trim() || null,
+      price: (li.querySelector('.cart-item-price')?.textContent || '').replace(/ /g, ' ').trim(),
+      qty: li.querySelector('.quantity-value')?.textContent.trim(),
+      total: (li.querySelector('.cart-item-total')?.textContent || '').replace(/ /g, ' ').trim(),
+      soldout: li.querySelector('.cart-item-soldout')?.textContent.trim() || null,
+      group: li.querySelector('[role=group]')?.getAttribute('aria-label'),
+      btns: [...li.querySelectorAll('button')].map((b) => b.getAttribute('aria-label')),
+    }))
+  );
+}
+
+const line = (page, title) => page.locator('.cart-item', { has: page.locator('.cart-item-title', { hasText: title }) });
+const cardBtn = (page, title) =>
+  page.locator('.product-card', { has: page.locator('.product-title', { hasText: new RegExp(`^${title}$`) }) }).locator('.add-to-cart-control button');
+const detailBtn = (page) => page.locator('.detail-buy .add-to-cart-control button');
+const cartLabel = (page) => page.locator('.navbar-cart').getAttribute('aria-label');
+const counter = async (page) => ((await page.locator('.cart-counter').count()) ? nb(await page.locator('.cart-counter').textContent()) : '');
+
+// Observador del repartidor (montajes del nodo data-testid="cart-runner").
+const RUNNER_SPY = () => {
+  window.__runs = [];
+  const tick = () => {
+    const el = document.querySelector('[data-testid="cart-runner"]');
+    const now = performance.now();
+    if (el && el !== window.__cur) {
+      if (window.__cur && !window.__runs.at(-1).end) window.__runs.at(-1).end = now;
+      window.__cur = el;
+      const mini = document.querySelector('.mini-player')?.getBoundingClientRect();
+      window.__runs.push({
+        start: now,
+        h: el.style.height,
+        w: el.style.width,
+        aria: el.getAttribute('aria-hidden'),
+        src: el.querySelector('img')?.getAttribute('src'),
+        correY: el.style.getPropertyValue('--corre-y'),
+        hastaX: el.style.getPropertyValue('--hasta-x'),
+        mini: mini ? { left: mini.left, right: mini.right, bottom: mini.bottom } : null,
+      });
+    }
+    if (!el && window.__cur) {
+      window.__runs.at(-1).end = now;
+      window.__cur = null;
+    }
+  };
+  const obs = new MutationObserver(tick);
+  document.addEventListener('DOMContentLoaded', () => obs.observe(document.body, { childList: true, subtree: true }));
+};
+
+async function main() {
+  A = await start(3411);
+  browser = await sim.launchE2Browser(chromium);
+
+  for (const vp of VPS) {
+    // ------------------------------------------------------------ R-CART-07
+    if (want('R-CART-07')) await R.run('R-CART-07', vp, async () => {
+      const { context, page, issues, routes } = await openPage(browser, A, { viewportName: vp });
+      const resP = waitApi(page, '/api/shopify/cart');
+      await page.goto(`${A.origin}/cart`);
+      const res = await resP;
+      const body = await res.text();
+      const setCookie = await res.headerValue('set-cookie');
+      await waitStore(page);
+      const h1 = nb(await page.locator('h1.page-title').textContent());
+      const notice = await noticeText(page);
+      const label = await cartLabel(page);
+      const cookies = await context.cookies();
+      const checks = [
+        check(res.status() === 200 && body === '{"cart":null,"warnings":[]}', `GET /api/shopify/cart → ${res.status()} ${body}`),
+        check(!setCookie && cookies.length === 0, `sin Set-Cookie (${setCookie || 'ninguna'}) y sin cookies en el navegador (${cookies.length})`),
+        check(h1 === 'Tu carrito está vacío' && !notice, `página «${h1}», aviso «${notice}»`),
+        check(label === 'Carrito, vacío', `icono «${label}»`),
+      ];
+      const v = verdict(checks, { notes: [sumIssues(issues, routes)] });
+      await context.close();
+      return v;
+    });
+
+    // ------------------------------------------------------------ R-CART-08
+    if (want('R-CART-08')) await R.run('R-CART-08', vp, async () => {
+      const { context, page, issues, routes } = await openPage(browser, A, { viewportName: vp });
+      await page.goto(`${A.origin}/`);
+      await waitStore(page);
+      A.setControl({ storefront: { latencyMs: 700 } });
+      const btn = cardBtn(page, 'RockyRacing');
+      const reqP = page.waitForRequest((r) => r.url().endsWith('/api/shopify/cart/lines') && r.method() === 'POST');
+      const resP = waitApi(page, '/api/shopify/cart/lines', 'POST');
+      await btn.click();
+      const during = { text: nb(await btn.textContent()), disabled: await btn.isDisabled() };
+      const req = await reqP;
+      const reqBody = req.postDataJSON();
+      const reqOrigin = (await req.allHeaders()).origin;
+      const res = await resP;
+      const setCookie = await res.headerValue('set-cookie');
+      const body = await res.json();
+      await sleep(150);
+      const after = nb(await btn.textContent());
+      await sleep(1400);
+      const later = nb(await btn.textContent());
+      const label1 = await cartLabel(page);
+      // Paso 2: ficha con otra variante
+      await page.locator('.navbar-links a, .navbar-sheet-link').first().count();
+      await page.goto(`${A.origin}/product/rocky-racing`);
+      await detailBtn(page).waitFor();
+      await page.locator('.detail-variant select').selectOption({ label: 'M' });
+      let w = waitApi(page, '/api/shopify/cart/lines', 'POST');
+      await detailBtn(page).click();
+      const r2 = await (await w).json();
+      await sleep(1400);
+      // Paso 4: misma variante otra vez
+      w = waitApi(page, '/api/shopify/cart/lines', 'POST');
+      await detailBtn(page).click();
+      const r3res = await w;
+      const r3 = await r3res.json();
+      const setCookie3 = await r3res.headerValue('set-cookie');
+      await sleep(300);
+      const label3 = await cartLabel(page);
+      const count3 = await counter(page);
+      A.resetControl();
+      const json = JSON.stringify(body);
+      const mLine = r3.cart.lines.find((l) => l.variant.title === 'M');
+      const checks = [
+        check(during.text === 'Añadiendo…' && during.disabled, `durante la petición «${during.text}» deshabilitado=${during.disabled}`),
+        check(after === 'Añadido ✓' && later === 'Añadir al carrito', `después «${after}» y a los 1,5 s «${later}»`),
+        check(Object.keys(reqBody).sort().join(',') === 'operationId,quantity,variantId' && reqBody.quantity === 1 && /^[0-9a-f-]{36}$/.test(reqBody.operationId) && reqOrigin === A.origin, `cuerpo ${JSON.stringify({ ...reqBody, operationId: reqBody.operationId?.replace(/^(.{8}).*/, '$1…') })}; Origin ${reqOrigin}`),
+        check(/^rocky_session=[^;]+; Max-Age=2592000; Path=\/; HttpOnly; SameSite=Lax$/.test(setCookie || ''), `Set-Cookie: ${String(setCookie).replace(/=([^;]{6})[^;]*/, '=$1…')}`),
+        check(Object.keys(body).sort().join(',') === 'cart,warnings' && Object.keys(body.cart).sort().join(',') === 'cost,lines,totalQuantity' && !json.includes('checkoutUrl') && !json.includes('gid://shopify/Cart/'), `respuesta {${Object.keys(body.cart).join(', ')}} + warnings, sin ID de carrito ni checkoutUrl`),
+        check(r2.cart.lines.length === 2, `ficha talla M → ${r2.cart.lines.length} líneas`),
+        check(mLine?.quantity === 2 && r3.cart.lines.length === 2 && !setCookie3, `misma variante otra vez → M x${mLine?.quantity} en la misma línea; sin nueva cookie`),
+        check(label1 === 'Carrito, 1 artículo' && label3 === 'Carrito, 3 artículos' && count3 === '3', `icono «${label1}» → «${label3}», contador ${count3}`),
+      ];
+      const notes = [`los id de línea que recibe el navegador llevan ?cart=<token> (p. ej. ${body.cart.lines[0].id.replace(/(CartLine\/).{8}[^?]*/, '$1…').replace(/cart=(.{4}).*/, 'cart=$1…')})`, sumIssues(issues, routes)];
+      const v = verdict(checks, { notes, hallazgos: ['C-CART-22'] });
+      if (v.resultado.startsWith('FALLO')) await shotE2(page, `R-CART-08-${vp}`);
+      await context.close();
+      return v;
+    });
+
+    // ------------------------------------------------------------ R-CART-09
+    if (want('R-CART-09')) await R.run('R-CART-09', vp, async () => {
+      const { context, page, issues, routes } = await openPage(browser, A, { viewportName: vp });
+      await context.addInitScript(RUNNER_SPY);
+      await page.goto(`${A.origin}/`);
+      await waitStore(page);
+      const runs = () => page.evaluate(() => window.__runs);
+      // 1. un añadido
+      let w = waitApi(page, '/api/shopify/cart/lines', 'POST');
+      await cardBtn(page, 'RockyRacing').click();
+      await w;
+      await sleep(1500);
+      const r1 = await runs();
+      // 2. dos añadidos seguidos (productos distintos)
+      const wA = waitApi(page, '/api/shopify/cart/lines', 'POST');
+      await cardBtn(page, 'Rockydz boyz').click();
+      await cardBtn(page, 'RockyRacing').click();
+      await wA;
+      await sleep(1800);
+      const r2 = await runs();
+      // 4. añadido que no suma: XL de Rockydz boyz (1 ud.) dos veces
+      await page.goto(`${A.origin}/product/rockydz-boyz`);
+      await detailBtn(page).waitFor();
+      await page.locator('.detail-variant select').selectOption({ label: 'XL' });
+      w = waitApi(page, '/api/shopify/cart/lines', 'POST');
+      await detailBtn(page).click();
+      await w;
+      await sleep(1500);
+      const before4 = (await runs()).length;
+      w = waitApi(page, '/api/shopify/cart/lines', 'POST');
+      await detailBtn(page).click();
+      await w;
+      await sleep(1500);
+      const after4 = (await runs()).length;
+      // 5. descontrol (tema noche) y añadido
+      let themeOk = false;
+      const themeBtn = page.locator('button.navbar-theme:visible');
+      if (await themeBtn.count()) {
+        await themeBtn.first().click();
+        themeOk = true;
+      } else {
+        await page.locator('.navbar-menu').click();
+        await page.locator('.navbar-theme--sheet').click();
+        if (await page.locator('.navbar-sheet').count()) await page.locator('.navbar-menu').click();
+        themeOk = true;
+      }
+      await sleep(400);
+      const htmlTheme = await page.evaluate(() => document.documentElement.dataset.theme || document.documentElement.className);
+      await page.locator('.detail-variant select').selectOption({ label: 'S' });
+      w = waitApi(page, '/api/shopify/cart/lines', 'POST');
+      await detailBtn(page).click();
+      await w;
+      await sleep(1500);
+      const r5 = (await runs()).at(-1);
+      await context.close();
+      // 3. movimiento reducido
+      const red = await openPage(browser, A, { viewportName: vp, reducedMotion: 'reduce' });
+      await red.context.addInitScript(RUNNER_SPY);
+      await red.page.goto(`${A.origin}/`);
+      await waitStore(red.page);
+      w = waitApi(red.page, '/api/shopify/cart/lines', 'POST');
+      await cardBtn(red.page, 'RockyRacing').click();
+      await w;
+      await sleep(1500);
+      const r3 = await red.page.evaluate(() => window.__runs);
+      await red.context.close();
+      const first = r1[0];
+      const dur = first ? Math.round(first.end - first.start) : null;
+      const h = first ? parseFloat(first.h) : null;
+      const restart = r2.length >= 3 && r2[2].start < (r2[1].end ?? Infinity) + 5;
+      const miniOverlap = first?.mini && first.mini.left < parseFloat(first.hastaX) + parseFloat(first.w) && first.mini.right > parseFloat(first.hastaX);
+      const checks = [
+        check(r1.length === 1 && dur >= 1050 && dur <= 1400, `un añadido → ${r1.length} carrera(s) de ${dur} ms (se desmonta a los ~1,12 s)`),
+        check(h >= 56 && h <= 96, `alto ${first?.h} (ancho ${first?.w})`),
+        check(first?.aria === 'true', `aria-hidden=${first?.aria}`),
+        check(null, `píldora de la radio: ${!first?.mini ? 'no hay' : first.mini.bottom <= 0 ? `fuera de la pantalla (bottom ${Math.round(first.mini.bottom)}px); carril ${first.correY}` : miniOverlap ? `en su columna; carril ${first.correY} bajo su borde ${Math.round(first.mini.bottom)}px` : 'no está en su columna'}`),
+        check(r2.length === 3 && restart, `dos añadidos seguidos → ${r2.length - 1} carreras más; la segunda reinicia la primera: ${restart}`),
+        check(r3.length === 0, `movimiento reducido → ${r3.length} carreras`),
+        check(after4 === before4, `añadido que no suma (XL agotada en el carrito) → ${after4 - before4} carreras`),
+        check(themeOk && r5 && r5.src !== first?.src, `descontrol (${htmlTheme}) → dibujo ${String(r5?.src).split('/').pop()} frente a ${String(first?.src).split('/').pop()}`),
+      ];
+      return verdict(checks, { notes: ['pestaña oculta e intro: no ejecutado (la intro tapa los botones; document.hidden no se puede forzar en Chrome sin minimizar)', sumIssues(issues, routes)], hallazgos: [] });
+    });
+
+    // ------------------------------------------------------------ R-CART-10
+    if (want('R-CART-10')) await R.run('R-CART-10', vp, async () => {
+      const { context, page, issues, routes } = await openPage(browser, A, { viewportName: vp });
+      const seeded = await seed(context, [['rocky-racing/M', 1], ['35-red/Default Title', 1], ['level-orange/M', 1]]);
+      await page.goto(`${A.origin}/`);
+      await waitStore(page);
+      await page.locator('.navbar-cart').click();
+      await page.waitForURL(`${A.origin}/cart`);
+      await sleep(300);
+      const h1 = nb(await page.locator('h1.page-title').textContent());
+      const seguir = await page.locator('.cart-head a', { hasText: 'Seguir comprando' }).getAttribute('href');
+      const rs = await rows(page);
+      const rr = rs.find((r) => r.title === 'RockyRacing');
+      const red = rs.find((r) => r.title === '35 RED');
+      const total = nb(await page.locator('.cart-summary-total').textContent());
+      const checkoutTxt = nb(await page.locator('.cart-checkout').textContent());
+      const previewNote = await page.locator('.cart-summary-note').count();
+      // Disposición móvil: la cantidad baja a otra fila
+      const layout = await line(page, 'RockyRacing').evaluate((li) => {
+        const t = li.querySelector('.cart-item-info').getBoundingClientRect();
+        const q = li.querySelector('.cart-item-quantity').getBoundingClientRect();
+        return { infoBottom: Math.round(t.bottom), qtyTop: Math.round(q.top), infoTop: Math.round(t.top) };
+      });
+      // Variante agotada
+      A.setControl({ storefront: { inventory: { '35-red/Default Title': 0 } } });
+      await gotoCart(page);
+      const sold = (await rows(page)).find((r) => r.title === '35 RED')?.soldout;
+      A.resetControl();
+      // Producto fuera de los 8
+      await gotoCart(page);
+      await line(page, 'LEVEL ORANGE').locator('.cart-item-title').click();
+      await page.waitForURL(/\/product\/level-orange$/);
+      await page.locator('.product-empty h1.page-title, .detail-title').first().waitFor();
+      const lo = nb(await page.locator('h1.page-title').textContent());
+      // Enlaces
+      await gotoCart(page);
+      await line(page, 'RockyRacing').locator('.cart-item-title').click();
+      await page.waitForURL(/\/product\/rocky-racing$/);
+      const toProduct = new URL(page.url()).pathname;
+      await page.goBack();
+      await page.locator('.cart-head a', { hasText: 'Seguir comprando' }).click();
+      await page.waitForURL(`${A.origin}/`);
+      const checks = [
+        check(seeded.every((s) => s === 200), `carrito sembrado por API: ${seeded.join(', ')}`),
+        check(h1 === 'Tu carrito' && seguir === '/', `h1 «${h1}», «Seguir comprando» → ${seguir}`),
+        check(rr && rr.img && rr.href === '/product/rocky-racing' && rr.mediaHref === '/product/rocky-racing' && rr.variant === 'M' && rr.price === '39,00 € / ud.' && rr.total === '39,00 €' && rr.group === 'Cantidad de RockyRacing' && rr.btns.join('|') === 'Quitar una unidad|Añadir una unidad|Eliminar RockyRacing del carrito', `línea RockyRacing: ${JSON.stringify(rr)}`),
+        check(red && !red.img && red.variant === null && red.price === '29,90 € / ud.', `línea 35 RED (sin foto, Default Title oculto): img=${red?.img} variante=${red?.variant} ${red?.price}`),
+        check(total === '106,90 €' && checkoutTxt === 'Ir al pago seguro' && previewNote === 0, `resumen «Total» ${total}, botón «${checkoutTxt}», notas de demo ${previewNote}`),
+        check(sold === 'Agotado — quítalo del carrito', `variante agotada: «${sold}»`),
+        check(lo === 'Producto no encontrado', `LEVEL ORANGE (fuera de los 8) → «${lo}»`),
+        check(toProduct === '/product/rocky-racing', `título → ${toProduct}; «Seguir comprando» → /`),
+        check(vp === 'movil' ? layout.qtyTop >= layout.infoBottom - 2 : true, `disposición: info ${layout.infoTop}-${layout.infoBottom}px, cantidad desde ${layout.qtyTop}px`),
+      ];
+      const v = verdict(checks, { notes: [sumIssues(issues, routes)], hallazgos: ['C-CART-19', 'C-CART-33'] });
+      if (v.resultado.startsWith('FALLO')) await shotE2(page, `R-CART-10-${vp}`);
+      await context.close();
+      return v;
+    });
+
+    // ------------------------------------------------------------ R-CART-11
+    if (want('R-CART-11')) await R.run('R-CART-11', vp, async () => {
+      const { context, page, issues, routes } = await openPage(browser, A, { viewportName: vp });
+      await context.addInitScript(RUNNER_SPY);
+      await seed(context, [['dwag/L', 1]]);
+      await gotoCart(page);
+      const bodies = [];
+      page.on('request', (r) => { if (r.url().endsWith('/api/shopify/cart/lines') && ['PATCH', 'DELETE'].includes(r.method())) bodies.push({ m: r.method(), b: r.postDataJSON() }); });
+      const g = line(page, 'DWAG');
+      const plus = g.getByRole('button', { name: 'Añadir una unidad' });
+      const minus = g.getByRole('button', { name: 'Quitar una unidad' });
+      A.setControl({ storefront: { latencyMs: 600 } });
+      const seenQty = [];
+      let busySnap = null;
+      for (let i = 0; i < 3; i += 1) {
+        const w = waitApi(page, '/api/shopify/cart/lines', 'PATCH');
+        await plus.click();
+        if (i === 1) {
+          busySnap = await page.evaluate(() => ({
+            disabled: [...document.querySelectorAll('.cart-item button, .cart-checkout')].map((b) => b.disabled),
+            checkout: document.querySelector('.cart-checkout')?.textContent.trim(),
+          }));
+        }
+        await w;
+        await sleep(150);
+        seenQty.push(`${nb(await g.locator('.quantity-value').textContent())}/${nb(await g.locator('.cart-item-total').textContent())}/${await counter(page)}`);
+      }
+      A.resetControl();
+      const totalAt4 = nb(await page.locator('.cart-summary-total').textContent());
+      for (let i = 0; i < 3; i += 1) {
+        const w = waitApi(page, '/api/shopify/cart/lines', 'PATCH');
+        await minus.click();
+        await w;
+        await sleep(100);
+      }
+      const qtyAt1 = nb(await g.locator('.quantity-value').textContent());
+      const wd = waitApi(page, '/api/shopify/cart/lines', 'DELETE');
+      await minus.click();
+      const del = await wd;
+      await sleep(300);
+      const empty = nb(await page.locator('h1.page-title').textContent());
+      const cnt = await counter(page);
+      const runs = await page.evaluate(() => window.__runs.length);
+      const patches = bodies.filter((b) => b.m === 'PATCH');
+      const checks = [
+        check(patches.slice(0, 3).map((b) => b.b.quantity).join(',') === '2,3,4' && patches.every((b) => Object.keys(b.b).sort().join(',') === 'lineId,operationId,quantity'), `«+» ×3 → PATCH quantity ${patches.slice(0, 3).map((b) => b.b.quantity).join(', ')} con {lineId, quantity, operationId}`),
+        check(busySnap && busySnap.disabled.every(Boolean) && busySnap.checkout === 'Actualizando…', `durante la operación: botones deshabilitados ${busySnap?.disabled.filter(Boolean).length}/${busySnap?.disabled.length}, pago «${busySnap?.checkout}»`),
+        check(seenQty.join(' ') === '2/65,00 €/2 3/97,50 €/3 4/130,00 €/4' && totalAt4 === '130,00 €', `cantidad/total línea/contador: ${seenQty.join(' → ')}; Total ${totalAt4}`),
+        check(patches.slice(3).map((b) => b.b.quantity).join(',') === '3,2,1' && qtyAt1 === '1', `«−» → PATCH ${patches.slice(3).map((b) => b.b.quantity).join(', ')} hasta ${qtyAt1}`),
+        check(del.status() === 200 && Object.keys(bodies.at(-1).b).sort().join(',') === 'lineId,operationId' && empty === 'Tu carrito está vacío' && cnt === '', `«−» con 1 → DELETE ${del.status()} {lineId, operationId}; «${empty}»; contador «${cnt}»`),
+        check(runs === 0, `repartidor con «+»: ${runs} carreras`),
+      ];
+      const v = verdict(checks, { notes: [sumIssues(issues, routes)], hallazgos: ['C-CART-15'] });
+      if (v.resultado.startsWith('FALLO')) await shotE2(page, `R-CART-11-${vp}`);
+      await context.close();
+      return v;
+    });
+
+    // ------------------------------------------------------------ R-CART-12
+    if (want('R-CART-12')) await R.run('R-CART-12', vp, async () => {
+      const { context, page, issues, routes } = await openPage(browser, A, { viewportName: vp });
+      await seed(context, [['rocky-racing/M', 19]]);
+      await gotoCart(page);
+      const g = line(page, 'RockyRacing');
+      const plus = g.getByRole('button', { name: 'Añadir una unidad' });
+      let w = waitApi(page, '/api/shopify/cart/lines', 'PATCH');
+      await plus.click();
+      const p20 = await w;
+      await sleep(300);
+      const q20 = nb(await g.locator('.quantity-value').textContent());
+      const plusDisabled = await plus.isDisabled();
+      const cursor = await plus.evaluate((b) => getComputedStyle(b).cursor);
+      const busy = await page.locator('.cart-checkout').textContent();
+      // Ficha, misma variante
+      await page.goto(`${A.origin}/product/rocky-racing`);
+      await detailBtn(page).waitFor();
+      await page.locator('.detail-variant select').selectOption({ label: 'M' });
+      w = waitApi(page, '/api/shopify/cart/lines', 'POST');
+      const reqP = page.waitForRequest((r) => r.url().endsWith('/cart/lines') && r.method() === 'POST');
+      await detailBtn(page).click();
+      const postBody = (await reqP).postDataJSON();
+      const post = await w;
+      const postJson = await post.json();
+      await gotoCart(page);
+      const q21 = nb(await g.locator('.quantity-value').textContent());
+      const plus21 = await plus.isDisabled();
+      w = waitApi(page, '/api/shopify/cart/lines', 'PATCH');
+      const reqM = page.waitForRequest((r) => r.url().endsWith('/cart/lines') && r.method() === 'PATCH');
+      await g.getByRole('button', { name: 'Quitar una unidad' }).click();
+      const minusBody = (await reqM).postDataJSON();
+      const m = await w;
+      await sleep(300);
+      const qAfter = nb(await g.locator('.quantity-value').textContent());
+      const checks = [
+        check(p20.status() === 200 && q20 === '20' && plusDisabled, `«+» hasta 20 → ${p20.status()}; «Añadir una unidad» deshabilitado=${plusDisabled}`),
+        check(cursor === 'wait', `cursor del «+» desactivado por el tope: ${cursor} (sin operación pendiente; pago «${nb(busy)}»)`),
+        check(postBody.quantity === 1 && post.status() === 200, `ficha → POST quantity ${postBody.quantity} → ${post.status()}, línea x${postJson.cart?.lines?.find((l) => l.variant.title === 'M')?.quantity}`),
+        check(q21 === '21' && plus21, `/cart con ${q21} unidades y «+» deshabilitado=${plus21}`),
+        check(minusBody.quantity === 20 && m.status() === 200 && qAfter === '20', `«−» → PATCH quantity ${minusBody.quantity} → ${m.status()}, queda ${qAfter}`),
+      ];
+      const v = verdict(checks, { notes: ['el doble acepta 21 unidades (stock 30); lo que aceptaría Shopify real está sin confirmar', sumIssues(issues, routes)], hallazgos: ['C-CART-08', 'C-CART-17'] });
+      if (v.resultado.startsWith('FALLO')) await shotE2(page, `R-CART-12-${vp}`);
+      await context.close();
+      return v;
+    });
+
+    // ------------------------------------------------------------ R-CART-13
+    if (want('R-CART-13')) await R.run('R-CART-13', vp, async () => {
+      const { context, page, issues, routes } = await openPage(browser, A, { viewportName: vp });
+      await page.goto(`${A.origin}/`);
+      await waitStore(page);
+      const smokerCard = { t: nb(await cardBtn(page, 'Smoker Edition').textContent()), d: await cardBtn(page, 'Smoker Edition').isDisabled() };
+      await page.goto(`${A.origin}/product/smoker-edition`);
+      await detailBtn(page).waitFor();
+      const smokerDetail = { t: nb(await detailBtn(page).textContent()), d: await detailBtn(page).isDisabled() };
+      await page.goto(`${A.origin}/product/35-white`);
+      await page.locator('.detail-variant select').waitFor();
+      const opts = await page.locator('.detail-variant select option').evaluateAll((o) => o.map((x) => `${x.textContent.trim()}${x.disabled ? '(deshab.)' : ''}`));
+      // Paso 3: agotar con la ficha abierta (sin carrito todavía)
+      await page.goto(`${A.origin}/product/dwag`);
+      await detailBtn(page).waitFor();
+      A.setControl({ storefront: { inventory: { 'dwag/S': 0 } } });
+      const btnBefore = { t: nb(await detailBtn(page).textContent()), d: await detailBtn(page).isDisabled() };
+      let w = waitApi(page, '/api/shopify/cart/lines', 'POST');
+      await detailBtn(page).click();
+      const r3 = await w;
+      const r3j = await r3.json();
+      await page.locator('.commerce-inline-error').waitFor({ timeout: 5_000 });
+      const inline3 = nb(await page.locator('.commerce-inline-error').textContent());
+      // C-CART-30: el aviso reaparece al abrir /cart por la SPA
+      await page.locator('.navbar-cart').click();
+      await page.waitForURL(`${A.origin}/cart`);
+      await sleep(200);
+      const cartWarn = (await page.locator('.cart-warnings').count()) ? nb(await page.locator('.cart-warnings').textContent()) : '';
+      // userError (422) con carrito ya creado
+      await seed(context, [['rockydz-boyz/L', 2]]);
+      await page.goto(`${A.origin}/product/dwag`);
+      await detailBtn(page).waitFor();
+      await page.locator('.detail-variant select').selectOption({ label: 'M' });
+      A.setControl({ storefront: { inventory: { 'dwag/S': 0 }, ops: { RockyCartLinesAdd: 'userError' } } });
+      w = waitApi(page, '/api/shopify/cart/lines', 'POST');
+      await detailBtn(page).click();
+      const r422 = await w;
+      const r422j = await r422.json();
+      await page.locator('.commerce-inline-error').waitFor({ timeout: 5_000 });
+      const inline422 = nb(await page.locator('.commerce-inline-error').textContent());
+      const notice422 = await noticeText(page);
+      A.resetControl();
+      // Paso 4: pasar del stock con «+» (Rockydz boyz L, 2 uds.)
+      await gotoCart(page);
+      const g = line(page, 'Rockydz boyz');
+      w = waitApi(page, '/api/shopify/cart/lines', 'PATCH');
+      await g.getByRole('button', { name: 'Añadir una unidad' }).click();
+      const r4 = await w;
+      const r4j = await r4.json();
+      await sleep(300);
+      const warn4 = (await page.locator('.cart-warnings').count()) ? { t: nb(await page.locator('.cart-warnings').textContent()), role: await page.locator('.cart-warnings').getAttribute('role'), tag: await page.locator('.cart-warnings').evaluate((e) => e.tagName) } : null;
+      const q4 = nb(await g.locator('.quantity-value').textContent());
+      // Paso 5: agotar una variante del carrito y recargar
+      A.setControl({ storefront: { inventory: { 'rockydz-boyz/L': 0 } } });
+      await gotoCart(page);
+      const sold5 = (await rows(page)).find((r) => r.title === 'Rockydz boyz')?.soldout;
+      const checkoutEnabled = !(await page.locator('.cart-checkout').isDisabled());
+      A.resetControl();
+      const checks = [
+        check(smokerCard.t === 'Agotado' && smokerCard.d && smokerDetail.t === 'Agotado' && smokerDetail.d, `agotado: tarjeta «${smokerCard.t}» y ficha «${smokerDetail.t}» deshabilitados`),
+        check(opts.join(',') === 'S — agotada(deshab.),M,L,XL — agotada(deshab.)', `35 WHITE: ${opts.join(', ')}`),
+        check(btnBefore.t === 'Añadir al carrito' && !btnBefore.d, `paso 3: sin recargar el botón sigue «${btnBefore.t}» activo`),
+        check(r3.status() === 200 && r3j.warnings?.[0]?.code === 'MERCHANDISE_OUT_OF_STOCK' && inline3 === r3j.warnings[0].message, `agotada al pulsar → ${r3.status()} aviso ${r3j.warnings?.[0]?.code}; bajo el botón «${inline3}» (texto de Shopify tal cual, en inglés en el doble)`),
+        check(r422.status() === 422 && inline422 === 'Shopify ha rechazado la operación.' && notice422 === 'Shopify ha rechazado la operación.', `userErrors → ${r422.status()} ${JSON.stringify(r422j)}; bajo el botón «${inline422}»; aviso superior «${notice422}»`),
+        check(r4.status() === 200 && warn4?.role === 'alert' && q4 === '2', `paso 4: «+» → ${r4.status()} aviso ${r4j.warnings?.[0]?.code}; lista ${warn4?.tag} role=${warn4?.role} «${warn4?.t}»; cantidad ${q4}`),
+        check(sold5 === 'Agotado — quítalo del carrito' && checkoutEnabled, `paso 5: «${sold5}», pago activo=${checkoutEnabled}`),
+      ];
+      const notes = [
+        `C-CART-30: el aviso de la ficha reaparece al abrir /cart: «${cartWarn}»`,
+        `C-CART-22: el servidor reenvía warnings[].target al navegador (PATCH: ${String(r4j.warnings?.[0]?.target || '').replace(/CartLine\/[^?]+/, 'CartLine/…').replace(/cart=(.{4}).*/, 'cart=$1…')})`,
+        sumIssues(issues, routes),
+      ];
+      const v = verdict(checks, { notes, hallazgos: ['C-CART-13', 'C-CART-16', 'C-CART-21', 'C-CART-22', 'C-CART-30'] });
+      if (v.resultado.startsWith('FALLO')) await shotE2(page, `R-CART-13-${vp}`);
+      extra[`cart13-${vp}`] = { r3j, r4j: { warnings: r4j.warnings }, cartWarn };
+      await context.close();
+      return v;
+    });
+
+    // ------------------------------------------------------------ R-CART-14
+    if (want('R-CART-14')) await R.run('R-CART-14', vp, async () => {
+      const { context, page, issues, routes } = await openPage(browser, A, { viewportName: vp });
+      await seed(context, [['rocky-racing/S', 1], ['rockydz-boyz/S', 1]]);
+      await gotoCart(page);
+      const first = (await rows(page))[0];
+      await page.locator('.cart-head a', { hasText: 'Seguir comprando' }).focus();
+      const seq = await tabs(page, 5);
+      const reqP = page.waitForRequest((r) => r.url().endsWith('/cart/lines') && r.method() === 'DELETE');
+      const w = waitApi(page, '/api/shopify/cart/lines', 'DELETE');
+      await page.keyboard.press('Enter');
+      const delBody = (await reqP).postDataJSON();
+      const d1 = await w;
+      await sleep(300);
+      const focusAfter = await focusDesc(page);
+      const left = (await rows(page)).map((r) => r.title);
+      const w2 = waitApi(page, '/api/shopify/cart/lines', 'DELETE');
+      await page.locator('.cart-item-remove').first().click();
+      await w2;
+      await sleep(300);
+      const empty = nb(await page.locator('h1.page-title').textContent());
+      const verTienda = await page.locator('.cart-empty a', { hasText: 'Ver la tienda' }).count();
+      const cnt = await counter(page);
+      const rp = waitApi(page, '/api/shopify/cart');
+      await page.reload();
+      const reread = await (await rp).json();
+      const checks = [
+        check(seq.at(-1).d === `button«Eliminar ${first.title} del carrito»`, `Tab ×5 desde «Seguir comprando» → ${fmtTabs(seq)}`),
+        check(d1.status() === 200 && Object.keys(delBody).sort().join(',') === 'lineId,operationId' && left.length === 1 && left[0] !== first.title, `Enter → DELETE ${d1.status()} {lineId, operationId}; quedan ${left.join(', ')}`),
+        check(null, `foco tras quitar la línea: ${focusAfter.d}`),
+        check(empty === 'Tu carrito está vacío' && verTienda === 1 && cnt === '', `con el ratón la última → «${empty}», «Ver la tienda» ${verTienda}, contador «${cnt}»`),
+        check(reread.cart && Array.isArray(reread.cart.lines) && reread.cart.lines.length === 0, `tras recargar GET /cart → cart con ${reread.cart?.lines?.length} líneas (la sesión conserva el cartId)`),
+      ];
+      const v = verdict(checks, { notes: [sumIssues(issues, routes)], hallazgos: focusAfter.d === '<body>' ? ['C-CART-14'] : [] });
+      await context.close();
+      return v;
+    });
+
+    // ------------------------------------------------------------ R-CART-15
+    if (want('R-CART-15')) await R.run('R-CART-15', vp, async () => {
+      const { context, page, issues, routes } = await openPage(browser, A, { viewportName: vp });
+      const created = Date.now();
+      await seed(context, [['flora-blue/M', 2]]);
+      await gotoCart(page);
+      // Red lenta (≈ «Slow 4G» de DevTools) y recarga
+      const cdp = await context.newCDPSession(page);
+      await cdp.send('Network.enable');
+      await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 150, downloadThroughput: 200_000, uploadThroughput: 93_750 });
+      A.setControl({ storefront: { ops: {}, latencyMs: 0 } });
+      await page.reload({ waitUntil: 'commit' });
+      const states = [];
+      const t0 = Date.now();
+      while (Date.now() - t0 < 12_000) {
+        const s = await page.evaluate(() => {
+          if (document.querySelector('.page-loading')) return 'Cargando...';
+          const h = document.querySelector('main h1.page-title');
+          return h ? h.textContent.trim() : document.querySelector('#root')?.children.length ? '(app sin h1)' : '(sin app)';
+        }).catch(() => '(navegando)');
+        if (states.at(-1) !== s) states.push(s);
+        if (s === 'Tu carrito') break;
+        await sleep(30);
+      }
+      await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+      const cnt1 = await counter(page);
+      // Otra pestaña del mismo navegador
+      const p2 = await context.newPage();
+      await p2.goto(`${A.origin}/`);
+      await waitStore(p2);
+      const cnt2 = await counter(p2);
+      // Ventana privada
+      const priv = await openPage(browser, A, { viewportName: vp });
+      await priv.page.goto(`${A.origin}/cart`);
+      await waitStore(priv.page);
+      const privH1 = nb(await priv.page.locator('h1.page-title').textContent());
+      await priv.context.close();
+      // Cookie y almacenamiento
+      const ck = (await context.cookies()).find((c) => c.name === 'rocky_session');
+      const days = ck ? (ck.expires * 1000 - created) / 86_400_000 : null;
+      const w = waitApi(page, '/api/shopify/cart/lines', 'PATCH');
+      await line(page, 'Flora Blue').getByRole('button', { name: 'Añadir una unidad' }).click();
+      const pr = await w;
+      const sc = await pr.headerValue('set-cookie');
+      const storage = await page.evaluate(() => ({ local: Object.keys(localStorage).map((k) => `${k}=${String(localStorage.getItem(k)).slice(0, 40)}`), session: Object.keys(sessionStorage).map((k) => `${k}=${String(sessionStorage.getItem(k)).slice(0, 40)}`) }));
+      const storageHasCart = JSON.stringify(storage).match(/cart|carrito|Flora|gid:/i);
+      const checks = [
+        check(states.includes('Tu carrito está vacío') && states.at(-1) === 'Tu carrito', `secuencia al recargar con red lenta: ${states.join(' → ')}`),
+        check(null, `«Cargando...» ${states.includes('Cargando...') ? 'visto' : 'no visto (el chunk de /cart ya estaba en caché)'}`),
+        check(cnt1 === '2' && cnt2 === '2', `contador tras recargar ${cnt1}; en otra pestaña ${cnt2}`),
+        check(privH1 === 'Tu carrito está vacío', `ventana privada: «${privH1}»`),
+        check(days !== null && days > 29.9 && days < 30.1, `cookie caduca a los ${days?.toFixed(3)} días de crearse`),
+        check(!sc, `una mutación posterior no reenvía la cookie (Set-Cookie: ${sc || 'ninguna'})`),
+        check(!storageHasCart, `almacenamiento del navegador sin datos del carrito: ${JSON.stringify(storage)}`),
+      ];
+      const v = verdict(checks, { notes: [sumIssues(issues, routes)], hallazgos: ['C-CART-10', 'C-CART-24'] });
+      A.resetControl();
+      await context.close();
+      return v;
+    });
+
+    // ------------------------------------------------------------ R-CART-16
+    if (want('R-CART-16')) await R.run('R-CART-16', vp, async () => {
+      const { context, page, issues, routes } = await openPage(browser, A, { viewportName: vp });
+      await page.goto(`${A.origin}/`);
+      await waitStore(page);
+      const posts = [];
+      page.on('request', (r) => { if (r.url().endsWith('/api/shopify/cart/lines') && r.method() === 'POST') posts.push({ t: Date.now(), id: r.postDataJSON().operationId, v: r.postDataJSON().variantId, r }); });
+      const finished = new Map();
+      page.on('requestfinished', (r) => finished.set(r, Date.now()));
+      A.setControl({ storefront: { latencyMs: 500 } });
+      await cardBtn(page, 'RockyRacing').dblclick();
+      await sleep(1800);
+      const n1 = posts.length;
+      // Teclado: Enter dos veces seguidas
+      await cardBtn(page, 'Rockydz boyz').focus();
+      await page.keyboard.press('Enter');
+      await page.keyboard.press('Enter');
+      await sleep(1800);
+      const n2 = posts.length - n1;
+      const cart1 = await (await context.request.get(`${A.origin}/api/shopify/cart`)).json();
+      const qtys = Object.fromEntries(cart1.cart.lines.map((l) => [l.variant.product.title, l.quantity]));
+      // Paso 4: dos tarjetas casi a la vez
+      await page.goto(`${A.origin}/`);
+      await waitStore(page);
+      const base = posts.length;
+      const bA = cardBtn(page, 'RockyRacing');
+      const bB = cardBtn(page, 'Rockydz boyz');
+      await bA.click();
+      await bB.click();
+      const labels = [nb(await bA.textContent()), nb(await bB.textContent())];
+      await sleep(2500);
+      const pair = posts.slice(base);
+      const serial = pair.length === 2 && finished.get(pair[0].r) && pair[1].t >= finished.get(pair[0].r) - 5;
+      A.resetControl();
+      const checks = [
+        check(n1 === 1, `doble clic → ${n1} POST`),
+        check(n2 === 1, `Enter dos veces → ${n2} POST`),
+        check(qtys.RockyRacing === 1 && qtys['Rockydz boyz'] === 1, `cantidades en el carrito: ${JSON.stringify(qtys)}`),
+        check(pair.length === 2 && pair[0].id !== pair[1].id && serial, `dos tarjetas → ${pair.length} POST con operationId distintos; la segunda sale al acabar la primera: ${serial} (${pair.length === 2 ? pair[1].t - finished.get(pair[0].r) : '?'} ms)`),
+        check(labels.every((l) => l === 'Añadiendo…'), `mientras esperan: «${labels.join('» y «')}»`),
+      ];
+      const v = verdict(checks, { notes: [sumIssues(issues, routes)] });
+      await context.close();
+      return v;
+    });
+
+    // ------------------------------------------------------------ R-CART-18
+    if (want('R-CART-18')) await R.run('R-CART-18', vp, async () => {
+      const { context, page, issues, routes } = await openPage(browser, A, { viewportName: vp });
+      await seed(context, [['danger/M', 1]]);
+      await gotoCart(page);
+      const pageB = await context.newPage();
+      await pageB.goto(`${A.origin}/cart`);
+      await waitStore(pageB);
+      await sleep(300);
+      let w = waitApi(page, '/api/shopify/cart/lines', 'DELETE');
+      await page.locator('.cart-item-remove').first().click();
+      await w;
+      w = waitApi(pageB, '/api/shopify/cart/lines', 'PATCH');
+      await line(pageB, 'Danger').getByRole('button', { name: 'Añadir una unidad' }).click();
+      const p = await w;
+      const pj = await p.json();
+      await sleep(300);
+      const noticeB = await noticeText(pageB);
+      const roleB = await noticeRole(pageB);
+      const stillB = (await rows(pageB)).length;
+      w = waitApi(pageB, '/api/shopify/cart/lines', 'DELETE');
+      await pageB.locator('.cart-item-remove').first().click();
+      const d = await w;
+      const dj = await d.json();
+      await sleep(300);
+      const stillB2 = (await rows(pageB)).length;
+      const rp = waitApi(pageB, '/api/shopify/cart');
+      await pageB.reload();
+      await rp;
+      await sleep(300);
+      const afterReload = nb(await pageB.locator('h1.page-title').textContent());
+      // Pasos 4 y 5 por API
+      const cookie = (await context.cookies()).filter((c) => c.name === 'rocky_session').map((c) => `${c.name}=${c.value}`).join('; ');
+      const s4 = await api(A, 'PATCH', '/api/shopify/cart/lines', { cookie, body: { lineId: 'gid://shopify/CartLine/0b9e6f10-1111-4222-8333-444455556666?cart=e2otrocarrito00000000', quantity: 2, operationId: opId() } });
+      const chat = await api(A, 'POST', '/api/chat', { body: { message: 'hola' } });
+      const s5 = await api(A, 'PATCH', '/api/shopify/cart/lines', { cookie: cookieFrom(chat.setCookie), body: { lineId: 'gid://shopify/CartLine/0b9e6f10-1111-4222-8333-444455556666', quantity: 2, operationId: opId() } });
+      const checks = [
+        check(p.status() === 404 && JSON.stringify(pj) === '{"message":"La línea no pertenece al carrito.","code":"LINE_NOT_FOUND"}', `pestaña B «+» → ${p.status()} ${JSON.stringify(pj)}`),
+        check(noticeB === 'La línea no pertenece al carrito.' && roleB === 'alert', `aviso superior role=${roleB}: «${noticeB}»`),
+        check(stillB === 1 && stillB2 === 1, `la línea vieja sigue pintada tras «+» (${stillB}) y tras «×» (${stillB2}, DELETE → ${d.status()} ${dj.code})`),
+        check(afterReload === 'Tu carrito está vacío', `tras recargar B: «${afterReload}»`),
+        check(s4.status === 404 && s4.json?.code === 'LINE_NOT_FOUND', `línea bien formada de otro carrito → ${s4.status} ${s4.text}`),
+        check(s5.status === 404 && s5.text === '{"message":"No existe un carrito activo.","code":"SHOPIFY_ERROR"}', `sesión sin carrito → ${s5.status} ${s5.text}`),
+      ];
+      const v = verdict(checks, { notes: [sumIssues(issues, routes)], hallazgos: ['C-CART-11', 'C-CART-23'] });
+      if (v.resultado.startsWith('FALLO')) await shotE2(pageB, `R-CART-18-${vp}`);
+      await context.close();
+      return v;
+    });
+
+    // ------------------------------------------------------------ R-CART-19
+    if (want('R-CART-19')) await R.run('R-CART-19', vp, async () => {
+      const out = {};
+      for (const variant of ['borrada', 'abc']) {
+        const { context, page, issues, routes } = await openPage(browser, A, { viewportName: vp });
+        await seed(context, [['flora-blue/S', 1]]);
+        const oldCookie = (await context.cookies()).find((c) => c.name === 'rocky_session').value;
+        await gotoCart(page);
+        if (variant === 'borrada') await context.clearCookies();
+        else await context.addCookies([{ name: 'rocky_session', value: 'abc', url: A.origin }]);
+        let w = waitApi(page, '/api/shopify/cart/lines', 'PATCH');
+        await line(page, 'Flora Blue').getByRole('button', { name: 'Añadir una unidad' }).click();
+        const p = await w;
+        const pj = await p.json();
+        const sc = await p.headerValue('set-cookie');
+        await sleep(300);
+        const notice = await noticeText(page);
+        const still = (await rows(page)).length;
+        const rp = waitApi(page, '/api/shopify/cart');
+        await page.reload();
+        await rp;
+        await sleep(300);
+        const h1 = nb(await page.locator('h1.page-title').textContent());
+        const creates0 = A.calls((c) => c.op === 'RockyCartCreate').length;
+        await page.goto(`${A.origin}/product/flora-blue`);
+        await detailBtn(page).waitFor();
+        w = waitApi(page, '/api/shopify/cart/lines', 'POST');
+        await detailBtn(page).click();
+        const r4 = await w;
+        const creates1 = A.calls((c) => c.op === 'RockyCartCreate').length;
+        const newCookie = (await context.cookies()).find((c) => c.name === 'rocky_session')?.value;
+        out[variant] = { p: p.status(), pj, sc: Boolean(sc), newValue: newCookie && newCookie !== oldCookie && newCookie !== 'abc', notice, still, h1, r4: r4.status(), created: creates1 - creates0, issues: sumIssues(issues, routes) };
+        await context.close();
+      }
+      const b = out.borrada;
+      const c = out.abc;
+      const checks = [
+        check(b.p === 404 && b.pj.message === 'No existe un carrito activo.' && b.sc, `cookie borrada, «+» → ${b.p} ${JSON.stringify(b.pj)} con Set-Cookie nueva=${b.sc}`),
+        check(b.notice === 'No existe un carrito activo.' && b.still === 1, `aviso «${b.notice}»; las líneas viejas siguen (${b.still})`),
+        check(b.h1 === 'Tu carrito está vacío', `tras recargar «${b.h1}»`),
+        check(b.r4 === 200 && b.created === 1, `añadir otra vez → ${b.r4}, RockyCartCreate nuevos: ${b.created} (el carrito anterior queda huérfano)`),
+        check(c.p === 404 && c.sc && c.newValue && c.h1 === 'Tu carrito está vacío' && c.created === 1, `cookie «abc» → ${c.p} «${c.pj.message}», Set-Cookie=${c.sc}, valor nuevo=${c.newValue}; recarga «${c.h1}»; carrito nuevo ${c.created}`),
+      ];
+      return verdict(checks, { notes: [b.issues], hallazgos: ['C-CART-11'] });
+    });
+
+    // ------------------------------------------------------------ R-CART-21
+    if (want('R-CART-21')) await R.run('R-CART-21', vp, async () => {
+      const { context, page, issues, routes } = await openPage(browser, A, { viewportName: vp });
+      await seed(context, [['rocky-racing/S', 1]]);
+      await page.goto(`${A.origin}/product/rockydz-boyz`);
+      await detailBtn(page).waitFor();
+      // Paso 1: sin red hacia Shopify
+      A.setControl({ storefront: { mode: 'network' } });
+      let w = waitApi(page, '/api/shopify/cart/lines', 'POST');
+      await detailBtn(page).click();
+      const a1 = await w;
+      const a1j = await a1.json();
+      await page.locator('.commerce-inline-error').waitFor({ timeout: 5_000 });
+      const inline1 = nb(await page.locator('.commerce-inline-error').textContent());
+      const notice1 = await noticeText(page);
+      const inlineRole = await page.locator('.commerce-inline-error').getAttribute('role');
+      await page.locator('.navbar-cart').click();
+      await page.waitForURL(`${A.origin}/cart`);
+      await sleep(200);
+      w = waitApi(page, '/api/shopify/cart/lines', 'PATCH');
+      await line(page, 'RockyRacing').getByRole('button', { name: 'Añadir una unidad' }).click();
+      const p1 = await w;
+      await sleep(200);
+      const notice1b = await noticeText(page);
+      // Paso 1 (cuelgue): 15 s
+      A.setControl({ storefront: { mode: 'timeout' } });
+      await page.goto(`${A.origin}/product/rockydz-boyz`);
+      A.resetControl();
+      await detailBtn(page).waitFor();
+      A.setControl({ storefront: { mode: 'timeout' } });
+      const t0 = Date.now();
+      w = waitApi(page, '/api/shopify/cart/lines', 'POST', 30_000);
+      await detailBtn(page).click();
+      await sleep(2000);
+      const at2 = nb(await detailBtn(page).textContent());
+      await sleep(8000);
+      const at10 = nb(await detailBtn(page).textContent());
+      const tr = await w;
+      const trj = await tr.json();
+      const tMs = Date.now() - t0;
+      await sleep(200);
+      const inlineT = nb(await page.locator('.commerce-inline-error').textContent());
+      // Paso 2: recarga con el corte activo
+      A.setControl({ storefront: { mode: 'network' } });
+      await page.goto(`${A.origin}/`);
+      await page.locator('.commerce-notice').waitFor({ timeout: 15_000 });
+      const notice2 = await noticeText(page);
+      const count2 = nb(await page.locator('.product-page-hero-count .product-count').textContent());
+      const cnt2 = await counter(page);
+      await page.locator('.navbar-cart').click();
+      await page.waitForURL(`${A.origin}/cart`);
+      await page.locator('.cart-empty h1.page-title, .cart h1.page-title').first().waitFor();
+      const cart2 = nb(await page.locator('.cart-empty h1.page-title, .cart h1.page-title').first().textContent());
+      A.resetControl();
+      // Paso 3: navegador sin red
+      await gotoCart(page);
+      await context.setOffline(true);
+      await line(page, 'RockyRacing').getByRole('button', { name: 'Añadir una unidad' }).click();
+      await page.waitForFunction(() => document.querySelector('.commerce-notice'), null, { timeout: 5_000 });
+      const notice3 = await noticeText(page);
+      await context.setOffline(false);
+      // Paso 4 (adaptado): respuesta 502 sin cuerpo JSON, como la de un proxy sin Express
+      await gotoCart(page);
+      await page.route('**/api/shopify/cart/lines', (route) => route.fulfill({ status: 502, contentType: 'text/plain', body: '' }));
+      // C-CART-13: en móvil, ¿se ve el aviso al pulsar «+» con la línea a la vista?
+      const plus = line(page, 'RockyRacing').getByRole('button', { name: 'Añadir una unidad' });
+      await plus.scrollIntoViewIfNeeded();
+      await page.evaluate(() => window.scrollBy(0, 400));
+      await plus.scrollIntoViewIfNeeded();
+      await plus.click();
+      await page.waitForFunction(() => document.querySelector('.commerce-notice'), null, { timeout: 5_000 });
+      const notice4 = await noticeText(page);
+      const inView = await page.locator('.commerce-notice').evaluate((n) => { const r = n.getBoundingClientRect(); return r.bottom > 0 && r.top < innerHeight; });
+      await page.unroute('**/api/shopify/cart/lines');
+      const net = 'No se ha podido conectar con Shopify.';
+      const checks = [
+        check(a1.status() === 502 && JSON.stringify(a1j) === '{"message":"No se ha podido conectar con Shopify.","code":"NETWORK_ERROR"}' && inline1 === net && notice1 === net && inlineRole === 'alert', `añadir sin red → ${a1.status()} ${JSON.stringify(a1j)}; bajo el botón (role=${inlineRole}) y en el aviso superior: «${inline1}» / «${notice1}»`),
+        check(p1.status() === 502 && notice1b === net, `«+» sin red → ${p1.status()}; aviso «${notice1b}»`),
+        check(at2 === 'Añadiendo…' && at10 === 'Añadiendo…' && tr.status() === 502 && trj.code === 'TIMEOUT' && tMs >= 14_500 && inlineT === 'Shopify ha superado el tiempo de espera.', `cuelgue: «${at2}» a los 2 s y «${at10}» a los 10 s; ${tr.status()} ${trj.code} a los ${tMs} ms; «${inlineT}»`),
+        check(notice2 === `${net} No se pudo verificar el catálogo vivo y el pago sigue desactivado.` && count2 === '0 diseños' && cnt2 === '' && cart2 === 'Tu carrito está vacío', `recarga con corte: «${notice2}», «${count2}», contador «${cnt2}», /cart «${cart2}» aunque la sesión tiene carrito`),
+        check(notice3 === 'No se ha podido conectar con la tienda.', `navegador offline → «${notice3}»`),
+        check(notice4 === 'La tienda no ha podido completar la operación.', `502 sin JSON (sustituye a «parar Express con Vite delante») → «${notice4}»`),
+        check(null, `con la línea a la vista, el aviso superior ${inView ? 'se ve' : 'queda fuera de la pantalla'} (${vp})`),
+      ];
+      const v = verdict(checks, { notes: ['paso 4 adaptado: en E2 simulado Express sirve la web y la API (no hay Vite); se simuló la respuesta sin cuerpo JSON con page.route', sumIssues(issues, routes)], hallazgos: ['C-CART-10', 'C-CART-13'] });
+      if (!inView) await shotE2(page, `C-CART-13-aviso-fuera-${vp}`);
+      if (v.resultado.startsWith('FALLO')) await shotE2(page, `R-CART-21-${vp}`);
+      extra[`cart21-${vp}`] = { inView };
+      A.resetControl();
+      await context.close();
+      return v;
+    });
+
+    // ------------------------------------------------------------ R-CART-22 (+ TECLADO-carrito)
+    if (want('R-CART-22')) await R.run('R-CART-22', vp, async () => {
+      const { context, page, issues, routes } = await openPage(browser, A, { viewportName: vp });
+      await seed(context, [['rocky-racing/L', 2], ['dwag/M', 1]]);
+      await gotoCart(page);
+      // 1. Desde «Saltar al contenido»
+      await page.keyboard.press('Tab');
+      const skip = await focusDesc(page);
+      await page.keyboard.press('Enter');
+      const seq = await tabs(page, 12);
+      const back = await tabs(page, 3, true);
+      // 2. Enter y Espacio sobre «+» y «−»
+      const plus = line(page, 'RockyRacing').getByRole('button', { name: 'Añadir una unidad' });
+      await plus.focus();
+      A.setControl({ storefront: { latencyMs: 400 } });
+      let w = waitApi(page, '/api/shopify/cart/lines', 'PATCH');
+      await page.keyboard.press('Enter');
+      const duringEnter = await focusDesc(page);
+      await w;
+      await sleep(250);
+      const afterEnter = await focusDesc(page);
+      const minus = line(page, 'RockyRacing').getByRole('button', { name: 'Quitar una unidad' });
+      await minus.focus();
+      w = waitApi(page, '/api/shopify/cart/lines', 'PATCH');
+      await page.keyboard.press('Space');
+      await w;
+      await sleep(250);
+      const afterSpace = await focusDesc(page);
+      A.resetControl();
+      // 3. Enter sobre «×»
+      await line(page, 'DWAG').getByRole('button', { name: 'Eliminar DWAG del carrito' }).focus();
+      w = waitApi(page, '/api/shopify/cart/lines', 'DELETE');
+      await page.keyboard.press('Enter');
+      await w;
+      await sleep(250);
+      const afterRemove = await focusDesc(page);
+      // Regiones vivas
+      const live = await page.evaluate(() => ({
+        qtyLive: Boolean(document.querySelector('.quantity-value')?.closest('[aria-live],[role=status],[role=alert]')),
+        totalLive: Boolean(document.querySelector('.cart-summary-total')?.closest('[aria-live],[role=status],[role=alert]')),
+      }));
+      // 4. Error (línea quitada por detrás) y anuncio
+      const cookie = (await context.cookies()).map((c) => `${c.name}=${c.value}`).join('; ');
+      const cart = await (await context.request.get(`${A.origin}/api/shopify/cart`)).json();
+      await context.request.delete(`${A.origin}/api/shopify/cart/lines`, { headers: { Origin: A.origin }, data: { lineId: cart.cart.lines[0].id, operationId: opId() } });
+      await plus.focus();
+      w = waitApi(page, '/api/shopify/cart/lines', 'PATCH');
+      await page.keyboard.press('Enter');
+      await w;
+      await sleep(250);
+      const errRole = await noticeRole(page);
+      const errText = await noticeText(page);
+      // 5. Tamaño de los botones
+      const size = await page.locator('.quantity-btn').first().evaluate((b) => { const r = b.getBoundingClientRect(); return `${Math.round(r.width)}×${Math.round(r.height)}`; });
+      const ring = seq.find((s) => s.d.startsWith('button'))?.outline || '';
+      const expected = ['a«Seguir comprando»', 'a«RockyRacing»', 'a«RockyRacing»', 'button«Quitar una unidad»', 'button«Añadir una unidad»', 'button«Eliminar RockyRacing del carrito»', 'a«DWAG»', 'a«DWAG»', 'button«Quitar una unidad»', 'button«Añadir una unidad»', 'button«Eliminar DWAG del carrito»', 'button«Ir al pago seguro»'];
+      const got = seq.map((s) => s.d.replace(/«(?:RockyRacing|DWAG)\b[^»]*»/, (m) => m.split(' ')[0].replace(/[^«A-Za-z]/g, '') ? m : m));
+      const norm = (d) => d.toLowerCase();
+      const expectedNorm = ['a«seguir comprando»', 'a', 'a«rockyracing»', 'button«quitar una unidad»', 'button«añadir una unidad»', 'button«eliminar rockyracing del carrito»', 'a', 'a«dwag»', 'button«quitar una unidad»', 'button«añadir una unidad»', 'button«eliminar dwag del carrito»', 'button«ir al pago seguro»'];
+      const orderOk = expectedNorm.every((e, i) => norm(seq[i]?.d || '') === e);
+      const imgLinks = await page.locator('.cart-item-media').evaluateAll((as) => as.map((a) => a.querySelector('img')?.getAttribute('alt') || a.textContent.trim()));
+      const checks = [
+        check(skip.d.includes('Saltar al contenido'), `primer Tab: ${skip.d}`),
+        check(orderOk, `orden: ${fmtTabs(seq)} (los «a» sin texto son las imágenes enlazadas, con nombre por su alt: ${imgLinks.join(', ')})`),
+        check(seq.every((s) => s.visible), `anillo de foco en todos (${ring || 'sin outline'}); Mayús+Tab vuelve: ${fmtTabs(back)}`),
+        check(null, `foco durante la operación ${duringEnter.d}; tras Enter en «+» ${afterEnter.d}; tras Espacio en «−» ${afterSpace.d}`),
+        check(null, `foco tras «×» con Enter: ${afterRemove.d}`),
+        check(!live.qtyLive && !live.totalLive, `cantidad y total sin región viva (cantidad=${live.qtyLive}, total=${live.totalLive})`),
+        check(errRole === 'alert' && errText === 'La línea no pertenece al carrito.', `error tras quitar la línea por detrás: aviso role=${errRole} «${errText}»`),
+        check(size === '28×28', `botones de cantidad ${size}`),
+      ];
+      const lost = [afterEnter, afterSpace, afterRemove].some((f) => f.d === '<body>');
+      const v = verdict(checks, { notes: [sumIssues(issues, routes)], hallazgos: ['C-CART-15', 'C-CART-17', ...(lost ? ['C-CART-14'] : [])] });
+      if (vp === 'escritorio') extra.teclado = { skip, seq, back, duringEnter, afterEnter, afterSpace, afterRemove, live, errRole, errText, size, ring };
+      if (v.resultado.startsWith('FALLO') || lost) await shotE2(page, `R-CART-22-${vp}`);
+      await context.close();
+      void got; void cookie;
+      return v;
+    });
+
+    // ------------------------------------------------------------ R-CHK-02
+    if (want('R-CHK-02')) await R.run('R-CHK-02', vp, async () => {
+      const { context, page, issues, routes } = await openPage(browser, A, { viewportName: vp });
+      await seed(context, [['rocky-racing/S', 1], ['danger/L', 1]]);
+      await gotoCart(page);
+      A.setControl({ storefront: { latencyMs: 700 } });
+      let captured = null;
+      await page.route('**/api/shopify/checkout', async (route) => {
+        const r = await route.fetch();
+        captured = { status: r.status(), text: await r.text() };
+        await route.fulfill({ response: r, body: captured.text });
+      });
+      const reqP = page.waitForRequest((r) => r.url().endsWith('/api/shopify/checkout'));
+      const resP = waitApi(page, '/api/shopify/checkout', 'POST');
+      await page.locator('.cart-checkout').click();
+      const snap = await page.evaluate(() => ({ text: document.querySelector('.cart-checkout')?.textContent.trim(), disabled: [...document.querySelectorAll('.cart-item button, .cart-checkout')].every((b) => b.disabled) }));
+      const req = await reqP;
+      const reqBody = req.postData();
+      const reqOrigin = (await req.allHeaders()).origin;
+      const res = await resP;
+      await page.waitForURL(/^https:\/\/rocky-dev\.myshopify\.com\/cart\/c\//, { timeout: 15_000 });
+      const rj = JSON.parse(captured?.text || '{}');
+      await page.unroute('**/api/shopify/checkout');
+      const landed = new URL(page.url());
+      A.resetControl();
+      const reads = A.calls((c) => c.op === 'RockyCart').length;
+      await page.goBack();
+      await page.waitForURL(`${A.origin}/cart`);
+      await waitStore(page);
+      await sleep(300);
+      const back = (await rows(page)).map((r) => `${r.title} x${r.qty}`);
+      // Con una línea agotada
+      A.setControl({ storefront: { inventory: { 'danger/L': 0 } } });
+      await gotoCart(page);
+      const sold = (await rows(page)).find((r) => r.title === 'Danger')?.soldout;
+      const enabled = !(await page.locator('.cart-checkout').isDisabled());
+      await page.locator('.cart-checkout').click();
+      await page.waitForURL(/rocky-dev\.myshopify\.com/, { timeout: 15_000 });
+      A.resetControl();
+      const checks = [
+        check(snap.text === 'Actualizando…' && snap.disabled, `al pulsar: «${snap.text}», controles deshabilitados=${snap.disabled}`),
+        check(reqBody === '{}' && reqOrigin === A.origin, `POST /api/shopify/checkout cuerpo ${reqBody}, Origin ${reqOrigin}`),
+        check(res.status() === 200 && Object.keys(rj).join(',') === 'checkoutUrl' && rj.checkoutUrl.startsWith('https://rocky-dev.myshopify.com/cart/c/'), `respuesta ${res.status()} {checkoutUrl: https://rocky-dev.myshopify.com/cart/c/<token>?key=<…>}`),
+        check(landed.hostname === 'rocky-dev.myshopify.com' && routes.checkouts.length >= 1, `navega a ${landed.origin}${landed.pathname.replace(/c\/.*/, 'c/<token>')} (checkout simulado)`),
+        check(back.join(', ') === 'RockyRacing x1, Danger x1', `al volver atrás: ${back.join(', ')}`),
+        check(sold === 'Agotado — quítalo del carrito' && enabled && routes.checkouts.length >= 2, `con «${sold}» el botón sigue activo (${enabled}) y navega igualmente (lo decide Shopify)`),
+      ];
+      const notes = [`el servidor vuelve a leer el carrito antes de responder (RockyCart: ${reads} lecturas acumuladas)`, 'C-CART-31: el botón dice «Actualizando…» también mientras se pide el enlace de pago', sumIssues(issues, routes)];
+      const v = verdict(checks, { notes, hallazgos: ['C-CART-31'] });
+      await context.close();
+      return v;
+    });
+
+    // ------------------------------------------------------------ R-CHK-03
+    if (want('R-CHK-03')) await R.run('R-CHK-03', vp, async () => {
+      const { context, page, issues, routes } = await openPage(browser, A, { viewportName: vp });
+      await seed(context, [['flora-blue/L', 1]]);
+      await gotoCart(page);
+      const pageB = await context.newPage();
+      await pageB.goto(`${A.origin}/cart`);
+      await waitStore(pageB);
+      await sleep(300);
+      const w = waitApi(page, '/api/shopify/cart/lines', 'DELETE');
+      await page.locator('.cart-item-remove').first().click();
+      await w;
+      const navs = [];
+      pageB.on('framenavigated', (f) => { if (f === pageB.mainFrame()) navs.push(f.url()); });
+      const r = waitApi(pageB, '/api/shopify/checkout', 'POST');
+      await pageB.locator('.cart-checkout').click();
+      const res = await r;
+      const body = await res.text();
+      await sleep(500);
+      const notice = await noticeText(pageB);
+      const still = (await rows(pageB)).length;
+      const nocookie = await api(A, 'POST', '/api/shopify/checkout', { body: {} });
+      const checks = [
+        check(res.status() === 409 && body === '{"message":"El carrito está vacío.","code":"SHOPIFY_ERROR"}', `pestaña B → ${res.status()} ${body}`),
+        check(notice === 'El carrito está vacío.' && navs.length === 0 && still === 1, `aviso «${notice}», navegaciones ${navs.length}, la línea sigue (${still})`),
+        check(nocookie.status === 404 && nocookie.text === '{"message":"No existe un carrito activo.","code":"SHOPIFY_ERROR"}', `sin cookie → ${nocookie.status} ${nocookie.text}`),
+      ];
+      const v = verdict(checks, { notes: [sumIssues(issues, routes)], hallazgos: ['C-CART-11', 'C-CART-23'] });
+      await context.close();
+      return v;
+    });
+
+    // ------------------------------------------------------------ R-CHK-04 (pasos de cliente)
+    if (want('R-CHK-04')) {
+      const { context, page, issues, routes } = await openPage(browser, A, { viewportName: vp });
+      await seed(context, [['dwag/S', 1]]);
+      const msgs = {};
+      for (const [k, url] of [['http', 'http://rocky-dev.myshopify.com/cart/c/x'], ['invalida', 'no es una url']]) {
+        await page.route('**/api/shopify/checkout', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ checkoutUrl: url }) }));
+        await gotoCart(page);
+        await page.locator('.cart-checkout').click();
+        await page.waitForFunction(() => document.querySelector('.commerce-notice'), null, { timeout: 5_000 });
+        msgs[k] = await noticeText(page);
+        await page.unroute('**/api/shopify/checkout');
+      }
+      extra[`chk04-${vp}`] = { msgs, issues: sumIssues(issues, routes), url: page.url() };
+      await context.close();
+    }
+
+    // ------------------------------------------------------------ R-CHK-05
+    if (want('R-CHK-05')) await R.run('R-CHK-05', vp, async () => {
+      const { context, page, issues, routes } = await openPage(browser, A, { viewportName: vp });
+      await seed(context, [['35-red/Default Title', 1]]);
+      const cookie = (await context.cookies()).map((c) => `${c.name}=${c.value}`).join('; ');
+      const s1 = await api(A, 'POST', '/api/shopify/checkout', { cookie, origin: null, body: {} });
+      const s2 = await api(A, 'POST', '/api/shopify/checkout', { cookie, origin: 'https://evil.example', body: {} });
+      await gotoCart(page);
+      A.setControl({ storefront: { mode: 'network' } });
+      const r = waitApi(page, '/api/shopify/checkout', 'POST');
+      await page.locator('.cart-checkout').click();
+      const res = await r;
+      await sleep(300);
+      const notice = await noticeText(page);
+      const btn = nb(await page.locator('.cart-checkout').textContent());
+      A.resetControl();
+      const checks = [
+        check(s1.status === 403 && s1.json?.message === 'Petición de origen no confiable.', `sin Origin → ${s1.status} ${s1.text}`),
+        check(s2.status === 403 && s2.json?.message === 'Origen no permitido.', `Origin evil.example → ${s2.status} ${s2.text}`),
+        check(res.status() === 502 && notice === 'No se ha podido conectar con Shopify.' && btn === 'Ir al pago seguro', `sin red a Shopify → ${res.status()}; aviso «${notice}»; botón «${btn}»`),
+      ];
+      const v = verdict(checks, { notes: [sumIssues(issues, routes)] });
+      await context.close();
+      return v;
+    });
+  }
+
+  // ---------------------------------------------------------------- API (una vez)
+  if (want('R-CART-17')) await R.run('R-CART-17', 'api', async () => {
+    const add = await api(A, 'POST', '/api/shopify/cart/lines', { body: { variantId: variantId('rocky-racing/S'), quantity: 1, operationId: opId() } });
+    const cookie = cookieFrom(add.setCookie);
+    const lineId = add.json.cart.lines[0].id;
+    const callsBefore = A.calls().length;
+    const res = {};
+    for (const q of [0, 21, 1.5, 'dos', undefined]) {
+      const body = { lineId, operationId: opId() };
+      if (q !== undefined) body.quantity = q;
+      const r = await api(A, 'PATCH', '/api/shopify/cart/lines', { body });
+      res[`q=${q === undefined ? 'sin' : JSON.stringify(q)}`] = `${r.status} ${r.json?.code}${r.setCookie ? ' +cookie' : ''}`;
+    }
+    for (const v of ['123', 'gid://shopify/Product/1']) {
+      const r = await api(A, 'POST', '/api/shopify/cart/lines', { body: { variantId: v, quantity: 1, operationId: opId() } });
+      res[`variant=${v}`] = `${r.status} ${r.json?.code} «${r.json?.message}»${r.setCookie ? ' +cookie' : ''}`;
+    }
+    for (const o of ['abc', 'op id con espacios']) {
+      const r = await api(A, 'POST', '/api/shopify/cart/lines', { body: { variantId: variantId('rocky-racing/S'), quantity: 1, operationId: o } });
+      res[`op=${o}`] = `${r.status} ${r.json?.code} «${r.json?.message}»${r.setCookie ? ' +cookie' : ''}`;
+    }
+    for (const m of ['PATCH', 'DELETE']) {
+      const r = await api(A, m, '/api/shopify/cart/lines', { body: { lineId: 'linea-1', quantity: 2, operationId: opId() } });
+      res[`${m} linea-1`] = `${r.status} ${r.json?.code} «${r.json?.message}»${r.setCookie ? ' +cookie' : ''}`;
+    }
+    const big = await api(A, 'POST', '/api/shopify/cart/lines', { body: { variantId: variantId('rocky-racing/S'), quantity: 1, operationId: opId(), relleno: 'x'.repeat(17_000) } });
+    res['>16kB'] = `${big.status} ${big.text}`;
+    const callsAfterErrors = A.calls().length;
+    const five = await api(A, 'PATCH', '/api/shopify/cart/lines', { cookie, body: { lineId, quantity: '5', operationId: opId() } });
+    const extraFields = await api(A, 'POST', '/api/shopify/cart/lines', { cookie, body: { variantId: variantId('dwag/XL'), quantity: 1, operationId: opId(), price: 0, merchandiseId: variantId('smoker-edition/S') } });
+    const added = extraFields.json?.cart?.lines?.map((l) => `${l.variant.product.handle}/${l.variant.title}x${l.quantity}`).join(', ');
+    const anyCookie = Object.values(res).some((s) => s.includes('+cookie'));
+    const checks = [
+      check(Object.entries(res).filter(([k]) => k.startsWith('q=')).every(([, s]) => s.startsWith('400 INVALID_QUANTITY')), `cantidades: ${Object.entries(res).filter(([k]) => k.startsWith('q=')).map(([k, s]) => `${k}→${s}`).join('; ')}`),
+      check(res['variant=123'].startsWith('400 INVALID_VARIANT «La variante no es válida.»') && res['variant=gid://shopify/Product/1'].startsWith('400 INVALID_VARIANT'), `variantes: ${res['variant=123']}; ${res['variant=gid://shopify/Product/1']}`),
+      check(res['op=abc'].startsWith('400 INVALID_OPERATION_ID «operationId no válido.»') && res['op=op id con espacios'].startsWith('400 INVALID_OPERATION_ID'), `operationId: ${res['op=abc']}; ${res['op=op id con espacios']}`),
+      check(res['PATCH linea-1'].startsWith('400 INVALID_LINE «La línea del carrito no es válida.»') && res['DELETE linea-1'].startsWith('400 INVALID_LINE'), `lineId: ${res['PATCH linea-1']}; ${res['DELETE linea-1']}`),
+      check(res['>16kB'] === '413 {"message":"Petición demasiado grande."}', `cuerpo > 16 kB → ${res['>16kB']}`),
+      check(!anyCookie && callsAfterErrors === callsBefore, `ningún error trae Set-Cookie (${anyCookie}) ni llama a Shopify (${callsAfterErrors - callsBefore} llamadas)`),
+      check(five.status === 200 && five.json.cart.lines[0].quantity === 5, `quantity "5" (texto) → ${five.status}, cantidad ${five.json?.cart?.lines?.[0]?.quantity}`),
+      check(extraFields.status === 200 && added.includes('dwag/XLx1') && !added.includes('smoker'), `campos de más (price, merchandiseId) → ${extraFields.status}; líneas: ${added}`),
+    ];
+    return verdict(checks);
+  });
+
+  if (want('R-CART-20')) await R.run('R-CART-20', 'api', async () => {
+    const body1 = { variantId: variantId('flora-blue/S'), quantity: 1, operationId: 'audit-replay-0001' };
+    const r1 = await api(A, 'POST', '/api/shopify/cart/lines', { body: body1 });
+    const cookie = cookieFrom(r1.setCookie);
+    const r2 = await api(A, 'POST', '/api/shopify/cart/lines', { cookie, body: body1 });
+    const cartAfter2 = await api(A, 'GET', '/api/shopify/cart', { cookie });
+    const r3a = await api(A, 'POST', '/api/shopify/cart/lines', { cookie, body: { variantId: 'gid://shopify/ProductVariant/999999999999', quantity: 1, operationId: 'audit-replay-0002' } });
+    const r3b = await api(A, 'POST', '/api/shopify/cart/lines', { cookie, body: { variantId: variantId('danger/M'), quantity: 1, operationId: 'audit-replay-0002' } });
+    A.setControl({ storefront: { failNext: [{ op: 'RockyCartLinesAdd', mode: 'network', times: 1 }] } });
+    const r4a = await api(A, 'POST', '/api/shopify/cart/lines', { cookie, body: { variantId: variantId('danger/L'), quantity: 1, operationId: 'audit-replay-0003' } });
+    A.resetControl();
+    const r4b = await api(A, 'POST', '/api/shopify/cart/lines', { cookie, body: { variantId: variantId('danger/L'), quantity: 1, operationId: 'audit-replay-0003' } });
+    const qty = cartAfter2.json.cart.lines.find((l) => l.variant.product.handle === 'flora-blue')?.quantity;
+    const checks = [
+      check(r1.status === 200 && r2.status === 200 && r2.text === r1.text && qty === 1, `repetición exacta → ${r2.status}, misma respuesta=${r2.text === r1.text}, cantidad ${qty}`),
+      check(r3a.status === 422 && r3b.status === 200, `variante inexistente → ${r3a.status} ${r3a.text}; corregida con el mismo id → ${r3b.status}`),
+      check(r4a.status === 502 && r4b.status === 409 && r4b.text === '{"message":"La operación anterior sigue pendiente.","code":"OPERATION_PENDING"}', `fallo de red → ${r4a.status} ${r4a.json?.code}; reintento con el mismo id → ${r4b.status} ${r4b.text}`),
+    ];
+    return verdict(checks, { notes: ['la web nunca reutiliza un operationId (UUID por llamada, src/api/shopify.js:27-31)'] });
+  });
+
+  extra.unexpected = A.unexpectedCalls();
+  extra.calls = A.calls().length;
+  await browser.close();
+  await stopWait(A);
+  A = null;
+
+  // ---------------------------------------------------------------- R-CHK-04 paso 2 (arranque)
+  if (want('R-CHK-04')) {
+    let startErr = '';
+    try {
+      const bad = await start(3411, { SHOPIFY_CHECKOUT_HOSTS: 'checkout.example/ruta' });
+      startErr = 'ARRANCÓ (no esperado)';
+      await stopWait(bad);
+    } catch (error) {
+      startErr = String(error.message).match(/SHOPIFY_CHECKOUT_HOSTS[^\n"]*/)?.[0] || String(error.message).slice(0, 300);
+    }
+    for (const vp of VPS) {
+      await R.run('R-CHK-04', vp, async () => {
+        const e = extra[`chk04-${vp}`];
+        const checks = [
+          check(null, 'paso 1 (dominio propio no permitido): no reproducible con el doble, cuyo checkoutUrl es siempre https://rocky-dev.myshopify.com y ese host se permite siempre; revisado por código: cart-operations.mjs:7-18 lanza ShopifyGraphqlError «El dominio de checkout no está permitido.» (502 SHOPIFY_ERROR)'),
+          check(startErr.includes('SHOPIFY_CHECKOUT_HOSTS sólo puede contener hostnames sin ruta ni puerto.'), `paso 2: con SHOPIFY_CHECKOUT_HOSTS=checkout.example/ruta el servidor no arranca: «${startErr}»`),
+          check(e?.msgs?.http === 'Shopify ha devuelto un enlace de pago no seguro.' && e?.msgs?.invalida === 'Shopify no ha devuelto un enlace de pago válido.' && e.url.endsWith('/cart'), `cliente (respuesta del BFF sustituida en el navegador): http: → «${e?.msgs?.http}»; URL no válida → «${e?.msgs?.invalida}»; sin navegación`),
+        ];
+        return verdict(checks, { notes: ['paso 3: tests revisados en el informe (grep)', e?.issues || ''], hallazgos: ['C-CART-27'] });
+      });
+    }
+  }
+}
+
+try {
+  await main();
+} catch (error) {
+  process.stdout.write(`ERROR ${error?.stack || error}\n`);
+} finally {
+  if (A) {
+    extra.unexpectedFinal = A.unexpectedCalls().length;
+    await A.stop().catch(() => {});
+  }
+  if (browser) await browser.close().catch(() => {});
+  saveJson('carrito-extra', extra);
+  R.save();
+  process.stdout.write(`unexpected: ${extra.unexpected?.length} de ${extra.calls} llamadas\n`);
+}

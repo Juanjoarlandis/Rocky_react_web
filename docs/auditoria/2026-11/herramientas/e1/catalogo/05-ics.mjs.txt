@@ -1,0 +1,38 @@
+// R-DROP-03 fuera del navegador: monta el router del .ics del repo con una fecha de prueba
+// (sin tocar el repo) y revisa cabeceras y contenido contra la ficha.
+import express from '/RUTA/AL/REPO/node_modules/express/index.js';
+import { createDropRouter } from '/RUTA/AL/REPO/server/http/routes/drop.mjs';
+import { googleCalendarUrl } from '/RUTA/AL/REPO/shared/drop-calendar.mjs';
+import { CURRENT_DROP } from '/RUTA/AL/REPO/shared/campaign.mjs';
+
+const drop = { ...CURRENT_DROP, launchAt: '2026-12-12T20:00:00+01:00' };
+const app = express();
+app.use('/api/drop', createDropRouter({ config: { publicOrigin: 'http://localhost:3202' }, drop, clock: () => new Date('2026-11-08T12:00:00Z') }));
+const server = app.listen(3304);
+await new Promise((r) => server.once('listening', r));
+try {
+  const r = await fetch('http://localhost:3304/api/drop/calendario.ics');
+  const raw = Buffer.from(await r.arrayBuffer());
+  const text = raw.toString('utf8');
+  const lines = text.split('\r\n');
+  const out = {
+    status: r.status,
+    contentType: r.headers.get('content-type'),
+    disposition: r.headers.get('content-disposition'),
+    cache: r.headers.get('cache-control'),
+    crlf: !/[^\r]\n/.test(text),
+    maxOctets: Math.max(...lines.map((l) => Buffer.byteLength(l))),
+    dtstart: lines.find((l) => l.startsWith('DTSTART')),
+    dtend: lines.find((l) => l.startsWith('DTEND')),
+    uid: lines.find((l) => l.startsWith('UID')),
+    summary: lines.find((l) => l.startsWith('SUMMARY')),
+    url: lines.find((l) => l.startsWith('URL')),
+    alarms: lines.filter((l) => l === 'BEGIN:VALARM').length,
+    triggers: lines.filter((l) => l.startsWith('TRIGGER')),
+    launchMinutes: CURRENT_DROP.launchMinutes ?? '(por defecto)',
+  };
+  console.log(JSON.stringify(out, null, 1));
+  console.log('google', googleCalendarUrl(drop, { origin: 'http://localhost:3202' }));
+} finally {
+  server.close();
+}

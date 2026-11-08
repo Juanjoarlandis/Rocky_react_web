@@ -1,0 +1,15 @@
+// Segunda tanda de Lighthouse (tarea 6.2): instancia aislada cuyo origen permitido es el suyo.
+import { execFileSync } from 'node:child_process';
+import { startInstance, SCRATCH } from './harness.mjs';
+
+const inst = await startInstance(3290, { SHOPIFY_RATE_LIMIT_MAX: '1000' });
+try {
+  const out = execFileSync('bash', [`${SCRATCH}/lighthouse.sh`, inst.origin, `${SCRATCH}/lh`], {
+    encoding: 'utf8',
+    env: process.env,
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  console.log(out.split('\n').filter((l) => /FALLO|terminado/.test(l)).join('\n'));
+} finally {
+  inst.stop();
+}

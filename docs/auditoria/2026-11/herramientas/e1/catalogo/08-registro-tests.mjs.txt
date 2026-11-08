@@ -1,0 +1,46 @@
+// R-DROP-13 (código y tests) y R-DROP-03 (sin fecha en 7d2bf57: tests + router del .ics montado con fecha de prueba).
+import { execFileSync } from 'node:child_process';
+import path from 'node:path';
+import { REPO } from '../harness.mjs';
+import { Checks, rec } from './util.mjs';
+
+const NODE_BIN = '/RUTA/A/node24-bin';
+const env = { ...process.env, PATH: `${NODE_BIN}:${process.env.PATH}` };
+const files = ['server/http/routes/avisos.test.mjs', 'server/services/avisos.test.mjs', 'server/http/routes/drop.test.mjs', 'src/features/catalog/AddToCalendar.test.jsx', 'shared/drop-calendar.test.mjs'];
+let vitestOut = '';
+try {
+  vitestOut = execFileSync(path.join(REPO, 'node_modules/.bin/vitest'), ['run', '--no-cache', '--reporter=verbose', ...files], { cwd: REPO, env, encoding: 'utf8', timeout: 240000 });
+} catch (e) {
+  vitestOut = `${e.stdout || ''}${e.stderr || ''}`;
+}
+const clean = vitestOut.replace(/\x1b\[[0-9;]*m/g, '');
+const summary = (clean.match(/Test Files\s+.*\n\s+Tests\s+.*/) || ['sin resumen'])[0].replace(/\s+/g, ' ');
+const passed = /Tests\s+21 passed \(21\)/.test(clean) && !/failed/.test(clean.match(/Tests\s+.*/)?.[0] || 'failed');
+const has = (t) => clean.includes(t);
+
+{
+  const c = new Checks();
+  c.ok('vitest de avisos y calendario', passed, `npx vitest run ${files.join(' ')} → ${summary}`);
+  c.ok('test «responde 429 cuando la lista de un producto o el índice están a reventar»', has('✓ |server| server/http/routes/avisos.test.mjs > POST /api/avisos > responde 429 cuando la lista de un producto o el índice están a reventar'));
+  c.ok('test «rejects production subscriptions without encrypted persistence»', has('rejects production subscriptions without encrypted persistence'));
+  c.ok('test «corta el grifo al pasarse del límite por ventana»', has('corta el grifo al pasarse del límite por ventana'));
+  c.note('código: server/http/routes/avisos.mjs:26-31 (503 AVISOS_UNAVAILABLE en producción sin almacén persistente) y :55-59 (lista o índice llenos → 429 «La lista está a reventar; inténtalo más tarde.» con Retry-After 3600); server/services/avisos.mjs:15-16 (MAX_POR_PRODUCTO 5000, MAX_PRODUCTOS_INDICE 200) y :75-82');
+  c.note('cobertura de los tests: el de 429 comprueba el estado y Retry-After 3600 de la lista llena, pero no el texto del mensaje ni el Retry-After del índice lleno; el de producción comprueba solo code AVISOS_UNAVAILABLE, no el mensaje');
+  await rec({ id: 'R-DROP-13', viewport: 'código y tests', checks: c });
+}
+
+{
+  let ics = '';
+  try {
+    ics = execFileSync(path.join(NODE_BIN, 'node'), [path.join(path.dirname(new URL(import.meta.url).pathname), '05-ics.mjs')], { encoding: 'utf8', timeout: 60000 });
+  } catch (e) {
+    ics = `fallo: ${e.message}`;
+  }
+  const c = new Checks();
+  c.note('shared/campaign.mjs:11 launchAt: null en 7d2bf57; no se cambia código (R5), así que no se ve «Sale el…» ni los botones en el navegador');
+  c.note(`tests: ${summary} (incluye server/http/routes/drop.test.mjs, src/features/catalog/AddToCalendar.test.jsx y shared/drop-calendar.test.mjs)`);
+  c.note(`router del repo montado fuera del navegador con launchAt 2026-12-12T20:00+01:00 (scratchpad/e1/catalogo/05-ics.mjs): ${ics.replace(/\s+/g, ' ').slice(0, 900)}`);
+  for (const vp of ['escritorio', 'movil']) {
+    await rec({ id: 'R-DROP-03', viewport: vp, checks: c, resultado: 'NO EJECUTADO: CURRENT_DROP.launchAt es null en 7d2bf57 y la auditoría no cambia código; revisado por tests y montando el router del .ics con una fecha de prueba (cumple cabeceras, UTC, UID, SUMMARY, URL, 2 alarmas, CRLF y 75 octetos)' });
+  }
+}

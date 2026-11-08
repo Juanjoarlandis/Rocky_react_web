@@ -1,0 +1,306 @@
+// R-DROP-04…09 y R-DROP-11: altas de avisos en el navegador (instancia con límites altos).
+// Una instancia nueva por viewport para empezar con el almacén vacío.
+import { startInstance, launchBrowser, openPage } from '../harness.mjs';
+import { Checks, rec, waitStore, text } from './util.mjs';
+
+const VPS = (process.env.VPS || 'escritorio,movil').split(',');
+const EMAIL = 'auditoria+drop@rocky.test';
+const CONSENT = 'Usaremos tu email sólo para avisarte de este drop; después, la lista se borra.';
+
+const browser = await launchBrowser();
+
+// Registra peticiones y respuestas de /api/avisos
+function spyAvisos(page) {
+  const log = [];
+  page.on('request', (r) => {
+    if (r.url().endsWith('/api/avisos')) log.push({ kind: 'req', body: r.postData() });
+  });
+  page.on('response', async (r) => {
+    if (!r.url().endsWith('/api/avisos')) return;
+    let body = null;
+    try {
+      body = await r.json();
+    } catch {
+      /* sin json */
+    }
+    log.push({ kind: 'res', status: r.status(), body, headers: r.headers() });
+  });
+  return log;
+}
+const resetIssues = (i) => Object.values(i).forEach((a) => a.splice(0));
+const lastRes = (log) => [...log].reverse().find((x) => x.kind === 'res');
+const lastReq = (log) => {
+  const r = [...log].reverse().find((x) => x.kind === 'req');
+  return r ? JSON.parse(r.body) : null;
+};
+
+const listo = (page, scope) =>
+  page.evaluate((s) => {
+    const root = document.querySelector(s);
+    const l = root?.querySelector('[data-testid="drop-aviso-listo"]');
+    return l
+      ? { listo: true, sello: l.querySelector('.drop-aviso-sello')?.textContent.trim(), nota: l.querySelector('.drop-aviso-nota')?.textContent.trim(), img: /corriendo-bolsa/.test(l.querySelector('img')?.getAttribute('src') || ''), form: !!root.querySelector('form.drop-aviso') }
+      : { listo: false, form: !!root?.querySelector('form.drop-aviso') };
+  }, scope);
+
+for (const vp of VPS) {
+  const inst = await startInstance(3202, { AVISOS_RATE_LIMIT_MAX: '100', SHOPIFY_RATE_LIMIT_MAX: '2000' });
+  const O = inst.origin;
+  const { page, issues, context } = await openPage(browser, vp, { origin: O });
+  const log = spyAvisos(page);
+  const LOCKED = '[data-testid="locked-designs"]';
+  try {
+    // ---------------- R-DROP-04 ----------------
+    {
+      const c = new Checks();
+      await page.goto(O + '/');
+      await waitStore(page);
+      const form = page.locator(`${LOCKED} form.drop-aviso`);
+      await form.scrollIntoViewIfNeeded();
+      c.eq('casilla de consentimiento', await text(page, `${LOCKED} .drop-aviso-permiso span`), `${CONSENT} Más en privacidad.`);
+      await form.getByPlaceholder('tu@email.com').fill(EMAIL);
+      await form.locator('input[name=consentimiento]').check();
+      await page.route('**/api/avisos', async (route) => {
+        await new Promise((r) => setTimeout(r, 900));
+        await route.continue();
+      });
+      await form.getByRole('button', { name: 'Avísame' }).click();
+      await page.waitForTimeout(300);
+      const during = await page.evaluate((s) => {
+        const f = document.querySelector(`${s} form.drop-aviso`);
+        return { email: f?.querySelector('input[type=email]').disabled, check: f?.querySelector('input[name=consentimiento]').disabled, btn: f?.querySelector('button[type=submit]').textContent.trim(), btnDis: f?.querySelector('button[type=submit]').disabled };
+      }, LOCKED);
+      c.eq('durante el envío', during, { email: true, check: true, btn: 'Apuntando…', btnDis: true });
+      await page.waitForSelector(`${LOCKED} [data-testid="drop-aviso-listo"]`);
+      await page.unroute('**/api/avisos');
+      c.eq('petición', lastReq(log), { producto: 'rocky-drop-4', email: EMAIL, consentimiento: true, apodo: '' });
+      const res = lastRes(log);
+      c.eq('respuesta', [res?.status, res?.body], [200, { ok: true, duplicate: false, product: 'rocky-drop-4' }]);
+      c.eq('recado apuntado', await listo(page, LOCKED), { listo: true, sello: 'Recado apuntado', nota: 'El Recadero te lo trae el día del drop.', img: true, form: false });
+      c.eq('recibo local', await page.evaluate(() => localStorage.getItem('rocky-aviso-rocky-drop-4')), '1');
+      await page.reload();
+      await waitStore(page);
+      c.ok('tras recargar sigue «Recado apuntado»', (await listo(page, LOCKED)).listo && !(await listo(page, LOCKED)).form);
+      await page.goto(O + '/products/rocky-drop-4');
+      await waitStore(page);
+      c.ok('en la categoría sigue «Recado apuntado»', (await listo(page, LOCKED)).listo);
+      await page.goto(O + '/product/35-red');
+      await waitStore(page);
+      await page.locator('#aviso').getByRole('link', { name: 'Más en privacidad' }).click();
+      await page.waitForURL('**/legal/privacidad');
+      c.ok('«Más en privacidad» → /legal/privacidad', true);
+      const logLines = inst.log.join('').split('\n').filter((l) => l.includes('Aviso de drop apuntado'));
+      c.note(`log del servidor: ${logLines.map((l) => l.replace(/.*"producto"/, '"producto"').slice(0, 60)).join(' | ')}`);
+      c.ok('el log no lleva el email', !inst.log.join('').includes('rocky.test'));
+      await rec({ id: 'R-DROP-04', viewport: vp, checks: c, issues, page, hallazgos: 'C-CAT-07, C-CAT-21' });
+    }
+
+    // ---------------- R-DROP-05 ----------------
+    resetIssues(issues);
+    {
+      const c = new Checks();
+      await page.goto(O + '/');
+      await waitStore(page);
+      const link = page.locator('article', { hasText: 'RockyRacing' }).getByRole('link', { name: 'Avísame' });
+      await link.scrollIntoViewIfNeeded();
+      if (vp === 'movil') await link.tap();
+      else await link.click();
+      await page.waitForURL('**/product/rockyracing#aviso');
+      await page.waitForSelector('#aviso input[type=email]');
+      await page.waitForTimeout(1200);
+      const f = await page.evaluate(() => {
+        const el = document.activeElement;
+        const r = el.getBoundingClientRect();
+        return { email: el.matches('#aviso input[type=email]'), center: Math.round(r.top + r.height / 2), vh: innerHeight };
+      });
+      c.ok('llega a /product/rockyracing#aviso con el foco en el email', f.email, JSON.stringify(f));
+      c.ok('email centrado en pantalla', Math.abs(f.center - f.vh / 2) < f.vh * 0.2, `centro ${f.center}px de ${f.vh}px`);
+      await page.keyboard.type(EMAIL);
+      c.eq('se escribe sin hacer clic', await page.inputValue('#aviso input[type=email]'), EMAIL);
+      await page.check('#aviso input[name=consentimiento]');
+      await page.locator('#aviso button[type=submit]').click();
+      await page.waitForSelector('#aviso [data-testid="drop-aviso-listo"]');
+      c.eq('alta rockyracing', [lastReq(log)?.producto, lastRes(log)?.status, lastRes(log)?.body], ['rockyracing', 200, { ok: true, duplicate: false, product: 'rockyracing' }]);
+      c.eq('recado', await listo(page, '#aviso'), { listo: true, sello: 'Recado apuntado', nota: 'El Recadero te lo trae el día del drop.', img: true, form: false });
+      await page.goto(O + '/product/35-red');
+      await waitStore(page);
+      await page.locator('.detail-buy > button', { hasText: 'Avísame' }).click();
+      await page.waitForTimeout(1000);
+      c.ok('35-red: el botón de compra lleva el foco al email', await page.evaluate(() => document.activeElement.matches('#aviso input[type=email]')));
+      await page.keyboard.type(EMAIL);
+      await page.check('#aviso input[name=consentimiento]');
+      await page.locator('#aviso button[type=submit]').click();
+      await page.waitForSelector('#aviso [data-testid="drop-aviso-listo"]');
+      c.eq('alta 35-red', [lastReq(log)?.producto, lastRes(log)?.status, lastRes(log)?.body], ['35-red', 200, { ok: true, duplicate: false, product: '35-red' }]);
+      c.eq('recibos', await page.evaluate(() => [localStorage.getItem('rocky-aviso-rockyracing'), localStorage.getItem('rocky-aviso-35-red')]), ['1', '1']);
+      c.note('mismo email en tres listas distintas: rocky-drop-4 (bloque), rockyracing y 35-red (fichas)');
+      await rec({ id: 'R-DROP-05', viewport: vp, checks: c, issues, page, hallazgos: 'C-CAT-07, C-CAT-09' });
+    }
+
+    // ---------------- R-DROP-06 ----------------
+    resetIssues(issues);
+    {
+      const c = new Checks();
+      const before = log.length;
+      await page.goto(O + '/product/rockyracing');
+      await waitStore(page);
+      await page.waitForSelector('#aviso');
+      c.eq('ficha con recibo', await listo(page, '#aviso'), { listo: true, sello: 'Recado apuntado', nota: 'El Recadero te lo trae el día del drop.', img: true, form: false });
+      c.eq('no se pregunta al servidor', log.length - before, 0);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      const btn = page.locator('.detail-buy > button', { hasText: 'Avísame' });
+      await btn.scrollIntoViewIfNeeded();
+      await page.waitForTimeout(300);
+      const y0 = await page.evaluate(() => Math.round(scrollY));
+      await btn.click();
+      await page.waitForTimeout(800);
+      const s2 = await page.evaluate(() => ({ y: Math.round(scrollY), active: document.activeElement?.textContent?.trim().slice(0, 20) || document.activeElement?.tagName }));
+      c.ok('paso 2: «Avísame» de compra no hace nada visible', s2.y === y0, `scrollY ${y0}→${s2.y}, foco en «${s2.active}»`);
+      await page.goto(O + '/');
+      await waitStore(page);
+      const link = page.locator('article', { hasText: 'RockyRacing' }).getByRole('link', { name: 'Avísame' });
+      await link.scrollIntoViewIfNeeded();
+      await link.click();
+      await page.waitForURL('**/product/rockyracing#aviso');
+      await page.waitForTimeout(1000);
+      const s3 = await page.evaluate(() => ({ y: Math.round(scrollY), active: document.activeElement === document.body ? 'body' : document.activeElement?.tagName, avisoTop: Math.round(document.querySelector('#aviso').getBoundingClientRect().top), vh: innerHeight }));
+      c.ok('paso 3: llegada con #aviso deja la página arriba', s3.y === 0, JSON.stringify(s3));
+      await page.evaluate(() => localStorage.removeItem('rocky-aviso-rockyracing'));
+      await page.reload();
+      await waitStore(page);
+      await page.waitForSelector('#aviso');
+      c.ok('paso 4: sin recibo vuelve el formulario', (await listo(page, '#aviso')).form);
+      await rec({ id: 'R-DROP-06', viewport: vp, checks: c, issues, page, hallazgos: 'C-CAT-08' });
+    }
+
+    // ---------------- R-DROP-07 ----------------
+    resetIssues(issues);
+    {
+      const c = new Checks();
+      await page.goto(O + '/product/dwag');
+      await waitStore(page);
+      const f = page.locator('#aviso form.drop-aviso');
+      const before = log.filter((x) => x.kind === 'req').length;
+      const email = f.locator('input[type=email]');
+      const submit = f.locator('button[type=submit]');
+      await submit.click();
+      const v1 = await email.evaluate((e) => ({ missing: e.validity.valueMissing, msg: e.validationMessage }));
+      await email.fill('sin-arroba');
+      await submit.click();
+      const v2 = await email.evaluate((e) => ({ mismatch: e.validity.typeMismatch, msg: e.validationMessage }));
+      await email.fill(EMAIL);
+      await submit.click();
+      const v3 = await f.locator('input[name=consentimiento]').evaluate((e) => ({ missing: e.validity.valueMissing, msg: e.validationMessage }));
+      await page.waitForTimeout(300);
+      const sent = log.filter((x) => x.kind === 'req').length - before;
+      c.ok('vacío: validación nativa required', v1.missing && v1.msg.length > 0, v1.msg);
+      c.ok('sin arroba: validación nativa type=email', v2.mismatch && v2.msg.length > 0, v2.msg);
+      c.ok('sin casilla: validación nativa required', v3.missing && v3.msg.length > 0, v3.msg);
+      c.eq('ninguna petición a /api/avisos', sent, 0);
+      await email.fill('');
+      await email.focus();
+      const long = `${'a'.repeat(280)}@rocky.test`;
+      await page.keyboard.insertText(long);
+      const len = await email.evaluate((e) => e.value.length);
+      c.eq('pegar 291 caracteres: el campo corta a 254', len, 254);
+      await rec({ id: 'R-DROP-07', viewport: vp, checks: c, issues, page, hallazgos: '' });
+    }
+
+    // ---------------- R-DROP-08 ----------------
+    resetIssues(issues);
+    {
+      const c = new Checks();
+      await page.goto(O + '/product/dwag');
+      await waitStore(page);
+      const f = page.locator('#aviso form.drop-aviso');
+      await f.locator('input[type=email]').fill('prueba@localhost');
+      const nativeOk = await f.locator('input[type=email]').evaluate((e) => e.validity.valid);
+      c.ok('el navegador da por válido prueba@localhost', nativeOk);
+      await f.locator('input[name=consentimiento]').check();
+      await f.locator('button[type=submit]').click();
+      await page.waitForSelector('#aviso .drop-aviso-fallo');
+      const res = lastRes(log);
+      c.eq('respuesta 400 sin code', [res?.status, res?.body], [400, { message: 'Ese email no parece un email.' }]);
+      c.ok('la petición cuenta para el límite (cabeceras RateLimit)', res?.headers['ratelimit-remaining'] !== undefined, `RateLimit-Limit ${res?.headers['ratelimit-limit']}, Remaining ${res?.headers['ratelimit-remaining']}`);
+      const st = await page.evaluate(() => {
+        const a = document.querySelector('#aviso .drop-aviso-fallo');
+        const f2 = document.querySelector('#aviso form.drop-aviso');
+        return { role: a.getAttribute('role'), msg: a.textContent.trim(), value: f2.querySelector('input[type=email]').value, enabled: !f2.querySelector('input[type=email]').disabled && !f2.querySelector('button[type=submit]').disabled, checked: f2.querySelector('input[name=consentimiento]').checked, recibo: localStorage.getItem('rocky-aviso-dwag') };
+      });
+      c.eq('mensaje y formulario activo con lo escrito', st, { role: 'alert', msg: 'Ese email no parece un email.', value: 'prueba@localhost', enabled: true, checked: true, recibo: null });
+      await rec({ id: 'R-DROP-08', viewport: vp, checks: c, issues, page, hallazgos: 'C-CAT-13' });
+    }
+
+    // ---------------- R-DROP-09 ----------------
+    resetIssues(issues);
+    {
+      const c = new Checks();
+      const addedBefore = inst.log.join('').split('Aviso de drop apuntado').length - 1;
+      await page.evaluate(() => localStorage.removeItem('rocky-aviso-rocky-drop-4'));
+      await page.goto(O + '/');
+      await waitStore(page);
+      const f = page.locator(`${LOCKED} form.drop-aviso`);
+      await f.scrollIntoViewIfNeeded();
+      await f.locator('input[type=email]').fill('AUDITORIA+DROP@ROCKY.TEST');
+      await f.locator('input[name=consentimiento]').check();
+      await f.locator('button[type=submit]').click();
+      await page.waitForSelector(`${LOCKED} [data-testid="drop-aviso-listo"]`);
+      const res = lastRes(log);
+      c.eq('respuesta duplicada', [res?.status, res?.body], [200, { ok: true, duplicate: true, product: 'rocky-drop-4' }]);
+      c.eq('mensaje', await listo(page, LOCKED), { listo: true, sello: 'Recado apuntado', nota: 'Ya estabas en la lista: sin dobles.', img: true, form: false });
+      c.eq('recibo guardado otra vez', await page.evaluate(() => localStorage.getItem('rocky-aviso-rocky-drop-4')), '1');
+      const addedAfter = inst.log.join('').split('Aviso de drop apuntado').length - 1;
+      c.eq('la lista no crece (sin nueva línea «Aviso de drop apuntado» en el log)', addedAfter - addedBefore, 0);
+      await rec({ id: 'R-DROP-09', viewport: vp, checks: c, issues, page, hallazgos: '' });
+    }
+
+    // ---------------- R-DROP-11 ----------------
+    resetIssues(issues);
+    {
+      const c = new Checks();
+      await page.goto(O + '/product/smoker-edition');
+      await waitStore(page);
+      const f = page.locator('#aviso form.drop-aviso');
+      await f.locator('input[type=email]').fill(EMAIL);
+      await f.locator('input[name=consentimiento]').check();
+      // 1. Bloqueo de la petición
+      await page.route('**/api/avisos', (route) => route.abort('failed'));
+      await f.locator('button[type=submit]').click();
+      await page.waitForSelector('#aviso .drop-aviso-fallo');
+      const st = () => page.evaluate(() => {
+        const a = document.querySelector('#aviso .drop-aviso-fallo');
+        const f2 = document.querySelector('#aviso form.drop-aviso');
+        return { role: a?.getAttribute('role'), msg: a?.textContent.trim(), value: f2?.querySelector('input[type=email]').value, enabled: f2 ? !f2.querySelector('button[type=submit]').disabled : null, checked: f2?.querySelector('input[name=consentimiento]').checked };
+      });
+      c.eq('bloqueada', await st(), { role: 'alert', msg: 'No hemos podido apuntarte. Prueba otra vez.', value: EMAIL, enabled: true, checked: true });
+      await page.unroute('**/api/avisos');
+      // 2. Error del proxy de Vite con Express parado (502 text/plain sin cuerpo, simulado)
+      await page.route('**/api/avisos', (route) => route.fulfill({ status: 502, contentType: 'text/plain', body: '' }));
+      await f.locator('button[type=submit]').click();
+      await page.waitForTimeout(500);
+      c.eq('proxy 502 simulado', (await st()).msg, 'La tienda no ha podido completar la operación.');
+      await page.unroute('**/api/avisos');
+      // 3. Express parado de verdad (mismo origen, sin Vite)
+      inst.stop();
+      await new Promise((r) => setTimeout(r, 800));
+      await f.locator('button[type=submit]').click();
+      await page.waitForTimeout(800);
+      c.eq('Express parado (sin Vite: fallo de red)', (await st()).msg, 'No hemos podido apuntarte. Prueba otra vez.');
+      // 4. Reintento con red
+      const inst2 = await startInstance(3202, { AVISOS_RATE_LIMIT_MAX: '100', SHOPIFY_RATE_LIMIT_MAX: '2000' });
+      inst.child = inst2.child;
+      inst.stop = inst2.stop;
+      await f.locator('button[type=submit]').click();
+      await page.waitForSelector('#aviso [data-testid="drop-aviso-listo"]');
+      const res = lastRes(log);
+      c.eq('reintento con red', [res?.status, res?.body], [200, { ok: true, duplicate: false, product: 'smoker-edition' }]);
+      c.eq('recado', (await listo(page, '#aviso')).sello, 'Recado apuntado');
+      await rec({ id: 'R-DROP-11', viewport: vp, checks: c, issues, page, hallazgos: '' });
+    }
+  } finally {
+    await context.close();
+    inst.stop();
+    await new Promise((r) => setTimeout(r, 800));
+  }
+}
+await browser.close();

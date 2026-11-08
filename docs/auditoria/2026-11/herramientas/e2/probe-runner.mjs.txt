@@ -1,0 +1,40 @@
+// C-CART-29: ¿la imagen del repartidor llega a tiempo en la primera carrera con red lenta?
+import { start, sim, chromium, openPage, waitApi, waitStore, sleep, stopWait, saveJson } from './common.mjs';
+const A = await start(3411);
+const browser = await sim.launchE2Browser(chromium);
+const out = {};
+try {
+  for (const vp of ['escritorio', 'movil']) {
+    const { context, page } = await openPage(browser, A, { viewportName: vp });
+    await context.addInitScript(() => {
+      window.__img = [];
+      new MutationObserver(() => {
+        const img = document.querySelector('[data-testid="cart-runner"] img');
+        if (img && !img.__seen) {
+          img.__seen = true;
+          const t0 = performance.now();
+          window.__img.push({ at: 'montaje', complete: img.complete, w: img.naturalWidth });
+          img.addEventListener('load', () => window.__img.push({ at: 'load', ms: Math.round(performance.now() - t0) }));
+        }
+      }).observe(document, { childList: true, subtree: true });
+    });
+    await page.goto(`${A.origin}/`);
+    await waitStore(page);
+    const preloaded = await page.evaluate(() => performance.getEntriesByType('resource').filter((e) => /corriendo-bolsa/.test(e.name)).map((e) => e.name.split('/').pop()));
+    const cdp = await context.newCDPSession(page);
+    await cdp.send('Network.enable');
+    await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 400, downloadThroughput: 50_000, uploadThroughput: 50_000 });
+    const w = waitApi(page, '/api/shopify/cart/lines', 'POST', 30_000);
+    await page.locator('.product-card', { has: page.locator('.product-title', { hasText: /^RockyRacing$/ }) }).locator('.add-to-cart-control button').click();
+    await w;
+    await sleep(2500);
+    out[vp] = { preloaded, img: await page.evaluate(() => window.__img) };
+    await context.close();
+  }
+  out.unexpected = A.unexpectedCalls().length;
+} finally {
+  await browser.close();
+  await stopWait(A);
+}
+saveJson('probe-runner', out);
+console.log(JSON.stringify(out));

@@ -1,0 +1,275 @@
+// R-EGG-01 (Curioso en escritorio), R-EGG-02 (en móvil) y R-EGG-03 (cuándo no sale), en paralelo.
+import fs from 'node:fs';
+import path from 'node:path';
+import { launchBrowser, open, sum, clean, shot, ORIGIN, sleep, results, OUT } from './common.mjs';
+
+const saveRaw = (id, events) => fs.writeFileSync(path.join(OUT, `curioso-raw-${id}.json`), JSON.stringify(events, null, 0));
+
+const R = results('curioso');
+const only = process.argv[2] ? process.argv[2].split(',') : null;
+const want = (id) => !only || only.includes(id);
+
+// Registro en la página: cada cambio de estado del Curioso y su caja, más solapes con zonas vetadas.
+const tracker = () => {
+  window.__peek = { events: [], multi: false, mount: null, overlaps: [] };
+  const BLOCK = '[data-peeker-blocked], .navbar, .mini-player, .chat-composer, .product-page-head--home, .placeholder-tee__label, .badge, .product-actions, .add-to-cart-control';
+  let last = null;
+  setInterval(() => {
+    if (!window.__peek.mount && document.querySelector('header.navbar')) window.__peek.mount = performance.now();
+    const els = document.querySelectorAll('[data-testid="curious-peeker"]');
+    if (els.length > 1) window.__peek.multi = true;
+    const el = els[0];
+    const state = el ? `${el.dataset.pose}|${el.dataset.spot}|${el.dataset.beat}` : null;
+    if (el && (el.dataset.beat === 'sale' || el.dataset.beat === 'estira')) {
+      const img = el.querySelector('img').getBoundingClientRect();
+      const box = el.getBoundingClientRect();
+      // Parte visible del dibujo: intersección del dibujo con la caja (la caja recorta)
+      const vis = { l: Math.max(img.left, box.left), t: Math.max(img.top, box.top), r: Math.min(img.right, box.right), b: Math.min(img.bottom, box.bottom) };
+      let worst = 0;
+      let who = '';
+      for (const z of document.querySelectorAll(BLOCK)) {
+        const r = z.getBoundingClientRect();
+        const w = Math.min(vis.r, r.right) - Math.max(vis.l, r.left);
+        const h = Math.min(vis.b, r.bottom) - Math.max(vis.t, r.top);
+        if (w > 0 && h > 0 && w * h > worst) {
+          worst = Math.round(w * h);
+          who = `${z.tagName.toLowerCase()}.${String(z.className).split(' ')[0]}`;
+        }
+      }
+      if (worst > 0) window.__peek.overlaps.push(`${who}:${worst}px²=${Math.round((100 * worst) / (box.width * box.height))}%`);
+    }
+    if (state !== last) {
+      const r = el?.getBoundingClientRect();
+      window.__peek.events.push({ t: Math.round(performance.now()), state, rect: r ? [r.left, r.top, r.width, r.height].map(Math.round) : null, src: el?.querySelector('img')?.getAttribute('src')?.split('/').pop(), y: Math.round(scrollY) });
+      last = state;
+    }
+  }, 50);
+};
+
+// Control de «pestaña oculta»: document.hidden / visibilityState sobrescritos (headless no cambia la visibilidad).
+const fakeHidden = () => {
+  const dh = Object.getOwnPropertyDescriptor(Document.prototype, 'hidden');
+  const dv = Object.getOwnPropertyDescriptor(Document.prototype, 'visibilityState');
+  Object.defineProperty(Document.prototype, 'hidden', { configurable: true, get() { return window.__fakeHidden === true ? true : dh.get.call(this); } });
+  Object.defineProperty(Document.prototype, 'visibilityState', { configurable: true, get() { return window.__fakeHidden === true ? 'hidden' : dv.get.call(this); } });
+};
+
+function analyse(events, from = 0) {
+  const ev = events.filter((e) => e.t >= from);
+  const apps = [];
+  let cur = null;
+  for (const e of ev) {
+    if (e.state && !cur && /\|(espera|sale|estira)$/.test(e.state)) cur = { start: e.t, pose: e.state.split('|')[0], spot: e.state.split('|')[1], beats: [], src: e.src, rect: e.rect };
+    if (e.state && cur) {
+      const beat = e.state.split('|')[2];
+      cur.beats.push(beat);
+      if (beat === 'sale' && !cur.sale) cur.sale = e.t;
+      if (beat === 'escapa' && !cur.escapa) cur.escapa = e.t;
+    }
+    if (!e.state && cur) {
+      cur.end = e.t;
+      apps.push(cur);
+      cur = null;
+    }
+  }
+  if (cur) apps.push(cur);
+  return apps;
+}
+
+const fmtApps = (apps, t0) =>
+  apps.map((a, i) => {
+    const vis = a.escapa && a.sale ? ((a.escapa - a.sale) / 1000).toFixed(1) : '?';
+    const gap = i > 0 && apps[i - 1].escapa ? ((a.start - apps[i - 1].escapa) / 1000).toFixed(1) : null;
+    return `#${i + 1} a ${((a.start - t0) / 1000).toFixed(1)}s${gap ? ` (hueco ${gap}s)` : ''}: ${a.pose}@${a.spot}, visible ${vis}s, ${a.beats.includes('estira') ? 'se estira' : 'sin estirar'}, ${a.src}`;
+  }).join('; ');
+
+async function egg01() {
+  const b = await launchBrowser();
+  const o = await open(b, 'escritorio');
+  const { page } = o;
+  await o.context.addInitScript(tracker);
+  await page.goto(ORIGIN + '/');
+  // Esperar la primera aparición para probar scroll y clic con él fuera
+  await page.waitForSelector('[data-testid="curious-peeker"][data-beat="sale"], [data-testid="curious-peeker"][data-beat="estira"]', { timeout: 12000 }).catch(() => {});
+  const pe = await page.evaluate(() => {
+    const el = document.querySelector('[data-testid="curious-peeker"]');
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return { pe: getComputedStyle(el).pointerEvents, hidden: el.getAttribute('aria-hidden'), hitIsPeeker: Boolean(hit?.closest('[data-testid="curious-peeker"]')), hit: `${hit?.tagName.toLowerCase()}.${String(hit?.className).split(' ')[0]}`, top: Math.round(r.top), z: getComputedStyle(el).zIndex };
+  });
+  // Scroll con él fuera
+  await page.mouse.move(700, 500);
+  await page.mouse.wheel(0, 150);
+  await sleep(300);
+  const afterScroll = await page.evaluate(() => {
+    const el = document.querySelector('[data-testid="curious-peeker"]');
+    return el ? { top: Math.round(el.getBoundingClientRect().top), beat: el.dataset.beat, y: Math.round(scrollY) } : { gone: true, y: Math.round(scrollY) };
+  });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await sleep(48000);
+  const dayEnd = await page.evaluate(() => performance.now());
+  // De noche
+  await page.locator('header .navbar-tools > .navbar-theme').click();
+  await page.mouse.move(5, 5);
+  await sleep(26000);
+  const data = await page.evaluate(() => window.__peek);
+  const apps = analyse(data.events);
+  const dayApps = apps.filter((a) => a.start < dayEnd);
+  const nightApps = apps.filter((a) => a.start >= dayEnd);
+  const first = dayApps[0] ? (dayApps[0].start - data.mount) / 1000 : null;
+  const visibles = dayApps.filter((a) => a.escapa && a.sale).map((a) => (a.escapa - a.sale) / 1000);
+  const gaps = apps.slice(1).map((a, i) => (apps[i].escapa ? (a.start - apps[i].escapa) / 1000 : null)).filter((g) => g !== null);
+  const repeats = apps.slice(1).filter((a, i) => a.spot === apps[i].spot).length;
+  const nightSrcDiff = nightApps.length && dayApps.length ? nightApps.some((n) => !dayApps.some((d) => d.src === n.src)) : null;
+  const overlaps = [...new Set(data.overlaps)];
+  const bigOverlap = overlaps.filter((x) => Number(x.split('=')[1].replace('%', '')) > 20);
+  // El código sólo evita repetir escondite si hay otro candidato (geometry.js:259-261); el filo de la pantalla suele ser el único arriba de la portada
+  const badRepeats = apps.slice(1).filter((a, i) => a.spot === apps[i].spot && a.spot !== 'pantalla').length;
+  const ok =
+    first !== null && first >= 4.4 && first <= 7.8 && visibles.every((v) => v >= 2.4 && v <= 3.8) && gaps.every((g) => g >= 8.8 && g <= 17.5) && !data.multi && badRepeats === 0 && bigOverlap.length === 0 &&
+    pe?.pe === 'none' && pe?.hidden === 'true' && !pe?.hitIsPeeker && nightSrcDiff !== false && clean(o);
+  R.add({
+    id: 'R-EGG-01',
+    viewport: 'escritorio',
+    resultado: ok ? 'OK' : 'FALLO',
+    evidencia: `1440 px, 74 s observando /: primera aparición a ${first?.toFixed(1)} s del montaje; ${fmtApps(apps, data.mount)}; dos a la vez=${data.multi}; escondite repetido seguido=${repeats} (${repeats ? 'siempre el filo de la pantalla: el código sólo evita repetir si hay otro candidato libre' : 'ninguno'}); visible ${visibles.map((v) => v.toFixed(1)).join('/')} s; huecos ${gaps.map((g) => g.toFixed(1)).join('/')} s; con él fuera: pointer-events=${pe?.pe}, aria-hidden=${pe?.hidden}, z=${pe?.z}, elementFromPoint en su centro → ${pe?.hit} (es él=${pe?.hitIsPeeker}); scroll 150 px con él fuera: top ${pe?.top} → ${afterScroll.top ?? '(se ha ido)'} (beat ${afterScroll.beat ?? '-'}); de noche ${nightApps.length} aparición(es), arte distinto del de día=${nightSrcDiff}; solapes del dibujo visible con zonas vetadas (px² y % de su caja; el código tolera hasta el 20 %): ${overlaps.join(', ') || 'ninguno'}; ${sum(o)}`,
+  });
+  if (!ok) await shot(page, 'estructura', 'R-EGG-01-escritorio');
+  saveRaw('R-EGG-01', data.events);
+  await b.close();
+}
+
+async function egg02() {
+  const b = await launchBrowser();
+  const o = await open(b, 'movil');
+  const { page } = o;
+  await o.context.addInitScript(tracker);
+  await page.goto(ORIGIN + '/');
+  await sleep(44000);
+  const d1 = await page.evaluate(() => ({ ...window.__peek, now: performance.now() }));
+  const apps1 = analyse(d1.events);
+  const scaleInfo = apps1[0] ? apps1[0].rect : null;
+  // 2. /legal/privacidad
+  await page.getByRole('navigation', { name: 'Información legal' }).getByRole('link', { name: 'Privacidad' }).click();
+  const tNav = await page.evaluate(() => performance.now());
+  await sleep(12000);
+  const d2 = await page.evaluate(() => window.__peek);
+  const apps2 = analyse(d2.events, tNav);
+  // 4. Girar a horizontal sin cambiar de ruta y medir el siguiente hueco
+  await page.waitForSelector('[data-testid="curious-peeker"][data-beat="escapa"]', { timeout: 15000 }).catch(() => {});
+  await page.setViewportSize({ width: 812, height: 375 });
+  const tRot = await page.evaluate(() => performance.now());
+  await sleep(30000);
+  const d3 = await page.evaluate(() => window.__peek);
+  const apps3 = analyse(d3.events, tRot - 3000);
+  const allApps = analyse(d3.events);
+  const first1 = apps1[0] ? (apps1[0].start - d1.mount) / 1000 : null;
+  const first2 = apps2[0] ? (apps2[0].start - tNav) / 1000 : null;
+  const vis = allApps.filter((a) => a.escapa && a.sale).map((a) => (a.escapa - a.sale) / 1000);
+  const gaps1 = apps1.slice(1).map((a, i) => (apps1[i].escapa ? (a.start - apps1[i].escapa) / 1000 : null)).filter((g) => g !== null);
+  const escRot = analyse(d3.events, tNav).filter((a) => a.escapa && a.escapa <= tRot + 500).pop();
+  const nextAfterRot = allApps.find((a) => a.start > tRot);
+  const gapRot = escRot && nextAfterRot ? (nextAfterRot.start - escRot.escapa) / 1000 : null;
+  const overlaps = [...new Set(d3.overlaps)];
+  const widths = allApps.map((a) => a.rect?.[2]).filter(Boolean);
+  const ok = first1 !== null && first1 >= 6.8 && first1 <= 10.3 && (first2 === null || (first2 >= 6.8 && first2 <= 10.3)) && vis.every((v) => v >= 2.2 && v <= 3.5) && gaps1.every((g) => g >= 14.8 && g <= 26.5) && (gapRot === null || gapRot >= 14.8) && overlaps.length === 0 && !d3.multi && clean(o);
+  R.add({
+    id: 'R-EGG-02',
+    viewport: 'movil',
+    resultado: ok ? 'OK' : 'FALLO',
+    evidencia: `375×812, / durante 44 s: primera a ${first1?.toFixed(1)} s; ${fmtApps(apps1, d1.mount)}; huecos ${gaps1.map((g) => g.toFixed(1)).join('/') || '(sólo una en la ventana)'} s; /legal/privacidad: primera a ${first2?.toFixed(1) ?? '—'} s de navegar; visible ${vis.map((v) => v.toFixed(1)).join('/')} s; anchos de caja ${widths.join('/')} px (escala mínima 0,72); girado a 812×375 sin cambiar de ruta: siguiente hueco ${gapRot?.toFixed(1) ?? '— (no salió en 30 s)'} s (ritmo de móvil 15–26 s, escritorio 9–17 s); solapes con barra/radio/zonas vetadas: ${overlaps.join(', ') || 'ninguno'}; ${sum(o)}`,
+  });
+  if (!ok) await shot(page, 'estructura', 'R-EGG-02-movil');
+  saveRaw('R-EGG-02', d3.events);
+  await b.close();
+}
+
+async function egg03(vp) {
+  const lim = vp === 'escritorio' ? [4.4, 7.8] : [6.8, 10.3];
+  const b = await launchBrowser();
+  const o = await open(b, vp, { skipIntro: false });
+  const { page } = o;
+  await o.context.addInitScript(tracker);
+  await o.context.addInitScript(fakeHidden);
+  await page.goto(ORIGIN + '/');
+  await page.waitForSelector('.splash-intro', { timeout: 4000 });
+  await page.waitForSelector('.splash-intro', { state: 'detached', timeout: 6000 });
+  const tEnd = await page.evaluate(() => performance.now());
+  await page.waitForSelector('[data-testid="curious-peeker"]', { timeout: 12000 }).catch(() => {});
+  await sleep(250);
+  const d1 = await page.evaluate(() => window.__peek);
+  const during = d1.events.filter((e) => e.state && e.t < tEnd).length;
+  const first = analyse(d1.events, tEnd)[0];
+  const s1 = first ? (first.start - tEnd) / 1000 : null;
+  const footerLink = (name) => page.getByRole('navigation', { name: 'Información legal' }).getByRole('link', { name });
+  const legalLink = (name) => page.getByRole('navigation', { name: 'Páginas legales' }).getByRole('link', { name });
+  // 2. Movimiento reducido + cambio de ruta → no sale en 30 s
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await footerLink('Privacidad').click();
+  const t2 = await page.evaluate(() => performance.now());
+  await sleep(30000);
+  // 3. Quitar la emulación sin cambiar de ruta → sigue sin salir; luego cambiar de ruta → sale
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await sleep(15000);
+  const d3a = await page.evaluate(() => window.__peek);
+  const appsReduced = analyse(d3a.events, t2).length;
+  await legalLink('Cookies').click();
+  const t3 = await page.evaluate(() => performance.now());
+  await page.waitForSelector('[data-testid="curious-peeker"][data-beat="sale"], [data-testid="curious-peeker"][data-beat="estira"]', { timeout: 13000 }).catch(() => {});
+  await sleep(250);
+  const d3 = await page.evaluate(() => window.__peek);
+  const a3 = analyse(d3.events, t3)[0];
+  const s3 = a3 ? (a3.start - t3) / 1000 : null;
+  // 4. Con él fuera, cambiar de ruta → desaparece en el acto y la cuenta vuelve a cero
+  const outNow = await page.locator('[data-testid="curious-peeker"]').count();
+  await legalLink('Aviso legal').click();
+  const t4 = await page.evaluate(() => performance.now());
+  await sleep(120);
+  const goneFast = await page.locator('[data-testid="curious-peeker"]').count();
+  await page.waitForSelector('[data-testid="curious-peeker"]', { timeout: 13000 }).catch(() => {});
+  await sleep(250); // que el muestreo de 50 ms registre la aparición
+  const d4 = await page.evaluate(() => window.__peek);
+  const a4 = analyse(d4.events, t4 + 50)[0];
+  const s4 = a4 ? (a4.start - t4) / 1000 : null;
+  // 5. Pestaña «oculta» 20 s y vuelta
+  await legalLink('Compras y devoluciones').click();
+  await page.evaluate(() => {
+    window.__fakeHidden = true;
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  const t5 = await page.evaluate(() => performance.now());
+  await sleep(20000);
+  const d5a = await page.evaluate(() => window.__peek);
+  const hiddenApps = analyse(d5a.events, t5).length;
+  await page.evaluate(() => {
+    window.__fakeHidden = false;
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  const t5b = await page.evaluate(() => performance.now());
+  await page.waitForSelector('[data-testid="curious-peeker"]', { timeout: 9000 }).catch(() => {});
+  await sleep(250);
+  const d5 = await page.evaluate(() => window.__peek);
+  const a5 = analyse(d5.events, t5b)[0];
+  const s5 = a5 ? (a5.start - t5b) / 1000 : null;
+  const ok = during === 0 && s1 !== null && s1 >= lim[0] && s1 <= lim[1] && appsReduced === 0 && s3 !== null && s3 >= lim[0] && s3 <= lim[1] && outNow === 1 && goneFast === 0 && s4 !== null && s4 >= lim[0] && s4 <= lim[1] && hiddenApps === 0 && s5 !== null && s5 <= 4.5 && clean(o);
+  R.add({
+    id: 'R-EGG-03',
+    viewport: vp,
+    resultado: ok ? 'OK' : 'FALLO',
+    evidencia: `(1) durante la intro (acaba a ${(tEnd / 1000).toFixed(1)} s): ${during} apariciones; primera a ${s1?.toFixed(1)} s de acabar la intro; (2) movimiento reducido + cambio de ruta: 0 en 30 s; (3) quitada la emulación sin navegar: total con reducido/sin navegar=${appsReduced} en 45 s; tras cambiar de ruta sale a ${s3?.toFixed(1)} s; (4) con él fuera (${outNow}) cambiar de ruta → a los 120 ms quedan ${goneFast}; la siguiente sale a ${s4?.toFixed(1)} s de navegar; (5) pestaña oculta (document.hidden emulado) 20 s → ${hiddenApps} apariciones; al volver sale a ${s5?.toFixed(1)} s (reintenta cada 4 s); ${sum(o)}`,
+  });
+  saveRaw(`R-EGG-03-${vp}`, d5.events);
+  await b.close();
+}
+
+try {
+  const jobs = [];
+  if (want('R-EGG-01')) jobs.push(egg01());
+  if (want('R-EGG-02')) jobs.push(egg02());
+  if (want('R-EGG-03')) jobs.push(egg03('escritorio'), egg03('movil'));
+  const res = await Promise.allSettled(jobs);
+  for (const r of res) if (r.status === 'rejected') console.error('ERROR', r.reason);
+} finally {
+  /* cada trabajo cierra su navegador */
+}

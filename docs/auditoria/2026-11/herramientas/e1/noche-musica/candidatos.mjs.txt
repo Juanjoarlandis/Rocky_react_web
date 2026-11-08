@@ -1,0 +1,118 @@
+// Comprobaciones dinámicas sueltas de candidatos C-NOCHE-11, -13, -19 y capturas de NUEVO-3/4.
+import fs from 'node:fs';
+import path from 'node:path';
+import { startInstance, launchBrowser, openPage } from '../harness.mjs';
+import { OUT, PORT, nightOn, navTo, spaGo, snap, sprayStorage, mouseStroke, emptySpot, touchDrag, line } from './lib.mjs';
+
+const res = {};
+const inst = await startInstance(PORT);
+const browser = await launchBrowser();
+try {
+  // C-NOCHE-11: observadores de <html data-theme>.
+  {
+    const { page, context } = await openPage(browser, 'escritorio', { origin: inst.origin });
+    await context.addInitScript(() => {
+      window.__mo = { observe: 0, disconnect: 0 };
+      const obs = MutationObserver.prototype.observe;
+      const dis = MutationObserver.prototype.disconnect;
+      const tracked = new WeakSet();
+      MutationObserver.prototype.observe = function observe(target, opts) {
+        if (target === document.documentElement && opts?.attributeFilter?.includes('data-theme')) { window.__mo.observe += 1; tracked.add(this); }
+        return obs.call(this, target, opts);
+      };
+      MutationObserver.prototype.disconnect = function disconnect() {
+        if (tracked.has(this)) { window.__mo.disconnect += 1; tracked.delete(this); }
+        return dis.call(this);
+      };
+    });
+    const counts = {};
+    for (const r of ['/', '/crew', '/estudio']) {
+      await page.goto(`${inst.origin}${r}`);
+      await page.waitForTimeout(1500);
+      const m = await page.evaluate(() => ({ ...window.__mo }));
+      counts[r] = m.observe - m.disconnect;
+    }
+    await nightOn(page, 'escritorio');
+    const t0 = Date.now();
+    await page.evaluate(() => { document.documentElement.dataset.theme = 'neon'; });
+    counts['/estudio de noche'] = await page.evaluate(() => window.__mo.observe - window.__mo.disconnect);
+    res['C-NOCHE-11'] = `observadores activos sobre <html data-theme>: ${JSON.stringify(counts)}`;
+    await context.close();
+  }
+
+  // C-NOCHE-13: tras el primer guardado, cada cambio de ruta reescribe la página que se deja y renueva su t.
+  {
+    const { page, context } = await openPage(browser, 'escritorio', { origin: inst.origin });
+    await page.goto(`${inst.origin}/`);
+    await page.waitForTimeout(1300);
+    await nightOn(page, 'escritorio');
+    await page.locator('.spray-fab').click();
+    const sp = await emptySpot(page, [[30, 260], [50, 300]]);
+    await mouseStroke(page, [sp, [sp[0] + 4, sp[1] + 60]]);
+    await page.waitForTimeout(500);
+    const t1 = (await sprayStorage(page)).pages['/'].t;
+    await page.waitForTimeout(1500);
+    await page.locator('header .navbar-links').getByRole('link', { name: 'Crew', exact: true }).click();
+    await page.waitForTimeout(500);
+    const t2 = (await sprayStorage(page)).pages['/'].t;
+    await page.locator('header .navbar-links').getByRole('link', { name: 'Tienda', exact: true }).click();
+    await page.waitForTimeout(1500);
+    await page.locator('header .navbar-links').getByRole('link', { name: 'Drops', exact: true }).click();
+    await page.waitForTimeout(500);
+    const st = await sprayStorage(page);
+    res['C-NOCHE-13'] = `t de '/' tras pintar ${t1}; tras ir a /crew sin pintar más ${t2} (+${t2 - t1} ms); /crew guardada sin haber pintado nada: ${JSON.stringify(st.pages['/crew'] ?? null)}; volver a '/' y salir a /menudrop → t '/' ${st.pages['/'].t} (+${st.pages['/'].t - t1} ms); páginas guardadas ${Object.keys(st.pages).join(',')}`;
+    await context.close();
+  }
+
+  // C-NOCHE-19: toBlob devuelve null.
+  {
+    const { page, context } = await openPage(browser, 'escritorio', { origin: inst.origin });
+    await context.addInitScript(() => {
+      HTMLCanvasElement.prototype.toBlob = function toBlob(cb) { setTimeout(() => cb(null), 10); };
+    });
+    await page.goto(`${inst.origin}/`);
+    await page.waitForTimeout(1300);
+    await nightOn(page, 'escritorio');
+    await page.locator('.spray-fab').click();
+    const sp = await emptySpot(page, [[30, 260], [50, 300]]);
+    await mouseStroke(page, [sp, [sp[0] + 4, sp[1] + 60]]);
+    await page.locator('.spray-tool', { hasText: 'Foto' }).click();
+    await page.waitForTimeout(1500);
+    res['C-NOCHE-19'] = `con un trazo en la pared y canvas.toBlob → null, el estado dice «${await page.locator('.spray-status').textContent()}»`;
+    await context.close();
+  }
+
+  // NUEVO-3 y NUEVO-4: capturas en móvil.
+  {
+    const { page, context } = await openPage(browser, 'movil', { origin: inst.origin });
+    let found = null;
+    for (let i = 0; i < 12 && !found; i += 1) {
+      await page.goto(`${inst.origin}/`);
+      await page.waitForTimeout(900);
+      await nightOn(page, 'movil');
+      await spaGo(page, '/no-existe');
+      const l = await page.evaluate(() => { const a = [...document.querySelectorAll('a')].find((x) => x.textContent === 'Salir de aquí'); const r = a.getBoundingClientRect(); return { sx: a.style.getPropertyValue('--sx'), left: Math.round(r.left), right: Math.round(r.right), top: Math.round(r.top), h: Math.round(r.height) }; });
+      if (l.right > 375 + 30) found = l;
+    }
+    if (found) {
+      // Llevar la linterna al enlace con el teclado (el toque no la mueve, NUEVO-4).
+      await page.locator('a', { hasText: 'Salir de aquí' }).focus();
+      await page.waitForTimeout(200);
+      res['NUEVO-3'] = `enlace «Salir de aquí» con --sx ${found.sx}: ocupa ${found.left}-${found.right} px en un viewport de 375 px (y ${found.top}); captura ${await snap(page, 'NUEVO-3-movil')}`;
+    }
+    await page.goto(`${inst.origin}/`);
+    await page.waitForTimeout(900);
+    await nightOn(page, 'movil');
+    await spaGo(page, '/no-existe');
+    await page.touchscreen.tap(40, 250);
+    await page.waitForTimeout(200);
+    const t = await page.evaluate(() => { const o = document.querySelector('.notfound-oscuridad'); return `${o.style.getPropertyValue('--tx')},${o.style.getPropertyValue('--ty')}`; });
+    res['NUEVO-4'] = `404 de noche en móvil, toque en 40,250 → agujero en ${t}; captura ${await snap(page, 'NUEVO-4-movil')}`;
+    await context.close();
+  }
+} finally {
+  await browser.close();
+  inst.stop();
+}
+fs.writeFileSync(path.join(OUT, 'candidatos.json'), JSON.stringify(res, null, 2));
+console.log(JSON.stringify(res, null, 2));

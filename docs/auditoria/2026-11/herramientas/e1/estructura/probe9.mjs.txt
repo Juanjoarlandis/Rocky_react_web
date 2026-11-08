@@ -1,0 +1,20 @@
+import { launchBrowser, open, ORIGIN, sleep, shot } from './common.mjs';
+const b = await launchBrowser();
+try {
+  const o = await open(b, 'movil');
+  const { page } = o;
+  await page.goto(ORIGIN + '/');
+  await sleep(1000);
+  await page.evaluate(() => scrollTo(0, 1500));
+  await sleep(400);
+  const box = await page.locator('header .navbar-menu').boundingBox();
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2); // clic real sin auto-scroll
+  await sleep(500);
+  const info = await page.evaluate(() => {
+    const btn = document.querySelector('header .navbar-menu');
+    const r = btn.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + r.width / 2, 28);
+    return { y: Math.round(scrollY), navTop: Math.round(document.querySelector('header.navbar').getBoundingClientRect().top), btnTop: Math.round(r.top), sheetTop: Math.round(document.querySelector('.navbar-sheet').getBoundingClientRect().top), topStripHit: `${hit.tagName.toLowerCase()}.${String(hit.className).slice(0, 40)}`, hitInLink: Boolean(hit.closest('a, button')) };
+  });
+  console.log(info, await shot(page, 'estructura', 'NUEVO-1-menu-abierto-tras-scroll-movil'));
+} finally { await b.close(); }

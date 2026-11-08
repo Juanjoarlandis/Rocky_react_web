@@ -1,0 +1,676 @@
+// R-CAT-01…07, R-CAT-10, R-CAT-11, R-DROP-01, R-DROP-02 e imágenes por página.
+// Uso: node 01-catalogo.mjs [ids separados por comas] (DRY=1 para no registrar)
+import { startInstance, launchBrowser, openPage } from '../harness.mjs';
+import { Checks, rec, waitStore, text, texts, appendTsv, collectImages, scrollThrough } from './util.mjs';
+
+const ONLY = process.argv[2] ? new Set(process.argv[2].split(',')) : null;
+const want = (id) => !ONLY || ONLY.has(id);
+const VPS = (process.env.VPS || 'escritorio,movil').split(',');
+
+const LOCKED_NAMES = '35 RED · 35 WHITE · DWAG · Danger Basic · Danger Multi · Danger · Dots · Flora Blue · Flora Red · Hobby · LEVEL BLUE · LEVEL ORANGE · Mugshot · NoName · RockyStar · Rockydz black · Rockydz stars · Rockydz · SSTTAARR';
+const HOME_ORDER = ['RockyRacing', 'Rockydz boyz', 'Smoker Edition', '19 diseños bajo llave', 'Night Runner', 'Pit Crew 035', 'Airwave', 'Signal Ghost', 'Solar Club', 'Marea 035'];
+
+const inst = await startInstance(3202, { AVISOS_RATE_LIMIT_MAX: '100', SHOPIFY_RATE_LIMIT_MAX: '2000' });
+const browser = await launchBrowser();
+const O = inst.origin;
+inst.child.on('exit', (code, sig) => console.error(`!! la instancia ${O} terminó (code ${code}, señal ${sig}). Últimas líneas:\n${inst.log.join('').slice(-1500)}`));
+
+async function cards(page) {
+  return page.evaluate(() =>
+    [...document.querySelectorAll('.product-grid > article')].map((a) => ({
+      locked: a.classList.contains('product-card--locked'),
+      title: a.querySelector('.product-title')?.textContent.trim(),
+      badge: a.querySelector('.badge')?.textContent.trim() ?? null,
+      photo: a.querySelector('button.product-media')?.getAttribute('aria-label') ?? null,
+      photoDisabled: a.querySelector('button.product-media')?.disabled ?? null,
+      actions: [...a.querySelectorAll('.product-actions a, .product-actions button')].map((b) => `${b.textContent.trim()}${b.disabled ? '(deshabilitado)' : ''}`),
+    }))
+  );
+}
+
+async function activeNav(page, vp) {
+  if (vp === 'movil') {
+    await page.getByRole('button', { name: 'Abrir el menú' }).click();
+    await page.waitForSelector('.navbar-sheet');
+    const act = await texts(page, '.navbar-sheet-link.is-active');
+    await page.getByRole('button', { name: 'Cerrar el menú' }).click();
+    await page.waitForTimeout(200);
+    return act;
+  }
+  return texts(page, '.navbar-link.is-active');
+}
+
+try {
+  for (const vp of VPS) {
+    // ---------------- R-CAT-01 ----------------
+    if (want('R-CAT-01')) {
+      const c = new Checks();
+      const { page, issues, context } = await openPage(browser, vp, { origin: O });
+      // Retrasa el estado para ver el estado de carga
+      await page.route('**/api/shopify/status', async (route) => {
+        await new Promise((r) => setTimeout(r, 1500));
+        await route.continue();
+      });
+      await page.goto(O + '/');
+      await page.waitForSelector('.product-grid');
+      const loading = await page.evaluate(() => {
+        const g = document.querySelector('.product-grid');
+        return {
+          cls: g.className,
+          busy: g.getAttribute('aria-busy'),
+          minH: getComputedStyle(g).minHeight,
+          h: Math.round(g.getBoundingClientRect().height),
+          count: document.querySelector('.product-count')?.textContent.trim(),
+          notice: document.querySelector('.commerce-notice')?.textContent ?? null,
+        };
+      });
+      c.ok('carga: product-grid--loading', loading.cls.includes('product-grid--loading'), loading.cls);
+      c.eq('carga: aria-busy', loading.busy, 'true');
+      c.ok('carga: reserva altura', loading.h >= 500, `min-height ${loading.minH}, alto ${loading.h}px`);
+      c.eq('carga: contador', loading.count, '0 diseños');
+      c.eq('carga: sin aviso todavía', loading.notice, null);
+      await waitStore(page);
+      const notice = await page.evaluate(() => {
+        const n = document.querySelector('.commerce-notice');
+        return n ? { role: n.getAttribute('role'), text: n.textContent.trim() } : null;
+      });
+      c.eq('aviso demo', notice, { role: 'status', text: 'Modo demo · catálogo de muestra, sin stock ni pagos.' });
+      c.eq('h1', await texts(page, 'main h1'), ['ROCKY 035']);
+      c.eq('lema', await text(page, '.product-page-tagline'), 'HECHO DESDE LA COLMENA');
+      c.eq('contador', await texts(page, '.product-count'), ['28 diseños']);
+      const cta = await page.evaluate(() => document.querySelector('.product-page-hero-cta')?.textContent.trim());
+      c.eq('botón CTA', cta, 'Ver Drop 4→');
+      const gridAfter = await page.evaluate(() => ({ cls: document.querySelector('.product-grid').className, busy: document.querySelector('.product-grid').getAttribute('aria-busy') }));
+      c.ok('tras carga sin loading', !gridAfter.cls.includes('loading') && gridAfter.busy === null, JSON.stringify(gridAfter));
+      // Orden de la rejilla
+      const cs = await cards(page);
+      c.eq('orden de la rejilla', cs.map((x) => x.title), HOME_ORDER);
+      const photoCards = cs.filter((x) => !x.locked);
+      const firstThree = photoCards.slice(0, 3);
+      c.ok('3 primeras: foto con lupa, Próximamente, Detalles + Avísame', firstThree.every((x) => x.photo && !x.photoDisabled && x.badge === 'Próximamente' && x.actions.join('|') === 'Detalles|Avísame'), JSON.stringify(firstThree.map((x) => x.actions)));
+      const concepts = photoCards.slice(3);
+      c.ok('6 conceptos: foto, Próximamente, Detalles + Vista previa deshabilitado', concepts.length === 6 && concepts.every((x) => x.photo && !x.photoDisabled && x.badge === 'Próximamente' && x.actions.join('|') === 'Detalles|Vista previa(deshabilitado)'), JSON.stringify(concepts.map((x) => x.actions)));
+      const lockedInfo = await page.evaluate(() => {
+        const a = document.querySelector('[data-testid="locked-designs"]');
+        return a && {
+          kicker: a.querySelector('.product-locked-kicker')?.textContent.trim(),
+          h2: a.querySelector('h2')?.textContent.trim(),
+          names: a.querySelector('.product-locked-names')?.textContent.trim(),
+          form: a.querySelector('.drop-aviso-titulo')?.textContent.trim(),
+        };
+      });
+      c.eq('bloque bajo llave: antetítulo', lockedInfo?.kicker, 'ROCKY DROP 4 · sin revelar');
+      c.eq('bloque bajo llave: h2', lockedInfo?.h2, '19 diseños bajo llave');
+      c.eq('bloque bajo llave: nombres', lockedInfo?.names, LOCKED_NAMES);
+      c.eq('bloque bajo llave: formulario', lockedInfo?.form, '¿Te avisamos cuando caiga?');
+      const firstImg = await page.evaluate(() => {
+        const im = document.querySelector('.product-grid > article img.product-image');
+        return im && { fp: im.getAttribute('fetchpriority'), loading: im.getAttribute('loading'), src: im.getAttribute('src') };
+      });
+      c.ok('primera foto con fetchpriority=high', firstImg?.fp === 'high', JSON.stringify(firstImg));
+      c.ok('muro StreetWall tras la rejilla', await page.evaluate(() => {
+        const g = document.querySelector('.product-grid');
+        const w = document.querySelector('.street-wall');
+        return Boolean(w && g.compareDocumentPosition(w) & Node.DOCUMENT_POSITION_FOLLOWING);
+      }));
+      c.eq('título del documento', await page.title(), 'ROCKY 035');
+      if (vp === 'movil') {
+        const cols = await page.evaluate(() => getComputedStyle(document.querySelector('.product-grid')).gridTemplateColumns);
+        const widths = cols.split(' ').map(parseFloat);
+        c.ok('móvil: columnas ≥160 px', widths.every((w) => w >= 160), cols);
+      } else {
+        c.note(`columnas escritorio: ${await page.evaluate(() => getComputedStyle(document.querySelector('.product-grid')).gridTemplateColumns)}`);
+      }
+      // Paso 4: Ver Drop 4
+      await page.locator('.product-page-hero-cta').click();
+      await page.waitForTimeout(1200);
+      const after = await page.evaluate(() => ({ url: location.pathname + location.hash, top: Math.round(document.querySelector('#productos').getBoundingClientRect().top), sy: Math.round(scrollY) }));
+      c.eq('CTA cambia la URL', after.url, '/#productos');
+      c.ok('CTA salta a la rejilla', after.top >= -5 && after.top < 200, `top rejilla ${after.top}px, scrollY ${after.sy}`);
+      const ss = await page.evaluate(() => sessionStorage.getItem('rocky-splash-seen'));
+      c.note(`sessionStorage rocky-splash-seen=${ss} (marcado por el arnés)`);
+      await rec({ id: 'R-CAT-01', viewport: vp, checks: c, issues, page, hallazgos: 'C-CAT-06' });
+      await context.close();
+    }
+
+    // ---------------- R-CAT-02 ----------------
+    if (want('R-CAT-02')) {
+      const c = new Checks();
+      const { page, issues, context } = await openPage(browser, vp, { origin: O });
+      await page.goto(O + '/menudrop');
+      await waitStore(page);
+      await page.locator('nav[aria-label="Categorías"] a', { hasText: 'ROCKY DROP 4' }).click();
+      await page.waitForURL('**/products/rocky-drop-4');
+      await page.waitForTimeout(300);
+      const step1 = async (label) => {
+        const cs = await cards(page);
+        c.eq(`${label}: h1`, await texts(page, 'main h1'), ['ROCKY DROP 4']);
+        c.eq(`${label}: contador`, await texts(page, '.product-count'), ['22 diseños']);
+        c.eq(`${label}: sin lema ni CTA ni muro`, await page.evaluate(() => [!!document.querySelector('.product-page-tagline'), !!document.querySelector('.product-page-hero-cta'), !!document.querySelector('.street-wall')]), [false, false, false]);
+        c.eq(`${label}: tarjetas`, cs.map((x) => x.title), ['RockyRacing', 'Rockydz boyz', 'Smoker Edition', '19 diseños bajo llave']);
+        c.eq(`${label}: título`, await page.title(), 'ROCKY DROP 4 · ROCKY 035');
+      };
+      await step1('paso 1');
+      c.eq('paso 1: enlace activo', await activeNav(page, vp), []);
+      for (const [h, t] of [['asphalt-afterdark', 'ASPHALT AFTERDARK'], ['colmena-signal', 'COLMENA SIGNAL'], ['costa-035', 'COSTA 035']]) {
+        const resp = await page.goto(`${O}/products/${h}`);
+        await waitStore(page);
+        const cs = await cards(page);
+        c.eq(`paso 2 ${h}: h1`, await texts(page, 'main h1'), [t]);
+        c.eq(`paso 2 ${h}: contador`, await texts(page, '.product-count'), ['2 diseños']);
+        c.ok(`paso 2 ${h}: dos conceptos con Vista previa`, cs.length === 2 && cs.every((x) => x.actions.includes('Vista previa(deshabilitado)')), JSON.stringify(cs.map((x) => x.title)));
+        c.eq(`paso 2 ${h}: HTTP`, resp.status(), 200);
+      }
+      c.eq('paso 2: enlace activo', await activeNav(page, vp), []);
+      await page.goto(`${O}/products/ROCKY%20DROP%204`);
+      await waitStore(page);
+      await step1('paso 3');
+      await page.goto(`${O}/products`);
+      await waitStore(page);
+      c.eq('paso 4: h1', await texts(page, 'main h1'), ['ROCKY 035']);
+      c.eq('paso 4: lema y muro', await page.evaluate(() => [!!document.querySelector('.product-page-tagline'), !!document.querySelector('.street-wall')]), [true, true]);
+      c.eq('paso 4: contador', await texts(page, '.product-count'), ['28 diseños']);
+      c.eq('paso 4: enlace activo en /products', await activeNav(page, vp), []);
+      await rec({ id: 'R-CAT-02', viewport: vp, checks: c, issues, page, hallazgos: 'C-CAT-17' });
+      await context.close();
+    }
+
+    // ---------------- R-CAT-03 ----------------
+    if (want('R-CAT-03')) {
+      const c = new Checks();
+      const { page, issues, context } = await openPage(browser, vp, { origin: O });
+      for (const slug of ['no-existe', 'Rocky-Drop-4']) {
+        const resp = await page.goto(`${O}/products/${slug}`);
+        await waitStore(page);
+        await page.waitForSelector('.product-empty');
+        const v = await page.evaluate(() => {
+          const e = document.querySelector('.product-empty');
+          const im = e.querySelector('img');
+          const a = e.querySelector('a');
+          return { alt: im?.getAttribute('alt'), src: im?.getAttribute('src'), h1: e.querySelector('h1')?.textContent.trim(), p: e.querySelector('p')?.textContent.trim(), btn: a?.textContent.trim(), href: a?.getAttribute('href') };
+        });
+        c.eq(`${slug}: HTTP`, resp.status(), 200);
+        c.ok(`${slug}: imagen decorativa del recadero`, v.alt === '' && /corriendo-bolsa/.test(v.src || ''), `${v.src} alt=${JSON.stringify(v.alt)}`);
+        c.eq(`${slug}: h1`, v.h1, 'Nada por aquí');
+        c.eq(`${slug}: texto`, v.p, `No hay productos en «${slug}». Volaron.`);
+        c.eq(`${slug}: botón`, [v.btn, v.href], ['Ver drops', '/menudrop']);
+        c.eq(`${slug}: título`, await page.title(), `${slug} · ROCKY 035`);
+        const noindex = await page.evaluate(() => document.querySelector('meta[name="robots"]')?.content ?? null);
+        c.note(`${slug}: meta robots=${noindex}`);
+      }
+      await page.getByRole('link', { name: 'Ver drops' }).click();
+      await page.waitForURL('**/menudrop');
+      c.ok('Ver drops lleva a /menudrop', page.url().endsWith('/menudrop'));
+      const r404 = await page.goto(`${O}/products/a/b`);
+      await waitStore(page);
+      c.note(`/products/a/b → HTTP ${r404.status()}, h1 «${await text(page, 'main h1')}»`);
+      await rec({ id: 'R-CAT-03', viewport: vp, checks: c, issues, page, hallazgos: 'C-CAT-03, C-CAT-18' });
+      await context.close();
+    }
+
+    // ---------------- R-CAT-04 ----------------
+    if (want('R-CAT-04')) {
+      const c = new Checks();
+      const { page, issues, context } = await openPage(browser, vp, { origin: O });
+      // Ralentiza el trozo diferido de la ficha para ver el fallback de Suspense
+      await page.route(/\/assets\/ProductDetail-.*\.js$/, async (route) => {
+        await new Promise((r) => setTimeout(r, 1200));
+        await route.continue();
+      });
+      await page.goto(O + '/');
+      await waitStore(page);
+      await page.locator('article', { hasText: 'RockyRacing' }).getByRole('link', { name: 'Detalles' }).click();
+      await page.waitForURL('**/product/rockyracing');
+      await page.waitForTimeout(400);
+      const during = await page.evaluate(() => ({ loading: document.querySelector('.page-loading')?.textContent.trim() ?? null, h1: document.querySelector('main h1')?.textContent.trim() }));
+      // Ficha corregida: con navegación de cliente React Router usa startTransition y sigue la portada
+      c.ok('clic en Detalles (trozo sin descargar): URL nueva y sigue la portada sin «Cargando...» (C-EST-09)', during.loading === null && during.h1 === 'ROCKY 035', JSON.stringify(during));
+      await page.waitForSelector('.detail');
+      {
+        const p2 = await context.newPage();
+        await p2.route(/\/assets\/ProductDetail-.*\.js$/, async (route) => {
+          await new Promise((r) => setTimeout(r, 1200));
+          await route.continue();
+        });
+        await p2.goto(O + '/product/rockyracing', { waitUntil: 'commit' });
+        await p2.waitForSelector('.page-loading', { timeout: 5000 }).catch(() => {});
+        const fb = await p2.evaluate(() => document.querySelector('.page-loading')?.textContent.trim() ?? null);
+        c.eq('carga directa de la ficha: «Cargando...» de Suspense', fb, 'Cargando...');
+        await p2.close();
+      }
+      const detail = async (handle, title) => {
+        const v = await page.evaluate(() => {
+          const d = document.querySelector('.detail');
+          return {
+            back: d.querySelector('.detail-back')?.textContent.trim(),
+            backHref: d.querySelector('.detail-back')?.getAttribute('href'),
+            kicker: d.querySelector('.detail-drop')?.textContent.trim(),
+            h1: d.querySelector('h1')?.textContent.trim(),
+            photo: d.querySelector('button.detail-media')?.getAttribute('aria-label'),
+            photoDisabled: d.querySelector('button.detail-media')?.disabled,
+            img: d.querySelector('img.detail-image')?.getAttribute('src'),
+            desc: !!d.querySelector('.detail-description')?.textContent.trim(),
+            specs: [...d.querySelectorAll('.detail-specs li')].map((l) => l.textContent.trim()),
+            badge: d.querySelector('.detail-buy .badge')?.textContent.trim(),
+            buy: [...d.querySelectorAll('.detail-buy > button, .detail-buy .add-to-cart-control button')].map((b) => b.textContent.trim()),
+            aviso: !!d.querySelector('#aviso form[data-testid="drop-aviso"]'),
+            cal: !!d.querySelector('.calendario'),
+            calText: /Añadir al calendario|Google Calendar|Sale el/.test(d.textContent),
+          };
+        });
+        c.eq(`${handle}: volver`, [v.back, v.backHref], ['← Volver a la tienda', '/']);
+        c.eq(`${handle}: antetítulo y h1`, [v.kicker, v.h1], ['ROCKY DROP 4', title]);
+        c.ok(`${handle}: foto con lupa`, v.photo === `Ver ${title} en grande` && v.photoDisabled === false && !!v.img, `${v.photo} ${v.img}`);
+        c.ok(`${handle}: descripción`, v.desc);
+        c.eq(`${handle}: especificaciones`, v.specs, ['Próximamente']);
+        c.eq(`${handle}: badge y botón`, [v.badge, v.buy], ['Próximamente', ['Avísame']]);
+        c.ok(`${handle}: formulario #aviso`, v.aviso);
+        c.ok(`${handle}: sin calendario`, !v.cal && !v.calText);
+        c.eq(`${handle}: título`, await page.title(), `${title} · ROCKY 035`);
+        if (vp === 'movil') {
+          const order = await page.evaluate(() => ['.detail-heading', '.detail-media-wrap', '.detail-info'].map((s) => Math.round(document.querySelector(s).getBoundingClientRect().top + scrollY)));
+          c.ok(`${handle}: móvil en una columna (título, foto, info)`, order[0] < order[1] && order[1] < order[2], JSON.stringify(order));
+        }
+      };
+      await detail('rockyracing', 'RockyRacing');
+      // Paso 3: Avísame de la zona de compra
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.locator('.detail-buy > button', { hasText: 'Avísame' }).click();
+      await page.waitForTimeout(1200);
+      const focus = await page.evaluate(() => {
+        const el = document.activeElement;
+        const r = el.getBoundingClientRect();
+        return { tag: el.tagName, type: el.type, inAviso: !!el.closest('#aviso'), top: Math.round(r.top), vh: innerHeight };
+      });
+      c.ok('Avísame lleva el foco al email', focus.tag === 'INPUT' && focus.type === 'email' && focus.inAviso, JSON.stringify(focus));
+      c.ok('email visible tras el desplazamiento', focus.top > 0 && focus.top < focus.vh, `top ${focus.top}/${focus.vh}`);
+      // Desplazamiento suave frente a movimiento reducido: eventos scroll tras el clic
+      const scrollEvents = async (pg) => {
+        await pg.evaluate(() => {
+          window.scrollTo(0, 0);
+          window.__s = [];
+          window.__t = null;
+          addEventListener('scroll', () => window.__s.push([performance.now(), Math.round(scrollY)]));
+          const b = [...document.querySelectorAll('.detail-buy > button')].find((x) => x.textContent.trim() === 'Avísame');
+          b.addEventListener('click', () => { window.__t = performance.now(); }, { capture: true });
+        });
+        await pg.locator('.detail-buy > button', { hasText: 'Avísame' }).click();
+        await pg.waitForTimeout(1200);
+        return pg.evaluate(() => { const after = window.__s.filter(([t]) => t >= window.__t); return { eventos: after.length, posiciones: [...new Set(after.map((x) => x[1]))].length, final: Math.round(scrollY) }; });
+      };
+      {
+        await page.goto(O + '/product/smoker-edition');
+        await waitStore(page);
+        await page.waitForSelector('.detail');
+        const smooth = await scrollEvents(page);
+        const ctxR = await openPage(browser, vp, { origin: O, reducedMotion: 'reduce' });
+        await ctxR.page.goto(O + '/product/smoker-edition');
+        await waitStore(ctxR.page);
+        await ctxR.page.waitForSelector('.detail');
+        const instant = await scrollEvents(ctxR.page);
+        await ctxR.context.close();
+        c.ok('desplazamiento suave al email (varias posiciones intermedias)', smooth.posiciones > 2, JSON.stringify(smooth));
+        c.ok('con movimiento reducido, salto directo', instant.posiciones <= 2, JSON.stringify(instant));
+        await page.goto(O + '/product/rockyracing');
+        await waitStore(page);
+        await page.waitForSelector('.detail');
+      }
+      // Paso 4: volver
+      await page.getByRole('link', { name: '← Volver a la tienda' }).click();
+      await page.waitForURL(O + '/');
+      await page.waitForTimeout(400);
+      c.eq('Volver: URL y scroll arriba', [new URL(page.url()).pathname, await page.evaluate(() => Math.round(scrollY))], ['/', 0]);
+      for (const [h, t] of [['rockydz-boyz', 'Rockydz boyz'], ['smoker-edition', 'Smoker Edition']]) {
+        await page.goto(`${O}/product/${h}`);
+        await waitStore(page);
+        await page.waitForSelector('.detail');
+        await detail(h, t);
+      }
+      await rec({ id: 'R-CAT-04', viewport: vp, checks: c, issues, page, hallazgos: 'C-CAT-09, C-CAT-10, C-EST-09' });
+      await context.close();
+    }
+
+    // ---------------- R-CAT-05 ----------------
+    if (want('R-CAT-05')) {
+      const c = new Checks();
+      const { page, issues, context } = await openPage(browser, vp, { origin: O });
+      await page.goto(O + '/products/asphalt-afterdark');
+      await waitStore(page);
+      await page.locator('article', { hasText: 'Night Runner' }).getByRole('link', { name: 'Detalles' }).click();
+      await page.waitForURL('**/product/rocky-night-runner');
+      await page.waitForSelector('.detail');
+      const list = [
+        ['rocky-night-runner', 'Night Runner', 'ASPHALT AFTERDARK'],
+        ['rocky-pit-crew', 'Pit Crew 035', 'ASPHALT AFTERDARK'],
+        ['rocky-airwave', 'Airwave', 'COLMENA SIGNAL'],
+        ['rocky-signal-ghost', 'Signal Ghost', 'COLMENA SIGNAL'],
+        ['rocky-solar-club', 'Solar Club', 'COSTA 035'],
+        ['rocky-marea-035', 'Marea 035', 'COSTA 035'],
+      ];
+      for (const [i, [h, t, d]] of list.entries()) {
+        if (i > 0) {
+          await page.goto(`${O}/product/${h}`);
+          await waitStore(page);
+          await page.waitForSelector('.detail');
+        }
+        const v = await page.evaluate(() => {
+          const x = document.querySelector('.detail');
+          return {
+            kicker: x.querySelector('.detail-drop')?.textContent.trim(),
+            h1: x.querySelector('h1')?.textContent.trim(),
+            photoOk: !!x.querySelector('button.detail-media:not([disabled]) img.detail-image'),
+            alt: x.querySelector('img.detail-image')?.getAttribute('alt'),
+            desc: !!x.querySelector('.detail-description')?.textContent.trim(),
+            specs: [...x.querySelectorAll('.detail-specs li')].map((l) => l.textContent.trim()),
+            badge: x.querySelector('.detail-buy .badge')?.textContent.trim(),
+            buy: [...x.querySelectorAll('.detail-buy button')].map((b) => `${b.textContent.trim()}${b.disabled ? '(deshabilitado)' : ''}`),
+            aviso: !!x.querySelector('#aviso, form.drop-aviso'),
+            cal: !!x.querySelector('.calendario'),
+          };
+        });
+        c.eq(`${h}: antetítulo/h1`, [v.kicker, v.h1], [d, t]);
+        c.ok(`${h}: foto ampliable y descripción`, v.photoOk && v.desc);
+        c.eq(`${h}: especificaciones`, v.specs, ['CONCEPTO IA', 'VISTA PREVIA · SIN STOCK REAL']);
+        c.eq(`${h}: badge y botón`, [v.badge, v.buy], ['Próximamente', ['Vista previa(deshabilitado)']]);
+        c.ok(`${h}: sin aviso ni calendario`, !v.aviso && !v.cal);
+        if (i === 0) c.note(`alt de la foto en la ficha: «${v.alt}»`);
+      }
+      await rec({ id: 'R-CAT-05', viewport: vp, checks: c, issues, page, hallazgos: 'C-CAT-11' });
+      await context.close();
+    }
+
+    // ---------------- R-CAT-06 ----------------
+    if (want('R-CAT-06')) {
+      const c = new Checks();
+      const { page, issues, context } = await openPage(browser, vp, { origin: O });
+      await page.goto(O + '/product/35-red');
+      await waitStore(page);
+      await page.waitForSelector('.detail');
+      const v = await page.evaluate(() => {
+        const x = document.querySelector('.detail');
+        const btn = x.querySelector('button.detail-media');
+        const lbl = x.querySelector('.placeholder-tee__label');
+        return {
+          kicker: x.querySelector('.detail-drop')?.textContent.trim(),
+          h1: x.querySelector('h1')?.textContent.trim(),
+          disabled: btn?.disabled,
+          aria: btn?.getAttribute('aria-label'),
+          ph: !!btn?.querySelector('.placeholder-tee'),
+          label: lbl ? [...lbl.children].map((e) => e.textContent.trim()) : null,
+          desc: !!x.querySelector('.detail-description')?.textContent.trim(),
+          proximamente: (x.textContent.match(/Próximamente/g) || []).length,
+          specs: [...x.querySelectorAll('.detail-specs li')].map((l) => l.textContent.trim()),
+          badge: x.querySelector('.detail-buy .badge')?.textContent.trim(),
+        };
+      });
+      c.eq('antetítulo/h1', [v.kicker, v.h1], ['ROCKY DROP 4', '35 RED']);
+      c.ok('mockup gris en botón deshabilitado', v.disabled === true && v.ph, `disabled=${v.disabled} aria-label=«${v.aria}»`);
+      c.eq('etiqueta del mockup', v.label, ['Drop 4 · sin revelar', 'Diseño bajo llave']);
+      c.ok('descripción', v.desc);
+      c.eq('Próximamente dos veces (specs y badge)', [v.specs, v.badge, v.proximamente], [['Próximamente'], 'Próximamente', 2]);
+      await page.locator('button.detail-media').click({ force: true });
+      await page.waitForTimeout(300);
+      c.eq('clic en la foto no abre lightbox', await page.locator('dialog.lightbox').count(), 0);
+      // Tab desde arriba: nunca llega a la foto
+      if (vp === 'escritorio') {
+        await page.evaluate(() => { window.scrollTo(0, 0); document.activeElement?.blur(); });
+        let reached = false;
+        const seen = [];
+        for (let i = 0; i < 40; i += 1) {
+          await page.keyboard.press('Tab');
+          const d = await page.evaluate(() => ({ media: document.activeElement?.classList.contains('detail-media'), email: document.activeElement?.matches('input[type=email]'), t: document.activeElement?.textContent?.trim().slice(0, 20) }));
+          seen.push(d.t);
+          if (d.media) reached = true;
+          if (d.email) break;
+        }
+        c.ok('Tab no llega a la foto bajo llave', !reached, `${seen.length} tabulaciones hasta el email`);
+      }
+      await page.locator('.detail-buy > button', { hasText: 'Avísame' }).click();
+      await page.waitForTimeout(1000);
+      const f = await page.evaluate(() => ({ email: document.activeElement?.matches('#aviso input[type=email]') }));
+      c.ok('Avísame lleva el foco al email', f.email);
+      // Producto del formulario: se ve en la petición; se intercepta y se aborta para no escribir
+      let sentProduct = null;
+      await page.route('**/api/avisos', async (route) => {
+        sentProduct = JSON.parse(route.request().postData() || '{}').producto;
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true,"duplicate":false,"product":"x"}' });
+      });
+      await page.fill('#aviso input[type=email]', 'auditoria+35red@rocky.test');
+      await page.check('#aviso input[name=consentimiento]');
+      await page.locator('#aviso button[type=submit]').click();
+      await page.waitForTimeout(500);
+      c.eq('producto del formulario (petición interceptada, no llega al servidor)', sentProduct, '35-red');
+      await page.unroute('**/api/avisos');
+      await page.evaluate(() => localStorage.clear());
+      for (const [h, t] of [['noname', 'NoName'], ['ssttaarr', 'SSTTAARR'], ['danger-basic', 'Danger Basic']]) {
+        await page.goto(`${O}/product/${h}`);
+        await waitStore(page);
+        await page.waitForSelector('.detail');
+        const w = await page.evaluate(() => ({ h1: document.querySelector('.detail h1')?.textContent.trim(), ph: !!document.querySelector('button.detail-media[disabled] .placeholder-tee') }));
+        c.eq(`${h}: h1 y mockup`, [w.h1, w.ph], [t, true]);
+      }
+      await rec({ id: 'R-CAT-06', viewport: vp, checks: c, issues, page, hallazgos: 'C-CAT-10, C-CAT-19, C-CAT-22, C-CAT-14' });
+      await context.close();
+    }
+
+    // ---------------- R-CAT-07 ----------------
+    if (want('R-CAT-07')) {
+      const c = new Checks();
+      const { page, issues, context } = await openPage(browser, vp, { origin: O });
+      await page.route('**/api/shopify/status', async (route) => {
+        await new Promise((r) => setTimeout(r, 1200));
+        await route.continue();
+      });
+      const resp = await page.goto(O + '/product/no-existe');
+      await page.waitForSelector('.page-loading[role=status]', { timeout: 5000 }).catch(() => {});
+      const loading = await page.evaluate(() => {
+        const l = document.querySelector('.page-loading[role=status]');
+        return l ? { role: l.getAttribute('role'), text: l.textContent.trim() } : null;
+      });
+      c.eq('cargando', loading, { role: 'status', text: 'Cargando producto…' });
+      c.note(`título durante la carga: «${await page.title()}»`);
+      await waitStore(page);
+      await page.unroute('**/api/shopify/status');
+      const check = async (slug, r) => {
+        await page.waitForSelector('.product-empty');
+        const v = await page.evaluate(() => ({ h1: document.querySelector('.product-empty h1')?.textContent.trim(), a: document.querySelector('.product-empty a')?.textContent.trim(), href: document.querySelector('.product-empty a')?.getAttribute('href') }));
+        c.eq(`${slug}: h1 y botón`, [v.h1, v.a, v.href], ['Producto no encontrado', 'Volver a la tienda', '/']);
+        c.eq(`${slug}: título`, await page.title(), 'Producto no encontrado · ROCKY 035');
+        c.eq(`${slug}: HTTP`, r.status(), 200);
+      };
+      await check('no-existe', resp);
+      for (const slug of ['RockyRacing', '15']) {
+        const r = await page.goto(`${O}/product/${slug}`);
+        await waitStore(page);
+        await check(slug, r);
+      }
+      await page.getByRole('link', { name: 'Volver a la tienda' }).click();
+      await page.waitForURL(O + '/');
+      c.ok('Volver a la tienda → /', new URL(page.url()).pathname === '/');
+      const r404 = await page.goto(`${O}/product/`);
+      await waitStore(page);
+      const nf = await text(page, 'main h1');
+      c.ok('/product/ cae en la 404 general', nf === 'Te has salido del mapa', `HTTP ${r404.status()}, h1 «${nf}»`);
+      await rec({ id: 'R-CAT-07', viewport: vp, checks: c, issues, page, hallazgos: 'C-CAT-03' });
+      await context.close();
+    }
+
+    // ---------------- R-CAT-10 ----------------
+    if (want('R-CAT-10')) {
+      const c = new Checks();
+      const { page, issues, context } = await openPage(browser, vp, { origin: O });
+      await page.goto(O + '/');
+      await waitStore(page);
+      c.eq('portada: contador y bajo llave', [await texts(page, '.product-count'), await text(page, '[data-testid="locked-designs"] h2')], [['28 diseños'], '19 diseños bajo llave']);
+      await page.goto(O + '/products/rocky-drop-4');
+      await waitStore(page);
+      c.eq('rocky-drop-4', await texts(page, '.product-count'), ['22 diseños']);
+      await page.goto(O + '/products/costa-035');
+      await waitStore(page);
+      c.eq('costa-035', await texts(page, '.product-count'), ['2 diseños']);
+      await page.goto(O + '/menudrop');
+      await waitStore(page);
+      await page.waitForSelector('nav[aria-label="Categorías"] a');
+      const rows = await page.evaluate(() => [...document.querySelectorAll('nav[aria-label="Categorías"] a')].map((a) => [a.querySelector('.drops-link-title')?.textContent.trim(), a.querySelector('.drops-link-meta')?.textContent.trim()]));
+      c.eq('menudrop', rows, [['Todo el catálogo', '28 diseños'], ['ROCKY DROP 4', '22 diseños · 19 bajo llave'], ['ASPHALT AFTERDARK', '2 diseños'], ['COLMENA SIGNAL', '2 diseños'], ['COSTA 035', '2 diseños']]);
+      await rec({ id: 'R-CAT-10', viewport: vp, checks: c, issues, page });
+      await context.close();
+    }
+
+    // ---------------- R-CAT-11 ----------------
+    if (want('R-CAT-11')) {
+      for (const variant of ['bloqueo', 'proxy502']) {
+        const c = new Checks();
+        const { page, issues, context } = await openPage(browser, vp, { origin: O });
+        await page.route('**/api/shopify/status', (route) =>
+          variant === 'bloqueo' ? route.abort('failed') : route.fulfill({ status: 502, contentType: 'text/plain', body: '' })
+        );
+        const prefix = variant === 'bloqueo' ? 'No se ha podido conectar con la tienda.' : 'La tienda no ha podido completar la operación.';
+        const expectedAlert = `${prefix} No se pudo determinar el modo de la tienda y el pago sigue desactivado.`;
+        const alertOf = () => page.evaluate(() => {
+          const n = document.querySelector('.commerce-notice');
+          return n ? { role: n.getAttribute('role'), text: n.textContent.trim() } : null;
+        });
+        await page.goto(O + '/');
+        await waitStore(page);
+        c.eq('/: aviso', await alertOf(), { role: 'alert', text: expectedAlert });
+        c.eq('/: contador y rejilla vacía', [await texts(page, '.product-count'), await page.locator('.product-grid > *').count()], [['0 diseños'], 0]);
+        const emptyState = await page.evaluate(() => document.querySelector('.product-grid')?.textContent.trim() || '');
+        c.note(`/: texto en la rejilla «${emptyState}»`);
+        await page.goto(O + '/products/rocky-drop-4');
+        await waitStore(page);
+        c.eq('categoría: aviso', (await alertOf())?.role, 'alert');
+        c.eq('categoría: vacío', [await text(page, '.product-empty h1'), await text(page, '.product-empty p')], ['Nada por aquí', 'No hay productos en «rocky-drop-4». Volaron.']);
+        await page.goto(O + '/product/rockyracing');
+        await waitStore(page);
+        await page.waitForSelector('.product-empty');
+        const fd = await page.evaluate(() => ({ h1: document.querySelector('.product-empty h1')?.textContent.trim(), alert: document.querySelector('.product-empty [role=alert]')?.textContent.trim(), a: document.querySelector('.product-empty a')?.textContent.trim() }));
+        c.eq('ficha', fd, { h1: 'Producto no disponible', alert: expectedAlert, a: 'Volver a la tienda' });
+        await page.goto(O + '/menudrop');
+        await waitStore(page);
+        await page.waitForSelector('.drops');
+        const md = await page.evaluate(() => ({ h1: document.querySelector('.drops h1')?.textContent.trim(), links: document.querySelectorAll('nav[aria-label="Categorías"] a').length, msg: document.querySelector('nav[aria-label="Categorías"]')?.textContent.trim() }));
+        c.eq('menudrop: título y lista vacía', [md.h1, md.links, md.msg], ['Drops', 0, '']);
+        c.ok('sin aviso de modo demo', !(await page.evaluate(() => document.body.textContent.includes('Modo demo'))));
+        if (variant === 'proxy502') c.note('variante «Express parado»: simulada respondiendo 502 text/plain sin cuerpo, como hace el proxy de Vite 8 (node_modules/vite/dist/node/chunks/node.js:19173)');
+        await rec({ id: 'R-CAT-11', viewport: `${vp}${variant === 'proxy502' ? ' (proxy 502)' : ''}`, checks: c, issues, page, hallazgos: 'C-CAT-05' });
+        await context.close();
+      }
+    }
+
+    // ---------------- R-DROP-01 ----------------
+    if (want('R-DROP-01')) {
+      const c = new Checks();
+      const { page, issues, context } = await openPage(browser, vp, { origin: O });
+      await page.goto(O + '/');
+      await waitStore(page);
+      if (vp === 'movil') {
+        await page.getByRole('button', { name: 'Abrir el menú' }).click();
+        await page.locator('.navbar-sheet').getByRole('link', { name: 'Drops' }).click();
+      } else {
+        await page.locator('.navbar-link', { hasText: 'Drops' }).click();
+      }
+      await page.waitForURL('**/menudrop');
+      await page.waitForSelector('nav[aria-label="Categorías"] a');
+      c.eq('título', await page.title(), 'Drops · ROCKY 035');
+      c.eq('h1 y subtítulo', [await text(page, '.drops h1'), await text(page, '.drops .subtitle')], ['Drops', 'Colecciones limitadas. Cuando vuelan, vuelan.']);
+      const ill = await page.evaluate(() => ['.drops-illustration', '.drops-dado', '.drops-skater'].map((s) => { const e = document.querySelector(s); return e ? getComputedStyle(e).display !== 'none' : null; }));
+      c.eq('ilustraciones (tumbado, dado, skater)', ill, vp === 'movil' ? [true, true, false] : [true, true, true]);
+      const rows = await page.evaluate(() => [...document.querySelectorAll('nav[aria-label="Categorías"] a')].map((a) => [a.querySelector('.drops-link-title')?.textContent.trim(), a.querySelector('.drops-link-meta')?.textContent.trim(), a.querySelector('.drops-link-state')?.textContent.trim() ?? null]));
+      c.eq('cinco tarjetas', rows, [['Todo el catálogo', '28 diseños', null], ['ROCKY DROP 4', '22 diseños · 19 bajo llave', 'Sin revelar'], ['ASPHALT AFTERDARK', '2 diseños', 'Concepto'], ['COLMENA SIGNAL', '2 diseños', 'Concepto'], ['COSTA 035', '2 diseños', 'Concepto']]);
+      // Tab por la lista
+      await page.evaluate(() => {
+        const s = document.querySelector('.drops .subtitle');
+        s.setAttribute('tabindex', '-1');
+        s.focus();
+        s.removeAttribute('tabindex');
+      });
+      const tabbed = [];
+      for (let i = 0; i < 5; i += 1) {
+        await page.keyboard.press('Tab');
+        tabbed.push(await page.evaluate(() => {
+          const el = document.activeElement;
+          const cs = getComputedStyle(el);
+          return { t: el.querySelector('.drops-link-title')?.textContent.trim() ?? el.textContent.trim().slice(0, 20), fv: el.matches(':focus-visible'), outline: `${cs.outlineStyle} ${cs.outlineWidth}` };
+        }));
+      }
+      c.eq('Tab recorre las cinco', tabbed.map((x) => x.t), ['Todo el catálogo', 'ROCKY DROP 4', 'ASPHALT AFTERDARK', 'COLMENA SIGNAL', 'COSTA 035']);
+      c.ok('foco visible en las cinco', tabbed.every((x) => x.fv && !x.outline.startsWith('none') && parseFloat(x.outline.split(' ')[1]) > 0), JSON.stringify(tabbed.map((x) => x.outline)));
+      await page.locator('nav[aria-label="Categorías"] a', { hasText: 'ROCKY DROP 4' }).click();
+      await page.waitForURL('**/products/rocky-drop-4');
+      c.ok('ROCKY DROP 4 → /products/rocky-drop-4', true);
+      await page.goBack();
+      await page.waitForURL('**/menudrop');
+      await page.locator('nav[aria-label="Categorías"] a', { hasText: 'Todo el catálogo' }).click();
+      await page.waitForURL(O + '/');
+      c.ok('Todo el catálogo → /', new URL(page.url()).pathname === '/');
+      await rec({ id: 'R-DROP-01', viewport: vp, checks: c, issues, page });
+      await context.close();
+    }
+
+    // ---------------- R-DROP-02 ----------------
+    if (want('R-DROP-02')) {
+      const c = new Checks();
+      const { page, issues, context } = await openPage(browser, vp, { origin: O });
+      const calRe = /Sale el|Añadir al calendario|Google Calendar/;
+      await page.goto(O + '/');
+      await waitStore(page);
+      const home = await page.evaluate(() => ({ cal: !!document.querySelector('[data-testid="locked-designs"] .calendario'), txt: document.querySelector('[data-testid="locked-designs"]').textContent }));
+      c.ok('portada: sin calendario bajo el formulario', !home.cal && !calRe.test(home.txt));
+      await page.goto(O + '/product/35-red');
+      await waitStore(page);
+      await page.waitForSelector('#aviso');
+      const det = await page.evaluate(() => ({ cal: !!document.querySelector('#aviso .calendario'), txt: document.querySelector('.detail').textContent }));
+      c.ok('ficha 35-red: sin calendario', !det.cal && !calRe.test(det.txt));
+      if (vp === 'escritorio') {
+        let downloaded = false;
+        page.on('download', () => { downloaded = true; });
+        const r = await page.goto(O + '/api/drop/calendario.ics');
+        const body = await r.text();
+        c.eq('/api/drop/calendario.ics: estado', r.status(), 404);
+        c.ok('/api/drop/calendario.ics: JSON', /application\/json/.test(r.headers()['content-type'] || ''), r.headers()['content-type']);
+        c.eq('/api/drop/calendario.ics: cuerpo', JSON.parse(body), { message: 'Aún no hay fecha para el drop.', code: 'DROP_WITHOUT_DATE' });
+        await page.waitForTimeout(300);
+        c.ok('no se descarga nada', !downloaded);
+      }
+      await rec({ id: 'R-DROP-02', viewport: vp, checks: c, issues, page });
+      await context.close();
+    }
+
+    // ---------------- Imágenes por página ----------------
+    if (want('IMG')) {
+      const routes = [
+        ['/', 'portada'],
+        ['/products/rocky-drop-4', 'listado'],
+        ['/product/smoker-edition', 'ficha'],
+        ['/product/rockydz-boyz', 'ficha'],
+        ['/product/rockyracing', 'ficha'],
+        ['/menudrop', 'menú drop'],
+      ];
+      for (const [route] of routes) {
+        const { page, context } = await openPage(browser, vp, { origin: O });
+        const imgs = collectImages(page);
+        await page.goto(O + route, { waitUntil: 'networkidle' });
+        await waitStore(page);
+        await page.waitForTimeout(800);
+        const initial = imgs.length;
+        await scrollThrough(page);
+        await page.waitForLoadState('networkidle');
+        await page.waitForTimeout(500);
+        const seen = new Set();
+        imgs.forEach((im, i) => {
+          const key = im.url;
+          if (seen.has(key)) return;
+          seen.add(key);
+          appendTsv('catalogo-imagenes.tsv', [`${route} (${i < initial ? 'carga inicial' : 'al desplazar'})`, vp, im.url, im.bytes]);
+        });
+        const big = imgs.filter((im) => /rocky35-camel|rockydz-boyz/.test(im.url));
+        console.log(`IMG ${vp} ${route}: ${seen.size} imágenes, ${imgs.reduce((s, x) => s + x.bytes, 0)} bytes; grandes: ${big.map((b) => `${b.url}`).join(', ') || 'ninguna'}`);
+        await context.close();
+      }
+    }
+  }
+} finally {
+  await browser.close();
+  inst.stop();
+}

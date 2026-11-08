@@ -1,0 +1,34 @@
+import { launchBrowser, open, ORIGIN, sleep } from './common.mjs';
+const b = await launchBrowser();
+const tracker = () => {
+  window.__ev = [];
+  let last = null;
+  setInterval(() => {
+    const el = document.querySelector('[data-testid="curious-peeker"]');
+    const st = el ? `${el.dataset.pose}|${el.dataset.spot}|${el.dataset.beat}` : null;
+    if (st !== last) { window.__ev.push(`${Math.round(performance.now())} ${st}`); last = st; }
+  }, 50);
+  let n = 0; const f = () => { n++; window.__raf = n; requestAnimationFrame(f); }; requestAnimationFrame(f);
+};
+try {
+  const keyProbe = await open(b, 'escritorio');
+  await keyProbe.page.goto(ORIGIN + '/');
+  await sleep(800);
+  await keyProbe.page.evaluate(() => { window.__keys = []; window.addEventListener('keydown', (e) => window.__keys.push(`${e.key}/${e.code}/${e.location}`)); });
+  for (const k of ['Numpad0', 'Numpad3', 'Numpad5']) await keyProbe.page.keyboard.press(k);
+  console.log('teclas numpad:', await keyProbe.page.evaluate(() => window.__keys));
+  await keyProbe.context.close();
+
+  const m = await open(b, 'movil', { skipIntro: false });
+  await m.context.addInitScript(tracker);
+  await m.page.goto(ORIGIN + '/');
+  await sleep(28000);
+  console.log('movil intro', await m.page.evaluate(() => ({ ev: window.__ev, raf: window.__raf, now: Math.round(performance.now()) })));
+  await m.context.close();
+  const d = await open(b, 'escritorio');
+  await d.context.addInitScript(tracker);
+  await d.page.goto(ORIGIN + '/');
+  await sleep(45000);
+  console.log('escritorio', await d.page.evaluate(() => ({ ev: window.__ev, raf: window.__raf, now: Math.round(performance.now()) })));
+  await d.context.close();
+} finally { await b.close(); }

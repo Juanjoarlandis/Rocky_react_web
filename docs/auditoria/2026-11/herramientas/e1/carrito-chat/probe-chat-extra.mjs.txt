@@ -1,0 +1,26 @@
+import { startInstance, launchBrowser, summarize } from '../harness.mjs';
+import { guardedPage, save } from './common.mjs';
+const inst = await startInstance(3203, { CHAT_RATE_LIMIT_MAX: '50' });
+const b = await launchBrowser();
+const out = {};
+try {
+  const { page, issues, context } = await guardedPage(b, 'movil', { origin: inst.origin });
+  await page.goto(inst.origin + '/rockyIA');
+  await page.waitForSelector('.chat-welcome');
+  out.c14 = await page.evaluate(() => ({ headerPaddingRight: getComputedStyle(document.querySelector('.chat-header')).paddingRight, playerWidth: getComputedStyle(document.querySelector('.chat-header-player')).width, playerPaddingRight: getComputedStyle(document.querySelector('.chat-header-player')).paddingRight }));
+  // C-CHAT-10 (parte cliente): mandar, salir a /crew y volver
+  await page.getByRole('textbox', { name: 'Mensaje para Rocky IA' }).fill('hola');
+  await page.keyboard.press('Enter');
+  await page.waitForSelector('.chat-message.ai.error');
+  const before = await page.locator('.chat-turn').count();
+  await page.evaluate(() => { history.pushState({}, '', '/crew'); dispatchEvent(new PopStateEvent('popstate')); });
+  await page.waitForSelector('.crew-card');
+  await page.goBack();
+  await page.waitForSelector('.chat-header');
+  await page.waitForTimeout(500);
+  out.c10 = { turnsBefore: before, turnsAfter: await page.locator('.chat-turn').count(), welcomeAgain: await page.locator('.chat-welcome').count(), clearButton: await page.getByRole('button', { name: /borrar|limpiar|nueva conversación/i }).count() };
+  out.issues = summarize(issues);
+  await context.close();
+} finally { await b.close(); inst.stop(); }
+save('probe-chat-extra', out);
+console.log(JSON.stringify(out, null, 1));

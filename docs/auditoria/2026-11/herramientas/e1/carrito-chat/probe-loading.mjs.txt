@@ -1,0 +1,39 @@
+import { startInstance, launchBrowser } from '../harness.mjs';
+import { guardedPage, save } from './common.mjs';
+const inst = await startInstance(3203, { SHOPIFY_RATE_LIMIT_MAX: '2000' });
+const b = await launchBrowser();
+const out = {};
+try {
+  for (const [name, chunk, path] of [['cart', 'Cart', '/cart'], ['chat', 'ChatComponent', '/rockyIA'], ['crew', 'Crew', '/crew']]) {
+    const { page, context } = await guardedPage(b, 'escritorio', { origin: inst.origin });
+    let hits = 0;
+    await page.route(`**/assets/${chunk}-*.js`, async (r) => { hits++; await new Promise((x) => setTimeout(x, 1500)); await r.continue(); });
+    await page.goto(inst.origin + '/');
+    await page.waitForTimeout(1000);
+    await page.evaluate((p) => { window.history.pushState({}, '', p); window.dispatchEvent(new PopStateEvent('popstate')); }, path);
+    await page.waitForTimeout(400);
+    const spa = { hits, path: new URL(page.url()).pathname, loading: await page.locator('.page-loading').count(), gridStill: await page.locator('.product-grid').count() };
+    // navegación con clic en el enlace de la barra
+    await page.goto(inst.origin + '/legal/aviso-legal').catch(() => {});
+    await context.close();
+    const c2 = await guardedPage(b, 'escritorio', { origin: inst.origin });
+    let hits2 = 0;
+    await c2.page.route(`**/assets/${chunk}-*.js`, async (r) => { hits2++; await new Promise((x) => setTimeout(x, 1500)); await r.continue(); });
+    await c2.page.goto(inst.origin + '/');
+    await c2.page.waitForTimeout(1000);
+    const sel = name === 'cart' ? '.navbar-cart' : name === 'chat' ? '.navbar-links a[href="/rockyIA"]' : '.navbar-links a[href="/crew"]';
+    await c2.page.locator(sel).click();
+    await c2.page.waitForTimeout(400);
+    const click = { hits: hits2, path: new URL(c2.page.url()).pathname, loading: await c2.page.locator('.page-loading').count(), loadingText: await c2.page.locator('.page-loading').innerText().catch(() => ''), gridStill: await c2.page.locator('.product-grid').count() };
+    await c2.context.close();
+    const c3 = await guardedPage(b, 'escritorio', { origin: inst.origin });
+    await c3.page.route(`**/assets/${chunk}-*.js`, async (r) => { await new Promise((x) => setTimeout(x, 1500)); await r.continue(); });
+    await c3.page.goto(inst.origin + path, { waitUntil: 'domcontentloaded' });
+    await c3.page.waitForTimeout(600);
+    const direct = { loading: await c3.page.locator('.page-loading').count(), text: await c3.page.locator('.page-loading').innerText().catch(() => ''), spinner: await c3.page.locator('.page-loading-spinner').count() };
+    await c3.context.close();
+    out[name] = { spa, click, direct };
+  }
+} finally { await b.close(); inst.stop(); }
+save('probe-loading', out);
+console.log(JSON.stringify(out, null, 1));

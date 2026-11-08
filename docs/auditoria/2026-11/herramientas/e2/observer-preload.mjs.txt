@@ -1,0 +1,56 @@
+// Observador de la auditoría E2 (no forma parte del doble): se carga DESPUÉS de
+// e2sim/mock-preload.mjs y envuelve el fetch ya simulado para anotar, sin
+// tocar la respuesta, la forma de lo que el servidor manda a OpenRouter
+// (roles, historial, max_tokens, ruta de modelos) y las variables de la consulta
+// de productos de Storefront. No anota cabeceras ni tokens. No sale a la red:
+// delega siempre en el fetch del doble.
+import fs from 'node:fs';
+
+const file = process.env.E2OBS_FILE;
+const inner = globalThis.fetch;
+
+function note(entry) {
+  if (!file) return;
+  try {
+    fs.appendFileSync(file, `${JSON.stringify({ at: Date.now(), ...entry })}\n`);
+  } catch {
+    /* el observador nunca rompe la petición */
+  }
+}
+
+globalThis.fetch = async function observedFetch(input, init) {
+  try {
+    const url = typeof input === 'string' ? input : input?.url || String(input);
+    const raw = typeof init?.body === 'string' ? init.body : null;
+    if (raw && url.startsWith('https://openrouter.ai/')) {
+      const body = JSON.parse(raw);
+      const messages = Array.isArray(body.messages) ? body.messages : [];
+      note({
+        kind: 'openrouter',
+        model: body.model,
+        models: body.models || null,
+        maxTokens: body.max_tokens,
+        temperature: body.temperature,
+        reasoning: body.reasoning || null,
+        maxPrice: body.provider?.max_price || null,
+        usage: body.usage || null,
+        roles: messages.map((m) => m.role),
+        firstSystemStart: String(messages[0]?.content || '').slice(0, 60),
+        turns: messages
+          .filter((m) => m.role !== 'system')
+          .map((m) => ({ role: m.role, text: String(m.content).slice(0, 200) })),
+        extraSystem: messages
+          .slice(1)
+          .filter((m) => m.role === 'system')
+          .map((m) => String(m.content).slice(0, 600)),
+      });
+    } else if (raw && /myshopify\.com\/api\/[^/]+\/graphql\.json$/.test(url)) {
+      const body = JSON.parse(raw);
+      const op = /\b(?:query|mutation)\s+([A-Za-z_][A-Za-z0-9_]*)/.exec(String(body.query || ''))?.[1] || null;
+      if (op === 'RockyProducts') note({ kind: 'storefront', op, variables: body.variables || null });
+    }
+  } catch {
+    /* sólo observación */
+  }
+  return inner.apply(this, arguments);
+};

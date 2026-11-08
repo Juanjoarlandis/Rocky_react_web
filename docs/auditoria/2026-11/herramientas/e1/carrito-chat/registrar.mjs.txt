@@ -1,0 +1,224 @@
+// Registra los resultados de E1 de las áreas «carrito» y «chat-crew» a partir de
+// las observaciones guardadas en out/*.json. Se ejecuta una sola vez.
+import fs from 'node:fs';
+import path from 'node:path';
+import { record, SCRATCH } from '../harness.mjs';
+import { OUT } from './common.mjs';
+
+const R = path.join(SCRATCH, 'resultados-e1');
+for (const f of ['carrito.tsv', 'chat-crew.tsv']) {
+  if (fs.existsSync(path.join(R, f))) throw new Error(`${f} ya existe: no se registra dos veces`);
+}
+const j = (n) => JSON.parse(fs.readFileSync(path.join(OUT, `${n}.json`), 'utf8'));
+const api = j('carrito-api');
+const ui = j('carrito-ui');
+const lim = j('carrito-limite');
+const chat = j('chat-ui');
+const chatApi = j('chat-api-apiparte');
+const chatLim = j('chat-api-ui');
+const crew = j('crew');
+const tec = j('teclado');
+const extra = j('probe-chat-extra');
+const loading = j('probe-loading');
+const short = (s, n = 160) => String(s).replace(/\s+/g, ' ').slice(0, n);
+const b = (r) => `${r.status} ${r.body}${r.headers['ratelimit-limit'] ? ` RateLimit ${r.headers['ratelimit-limit']}/${r.headers['ratelimit-remaining']}` : ''}${r.headers['cache-control'] ? ` CC=${r.headers['cache-control']}` : ''}${r.setCookie.length ? ` Set-Cookie=${r.setCookie.map((c) => c.replace(/(rocky_session=)[^;]+/, '$1<id>')).join(' | ')}` : ' sin Set-Cookie'}`;
+const A = 'carrito';
+const C = 'chat-crew';
+const ENT = 'Instancia propia (build de dist/ + API en el mismo origen, modo demo, almacén en memoria) en http://localhost:3203';
+
+// ---------------- Carrito, checkout y cuenta ----------------
+for (const vp of ['escritorio', 'movil']) {
+  const o = ui[`cart01-${vp}`];
+  const conc = o.cards.filter((c) => c.btns.some((x) => x.startsWith('BUTTON:Vista previa(disabled)'))).map((c) => c.title);
+  const fotos = o.cards.filter((c) => c.btns.some((x) => x.includes('Avísame'))).map((c) => `${c.title}(${c.badge}+Avísame)`);
+  record(A, {
+    id: 'R-CART-01', viewport: vp, resultado: 'OK',
+    evidencia: `${ENT}. Tras la intro (3,6 s): aviso «${o.notice.text}» role=${o.notice.role}. Con foto: ${fotos.join(', ')}. Tarjeta «${o.locked[0]}» con ${o.lockedForm} formulario de aviso (email). Conceptos con botón «Vista previa» desactivado: ${conc.join(', ')}. Fichas: smoker-edition y 35-red → «Próximamente» + botón «Avísame», que lleva el foco a ${o.fichas['smoker-edition'].focusAfterAvisame}; rocky-night-runner → «Vista previa» (desactivado). Peticiones API: ${o.apiRequests.join(', ')}; ninguna a /api/shopify/cart*. Icono: aria-label «${o.cartLabel}», contadores=${o.cartCounter}. ${o.issues}.`,
+    hallazgos: 'C-CART-28 (confirmado)',
+  });
+}
+for (const vp of ['escritorio', 'movil']) {
+  const o = ui[`cart02-${vp}`];
+  record(A, {
+    id: 'R-CART-02', viewport: vp, resultado: 'OK',
+    evidencia: `${vp === 'escritorio' ? `Tab desde / hasta el icono (foco visible: ${o.cartFocus.outline}) y Enter` : 'Toque en el icono'} → ${new URL(o.url).pathname}; título «${o.title}»; aviso demo; 2 ilustraciones ${o.imgs.join(' ')}; h1 «Tu carrito está vacío» (CSS en mayúsculas); «${o.p[0]}»; enlace «Ver la tienda»→/ (clase btn btn--primary). Enlace del carrito: aria-current=${o.ariaCurrent}, clase «${o.cartClass}», mismo estilo calculado que en / (color, fondo, borde, ::after; solo cambian foco/hover) → sin estado activo visible. Foco tras navegar: ${o.focusAfter.tag} «${o.focusAfter.label}» (no se mueve). Sin resumen ni botón de pago (${o.summary} nodos), sin «Pago desactivado…» ni «Vista previa local…». Tras recargar: igual; almacenamiento: local ${JSON.stringify(o.storage.local)} / session ${JSON.stringify(o.storage.session)}. «Ver la tienda» → ${o.afterVerTienda}. Peticiones: ${o.apiRequests.join(', ')}. «Cargando...»: no sale al navegar dentro de la SPA (se queda la página anterior con la URL nueva); sí al abrir /cart directamente con el trozo retrasado («${loading.cart.direct.text}» + diana) → ver correcciones. ${o.issues}.`,
+    hallazgos: 'C-CART-18 (confirmado); C-CART-28 (confirmado); C-EST-09 (se reproduce en /cart)',
+  });
+}
+record(A, {
+  id: 'R-CART-03', viewport: 'api', resultado: 'OK',
+  evidencia: `${ENT}. GET /cart → ${b(api.cart03.get)}. POST → ${b(api.cart03.post)}. PATCH → ${b(api.cart03.patch)}. DELETE → ${b(api.cart03.del)}. POST {"quantity":0} → ${b(api.cart03.invalid)} (capacidad antes que validación). POST «{» → ${b(api.cart03.broken)}.`,
+  hallazgos: 'C-CART-23 (confirmado: 503 a mano sin code)',
+});
+record(A, {
+  id: 'R-CART-04', viewport: 'api', resultado: 'OK',
+  evidencia: `POST sin Origin → ${b(api.cart04.noOrigin)}. POST Origin evil.example → ${b(api.cart04.evil)}. GET /status Origin evil.example → ${b(api.cart04.statusEvil)}. OPTIONS con Origin propio → ${api.cart04.options.status}, ACAO=${api.cart04.options.headers['access-control-allow-origin']}, Methods=${api.cart04.options.headers['access-control-allow-methods']}, Headers=${api.cart04.options.headers['access-control-allow-headers']}, Max-Age=${api.cart04.options.headers['access-control-max-age']}. Ninguna lleva code. La variante de interfaz necesita E2 (no ejecutada).`,
+  hallazgos: '',
+});
+for (const vp of ['escritorio', 'movil']) {
+  const o = lim.browser[vp];
+  record(A, {
+    id: 'R-CART-05', viewport: vp, resultado: 'OK',
+    evidencia: `Instancia aparte en :3303 con valores por defecto (120/60 s). 125 GET /api/shopify/status en ${lim.burstMs} ms → ${JSON.stringify(lim.codes)}. Una más → ${lim.extra.brief}; Retry-After=${lim.extra.headers['retry-after']}, RateLimit-Reset=${lim.extra.headers['ratelimit-reset']}. Dentro de la ventana (${vp}): / → aviso role=${o.withinWindow.home.role} «${o.withinWindow.home.notice}», ${o.withinWindow.home.cards} tarjetas («0 diseños»); /cart → «${o.withinWindow.cart.h1}». Tras esperar ${Math.round(lim.waitMs / 1000)} s: / → «${o.afterWindow.home.notice}» (${o.afterWindow.home.role}), ${o.afterWindow.home.cards} tarjetas; /cart vacío con aviso demo. Consola: solo los 429 de status esperados. Captura de apoyo: capturas-e1/carrito/R-CART-05-limite-${vp}.png.`,
+    hallazgos: '',
+  });
+}
+for (const vp of ['escritorio', 'movil']) {
+  const o = ui[`cart02-${vp}`];
+  record(A, {
+    id: 'R-CHK-01', viewport: vp, resultado: 'OK',
+    evidencia: `Paso 1 (${vp}): /cart sin botón de pago ni resumen (${o.summary} nodos .cart-summary/.cart-checkout), sin «Pago desactivado en modo demo» (${o.texts.pagoDesactivado}) ni «Vista previa local…» (${o.texts.vistaPrevia}). Paso 2: POST /api/shopify/checkout con Origin → ${b(api.chk01.withOrigin)}. Paso 3: sin Origin → ${b(api.chk01.noOrigin)} (origen antes que capacidad).`,
+    hallazgos: 'C-CART-28 (confirmado); C-CART-23 (confirmado)',
+  });
+}
+for (const vp of ['escritorio', 'movil']) {
+  const o = ui[`acc01-${vp}`];
+  record(A, {
+    id: 'R-ACC-01', viewport: vp, resultado: 'OK',
+    evidencia: `${vp === 'escritorio' ? 'Barra' : '«Abrir el menú» → hoja'}: «${o.entry.text}» es <${o.entry.tag} href="${o.entry.href}">; al pulsarlo → ${o.url} (navegación SPA=${o.spaNavigation}, hoja abierta=${o.sheetOpen}), título «${o.title}». Peticiones a /api/shopify/account: ${o.accountRequests.length}. Paso 4: GET /account → ${b(api.acc01.account)}. Pasos 5 y 6 en el navegador: login → ${o.login.status} y la página enseña ${o.login.body}; callback → ${o.callback.status} ${o.callback.body}. Cookies tras los pasos: ${o.cookies.length ? o.cookies.join(',') : 'ninguna'}. Consola: solo los dos 503 de esas URLs.`,
+    hallazgos: 'C-CART-23 (confirmado); C-CART-06 (apoyo parcial: JSON crudo en navegación completa)',
+  });
+}
+record(A, {
+  id: 'R-ACC-02', viewport: 'api', resultado: 'OK',
+  evidencia: `POST /api/shopify/account/logout con Origin → ${b(api.acc02.withOrigin)}. Sin Origin → ${b(api.acc02.noOrigin)}. Con Cookie rocky_session inventada de ${api.acc02.fakeLen} caracteres [A-Za-z0-9_-] → ${b(api.acc02.fakeCookie)}. En E1 la interfaz no tiene botón de salir.`,
+  hallazgos: '',
+});
+record(A, {
+  id: 'TECLADO-cart', viewport: 'escritorio', resultado: 'OK',
+  evidencia: `Orden de Tab en /cart (vacío, E1): ${tec.cart.seq}. Todos con foco visible (anillo rojo 3px de :focus-visible); el último paso sale del documento. «Saltar al contenido» + Enter → foco en #${tec.cart.skip.active} y el siguiente Tab va a «${tec.cart.afterSkip}». Escape: no hay modales ni menús en escritorio; no hace nada (sigue en ${tec.cart.afterEsc.url}, foco en «${tec.cart.afterEsc.active}»). Los controles de línea (+, −, ×, pago) solo existen con líneas (E2). ${tec.cart.issues}.`,
+  hallazgos: '',
+});
+
+// ---------------- Rocky IA y Crew ----------------
+for (const vp of ['escritorio', 'movil']) {
+  const o = chat[`chat01-${vp}`];
+  record(C, {
+    id: 'R-CHAT-01', viewport: vp, resultado: 'OK',
+    evidencia: `${ENT}. Directo con trozo y /status retrasados: «${o.loading.text}» + diana (${o.loading.spinner}); estado «${short(o.statusEarly)}» → «${short(o.statusLate)}». Desde el menú (${vp === 'escritorio' ? 'barra' : 'hoja móvil'}): ${o.url}, título «${o.title}»; cabecera «${o.header.kicker}» / h1 «${o.header.h1}»; MiniPlayer dentro de .chat-header-player; aviso «${o.notice}». Bienvenida: «${o.welcome.tag}», «${o.welcome.h2}», «${o.welcome.copy}», botones ${o.welcome.buttons.map((x) => `«${x.replace('↗', '')}»`).join(' ')}, nota «${o.welcome.note}». footer=${o.footer}, clase «${o.appClass}». Estrella lateral: display ${o.estrella.display}. Botones rápidos apilados=${o.layout.stacked}; texto «Enviar» display ${o.layout.sendTextDisplay}; pista display ${o.layout.hintDisplay}; scrollWidth ${o.layout.scrollW}/${o.layout.innerW}. Desde el menú no sale «Cargando...» (se queda la página anterior) → ver correcciones. ${o.issues}.`,
+    hallazgos: 'C-CHAT-14 (confirmado); C-EST-09 (se reproduce en /rockyIA)',
+  });
+}
+for (const vp of ['escritorio', 'movil']) {
+  const o = chat[`chat02-${vp}`];
+  record(C, {
+    id: 'R-CHAT-02', viewport: vp, resultado: 'OK',
+    evidencia: `«hola» + Enviar (respuesta retrasada 0,9 s para verlo): burbuja propia al instante, campo vacío, indicador de escritura y «${o.immediate.searching}»; bienvenida y nota demo desaparecen (${o.immediate.welcome}/${o.immediate.demoNote}). Respuestas: ${o.responses.map((r) => `${r.status} ${r.body} Set-Cookie=${r.setCookie || 'no'}`).join(' ; ')}. Burbuja de error: «${o.errorBubble[0]}». Paso 2 (pregunta rápida «¿Qué hay del DROP 4?», tras recargar porque los botones desaparecen con el primer mensaje): misma burbuja. Cookies: ${o.cookies.length ? o.cookies.join(',') : 'ninguna'}. console.error «Error al hablar con Rocky IA» = ${o.consoleChatErrors} (uno por mensaje).`,
+    hallazgos: 'C-CHAT-01 (confirmado); C-CHAT-13 (confirmado)',
+  });
+}
+for (const vp of ['escritorio', 'movil']) {
+  const o = chat[`chat03-${vp}`];
+  record(C, {
+    id: 'R-CHAT-03', viewport: vp, resultado: 'OK',
+    evidencia: `Tab (${o.tabsToTextarea} pulsaciones) hasta «Mensaje para Rocky IA»; foco visible por borde rojo y sombra (el anillo se apaga a propósito; medido en TECLADO-rockyIA). Vacío + Enter: ${o.emptyEnter.posts} envíos, Enviar deshabilitado=${o.emptyEnter.sendDisabled}. Espacios + Enter: ${o.spacesEnter.posts} envíos, Enviar deshabilitado=${o.spacesSendDisabled}. Shift+Enter → valor ${o.multilineValue}; Enter envía ${o.multiline.posts[0]} (recortado) y la burbuja conserva el salto (white-space ${o.multiline.whiteSpace}); foco tras enviar: ${o.multiline.focusAfter}. Pegar 1.200 caracteres (Ctrl+V) → ${o.pasteLength} (maxlength ${o.maxLength}). Enter con isComposing=true (evento simulado, sin IME real) → ${o.imeEnter.sent} envíos, texto conservado. Con el indicador visible: Enter no envía (${o.busyEnter.sentWhileBusy}), el campo sigue editable y conserva «${o.busyEnter.valueKept}». Enter sin Shift en ${vp} envía (${o.enterSends}).`,
+    hallazgos: '',
+  });
+}
+for (const vp of ['escritorio', 'movil']) {
+  const o = chat[`chat04-${vp}`];
+  record(C, {
+    id: 'R-CHAT-04', viewport: vp, resultado: 'OK',
+    evidencia: `Sin lector real: árbol de accesibilidad de Chrome (ariaSnapshot) y atributos. region «${o.region.label}» con h1 «Rocky IA»; historial role=${o.log.role} aria-live=${o.log.live}, aria-busy false→${o.busyDuring}→${o.busyAfter}. Durante la espera el log expone «${short(o.ariaLogDuring, 140)}»: el indicador es un <p> con aria-label que sale como párrafo sin nombre; «Buscando…» sí es texto. Tras la respuesta: «${short(o.ariaLogAfter, 200)}», sin quién habla (avatares alt=${JSON.stringify(o.avatars)}, ${o.hiddenSpeaker} textos ocultos). Botón de envío «${o.sendName}». Tab a «Ver camisetas disponibles» (foco visible ${o.quickFocus.outline}) + Enter → foco en ${o.focusAfterQuick.tag}; el siguiente Tab va al ${o.nextTabAfterQuick.tag} (Chrome conserva el punto de partida). El log empieza con un nodo de texto «✦» (pseudo-elemento decorativo).`,
+    hallazgos: 'C-CHAT-11 (confirmado); C-CHAT-12 (confirmado); NUEVO-1',
+  });
+}
+for (const vp of ['escritorio', 'movil']) {
+  const o = chatLim[`chat05-${vp}`];
+  const port = vp === 'escritorio' ? 3304 : 3305;
+  record(C, {
+    id: 'R-CHAT-05', viewport: vp, resultado: 'OK',
+    evidencia: `Instancia nueva en :${port} con valores por defecto (5/10 min). 6 mensajes con Enter: ${o.responses.map((r) => `${r.status} RL ${r.limit}/${r.remaining}${r.retryAfter ? ` Retry-After=${r.retryAfter}` : ''}`).join(' · ')}. Sexta burbuja: «${o.bubbles[5]}» (el 429 llega tal cual); las cinco primeras, el texto genérico de «sin señal». Reiniciar Express y enviar → ${o.afterRestart.responses.map((r) => `${r.status} RL restante ${r.remaining}`).join(',')}. Por API en :3307 (instancia nueva): 3 JSON rotos, 3 sin Origin y 2 de origen ajeno no llevan RateLimit ni cuentan; 3 mensajes «   » → 400 con RL 4,3,2; después 2 válidos 503 (RL 1,0) y el siguiente 429; POST /api/chat/barra → ${chatApi.chat05api.at(-1)[1]} (contador aparte, RL 5/4).`,
+    hallazgos: 'C-CHAT-01 (confirmado); C-CHAT-13 (confirmado); C-CHAT-02 (barra con code AI_OFF y chat sin code)',
+  });
+}
+record(C, {
+  id: 'R-CHAT-06', viewport: 'api', resultado: 'OK',
+  evidencia: `Con CHAT_RATE_LIMIT_MAX=50: 1 sin Origin → ${chatApi.chat06.c1_noOrigin}. 2 evil.example → ${chatApi.chat06.c2_evil}. 3 «   » → ${chatApi.chat06.c3_spaces}. 4 1.001 caracteres → ${chatApi.chat06.c4_1001} (1.000 → ${chatApi.chat06.c4b_1000}). 5 {"messages":[…]} → ${chatApi.chat06.c5_messages}. 6 >16 kB → ${chatApi.chat06.c6_big}. 7 JSON roto → ${chatApi.chat06.c7_broken}. 8 válido → ${chatApi.chat06.c8_ok}; con campos de más (messages, role) → ${chatApi.chat06.c8b_extra}. Cuentan para el límite 3, 4, 5 y 8 (RateLimit-Remaining baja); 1, 2, 6 y 7 no llevan cabeceras de límite. El 400 propio de orchestrator.mjs:207-210 (sin code) no aparece nunca.`,
+  hallazgos: 'C-CHAT-02 (confirmado)',
+});
+record(C, {
+  id: 'R-CHAT-18', viewport: 'api', resultado: 'OK',
+  evidencia: 'Revisión de código y tests (sin interfaz). orchestrator.mjs:79-84 reportedCost: undefined/null/«» → null (se acepta y solo se registra cost_missing); :290-301 coste distinto de 0 → budget.trip() y 502 «Rocky IA se ha pausado porque no se pudo verificar el coste cero.»; :201-205 con el circuito abierto → 503 «Rocky IA está pausado por seguridad. Inténtalo más tarde.»; barra.mjs:158-163 y :214-220 comparten el mismo budget (createAiBudget en chat.mjs:44) y no hay reinicio salvo el proceso (budget.mjs:6-17). freeModelRoute→assertFreeModels revalida :free en cada petición (orchestrator.mjs:62-71). En la burbuja ambos 5xx salen con el texto genérico (src/api/chat.js:29). `node node_modules/vitest/vitest.mjs run --project server server/app.test.mjs -t "cost circuit|explicitly free route" --reporter=verbose` → 4 passed (free route con cost undefined, null y «», y trips the chat cost circuit…), 42 skipped; git status sin cambios. Los tests solo comprueban 502→503 y no los textos.',
+  hallazgos: '',
+});
+for (const vp of ['escritorio', 'movil']) {
+  const o = crew[`crew01-${vp}`];
+  record(C, {
+    id: 'R-CREW-01', viewport: vp, resultado: 'OK',
+    evidencia: `Contexto nuevo, desde el menú → ${o.url}, «${o.title}»; h1 «${o.h1}», «${o.subtitle}». Marcador: «${o.album.titulo}», «${o.album.club}», ${o.album.casillas} casillas role=${o.album.casillasRole} «${o.album.casillasLabel}», «${o.album.tuyo}»; localStorage al montar = ${o.album.stored}. Desfile ${o.desfile} imágenes. Láminas: ${o.laminas.join(' | ')}. Vitrina (foil ${o.vitrinaFoil}): ${o.vitrina.join(', ')}; plantilla ${o.plantilla} cromos; banquillo ${o.banquillo.join(', ')} con ${o.siluetas} siluetas y «${o.banquilloBadges[0]}». Revelado: al cargar ${o.revealAtLoad.hidden} ocultos/${o.revealAtLoad.revealed} visibles; tras bajar al final 0/${o.revealAfterScroll.revealed}; con movimiento reducido ${o.reduced.hidden} ocultos (todos estáticos). scrollWidth ${o.revealAfterScroll.scrollW}. ${o.issues}.`,
+    hallazgos: '',
+  });
+}
+for (const vp of ['escritorio', 'movil']) {
+  const o = crew[`crew02-${vp}`];
+  record(C, {
+    id: 'R-CREW-02', viewport: vp, resultado: 'OK',
+    evidencia: `${vp === 'escritorio' ? `Ratón encima de El Spray → is-tilting (--tilt-x ${o.tilt.tx}, --tilt-y ${o.tilt.ty}); sin tilt con la carta girada (${o.tiltWhenFlipped}) ni con movimiento reducido (${o.tiltReduced}). Clic` : 'Toque'} en la foto → girada=${o.afterClick.flipped}, frente inert=${o.afterClick.frontInert}; reverso «${o.afterClick.back.titulo}» con ${o.afterClick.back.dts.join('/')}, «${o.afterClick.back.vistoEn}», «${o.afterClick.back.compartir}», «${o.afterClick.back.serie}»; sello FICHADO=${o.afterClick.sello}; casillas encendidas ${o.album.on}, «${o.album.tuyo}». «↻ volver» → girada=${o.afterVolver}. Teclado (Rocky): «↻ expediente» aria-expanded=${o.keyboardReached.expanded}, Enter → foco en «${o.afterEnter.focus}» del reverso, aria-expanded=${o.afterEnter.frontExpanded}; Mayús+Tab en el reverso: ${o.backShiftTab.join(' → ')}; Enter en «↻ volver» → foco en «${o.afterVolverEnter.focus}» del frente. Lector (ariaSnapshot): article «${o.afterClick.label}»; las estadísticas salen como «listitem: Pulso/Sigilo/Tinta» sin «N de 5» (span con aria-label «${o.statSpan.label}» sin rol). ${o.issues}.`,
+    hallazgos: 'C-CHAT-25 (confirmado); NUEVO-2; NUEVO-3',
+  });
+}
+for (const vp of ['escritorio', 'movil']) {
+  const o = crew[`crew03-${vp}`];
+  record(C, {
+    id: 'R-CREW-03', viewport: vp, resultado: 'OK',
+    evidencia: `Abiertos los ${o.cards} expedientes: «${o.logro}», clase is-complete=${o.complete.complete}, ${o.complete.on}/25 casillas. Tras recargar: ${o.afterReload.on}/25 y «${o.afterReload.tuyo}». Con «{roto»: «${o.broken.tuyo}», guardado ${o.broken.stored}, sin errores. Con ["no-existe","rocky"]: «${o.unknownIds.tuyo}», guardado ${o.unknownIds.stored}. Almacenamiento bloqueado (localStorage lanza SecurityError, simulado con addInitScript): 2 abiertos → «${o.blocked.tuyo}»; al recargar «${o.blockedAfterReload.tuyo}»; ${o.blockedIssues}. Los huecos del banquillo no son cromos y no cuentan. ${o.issues}.`,
+    hallazgos: '',
+  });
+}
+for (const vp of ['escritorio', 'movil']) {
+  const o = crew[`crew04-${vp}`];
+  record(C, {
+    id: 'R-CREW-04', viewport: vp, resultado: 'OK',
+    evidencia: `/crew#rocky: a 250 ms scrollY ${o.rockyAt250.scrollY}; después girado ${JSON.stringify(o.rocky.flipped)}, «${o.rocky.tuyo}», centrado (desvío ${o.rocky.pos.offBy} px). #no-existe y #%E0%A4%A: sin cromo girado, «${o['hash_no-existe'].tuyo}», ${o['hash_%E0%A4%A'].issues}. Movimiento reducido /crew#ollie: centrado ya a 420 ms (desvío ${o.reducedAt420.offBy}) e igual a 820 ms. Cambiar el hash a #ollie estando en #rocky: Ollie centrado (desvío ${o.hashChange.pos.offBy}) y apuntado («${o.hashChange.tuyo}»), pero girados solo ${JSON.stringify(o.hashChange.flipped)}. Atrás/adelante: lo mismo (centra y no gira; en móvil el centrado tarda más de 1,2 s por el scroll suave largo, comprobado a 4,2 s). ${o.issues}.`,
+    hallazgos: 'C-CHAT-24 (confirmado)',
+  });
+}
+for (const vp of ['escritorio', 'movil']) {
+  const o = crew[`crew05-${vp}`];
+  record(C, {
+    id: 'R-CREW-05', viewport: vp, resultado: 'OK',
+    evidencia: `Con permiso de portapapeles: «⎘ compartir cromo» en Rocky → «${o.text}», la carta sigue girada (${o.stillFlipped}), portapapeles «${o.clipboard}»; a los 2,45 s vuelve a «${o.textAfter}». El botón no está en ninguna región aria-live (${o.liveRegion}). Con writeText rechazado (simulado): ${o.denied.dialogs.map((d) => `${d.type} «${d.message}» con «${d.def}»`).join('')}; la carta sigue girada. ${o.issues}.`,
+    hallazgos: 'C-CHAT-26 (confirmado)',
+  });
+}
+for (const vp of ['escritorio', 'movil']) {
+  const o = crew[`crew06-${vp}`];
+  const t = ['portero', 'turista', 'recadero', 'vigia'].map((k) => `${k}: «${o[k].label}» → ${o[k].url} (SPA=${o[k].spa}, h1 «${o[k].h1}»)`).join('; ');
+  const tu = o.huecos.find((h) => h.btn);
+  record(C, {
+    id: 'R-CREW-06', viewport: vp, resultado: 'OK',
+    evidencia: `${t}. ${o.huecos.filter((h) => !h.btn).map((h) => h.nombre).join(' y ')} sin botón. «${tu.btn.text}» href=${tu.btn.href} target=${tu.btn.target} rel=«${tu.btn.rel}»; al pulsarlo se abre una pestaña nueva (window.opener=null: ${o.popup?.opener}) y la página sigue en ${o.originalUrl}; la petición a Instagram se bloqueó a propósito (sin internet). Sin errores de consola.`,
+    hallazgos: '',
+  });
+}
+for (const vp of ['escritorio', 'movil']) {
+  const o = crew[`crew07-${vp}`];
+  const g = o.gate;
+  record(C, {
+    id: 'R-CREW-07', viewport: vp, resultado: 'OK',
+    evidencia: `Desde el menú → ${o.url}, «${o.title}». «${g.kicker}», h1 «${g.h1}», «${short(g.p, 60)}…»; aviso role=${g.statusRole} «${g.status}»; botones de entrar: ${g.button}. «${g.previewLabel}», «${g.previewH2}»; carnet con «${g.carnetImgAlt}» y marco ${g.carnetFrame.split('--')[1]}, «${g.carnetLevel}», «${g.carnetStrong}»; escalones ${g.levels.join(' / ')}; «${g.cardsLabel}»: ${g.cards.join(', ')}; «${short(g.ticket, 70)}». Los tres cromos giran; «Visto en» es <${o.flips[0].vistoEnTag}> sin enlace; sin sello FICHADO. Compartir → «${o.share.text}» (${o.share.clipboard}). rocky-album-abiertos tras girarlos: ${o.album}. Peticiones: ${o.api.join(', ')}. ${o.issues}.`,
+    hallazgos: 'C-CHAT-20 (apoyo parcial: la puerta usa «0,1» y «3.000 XP»)',
+  });
+}
+record(C, {
+  id: 'R-CREW-08', viewport: 'api', resultado: 'OK',
+  evidencia: `1 GET /account/crew → ${crew.crew08.get}. 2 PATCH avatar sin Origin → ${crew.crew08.patchNoOrigin}. 3 con Origin {"rewardId":""} → ${crew.crew08.patchEmpty}; válido → ${crew.crew08.patchOk}. 4 POST redeem operationId «corto» → ${crew.crew08.redeemShort}; «auditoria-0001» → ${crew.crew08.redeemOk}. RateLimit-Remaining del limitador de /api/shopify baja en todas.`,
+  hallazgos: '',
+});
+record(C, {
+  id: 'TECLADO-rockyIA', viewport: 'escritorio', resultado: 'OK',
+  evidencia: `Orden: ${tec.chat.seq}. Foco visible en todos (el campo lo marca con cambio de ${tec.chat.textarea.diff.join(' y ')}: borde rojo y sombra; anillo apagado a propósito). Enter en el campo envía (${tec.chat.afterEnter.posts} POST) y el foco se queda en «${tec.chat.afterEnter.focus}». Espacio sobre «Háblame de LA CREW» envía, pero el foco cae a ${tec.chat.space.focusAfter}. Sin modales: Escape no hace nada (sigue en ${tec.chat.afterEsc}).`,
+  hallazgos: 'C-CHAT-11 (confirmado)',
+});
+record(C, {
+  id: 'TECLADO-crew', viewport: 'escritorio', resultado: 'OK',
+  evidencia: `${tec.crewSeq.count} paradas: barra, radio, 25 «↻ expediente» (una por cromo, el reverso es inert), «Preséntate» y pie; todos con foco visible (en los cromos lo marca la sombra de la carta: ${tec.crew.ringNoHover}). Giro con teclado: Enter → girado=${tec.crew.enter.flipped}, foco en «${tec.crew.enter.focus}» del reverso; Espacio → girado=${tec.crew.space.flipped}, foco en «${tec.crew.space.focus}» del frente. Escape: no hay modal; no cambia nada (girado=${tec.crew.esc.flipped}). Con el ratón encima del cromo enfocado el aro rojo desaparece (${tec.crew.ringHover}) aunque el foco sigue en él (capturas-e1/chat-crew/evidencia-TECLADO-crew-foco-con-raton-encima.png y …-sin-raton.png). Los 25 botones se llaman igual («↻ expediente»).`,
+  hallazgos: 'NUEVO-2; NUEVO-3',
+});
+record(C, {
+  id: 'TECLADO-mi-crew', viewport: 'escritorio', resultado: 'OK',
+  evidencia: `Orden: ${tec.miCrew.seq}. Foco visible en todos. Enter en «↻ expediente» del primer cromo de muestra → girado=${tec.miCrew.enter.flipped}, foco en «${tec.miCrew.enter.focus}»; Mayús+Tab → «${tec.miCrew.backPrev}» («Visto en» no es enlace). Sin modales: Escape no hace nada (sigue en ${tec.miCrew.afterEsc}). ${tec.miCrew.issues}.`,
+  hallazgos: 'NUEVO-2; NUEVO-3',
+});
+console.log('registrado');

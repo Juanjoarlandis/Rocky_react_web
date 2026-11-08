@@ -1,0 +1,305 @@
+// Límites con valores por defecto en :3308 (un proceso nuevo por recorrido y
+// viewport, para empezar con los contadores a cero): R-ERR-03, R-ERR-04 y
+// R-ERR-05 en escritorio y móvil, más la pasada de teclado (tarea 3.3) sobre los
+// avisos de error de la tienda y sobre la puerta (:3307).
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import { startInstance, launchBrowser, openPage, summarize, shot } from '../harness.mjs';
+import { raw, card, saveObs, sleep } from './util.mjs';
+
+const PORT = 3308;
+const O = `http://localhost:${PORT}`;
+const cards = [];
+const logs = [];
+let inst = null;
+
+async function stop() {
+  if (!inst) return;
+  const child = inst.child;
+  logs.push(inst.log.join(''));
+  const exited = new Promise((r) => child.once('exit', r));
+  inst.stop();
+  await Promise.race([exited, sleep(1500)]);
+  if (child.exitCode === null && child.signalCode === null) {
+    child.kill('SIGKILL');
+    await Promise.race([exited, sleep(1500)]);
+  }
+  inst = null;
+}
+async function restart(port = PORT, env = {}) {
+  await stop();
+  inst = await startInstance(port, env);
+  return inst;
+}
+
+// Estado del elemento con foco: etiqueta, texto y estilos de foco.
+const focusState = (page) =>
+  page.evaluate(() => {
+    const a = document.activeElement;
+    const cs = getComputedStyle(a);
+    return {
+      tag: a.tagName,
+      type: a.getAttribute('type') || '',
+      name: a.getAttribute('aria-label') || a.getAttribute('name') || (a.textContent || '').trim().slice(0, 40),
+      fv: a.matches(':focus-visible'),
+      outline: `${cs.outlineStyle} ${cs.outlineWidth} ${cs.outlineColor}`,
+      shadow: cs.boxShadow,
+    };
+  });
+const visibleFocus = (s) => s.fv && ((s.outline && !s.outline.startsWith('none') && !/ 0px /.test(s.outline)) || (s.shadow && s.shadow !== 'none'));
+const fmt = (s) => `${s.tag}${s.type ? `[${s.type}]` : ''} «${s.name}» fv=${s.fv} outline=${s.outline} shadow=${s.shadow === 'none' ? 'none' : 'sí'}`;
+
+const browser = await launchBrowser();
+try {
+  // ================= R-ERR-03 =================
+  for (const vp of ['escritorio', 'movil']) {
+    await restart();
+    const c = card('R-ERR-03', vp);
+    const { page, issues, context } = await openPage(browser, vp, {});
+    await page.goto(`${O}/`, { waitUntil: 'networkidle' });
+    const first = await page.evaluate(async () => {
+      const r = await fetch('/api/shopify/status');
+      return { s: r.status, l: r.headers.get('ratelimit-limit'), rem: r.headers.get('ratelimit-remaining'), reset: r.headers.get('ratelimit-reset') };
+    });
+    c.check('las respuestas 200 de /api/shopify llevan RateLimit-*', first.s === 200 && first.l === '120' && first.rem !== null && first.reset !== null, JSON.stringify(first));
+    const statuses = await page.evaluate(async () => {
+      const out = [];
+      for (let i = 0; i < 125; i += 1) out.push((await fetch('/api/shopify/status')).status);
+      return out;
+    });
+    const firstLimited = statuses.indexOf(429);
+    // La portada ya hizo 1 petición y la sonda anterior otra: la 121.ª del proceso es la n.º 119 de este bucle (índice 118).
+    c.check('desde la petición 121 del proceso → 429', firstLimited === 118 && statuses.slice(118).every((s) => s === 429), `primera 429 en la petición ${firstLimited + 3} del proceso (índice ${firstLimited} del bucle); estados únicos=${[...new Set(statuses)].join(',')}`);
+    const manual = await page.evaluate(async () => {
+      const r = await fetch('/api/shopify/status');
+      return { s: r.status, b: await r.text(), l: r.headers.get('ratelimit-limit'), rem: r.headers.get('ratelimit-remaining'), reset: r.headers.get('ratelimit-reset'), ra: r.headers.get('retry-after'), now: Math.floor(Date.now() / 1000) };
+    });
+    const resetDelta = Number(manual.reset) - manual.now;
+    c.check('429 JSON «Demasiadas peticiones. Inténtalo más tarde.» con Retry-After', manual.s === 429 && manual.b === '{"message":"Demasiadas peticiones. Inténtalo más tarde."}' && Number(manual.ra) > 0 && Number(manual.ra) <= 60, `${manual.s} ${manual.b} Retry-After=${manual.ra}`);
+    c.check('RateLimit-Limit 120, Remaining 0 y Reset como instante Unix (no segundos restantes)', manual.l === '120' && manual.rem === '0' && Number(manual.reset) > 1_700_000_000 && resetDelta > 0 && resetDelta <= 60, `Limit=${manual.l} Remaining=${manual.rem} Reset=${manual.reset} (= ahora + ${resetDelta} s)`);
+    await page.reload({ waitUntil: 'networkidle' });
+    const notice = page.locator('.commerce-notice');
+    const nt = (await notice.count()) ? await notice.innerText() : '';
+    const role = (await notice.count()) ? await notice.getAttribute('role') : '';
+    const links = await page.locator('a[href^="/product/"]').count();
+    c.check('portada: aviso rojo role=alert con el texto esperado', nt === 'Demasiadas peticiones. Inténtalo más tarde. No se pudo determinar el modo de la tienda y el pago sigue desactivado.' && role === 'alert', `«${nt}» role=${role}`);
+    c.check('catálogo vacío (no vuelve al demo)', links === 0, `${links} enlaces a fichas`);
+    await shot(page, 'transversales', `R-ERR-03-${vp}-aviso-429`);
+    if (vp === 'escritorio') {
+      // ---------- Teclado: aviso de error de la portada ----------
+      const k = card('TECLADO-portada-error', 'escritorio');
+      await page.evaluate(() => document.activeElement?.blur());
+      const seq = [];
+      for (let i = 0; i < 6; i += 1) {
+        await page.keyboard.press('Tab');
+        seq.push(await focusState(page));
+      }
+      k.check('primer Tab: enlace «Saltar al contenido» con foco visible', /saltar/i.test(seq[0].name) && visibleFocus(seq[0]), fmt(seq[0]));
+      k.check('foco visible en los 6 primeros Tab', seq.every(visibleFocus), seq.map(fmt).join(' → '));
+      const alertInfo = await page.evaluate(() => {
+        const n = document.querySelector('.commerce-notice');
+        return { role: n.getAttribute('role'), tabindex: n.getAttribute('tabindex'), inMain: Boolean(n.closest('#main-content')) };
+      });
+      k.note(`aviso: role=${alertInfo.role}, tabindex=${alertInfo.tabindex}, dentro de #main-content=${alertInfo.inMain} (no enfocable; se anuncia por role=alert). Sin formulario que enviar con Enter en esta pantalla.`);
+      // Saltar al contenido con Enter lleva el foco a main, donde está el aviso.
+      await page.evaluate(() => document.activeElement?.blur());
+      await page.keyboard.press('Tab');
+      await page.keyboard.press('Enter');
+      await sleep(300);
+      const main = await page.evaluate(() => document.activeElement?.id);
+      k.check('Enter en «Saltar al contenido» lleva el foco a #main-content (donde está el aviso)', main === 'main-content', main);
+      cards.push(k);
+    }
+    c.note(summarize(issues).slice(0, 300));
+    await context.close();
+    cards.push(c);
+  }
+
+  // ================= R-ERR-04 =================
+  for (const vp of ['escritorio', 'movil']) {
+    await restart();
+    const c = card('R-ERR-04', vp);
+    const { page, issues, context } = await openPage(browser, vp, {});
+    await page.goto(`${O}/product/rockyracing`, { waitUntil: 'networkidle' });
+    if (vp === 'escritorio') {
+      // Lo que no cuenta: JSON malformado y cuerpos > 16 kB (el parser va antes).
+      const pre = await page.evaluate(async () => {
+        const out = [];
+        for (let i = 0; i < 4; i += 1) out.push((await fetch('/api/avisos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"producto":' })).status);
+        for (let i = 0; i < 4; i += 1) out.push((await fetch('/api/avisos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'x'.repeat(17000) }) })).status);
+        return out;
+      });
+      c.note(`antes del bucle: 4 JSON malformados y 4 cuerpos de 17 kB → ${pre.join(',')} (no deberían contar)`);
+    }
+    const seq = await page.evaluate(async () => {
+      const out = [];
+      for (let i = 0; i < 7; i += 1) {
+        const r = await fetch('/api/avisos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        out.push({ s: r.status, b: await r.text(), ra: r.headers.get('retry-after') });
+      }
+      return out;
+    });
+    c.check('6 × 400 «Falta saber de qué producto avisarte.»', seq.slice(0, 6).every((x) => x.s === 400 && x.b === '{"message":"Falta saber de qué producto avisarte."}'), seq.slice(0, 6).map((x) => x.s).join(','));
+    c.check('7.ª → 429 «Demasiadas peticiones. Inténtalo más tarde.» con Retry-After', seq[6].s === 429 && seq[6].b === '{"message":"Demasiadas peticiones. Inténtalo más tarde."}' && Number(seq[6].ra) > 0, JSON.stringify(seq[6]));
+    const f = page.locator('[data-testid="drop-aviso"]');
+    await f.locator('input[type=email]').fill('prueba@example.com');
+    await f.locator('input[type=checkbox]').check();
+    await f.getByRole('button', { name: 'Avísame' }).click();
+    const alert = f.locator('[role=alert]');
+    await alert.waitFor({ timeout: 8000 }).catch(() => {});
+    const at = (await alert.count()) ? await alert.innerText() : '(sin alerta)';
+    c.check('formulario: «Demasiadas peticiones. Inténtalo más tarde.» y no apunta nada', at === 'Demasiadas peticiones. Inténtalo más tarde.' && (await page.locator('[data-testid="drop-aviso-listo"]').count()) === 0, at);
+    await shot(page, 'transversales', `R-ERR-04-${vp}-aviso-429`);
+    c.note('«Lista llena» (429 con Retry-After: 3600) no reproducido: cubierto por server/http/routes/avisos.test.mjs (en verde).');
+    if (vp === 'escritorio') {
+      // ---------- Teclado: formulario de aviso con el error a la vista ----------
+      const k = card('TECLADO-aviso-error', 'escritorio');
+      await f.locator('input[type=email]').focus();
+      const order = [await focusState(page)];
+      for (let i = 0; i < 3; i += 1) {
+        await page.keyboard.press('Tab');
+        order.push(await focusState(page));
+      }
+      k.note(`orden de tabulación: ${order.map((s) => `${s.tag}${s.type ? `[${s.type}]` : ''} «${s.name}»`).join(' → ')}`);
+      k.check('orden: email → «Avísame» → casilla de permiso → «Más en privacidad» (el trampa no recibe foco)', order[0].type === 'email' && order[1].name === 'Avísame' && order[2].type === 'checkbox' && /privacidad/i.test(order[3].name), order.map((s) => s.name).join(' → '));
+      k.check('foco visible en los cuatro', order.every(visibleFocus), order.map(fmt).join(' | '));
+      // Enter en el email envía el formulario (vuelve a dar 429).
+      await f.locator('input[type=email]').focus();
+      const [resp] = await Promise.all([page.waitForResponse((r) => r.url().endsWith('/api/avisos') && r.request().method() === 'POST', { timeout: 5000 }).catch(() => null), page.keyboard.press('Enter')]);
+      await sleep(400);
+      const after = await focusState(page);
+      k.check('Enter en el email envía (POST /api/avisos)', resp !== null, resp ? `${resp.status()}` : 'sin POST');
+      k.note(`tras el error el foco queda en ${fmt(after)}; el mensaje está en role=alert (se anuncia, no recibe foco)`);
+      // Sin marcar la casilla, Enter no envía: lo bloquea required.
+      await page.reload({ waitUntil: 'networkidle' });
+      const f2 = page.locator('[data-testid="drop-aviso"]');
+      await f2.locator('input[type=email]').fill('prueba@example.com');
+      let posted = false;
+      page.on('request', (r) => { if (r.url().endsWith('/api/avisos') && r.method() === 'POST') posted = true; });
+      await f2.locator('input[type=email]').press('Enter');
+      await sleep(500);
+      const active = await focusState(page);
+      k.note(`Enter sin marcar el permiso: POST=${posted}; el navegador lleva el foco a ${active.tag}[${active.type}] por required`);
+      cards.push(k);
+    }
+    c.note(summarize(issues).slice(0, 300));
+    await context.close();
+    cards.push(c);
+  }
+
+  // ================= R-ERR-05 =================
+  for (const vp of ['escritorio', 'movil']) {
+    await restart();
+    const c = card('R-ERR-05', vp);
+    const { page, issues, context } = await openPage(browser, vp, {});
+    await page.goto(`${O}/rockyIA`, { waitUntil: 'networkidle' });
+    const statuses = [];
+    page.on('response', (r) => { if (r.url().endsWith('/api/chat') && r.request().method() === 'POST') statuses.push(r.status()); });
+    const bubbles = [];
+    for (let i = 1; i <= 6; i += 1) {
+      await page.getByLabel('Mensaje para Rocky IA').fill(`hola ${i}`);
+      await page.getByRole('button', { name: 'Enviar mensaje' }).click();
+      await page.waitForFunction((n) => document.querySelectorAll('.chat-message.error').length >= n, i, { timeout: 8000 }).catch(() => {});
+      bubbles.push(await page.locator('.chat-message.error .chat-bubble').last().innerText().catch(() => '(sin burbuja)'));
+    }
+    const down = 'Rocky IA se ha quedado sin señal un momento (el servidor no responde). Inténtalo en un rato.';
+    c.check('mensajes 1–5 → 503 y burbuja «sin señal»', statuses.slice(0, 5).every((s) => s === 503) && bubbles.slice(0, 5).every((b) => b === down), `${statuses.slice(0, 5).join(',')} | ${[...new Set(bubbles.slice(0, 5))].join(' / ')}`);
+    c.check('mensaje 6 → 429 y burbuja «Demasiadas peticiones. Inténtalo más tarde.»', statuses[5] === 429 && bubbles[5] === 'Demasiadas peticiones. Inténtalo más tarde.', `${statuses[5]} «${bubbles[5]}»`);
+    const barra = await page.evaluate(async () => {
+      const r = await fetch('/api/chat/barra', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      return `${r.status} ${await r.text()}`;
+    });
+    c.check('/api/chat/barra tiene su propio contador (no da 429 tras agotar el chat)', !barra.startsWith('429'), barra);
+    if (statuses[5] !== 429) await shot(page, 'transversales', `R-ERR-05-${vp}`);
+    if (vp === 'escritorio') {
+      // Un mensaje no válido también gasta cupo (proceso nuevo).
+      await restart();
+      const p2 = await openPage(browser, vp, {});
+      await p2.page.goto(`${O}/rockyIA`, { waitUntil: 'networkidle' });
+      const inv = await p2.page.evaluate(async () => {
+        const out = [];
+        for (let i = 0; i < 5; i += 1) out.push((await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: '   ' }) })).status);
+        out.push((await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'hola' }) })).status);
+        return out;
+      });
+      c.check('5 mensajes no válidos (400) agotan el cupo: el 6.º válido da 429', inv.join(',') === '400,400,400,400,400,429', inv.join(','));
+      // ---------- Teclado: burbuja de error de Rocky IA ----------
+      const k = card('TECLADO-chat-error', 'escritorio');
+      const ta = p2.page.getByLabel('Mensaje para Rocky IA');
+      await ta.focus();
+      const s0 = await focusState(p2.page);
+      await ta.type('hola teclado');
+      await p2.page.keyboard.press('Tab');
+      const s1 = await focusState(p2.page);
+      await p2.page.keyboard.press('Shift+Tab');
+      const before = await p2.page.locator('.chat-message.error').count();
+      await p2.page.keyboard.press('Enter');
+      await p2.page.waitForFunction((n) => document.querySelectorAll('.chat-message.error').length > n, before, { timeout: 8000 }).catch(() => {});
+      const bubble = await p2.page.locator('.chat-message.error .chat-bubble').last().innerText().catch(() => '');
+      const s2 = await focusState(p2.page);
+      const live = await p2.page.evaluate(() => { const l = document.querySelector('[role=log]'); return l ? `${l.getAttribute('role')} aria-live=${l.getAttribute('aria-live')}` : 'sin región'; });
+      k.check('foco visible en el cuadro de texto y en «Enviar mensaje»', visibleFocus(s0) && visibleFocus(s1) && /Enviar/.test(s1.name), `${fmt(s0)} → ${fmt(s1)}`);
+      k.check('Enter envía y aparece la burbuja de error (429)', bubble === 'Demasiadas peticiones. Inténtalo más tarde.', bubble);
+      k.check('el foco sigue en el cuadro de texto tras el error', s2.tag === 'TEXTAREA', fmt(s2));
+      k.note(`región de la conversación: ${live}`);
+      cards.push(k);
+      await p2.context.close();
+    }
+    c.note(summarize(issues).slice(0, 300));
+    await context.close();
+    cards.push(c);
+  }
+  await stop();
+
+  // ================= Teclado: la puerta (:3307) =================
+  {
+    const PW = crypto.randomBytes(12).toString('base64url');
+    await restart(3307, { SITE_ACCESS_ENABLED: 'true', SITE_ACCESS_PASSWORD: PW });
+    const G = 'http://localhost:3307';
+    const k = card('TECLADO-puerta', 'escritorio');
+    const { page, issues, context } = await openPage(browser, 'escritorio', {});
+    await page.goto(`${G}/`, { waitUntil: 'networkidle' });
+    const st = () => page.evaluate(() => {
+      const a = document.activeElement;
+      const cs = getComputedStyle(a);
+      return { tag: a.tagName, id: a.id, text: (a.textContent || '').trim(), fv: a.matches(':focus-visible'), outline: `${cs.outlineStyle} ${cs.outlineWidth} ${cs.outlineColor}`, shadow: cs.boxShadow, border: cs.borderColor };
+    });
+    const s0 = await st();
+    k.check('foco inicial en «Contraseña», visible (borde azul y halo; outline none)', s0.id === 'access-password' && s0.fv && /47, 111, 219/.test(s0.border) && /47, 111, 219/.test(s0.shadow), JSON.stringify(s0));
+    await page.keyboard.press('Tab');
+    const s1 = await st();
+    k.check('Tab → «Entrar» con contorno visible de 4 px', s1.tag === 'BUTTON' && s1.text === 'Entrar' && s1.fv && /solid 4px/.test(s1.outline), JSON.stringify(s1));
+    await page.keyboard.press('Tab');
+    const s2 = await st();
+    await page.keyboard.press('Shift+Tab');
+    const s3 = await st();
+    await page.keyboard.press('Shift+Tab');
+    const s4 = await st();
+    k.check('orden: campo → botón; Shift+Tab vuelve', s3.tag === 'BUTTON' && s4.id === 'access-password', `Tab desde «Entrar» → ${s2.tag}${s2.id ? '#' + s2.id : ''}; Shift+Tab → ${s3.tag}; otra vez → ${s4.tag}#${s4.id}`);
+    await page.keyboard.type('mala-por-teclado');
+    const [resp] = await Promise.all([
+      page.waitForResponse((r) => r.request().method() === 'POST'),
+      page.keyboard.press('Enter'),
+    ]);
+    await page.waitForURL(`${G}/access-gate`);
+    await page.waitForLoadState('load');
+    await sleep(200);
+    const s5 = await st();
+    const aria = await page.evaluate(() => ({ describedby: document.querySelector('#access-password').getAttribute('aria-describedby'), invalid: document.querySelector('#access-password').getAttribute('aria-invalid'), msg: document.querySelector('.gate-message').textContent.trim() }));
+    k.check('Enter envía (401) y el foco vuelve al campo (autofocus)', resp.status() === 401 && s5.id === 'access-password', `${resp.status()} foco=${s5.id}`);
+    k.note(`tras el fallo: «${aria.msg}» en role=status que ya viene en el HTML cargado; el campo no lleva aria-invalid (${aria.invalid}) ni aria-describedby (${aria.describedby})`);
+    // Enter con la clave buena entra.
+    await page.keyboard.type(PW);
+    const [ok] = await Promise.all([page.waitForResponse((r) => r.request().method() === 'POST'), page.keyboard.press('Enter')]);
+    await page.waitForURL(`${G}/`);
+    k.check('Enter con la clave correcta → 303 y entra en /', ok.status() === 303, `${ok.status()} url=${page.url().replace(G, '')}`);
+    k.note(summarize(issues).slice(0, 200));
+    await context.close();
+    cards.push(k);
+  }
+} finally {
+  await browser.close();
+  await stop();
+  fs.writeFileSync(new URL('./obs/limits-server.log', import.meta.url), logs.join('\n----\n'));
+  saveObs('limits', cards);
+}

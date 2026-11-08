@@ -1,0 +1,209 @@
+// Firma y envía webhooks de Shopify a /api/shopify/webhooks con el secreto
+// ficticio del entorno E2 simulado (SHOPIFY_CLIENT_SECRET de fixtures.mjs).
+//
+// Como módulo:
+//   import { buildOrderPaidPayload, sendShopifyWebhook } from './send-webhook.mjs';
+//   await sendShopifyWebhook({ baseUrl: inst.httpOrigin, payload: buildOrderPaidPayload({ customer: 'ana' }) });
+//
+// Como CLI:
+//   node send-webhook.mjs --url http://localhost:3401 --customer ana --line rocky-racing/M:2
+//   opciones: --topic orders/paid  --webhook-id <id>  --bad-hmac  --shop otra.myshopify.com
+//             --api-version 2026-04  --currency USD  --no-customer  --times 2 (reenvía el mismo id)
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import http from 'node:http';
+import https from 'node:https';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { API_VERSION, STORE_DOMAIN, TEST_SECRETS, customerById, customerByKey, findVariant } from './fixtures.mjs';
+
+const CERT_FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), 'certs', 'localhost-cert.pem');
+
+export function signWebhook(rawBody, secret = TEST_SECRETS.SHOPIFY_CLIENT_SECRET) {
+  return crypto.createHmac('sha256', secret).update(rawBody).digest('base64');
+}
+
+const toNumericId = (gid) => Number(String(gid).split('/').pop());
+const fixed = (cents) => (cents / 100).toFixed(2);
+const moneySet = (cents, currency) => ({
+  shop_money: { amount: fixed(cents), currency_code: currency },
+  presentment_money: { amount: fixed(cents), currency_code: currency },
+});
+
+// Pedido pagado con la forma REST del webhook orders/paid (recortada a lo que
+// importa). lines: [{ variant: 'rocky-racing/M' | GID, quantity }]. customer:
+// clave de fixtures ('ana'), GID de Customer o null (pedido de invitado).
+export function buildOrderPaidPayload({
+  customer = 'ana',
+  lines = [{ variant: 'rocky-racing/M', quantity: 1 }],
+  orderNumber = 1000 + Math.floor(Math.random() * 9000),
+  currency = 'EUR',
+  totalOverride = null,
+} = {}) {
+  const buyer = customer === null ? null : customerByKey(customer) || customerById(customer);
+  if (customer !== null && !buyer) throw new Error(`Cliente de prueba desconocido: ${customer}`);
+  const lineItems = lines.map((line, index) => {
+    const variant = findVariant(line.variant);
+    if (!variant) throw new Error(`Variante desconocida: ${line.variant}`);
+    const unitCents = Math.round(Number(variant.price) * 100);
+    return {
+      id: 1_350_000_000 + orderNumber * 10 + index,
+      admin_graphql_api_id: `gid://shopify/LineItem/${1_350_000_000 + orderNumber * 10 + index}`,
+      product_id: toNumericId(variant.product.id),
+      variant_id: toNumericId(variant.id),
+      title: variant.product.title,
+      variant_title: variant.title === 'Default Title' ? null : variant.title,
+      name: variant.title === 'Default Title' ? variant.product.title : `${variant.product.title} - ${variant.title}`,
+      quantity: line.quantity ?? 1,
+      price: fixed(unitCents),
+      price_set: moneySet(unitCents, currency),
+      taxable: true,
+      requires_shipping: true,
+      _cents: unitCents * (line.quantity ?? 1),
+    };
+  });
+  const totalCents =
+    totalOverride !== null
+      ? Math.round(Number(totalOverride) * 100)
+      : lineItems.reduce((sum, item) => sum + item._cents, 0);
+  for (const item of lineItems) delete item._cents;
+  const taxCents = Math.round(totalCents - totalCents / 1.21);
+  const orderId = 6_035_000_000 + orderNumber;
+  const now = new Date().toISOString();
+  return {
+    id: orderId,
+    admin_graphql_api_id: `gid://shopify/Order/${orderId}`,
+    name: `#E2-${orderNumber}`,
+    order_number: orderNumber,
+    email: buyer?.email || 'invitado@example.test',
+    created_at: now,
+    processed_at: now,
+    updated_at: now,
+    currency,
+    presentment_currency: currency,
+    financial_status: 'paid',
+    fulfillment_status: null,
+    test: true,
+    taxes_included: true,
+    total_price: fixed(totalCents),
+    subtotal_price: fixed(totalCents),
+    current_total_price: fixed(totalCents),
+    total_tax: fixed(taxCents),
+    total_price_set: moneySet(totalCents, currency),
+    current_total_price_set: moneySet(totalCents, currency),
+    customer: buyer
+      ? {
+          id: toNumericId(buyer.id),
+          admin_graphql_api_id: buyer.id,
+          email: buyer.email,
+          first_name: buyer.firstName || null,
+          last_name: buyer.lastName || null,
+        }
+      : null,
+    line_items: lineItems,
+  };
+}
+
+// Construye el pedido a partir del carrito que devuelve GET /api/shopify/cart.
+export function orderPaidFromCart(cart, options = {}) {
+  const lines = (cart?.lines || []).map((line) => ({ variant: line.variant.id, quantity: line.quantity }));
+  if (!lines.length) throw new Error('El carrito está vacío.');
+  return buildOrderPaidPayload({ ...options, lines });
+}
+
+function post(url, headers, body) {
+  const target = new URL(url);
+  const client = target.protocol === 'https:' ? https : http;
+  return new Promise((resolve, reject) => {
+    const req = client.request(
+      target,
+      {
+        method: 'POST',
+        headers: { ...headers, 'content-length': Buffer.byteLength(body) },
+        ...(target.protocol === 'https:' ? { ca: fs.readFileSync(CERT_FILE) } : {}),
+      },
+      (res) => {
+        let data = '';
+        res.setEncoding('utf8');
+        res.on('data', (chunk) => (data += chunk));
+        res.on('end', () => {
+          let parsed = data;
+          try {
+            parsed = JSON.parse(data);
+          } catch {
+            /* texto */
+          }
+          resolve({ status: res.statusCode, body: parsed });
+        });
+      }
+    );
+    req.on('error', reject);
+    req.end(body);
+  });
+}
+
+// Envía un webhook firmado. tamper: 'hmac' (firma rota) | 'body' (firma del
+// cuerpo original, cuerpo alterado). Devuelve { status, body, webhookId }.
+export async function sendShopifyWebhook({
+  baseUrl,
+  topic = 'orders/paid',
+  payload,
+  rawBody = undefined,
+  secret = TEST_SECRETS.SHOPIFY_CLIENT_SECRET,
+  shopDomain = STORE_DOMAIN,
+  apiVersion = API_VERSION,
+  webhookId = crypto.randomUUID(),
+  eventId = crypto.randomUUID(),
+  tamper = null,
+}) {
+  const body = rawBody ?? JSON.stringify(payload);
+  let hmac = signWebhook(body, secret);
+  let sent = body;
+  if (tamper === 'hmac') hmac = signWebhook(body, `${secret}-roto`);
+  if (tamper === 'body') sent = body.replace(/"financial_status":"paid"/, '"financial_status":"refunded"');
+  const headers = {
+    'content-type': 'application/json',
+    'x-shopify-hmac-sha256': hmac,
+    'x-shopify-topic': topic,
+    'x-shopify-shop-domain': shopDomain,
+    'x-shopify-api-version': apiVersion,
+    'x-shopify-webhook-id': webhookId,
+    'x-shopify-event-id': eventId,
+    'x-shopify-triggered-at': new Date().toISOString(),
+    'user-agent': 'Shopify-Captain-Hook',
+  };
+  const response = await post(`${baseUrl.replace(/\/$/, '')}/api/shopify/webhooks`, headers, sent);
+  return { ...response, webhookId, eventId };
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  const args = process.argv.slice(2);
+  const value = (flag, fallback) => {
+    const index = args.indexOf(flag);
+    return index === -1 ? fallback : args[index + 1];
+  };
+  const all = (flag) => args.flatMap((arg, i) => (arg === flag ? [args[i + 1]] : []));
+  const lines = all('--line').map((spec) => {
+    const [variant, quantity = '1'] = spec.split(':');
+    return { variant, quantity: Number(quantity) };
+  });
+  const payload = buildOrderPaidPayload({
+    customer: args.includes('--no-customer') ? null : value('--customer', 'ana'),
+    currency: value('--currency', 'EUR'),
+    ...(lines.length ? { lines } : {}),
+  });
+  const webhookId = value('--webhook-id', crypto.randomUUID());
+  const times = Number(value('--times', '1'));
+  for (let i = 0; i < times; i += 1) {
+    const result = await sendShopifyWebhook({
+      baseUrl: value('--url', 'http://localhost:3401'),
+      topic: value('--topic', 'orders/paid'),
+      payload,
+      webhookId,
+      shopDomain: value('--shop', STORE_DOMAIN),
+      apiVersion: value('--api-version', API_VERSION),
+      tamper: args.includes('--bad-hmac') ? 'hmac' : null,
+    });
+    process.stdout.write(`${JSON.stringify({ order: payload.name, total: payload.current_total_price, ...result })}\n`);
+  }
+}

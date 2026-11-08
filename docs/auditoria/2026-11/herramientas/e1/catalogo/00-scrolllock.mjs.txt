@@ -1,0 +1,72 @@
+// Aísla si el fondo se desplaza con el lightbox abierto: rueda, teclado y gesto táctil.
+import { startInstance, launchBrowser, openPage } from '../harness.mjs';
+
+const inst = await startInstance(3202, {});
+const browser = await launchBrowser();
+try {
+  for (const vp of ['escritorio', 'movil']) {
+    const { page, context } = await openPage(browser, vp, { origin: inst.origin });
+    await page.goto(inst.origin + '/');
+    await page.waitForSelector('.commerce-notice');
+    const css = await page.evaluate(() => {
+      const h = getComputedStyle(document.documentElement);
+      const b = getComputedStyle(document.body);
+      return { html: `${h.overflowX}/${h.overflowY}`, body: `${b.overflowX}/${b.overflowY}`, scrollingElement: document.scrollingElement.tagName };
+    });
+    console.log(vp, 'css', JSON.stringify(css));
+    const open = async () => {
+      await page.evaluate(() => window.scrollTo(0, 300));
+      await page.waitForTimeout(200);
+      const btn = page.locator('button[aria-label="Ver RockyRacing en grande"]');
+      if (vp === 'movil') await btn.tap(); else await btn.click();
+      await page.waitForSelector('dialog.lightbox[open]');
+      await page.waitForTimeout(300);
+      return page.evaluate(() => ({ y: Math.round(scrollY), ov: document.body.style.overflow, bodyCs: getComputedStyle(document.body).overflowY }));
+    };
+    const close = async () => {
+      await page.evaluate(() => document.querySelector('dialog.lightbox button').click());
+      await page.waitForTimeout(200);
+    };
+    // Rueda
+    let s = await open();
+    await page.mouse.move(100, 400);
+    await page.mouse.wheel(0, 600);
+    await page.waitForTimeout(500);
+    console.log(vp, 'rueda', JSON.stringify(s), '→', await page.evaluate(() => Math.round(scrollY)));
+    await close();
+    // Teclado
+    s = await open();
+    await page.keyboard.press('PageDown');
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(500);
+    console.log(vp, 'PageDown', JSON.stringify(s), '→', await page.evaluate(() => Math.round(scrollY)), 'abierto', await page.evaluate(() => !!document.querySelector('dialog.lightbox[open]')));
+    if (await page.evaluate(() => !!document.querySelector('dialog.lightbox[open]'))) await close();
+    // Gesto táctil (solo móvil): arrastrar el dedo hacia arriba por el velo
+    if (vp === 'movil') {
+      s = await open();
+      const cdp = await context.newCDPSession(page);
+      const x = 20;
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y: 700 }] });
+      for (let y = 680; y >= 200; y -= 40) {
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y }] });
+        await page.waitForTimeout(16);
+      }
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await page.waitForTimeout(800);
+      console.log(vp, 'táctil', JSON.stringify(s), '→', await page.evaluate(() => Math.round(scrollY)), 'abierto', await page.evaluate(() => !!document.querySelector('dialog.lightbox[open]')));
+      await close();
+      // Control: con overflow hidden también en <html>
+      await page.evaluate(() => { document.documentElement.style.overflow = 'hidden'; });
+      s = await open();
+      await page.mouse.move(100, 400);
+      await page.mouse.wheel(0, 600);
+      await page.waitForTimeout(500);
+      console.log(vp, 'control html hidden + rueda', JSON.stringify(s), '→', await page.evaluate(() => Math.round(scrollY)));
+      await close();
+    }
+    await context.close();
+  }
+} finally {
+  await browser.close();
+  inst.stop();
+}

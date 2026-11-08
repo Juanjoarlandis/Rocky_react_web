@@ -1,0 +1,434 @@
+// Puerta privada «Coming soon» en :3307 con una contraseña de prueba generada
+// aquí y pasada solo al entorno del proceso hijo (nunca se imprime).
+// R-GATE-01..09 (interfaz en escritorio y móvil; 07 y 08 por API), R-SYS-02
+// simulado con una IP local no loopback, R-HOOK-07 con la puerta, cabeceras de
+// R-SYS-04 con acceso y la pasada de teclado de la puerta.
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import { startInstance, launchBrowser, openPage, summarize, shot, REPO } from '../harness.mjs';
+import { raw, brief, card, saveObs, sleep } from './util.mjs';
+
+const PORT = 3307;
+const O = `http://localhost:${PORT}`;
+const PW = crypto.randomBytes(12).toString('base64url'); // 16 caracteres
+const ENV = { SITE_ACCESS_ENABLED: 'true', SITE_ACCESS_PASSWORD: PW };
+const jsAsset = fs.readdirSync(`${REPO}/dist/assets`).find((n) => /^index-.*\.js$/.test(n));
+const cards = [];
+const logs = [];
+let gate = null;
+
+async function stopGate() {
+  if (!gate) return;
+  const child = gate.child;
+  logs.push(gate.log.join(''));
+  const exited = new Promise((r) => child.once('exit', r));
+  gate.stop();
+  await Promise.race([exited, sleep(1500)]);
+  if (child.exitCode === null && child.signalCode === null) {
+    child.kill('SIGKILL');
+    await Promise.race([exited, sleep(1500)]);
+  }
+  gate = null;
+}
+async function restartGate() {
+  await stopGate();
+  gate = await startInstance(PORT, ENV);
+}
+const GATE_TITLE = 'ROCKY 035 — Coming soon';
+const XROBOTS = 'noindex, nofollow, noarchive';
+const form = (pw) => `password=${encodeURIComponent(pw)}`;
+const postGate = (pw, headers = { Origin: O }) =>
+  raw('POST', `${O}/access-gate`, { headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...headers }, body: form(pw) });
+
+async function submitInPage(page, pw) {
+  await page.locator('#access-password').fill(pw);
+  const [resp] = await Promise.all([
+    page.waitForResponse((r) => r.request().method() === 'POST' && r.url().endsWith('/access-gate')),
+    page.getByRole('button', { name: 'Entrar' }).click(),
+  ]);
+  await page.waitForLoadState('domcontentloaded');
+  return resp;
+}
+
+const browser = await launchBrowser();
+try {
+  for (const vp of ['escritorio', 'movil']) {
+    // ================= R-GATE-01 =================
+    await restartGate();
+    {
+      const c = card('R-GATE-01', vp);
+      const { page, issues, context } = await openPage(browser, vp, {});
+      for (const p of ['/', '/crew', '/product/cualquiera', '/no-existe', '/cart']) {
+        const resp = await page.goto(`${O}${p}`, { waitUntil: 'networkidle' });
+        const h = await resp.allHeaders();
+        c.check(
+          `${p}: 200 html en la misma URL, no-store, X-Robots, sin Set-Cookie, título`,
+          resp.status() === 200 && /text\/html/.test(h['content-type']) && page.url() === `${O}${p}` && h['cache-control'] === 'no-store' && h['cloudflare-cdn-cache-control'] === 'no-store' && h['x-robots-tag'] === XROBOTS && !h['set-cookie'] && (await page.title()) === GATE_TITLE && Boolean(h['content-security-policy']),
+          `${resp.status()} ${h['content-type']} url=${page.url().replace(O, '')} cc=${h['cache-control']} cdn=${h['cloudflare-cdn-cache-control']} xr=${h['x-robots-tag']} set-cookie=${h['set-cookie'] ? 'sí' : 'no'} título=«${await page.title()}»`
+        );
+      }
+      await page.goto(`${O}/`, { waitUntil: 'networkidle' });
+      const t = await page.evaluate(() => {
+        const q = (s) => document.querySelector(s);
+        const norm = (s) => (s || '').replace(/\s+/g, ' ').trim();
+        const run = q('.gate-character--runner');
+        const btn = q('.gate-input-row button');
+        const row = q('.gate-input-row');
+        const br = q('.gate-copy br');
+        return {
+          brand: norm(q('.gate-brand span')?.textContent),
+          logoAlt: q('.gate-brand img')?.getAttribute('alt'),
+          kicker: norm(q('.gate-kicker')?.textContent),
+          h1: norm(q('h1')?.textContent),
+          copy: norm(q('.gate-copy')?.textContent),
+          label: norm(q('label[for=access-password]')?.textContent),
+          ph: q('#access-password')?.placeholder,
+          focus: document.activeElement?.id,
+          btn: norm(btn?.textContent),
+          note: norm(q('.gate-note')?.textContent),
+          robots: q('meta[name=robots]')?.content,
+          runner: getComputedStyle(run).display,
+          btnW: Math.round(btn.getBoundingClientRect().width),
+          rowW: Math.round(row.getBoundingClientRect().width),
+          br: getComputedStyle(br).display,
+          imgs: [...document.images].map((i) => `${i.getAttribute('src').split('/').pop()}:${i.naturalWidth}`),
+          anim: [...document.querySelectorAll('.gate-character')].map((e) => getComputedStyle(e).animationName),
+          font: getComputedStyle(q('h1')).fontFamily,
+          hscroll: document.documentElement.scrollWidth > window.innerWidth,
+        };
+      });
+      c.check('textos de marca y formulario', t.brand === 'ROCKY 035' && t.kicker === 'COMING SOON' && t.h1 === 'WE ARE COOKING' && t.copy === 'La crew está preparando algo gordo. Mete la clave si eres de la casa.' && t.label === 'Contraseña' && t.ph === 'La clave secreta...' && t.btn === 'Entrar' && t.note === 'HORNEANDO DESDE LA COLMENA · 035', JSON.stringify({ brand: t.brand, kicker: t.kicker, h1: t.h1, copy: t.copy, label: t.label, ph: t.ph, btn: t.btn, note: t.note }));
+      c.check('foco automático en «Contraseña»', t.focus === 'access-password', t.focus);
+      c.check('meta robots noindex,nofollow,noarchive', t.robots === 'noindex,nofollow,noarchive', t.robots);
+      c.check('imágenes cargadas', t.imgs.every((x) => !x.endsWith(':0')), t.imgs.join(' '));
+      if (vp === 'movil') {
+        c.check('≤760 px: sin corredor y botón a todo el ancho', t.runner === 'none' && Math.abs(t.btnW - t.rowW) <= 1, `runner=${t.runner} botón=${t.btnW}px fila=${t.rowW}px`);
+        c.check('≤390 px: sin salto de línea en el texto', t.br === 'none', `br display=${t.br}`);
+      } else {
+        c.check('escritorio: corredor visible, botón al lado', t.runner !== 'none' && t.btnW < t.rowW, `runner=${t.runner} botón=${t.btnW}px fila=${t.rowW}px; br=${t.br}`);
+      }
+      c.check('personajes animados sin movimiento reducido', t.anim.every((a) => a !== 'none'), t.anim.join(','));
+      c.check('sin scroll horizontal', !t.hscroll, String(t.hscroll));
+      c.note(`fuente del titular: ${t.font}; ${summarize(issues)}`);
+      await context.close();
+      const rm = await openPage(browser, vp, { reducedMotion: 'reduce' });
+      await rm.page.goto(`${O}/`, { waitUntil: 'networkidle' });
+      const anim = await rm.page.evaluate(() => [...document.querySelectorAll('.gate-character')].map((e) => getComputedStyle(e).animationName));
+      c.check('movimiento reducido: personajes sin animación', anim.every((a) => a === 'none'), anim.join(','));
+      await rm.context.close();
+      cards.push(c);
+    }
+
+    // ================= R-GATE-03 (1 intento) y R-GATE-05 =================
+    {
+      const c3 = card('R-GATE-03', vp);
+      const c5 = card('R-GATE-05', vp);
+      const { page, issues, context } = await openPage(browser, vp, {});
+      await page.goto(`${O}/`, { waitUntil: 'networkidle' });
+      const resp = await submitInPage(page, 'clave-incorrecta');
+      const h = await resp.allHeaders();
+      const body = await resp.text();
+      const msg = await page.evaluate(() => {
+        const m = document.querySelector('.gate-message');
+        return { text: m.textContent.trim(), role: m.getAttribute('role'), color: getComputedStyle(m).color, val: document.querySelector('#access-password').value, focus: document.activeElement?.id, describedby: document.querySelector('#access-password').getAttribute('aria-describedby'), invalid: document.querySelector('#access-password').getAttribute('aria-invalid') };
+      });
+      c3.check('401 con la misma página', resp.status() === 401 && (await page.title()) === GATE_TITLE, `${resp.status()} «${await page.title()}»`);
+      c3.check('mensaje rojo «No abre. Revisa la clave y prueba otra vez.» role=status, campo vacío', msg.text === 'No abre. Revisa la clave y prueba otra vez.' && msg.role === 'status' && msg.color === 'rgb(189, 38, 50)' && msg.val === '', JSON.stringify(msg));
+      c3.check('URL /access-gate, sin Set-Cookie, no repite la clave, no-store y X-Robots', page.url() === `${O}/access-gate` && !h['set-cookie'] && !body.includes('clave-incorrecta') && h['cache-control'] === 'no-store' && h['x-robots-tag'] === XROBOTS, `url=${page.url().replace(O, '')} set-cookie=${h['set-cookie'] ? 'sí' : 'no'} eco=${body.includes('clave-incorrecta')} cc=${h['cache-control']} xr=${h['x-robots-tag']}`);
+      // Paso 4 de R-GATE-05 se hace con acceso (más abajo). Pasos 1 y 2:
+      const g1 = await page.goto(`${O}/access-gate`, { waitUntil: 'load' });
+      const g1h = await g1.allHeaders();
+      const g1t = await page.evaluate(() => document.body.innerText.trim());
+      c5.check('Intro en /access-gate (GET) → 404 text/plain «Not found.» con no-store y X-Robots', g1.status() === 404 && /text\/plain/.test(g1h['content-type']) && g1t === 'Not found.' && g1h['cache-control'] === 'no-store' && g1h['x-robots-tag'] === XROBOTS, `${g1.status()} ${g1h['content-type']} «${g1t}» cc=${g1h['cache-control']}`);
+      const g2 = await page.goto(`${O}/access-gate/otra-cosa`, { waitUntil: 'load' });
+      c5.check('/access-gate/otra-cosa → 404 «Not found.»', g2.status() === 404 && (await page.evaluate(() => document.body.innerText.trim())) === 'Not found.', `${g2.status()}`);
+      if (g1.status() !== 404 || g2.status() !== 404) await shot(page, 'transversales', `R-GATE-05-${vp}`);
+      // Paso 3: F5 sobre el resultado de un POST (2.º intento). Playwright no
+      // muestra el diálogo de reenvío: se mira qué método se manda al recargar.
+      await page.goto(`${O}/`, { waitUntil: 'networkidle' });
+      await submitInPage(page, 'otra-incorrecta');
+      const methods = [];
+      page.on('request', (r) => { if (r.isNavigationRequest()) methods.push(r.method()); });
+      const dialogs = [];
+      page.on('dialog', async (d) => { dialogs.push(d.type()); await d.dismiss(); });
+      const rr = await page.reload({ waitUntil: 'load' }).catch((e) => ({ status: () => `error ${e.message.slice(0, 60)}` }));
+      c5.note(`F5 sobre el POST: navegación con ${methods.join(',') || 'ninguna'}; estado ${rr.status()}; diálogos=${dialogs.join(',') || 'ninguno'} (en Chrome headless no hay diálogo de reenvío; si es POST, cuenta como intento)`);
+      // Campo vacío bloqueado por required
+      await page.goto(`${O}/`, { waitUntil: 'networkidle' });
+      let posted = false;
+      page.on('request', (r) => { if (r.method() === 'POST') posted = true; });
+      await page.getByRole('button', { name: 'Entrar' }).click();
+      await sleep(600);
+      const vm = await page.evaluate(() => document.querySelector('#access-password').validity.valueMissing);
+      c3.check('campo vacío bloqueado por required', !posted && vm, `POST enviado=${posted} valueMissing=${vm}`);
+      // Borde: cuerpo > 2 kB o más de 2 campos
+      const big = await raw('POST', `${O}/access-gate`, { headers: { Origin: O, 'Content-Type': 'application/x-www-form-urlencoded' }, body: form('a'.repeat(3000)) });
+      c3.check('cuerpo > 2 kB → 413 JSON «Petición demasiado grande.»', big.status === 413 && big.body === '{"message":"Petición demasiado grande."}', brief(big));
+      const many = await raw('POST', `${O}/access-gate`, { headers: { Origin: O, 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'password=a&b=c&d=e' });
+      c3.check('3 campos → 413 JSON «Petición demasiado grande.»', many.status === 413 && many.body === '{"message":"Petición demasiado grande."}', brief(many));
+      c3.note(summarize(issues));
+      await context.close();
+      cards.push(c3);
+      cards.push(c5);
+    }
+
+    // ================= R-GATE-06 =================
+    {
+      const c = card('R-GATE-06', vp);
+      const { page, issues, context } = await openPage(browser, vp, {});
+      const other = `http://127.0.0.1:${PORT}`;
+      const r0 = await page.goto(`${other}/`, { waitUntil: 'networkidle' });
+      c.check('la puerta se ve en 127.0.0.1 (GET sin Origin)', r0.status() === 200 && (await page.title()) === GATE_TITLE, `${r0.status()}`);
+      const fonts403 = issues.http.filter((x) => x.startsWith('403')).map((x) => x.replace(other, ''));
+      const resp = await submitInPage(page, PW);
+      const shown = await page.evaluate(() => document.body.innerText.trim());
+      const h = await resp.allHeaders();
+      const cookies = await context.cookies();
+      c.check('origen distinto: 403 JSON «Origen no permitido.» en crudo, sin cookie', resp.status() === 403 && /application\/json/.test(h['content-type']) && shown.includes('{"message":"Origen no permitido."}') && !h['set-cookie'] && cookies.length === 0, `${resp.status()} ${h['content-type']} pantalla=«${shown}» cookies=${cookies.length}`);
+      await shot(page, 'transversales', `R-GATE-06-${vp}-json-crudo`);
+      c.note(`En 127.0.0.1 las fuentes de la puerta (CORS, llevan Origin) reciben: ${fonts403.join(' | ') || 'nada >=400'}`);
+      // Paso 2: sin Origin, 6 veces seguidas: nunca 429, así que no consume intento.
+      const outs = [];
+      for (let i = 0; i < 6; i += 1) outs.push(await postGate('x', {}));
+      c.check('sin Origin: 403 con la página y «Esa entrada no vale.», sin cookie, 6 veces sin llegar a 429', outs.every((r) => r.status === 403 && /text\/html/.test(r.headers['content-type']) && r.body.includes('Esa entrada no vale.') && !r.headers['set-cookie']), outs.map((r) => r.status).join(','));
+      await context.close();
+      cards.push(c);
+    }
+
+    // ================= R-GATE-04 =================
+    await restartGate();
+    {
+      const c = card('R-GATE-04', vp);
+      const { page, issues, context } = await openPage(browser, vp, {});
+      await page.goto(`${O}/`, { waitUntil: 'networkidle' });
+      const st = [];
+      for (let i = 0; i < 5; i += 1) st.push((await submitInPage(page, `mala-${i}`)).status());
+      c.check('5 fallos → 401', st.every((s) => s === 401), st.join(','));
+      const sixth = await submitInPage(page, PW);
+      const h = await sixth.allHeaders();
+      const msg = await page.evaluate(() => document.querySelector('.gate-message')?.textContent.trim());
+      const ra = Number(h['retry-after']);
+      c.check('6.º intento (clave correcta) → 429 con «Demasiados intentos. Dale un respiro y vuelve luego.» y Retry-After ≤ 900', sixth.status() === 429 && msg === 'Demasiados intentos. Dale un respiro y vuelve luego.' && ra > 0 && ra <= 900 && !h['set-cookie'], `${sixth.status()} «${msg}» Retry-After=${h['retry-after']} set-cookie=${h['set-cookie'] ? 'sí' : 'no'}`);
+      if (sixth.status() !== 429) await shot(page, 'transversales', `R-GATE-04-${vp}`);
+      const lines = gate.log.join('').split('\n').filter(Boolean).filter((l) => !/server listening/.test(l));
+      c.check('ni fallos ni bloqueo dejan línea en el log', lines.length === 0, lines.join(' | ').slice(0, 200) || 'solo la línea de arranque');
+      c.note(summarize(issues));
+      await context.close();
+      // Reinicio: vuelve a dejar intentar
+      await restartGate();
+      const after = await postGate('mala');
+      c.check('tras reiniciar el proceso, el intento vuelve a dar 401', after.status === 401, `${after.status}`);
+      // Variante 5: 2 fallos (ya hay 1), acierto, y luego 5 fallos 401 + 6.º 429
+      const v = [after.status, (await postGate('mala')).status, (await postGate(PW)).status];
+      const tail = [];
+      for (let i = 0; i < 6; i += 1) tail.push((await postGate('mala')).status);
+      c.check('variante: fallar 2, acertar (303) y el contador empieza de cero (5×401 y luego 429)', v.join(',') === '401,401,303' && tail.join(',') === '401,401,401,401,401,429', `${v.join(',')} | ${tail.join(',')}`);
+      cards.push(c);
+    }
+
+    // ================= R-GATE-02, R-GATE-05 paso 4 y R-GATE-09 =================
+    await restartGate();
+    {
+      const c2 = card('R-GATE-02', vp);
+      const { page, issues, context } = await openPage(browser, vp, {});
+      const g = await page.goto(`${O}/crew`, { waitUntil: 'networkidle' });
+      c2.check('/crew muestra la puerta', g.status() === 200 && (await page.title()) === GATE_TITLE, `${g.status()}`);
+      const resp = await submitInPage(page, PW);
+      const h = await resp.allHeaders();
+      const sc = h['set-cookie'] || '';
+      c2.check('POST → 303 Location / con no-store', resp.status() === 303 && h.location === '/' && h['cache-control'] === 'no-store', `${resp.status()} location=${h.location} cc=${h['cache-control']}`);
+      c2.check('Set-Cookie rocky_session; Max-Age=2592000; Path=/; HttpOnly; SameSite=Lax (sin Secure en local)', /^rocky_session=[A-Za-z0-9_-]{40,100}; Max-Age=2592000; Path=\/; HttpOnly; SameSite=Lax$/.test(sc), sc.replace(/=[A-Za-z0-9_-]{20,}/, '=<id>'));
+      await page.waitForLoadState('networkidle');
+      c2.check('acaba en / (se pierde /crew)', page.url() === `${O}/`, page.url().replace(O, ''));
+      const rootLen = await page.evaluate(() => document.getElementById('root')?.innerHTML.length ?? 0);
+      c2.check('la SPA carga', rootLen > 0, `#root ${rootLen} car.`);
+      const ck = (await context.cookies()).find((x) => x.name === 'rocky_session');
+      const days = ck ? Math.round((ck.expires * 1000 - Date.now()) / 86400000) : null;
+      c2.check('cookie httpOnly, Lax, 30 días', ck && ck.httpOnly && ck.sameSite === 'Lax' && days === 30, ck ? `httpOnly=${ck.httpOnly} sameSite=${ck.sameSite} días=${days} secure=${ck.secure}` : 'sin cookie');
+      const checks = [];
+      for (const p of ['/crew', `/assets/${jsAsset}`, '/manifest.json', '/api/shopify/status']) {
+        const r = await page.request.get(`${O}${p}`);
+        const rh = r.headers();
+        checks.push({ p, ok: r.status() === 200 && rh['cache-control'] === 'private, no-store' && rh['cloudflare-cdn-cache-control'] === 'no-store' && /Cookie/.test(rh.vary || ''), obs: `${p} ${r.status()} cc=${rh['cache-control']} cdn=${rh['cloudflare-cdn-cache-control']} vary=${rh.vary}` });
+        if (p === '/api/shopify/status') c2.check('/api/shopify/status → mode demo', (await r.json()).mode === 'demo', (await r.text()).slice(0, 80));
+      }
+      c2.check('respuestas posteriores private, no-store + CDN no-store + Vary: Cookie (también assets con hash)', checks.every((x) => x.ok), checks.map((x) => x.obs).join(' ; '));
+      // Navegar por la web (sin tocar /estudio, que se reserva para R-GATE-09)
+      for (const p of ['/crew', '/menudrop', '/legal/privacidad']) await page.goto(`${O}${p}`, { waitUntil: 'networkidle' });
+      c2.check('navegación sin errores', issues.http.length === 0 && issues.pageErrors.length === 0, summarize(issues));
+      // R-GATE-05 paso 4 (con acceso)
+      const c5b = cards.find((x) => x.id === 'R-GATE-05' && x.viewport === vp);
+      const ga = await page.goto(`${O}/access-gate`, { waitUntil: 'load' });
+      c5b.check('paso 4: ya desbloqueado, GET /access-gate → 404 «Not found.»', ga.status() === 404 && (await page.evaluate(() => document.body.innerText.trim())) === 'Not found.', `${ga.status()}`);
+      cards.push(c2);
+
+      // ================= R-GATE-09 =================
+      const c9 = card('R-GATE-09', vp);
+      const variant = vp === 'escritorio' ? 'reinicio del proceso' : 'cookie rocky_session borrada';
+      c9.note(`variante: ${variant}`);
+      await page.goto(`${O}/product/rockyracing`, { waitUntil: 'networkidle' });
+      const f = page.locator('[data-testid="drop-aviso"]');
+      await f.locator('input[type=email]').fill('prueba@example.com');
+      await f.locator('input[type=checkbox]').check();
+      const chat = await context.newPage();
+      await chat.goto(`${O}/rockyIA`, { waitUntil: 'networkidle' });
+      await chat.getByLabel('Mensaje para Rocky IA').fill('hola');
+      if (vp === 'escritorio') await restartGate();
+      else await context.clearCookies();
+      const apiResp = [];
+      context.on('response', async (r) => { if (r.url().includes('/api/')) apiResp.push(`${r.status()} ${new URL(r.url()).pathname} ${(r.headers()['content-type'] || '').split(';')[0]}`); });
+      await chat.getByRole('button', { name: 'Enviar mensaje' }).click();
+      const bubble = chat.locator('.chat-message.error .chat-bubble').last();
+      await bubble.waitFor({ timeout: 8000 }).catch(() => {});
+      const chatText = (await bubble.count()) ? await bubble.innerText() : '(sin burbuja)';
+      c9.check('Rocky IA muestra «La tienda no ha podido completar la operación.»', chatText === 'La tienda no ha podido completar la operación.', chatText);
+      await f.getByRole('button', { name: 'Avísame' }).click();
+      const alert = f.locator('[role=alert]');
+      await alert.waitFor({ timeout: 8000 }).catch(() => {});
+      const at = (await alert.count()) ? await alert.innerText() : '(sin alerta)';
+      c9.check('el aviso muestra «La tienda no ha podido completar la operación.»', at === 'La tienda no ha podido completar la operación.', at);
+      c9.check('cada /api/* recibe 404 text/plain', apiResp.length >= 2 && apiResp.every((x) => /^404 .* text\/plain$/.test(x)), apiResp.join(' | '));
+      // Paso 3: ruta diferida no visitada (/estudio) → chunk 404 → recarga → puerta
+      const navs = [];
+      page.on('framenavigated', (fr) => { if (fr === page.mainFrame()) navs.push(fr.url().replace(O, '')); });
+      const link = page.locator('a[href="/estudio"]:visible').first();
+      if (await link.count()) await link.click({ noWaitAfter: true });
+      else await page.evaluate(() => { history.pushState({}, '', '/estudio'); dispatchEvent(new PopStateEvent('popstate')); });
+      await page.waitForFunction((t) => document.title === t, GATE_TITLE, { timeout: 8000 }).catch(() => {});
+      const t3 = await page.title();
+      c9.check('ir a /estudio → recarga y sale la puerta', t3 === GATE_TITLE, `título=«${t3}» navegaciones=${navs.join(' > ')}`);
+      if (t3 !== GATE_TITLE) await shot(page, 'transversales', `R-GATE-09-${vp}`);
+      const r4 = await page.reload({ waitUntil: 'load' });
+      c9.check('recargar → puerta con 200', r4.status() === 200 && (await page.title()) === GATE_TITLE, `${r4.status()}`);
+      await context.close();
+      cards.push(c9);
+    }
+  }
+
+  // ================= API: R-GATE-07, R-GATE-08, R-SYS-02 (sim.), R-HOOK-07 con puerta, R-SYS-04 con acceso =================
+  await restartGate();
+  {
+    const c = card('R-GATE-07', 'api');
+    const paths = [`/assets/${jsAsset}`, '/manifest.json', '/favicon.ico', '/robots.txt', '/products/rocky-racing.webp', '/music/barro.m4a', '/api/shopify/status', '/api/loquesea', '/products', '/menudrop', '/product/x', '/legal/privacidad', '/crew'];
+    for (const p of paths) {
+      const r = await raw('GET', `${O}${p}`, { headers: { Accept: '*/*' } });
+      c.check(`${p} (Accept */*) → 404 «Not found.» no-store + CDN + X-Robots`, r.status === 404 && r.body === 'Not found.' && /text\/plain/.test(r.headers['content-type']) && r.headers['cache-control'] === 'no-store' && r.headers['cloudflare-cdn-cache-control'] === 'no-store' && r.headers['x-robots-tag'] === XROBOTS, brief(r));
+    }
+    const head = await raw('HEAD', `${O}/`);
+    c.check('HEAD / → 404', head.status === 404, `${head.status} ${head.headers['content-type']}`);
+    const root = await raw('GET', `${O}/`, { headers: { Accept: '*/*' } });
+    c.check('GET / (Accept */*) → 200 puerta', root.status === 200 && root.body.includes(GATE_TITLE), `${root.status}`);
+    const crewHtml = await raw('GET', `${O}/crew`, { headers: { Accept: 'text/html' } });
+    c.check('GET /crew con Accept text/html → 200 puerta', crewHtml.status === 200 && crewHtml.body.includes(GATE_TITLE), `${crewHtml.status}`);
+    const { page, context } = await openPage(browser, 'escritorio', {});
+    await page.goto(`${O}/`, { waitUntil: 'networkidle' });
+    const fs1 = await page.evaluate(() => fetch('/crew').then((r) => r.status));
+    c.check('consola de la puerta: fetch(\'/crew\') → 404', fs1 === 404, String(fs1));
+    const bar = await page.goto(`${O}/api/shopify/status`, { waitUntil: 'load' });
+    c.check('/api/shopify/status en la barra de direcciones → 200 con la puerta', bar.status() === 200 && (await page.title()) === GATE_TITLE, `${bar.status()} «${await page.title()}»`);
+    await context.close();
+    const health = await raw('GET', `${O}/api/health`);
+    c.check('/api/health desde loopback → 200 {"status":"ok"}', health.status === 200 && health.body === '{"status":"ok"}', brief(health));
+    c.note('Producción (dato del 2026-11-08 con curl, Accept */*): GET / 200 puerta; /products, /menudrop, /product/x, /legal/privacidad 404 text/plain; HEAD / 404; /api/health 404 JSON. Coincide con lo observado aquí: curl no manda Accept text/html, así que solo / cuenta como documento.');
+    cards.push(c);
+  }
+  {
+    const c = card('R-GATE-08', 'api');
+    const css = await raw('GET', `${O}/access-gate/style.css`);
+    c.check('style.css → 200 text/css no-store', css.status === 200 && /text\/css/.test(css.headers['content-type']) && css.headers['cache-control'] === 'no-store', brief(css, ['content-type', 'cache-control']));
+    const expected = { logo: ['logo512.png', /image\/png/], grafitero: ['grafitero-spray-', /image\/webp/], paquete: ['abrazando-paquete-', /image\/webp/], corredor: ['corriendo-bolsa-', /image\/webp/], 'font-display': ['luckiest-guy-latin-400-', /font\/woff2/], 'font-hand': ['fredoka-latin-300-700-', /font\/woff2/], 'font-body': ['archivo-latin-400-800-', /font\/woff2/] };
+    const sizes = Object.fromEntries(
+      [['logo512.png', fs.statSync(`${REPO}/dist/logo512.png`).size], ...fs.readdirSync(`${REPO}/dist/assets`).map((n) => [n, fs.statSync(`${REPO}/dist/assets/${n}`).size])]
+    );
+    let total = 0;
+    for (const [name, [stem, type]] of Object.entries(expected)) {
+      const r = await raw('GET', `${O}/access-gate/media/${name}`);
+      total += r.bytes;
+      const match = Object.entries(sizes).filter(([n, s]) => n.startsWith(stem) && s === r.bytes).map(([n]) => n);
+      c.check(`media/${name} → 200 ${type.source} no-store (${match.join('/') || '¿?'})`, r.status === 200 && type.test(r.headers['content-type']) && r.headers['cache-control'] === 'no-store' && match.length > 0 && !match.some((m) => m.includes('-hd-')), `${r.status} ${r.headers['content-type']} ${r.bytes} B → ${match.join('/')}`);
+    }
+    c.check('peso total ≈ 166 kB', total > 150_000 && total < 180_000, `${Math.round(total / 1024)} KiB (${total} B)`);
+    const bad = await raw('GET', `${O}/access-gate/media/app`);
+    c.check('media/app → 404 «Not found.»', bad.status === 404 && bad.body === 'Not found.', brief(bad));
+    // Recarga en el navegador: todo se vuelve a pedir a la red.
+    const { page, context } = await openPage(browser, 'escritorio', {});
+    await page.goto(`${O}/`, { waitUntil: 'networkidle' });
+    const reqs = [];
+    page.on('requestfinished', async (rq) => { if (rq.url().includes('/access-gate/')) { const rs = await rq.response(); reqs.push(`${rs.status()}${rs.fromServiceWorker() ? '(sw)' : ''} ${rq.url().split('/access-gate/')[1]}`); } });
+    await page.reload({ waitUntil: 'networkidle' });
+    c.check('al recargar se vuelven a pedir CSS y medios', reqs.length >= 5, reqs.join(', '));
+    await context.close();
+    c.note('Variante «sin dist/» no ejecutada: exigiría borrar o mover dist/ del repo.');
+    cards.push(c);
+  }
+  {
+    const c = card('R-SYS-02', 'api');
+    let ip = '172.17.0.1';
+    let h = await raw('GET', `http://${ip}:${PORT}/api/health`).catch(() => null);
+    if (!h) { ip = 'IP-LOCAL-DEL-EQUIPO'; h = await raw('GET', `http://${ip}:${PORT}/api/health`); }
+    c.check(`/api/health desde ${ip} (no loopback) → 404 JSON «Ruta no encontrada.» con no-store y CDN no-store`, h.status === 404 && h.body === '{"message":"Ruta no encontrada."}' && h.headers['cache-control'] === 'no-store' && h.headers['cloudflare-cdn-cache-control'] === 'no-store', brief(h));
+    const o = await raw('GET', `http://${ip}:${PORT}/api/loquesea`);
+    c.check('/api/loquesea desde fuera → 404 text/plain «Not found.» (puerta)', o.status === 404 && o.body === 'Not found.', brief(o));
+    c.note('Simulación local: petición a una IP propia no loopback (req.socket.remoteAddress no es loopback). Producción (dato del 2026-11-08): /api/health → 404 {"message":"Ruta no encontrada."}, igual.');
+    cards.push(c);
+  }
+  {
+    const c = card('R-HOOK-07', 'api-puerta');
+    const r = await raw('POST', `${O}/api/shopify/webhooks`, { headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    c.check('puerta activa y sin acceso: POST /api/shopify/webhooks → 404 text/plain «Not found.»', r.status === 404 && r.body === 'Not found.', brief(r));
+    cards.push(c);
+  }
+  {
+    const c = card('R-SYS-04', 'api-puerta');
+    const unlock = await postGate(PW);
+    const cookie = (unlock.headers['set-cookie'] || [])[0]?.split(';')[0];
+    c.check('desbloqueo por API', unlock.status === 303 && Boolean(cookie), `${unlock.status}`);
+    for (const p of ['/', '/index.html', '/crew', `/assets/${jsAsset}`, '/manifest.json', '/theme-init.js', '/products/rocky-racing.webp', '/music/barro.m4a']) {
+      const r = await raw('GET', `${O}${p}`, { headers: { Cookie: cookie } });
+      c.check(`${p} con acceso → private, no-store + CDN no-store + Vary: Cookie`, r.status === 200 && r.headers['cache-control'] === 'private, no-store' && r.headers['cloudflare-cdn-cache-control'] === 'no-store' && /Cookie/.test(r.headers.vary || ''), `${r.status} cc=${r.headers['cache-control']} cdn=${r.headers['cloudflare-cdn-cache-control']} vary=${r.headers.vary}`);
+    }
+    cards.push(c);
+  }
+
+  // ================= Pasada de teclado: puerta =================
+  await restartGate();
+  {
+    const c = card('TECLADO-puerta', 'escritorio');
+    const { page, issues, context } = await openPage(browser, 'escritorio', {});
+    await page.goto(`${O}/`, { waitUntil: 'networkidle' });
+    const st = () => page.evaluate(() => {
+      const a = document.activeElement;
+      const cs = getComputedStyle(a);
+      return { tag: a.tagName, id: a.id, text: (a.textContent || '').trim(), fv: a.matches(':focus-visible'), outline: `${cs.outlineStyle} ${cs.outlineWidth} ${cs.outlineColor}`, shadow: cs.boxShadow, border: cs.borderColor };
+    });
+    const s0 = await st();
+    c.check('foco inicial en el campo, visible (borde azul + halo)', s0.id === 'access-password' && s0.fv && /47, 111, 219/.test(s0.border) && /47, 111, 219/.test(s0.shadow), JSON.stringify(s0));
+    await page.keyboard.press('Tab');
+    const s1 = await st();
+    c.check('Tab → «Entrar» con contorno visible', s1.tag === 'BUTTON' && s1.text === 'Entrar' && s1.fv && /solid 4px/.test(s1.outline), JSON.stringify(s1));
+    await page.keyboard.press('Tab');
+    const s2 = await st();
+    c.note(`Tab desde «Entrar» → ${s2.tag}${s2.id ? '#' + s2.id : ''} (no hay más elementos enfocables)`);
+    await page.keyboard.press('Shift+Tab');
+    const s3 = await st();
+    await page.keyboard.press('Shift+Tab');
+    const s4 = await st();
+    c.note(`Shift+Tab → ${s3.tag} «${s3.text || s3.id}», otra vez → ${s4.tag} ${s4.id}`);
+    await page.locator('#access-password').focus();
+    await page.keyboard.type('mala-por-teclado');
+    const [resp] = await Promise.all([page.waitForResponse((r) => r.request().method() === 'POST'), page.keyboard.press('Enter')]);
+    await page.waitForLoadState('domcontentloaded');
+    const s5 = await st();
+    const aria = await page.evaluate(() => ({ describedby: document.querySelector('#access-password').getAttribute('aria-describedby'), invalid: document.querySelector('#access-password').getAttribute('aria-invalid'), msg: document.querySelector('.gate-message').textContent.trim() }));
+    c.check('Enter envía el formulario (401) y el foco vuelve al campo', resp.status() === 401 && s5.id === 'access-password', `${resp.status()} foco=${s5.id}`);
+    c.note(`Tras el fallo: mensaje «${aria.msg}» en role=status presente desde la carga; campo sin aria-invalid (${aria.invalid}) ni aria-describedby (${aria.describedby})`);
+    c.note(summarize(issues));
+    await context.close();
+    cards.push(c);
+  }
+} finally {
+  await browser.close();
+  await stopGate();
+  fs.writeFileSync(new URL('./obs/gate-server.log', import.meta.url), logs.join('\n----\n'));
+  saveObs('gate', cards);
+}

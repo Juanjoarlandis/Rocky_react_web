@@ -1,0 +1,67 @@
+// Vuelca los resultados de out/*.json en resultados-e1/noche-musica.tsv con record(), en orden.
+import fs from 'node:fs';
+import path from 'node:path';
+import { SCRATCH, record } from '../harness.mjs';
+import { OUT } from './lib.mjs';
+
+const tsv = path.join(SCRATCH, 'resultados-e1', 'noche-musica.tsv');
+if (fs.existsSync(tsv)) fs.rmSync(tsv);
+
+const rows = ['tema', 'pared', 'spray', 'perf', 'musica', 'teclado'].flatMap((n) => JSON.parse(fs.readFileSync(path.join(OUT, `${n}.json`), 'utf8')));
+
+// Viewports que la ficha excluye: se dejan registrados para que cada ficha tenga los dos.
+const NA = {
+  'R-NIGHT-01|movil': 'NO EJECUTADO: la ficha es de escritorio (en 640 px o menos la bombilla vive en la hoja del menú); el móvil lo cubre R-NIGHT-02',
+  'R-NIGHT-02|escritorio': 'NO EJECUTADO: la ficha es de móvil (la hoja del menú no existe a partir de 641 px); el escritorio lo cubre R-NIGHT-01',
+  'R-NIGHT-13|movil': 'NO EJECUTADO: la ficha es de ratón; el táctil lo cubre R-NIGHT-14',
+  'R-NIGHT-14|escritorio': 'NO EJECUTADO: la ficha es táctil (móvil); el ratón lo cubre R-NIGHT-13',
+  'R-NIGHT-19|escritorio': 'NO EJECUTADO: la ficha es de móvil real con Web Share de archivos; en escritorio (Chrome de Linux, sin navigator.share) la foto se descarga y lo cubre R-NIGHT-18',
+  'R-NIGHT-20|movil': 'NO EJECUTADO: la ficha es de teclado en escritorio',
+  'R-MUS-10|movil': 'NO EJECUTADO: la ficha es de teclado en escritorio',
+};
+// Hallazgos que se confirmaron fuera del propio script de la ficha (candidatos.mjs, perf, red).
+const EXTRA = {
+  'R-NIGHT-02': ['NUEVO-5'],
+  'R-NIGHT-03': ['NUEVO-5'],
+  'R-NIGHT-04': ['C-NOCHE-24'],
+  'R-NIGHT-08': ['C-NOCHE-11'],
+  'R-NIGHT-09': ['C-NOCHE-11'],
+  'R-NIGHT-17': ['C-NOCHE-13'],
+  'R-NIGHT-18': ['C-NOCHE-19'],
+  'R-MUS-05': ['NUEVO-5'],
+  'R-MUS-12|movil': ['NUEVO-6'],
+  'R-MUS-13': ['NUEVO-5'],
+};
+for (const r of rows) {
+  const extra = [...(EXTRA[r.id] || []), ...(EXTRA[`${r.id}|${r.viewport}`] || [])];
+  if (!extra.length || r.resultado.startsWith('NO EJECUTADO')) continue;
+  const have = r.hallazgos ? r.hallazgos.split(/,\s*/) : [];
+  r.hallazgos = [...new Set([...have, ...extra])].join(', ');
+}
+const ids = [
+  ...Array.from({ length: 23 }, (_, i) => `R-NIGHT-${String(i + 1).padStart(2, '0')}`),
+  ...Array.from({ length: 13 }, (_, i) => `R-MUS-${String(i + 1).padStart(2, '0')}`),
+];
+const count = { escritorio: {}, movil: {} };
+const bump = (vp, res) => {
+  const k = res.startsWith('NO EJECUTADO') ? 'NO EJECUTADO' : res;
+  count[vp][k] = (count[vp][k] || 0) + 1;
+};
+for (const id of ids) {
+  for (const vp of ['escritorio', 'movil']) {
+    const row = rows.find((r) => r.id === id && r.viewport === vp);
+    if (row) {
+      record('noche-musica', row);
+      bump(vp, row.resultado);
+    } else if (NA[`${id}|${vp}`]) {
+      record('noche-musica', { id, viewport: vp, resultado: NA[`${id}|${vp}`], evidencia: '', hallazgos: '' });
+      bump(vp, 'NO EJECUTADO');
+    } else {
+      console.error(`Falta resultado: ${id} ${vp}`);
+    }
+  }
+}
+for (const row of rows.filter((r) => r.id.startsWith('TECLADO-'))) record('noche-musica', row);
+console.log(JSON.stringify(count));
+console.log('TECLADO', rows.filter((r) => r.id.startsWith('TECLADO-')).map((r) => `${r.id}:${r.resultado}`).join(' '));
+console.log('FALLOS', rows.filter((r) => r.resultado === 'FALLO').map((r) => `${r.id}/${r.viewport} [${r.hallazgos}]`).join(' ; '));

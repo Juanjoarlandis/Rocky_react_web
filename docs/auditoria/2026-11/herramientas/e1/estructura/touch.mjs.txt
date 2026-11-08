@@ -1,0 +1,12 @@
+import { sleep } from './common.mjs';
+// Deslizamiento táctil real (touchStart/touchMove/touchEnd por CDP). dy>0 = el dedo sube (la página baja).
+export async function swipe(page, dy, x = 200, y = 650) {
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+  for (let i = 1; i <= 12; i += 1) {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y - (dy * i) / 12 }] });
+    await sleep(16);
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await cdp.detach();
+}

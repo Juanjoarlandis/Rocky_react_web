@@ -1,0 +1,195 @@
+// Pasada de teclado (tarea 3.3) en /cart, /rockyIA, /crew y /mi-crew, en escritorio.
+// El foco «visible» se mide comparando el estilo calculado del elemento enfocado
+// con el mismo elemento sin foco (contorno, sombra, borde, fondo, color, transform)
+// y, en los cromos, la sombra de la carta.
+import { startInstance, launchBrowser, summarize, shot } from '../harness.mjs';
+import { guardedPage, save } from './common.mjs';
+
+const inst = await startInstance(3203, { CHAT_RATE_LIMIT_MAX: '50', SHOPIFY_RATE_LIMIT_MAX: '2000' });
+const W = inst.origin;
+const browser = await launchBrowser();
+const out = {};
+
+const STYLE_PROPS = ['outlineStyle', 'outlineWidth', 'outlineColor', 'boxShadow', 'borderTopColor', 'backgroundColor', 'color', 'transform', 'textDecorationLine'];
+
+async function snapshotStyle(page) {
+  return page.evaluate((props) => {
+    const el = document.activeElement;
+    if (!el || el === document.body) return null;
+    const cs = getComputedStyle(el);
+    const s = {};
+    for (const p of props) s[p] = cs[p];
+    const card = el.closest('.crew-card');
+    s.cardShadow = card ? getComputedStyle(card.querySelector('.crew-card-inner')).boxShadow : '';
+    const label = (el.getAttribute('aria-label') || el.innerText || el.value || el.getAttribute('placeholder') || el.tagName).trim().replace(/\s+/g, ' ').slice(0, 50);
+    const r = el.getBoundingClientRect();
+    return {
+      label, tag: el.tagName, fv: el.matches(':focus-visible'), s,
+      inView: r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth && r.width > 0,
+      size: `${Math.round(r.width)}x${Math.round(r.height)}`,
+      id: el.id || el.closest('[id]')?.id || '',
+    };
+  }, STYLE_PROPS);
+}
+
+// Pulsa Tab, espera a las transiciones, mide con foco y sin foco y restaura el foco.
+async function step(page, key = 'Tab') {
+  await page.keyboard.press(key);
+  await page.waitForTimeout(260);
+  const focused = await snapshotStyle(page);
+  if (!focused) return { label: 'BODY', tag: 'BODY', visible: false };
+  const handle = await page.evaluateHandle(() => document.activeElement);
+  await page.evaluate((el) => el.blur(), handle);
+  await page.waitForTimeout(260);
+  const blurred = await page.evaluate(({ el, props }) => {
+    const cs = getComputedStyle(el);
+    const s = {};
+    for (const p of props) s[p] = cs[p];
+    const card = el.closest('.crew-card');
+    s.cardShadow = card ? getComputedStyle(card.querySelector('.crew-card-inner')).boxShadow : '';
+    return s;
+  }, { el: handle, props: STYLE_PROPS });
+  await page.evaluate((el) => el.focus({ preventScroll: true }), handle);
+  await page.waitForTimeout(60);
+  const diff = Object.keys(focused.s).filter((k) => focused.s[k] !== blurred[k]);
+  const outlineOn = focused.s.outlineStyle !== 'none' && parseFloat(focused.s.outlineWidth) > 0;
+  return { ...focused, diff, visible: outlineOn || diff.length > 0, s: undefined };
+}
+
+async function tabAll(page, max, stopWhen) {
+  const seq = [];
+  for (let i = 0; i < max; i += 1) {
+    const f = await step(page);
+    seq.push(f);
+    if (stopWhen?.(f, seq)) break;
+  }
+  return seq;
+}
+
+const fmt = (seq) => seq.map((f) => `${f.label}${f.visible ? '' : ' [SIN FOCO VISIBLE]'}${f.inView === false ? ' [fuera de vista]' : ''}`).join(' → ');
+
+try {
+  // ---------- /cart ----------
+  {
+    const { page, issues, context } = await guardedPage(browser, 'escritorio', { origin: W });
+    await page.goto(`${W}/cart`);
+    await page.waitForSelector('.cart-empty');
+    await page.mouse.move(0, 0);
+    const seq = await tabAll(page, 45, (f, s) => s.length > 3 && f.label === s[0].label);
+    // Saltar al contenido
+    await page.reload();
+    await page.waitForSelector('.cart-empty');
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(200);
+    const skip = await page.evaluate(() => ({ active: document.activeElement.id, hash: location.hash }));
+    await page.keyboard.press('Tab');
+    await page.waitForTimeout(150);
+    const afterSkip = await page.evaluate(() => document.activeElement.innerText?.trim());
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(150);
+    const afterEsc = { url: new URL(page.url()).pathname, active: await page.evaluate(() => document.activeElement.innerText?.trim()) };
+    out.cart = { seq: fmt(seq), noVisible: seq.filter((f) => !f.visible).map((f) => f.label), count: seq.length, skip, afterSkip, afterEsc, issues: summarize(issues) };
+    await context.close();
+  }
+
+  // ---------- /rockyIA ----------
+  {
+    const { page, issues, context } = await guardedPage(browser, 'escritorio', { origin: W });
+    const posts = [];
+    page.on('request', (r) => { if (r.url().endsWith('/api/chat') && r.method() === 'POST') posts.push(r.postData()); });
+    await page.goto(`${W}/rockyIA`);
+    await page.waitForSelector('.chat-welcome');
+    await page.mouse.move(0, 0);
+    const seq = await tabAll(page, 30, (f, s) => s.length > 3 && f.label === s[0].label);
+    // Enter para enviar desde el campo
+    const ta = page.getByRole('textbox', { name: 'Mensaje para Rocky IA' });
+    await ta.focus();
+    await page.keyboard.type('hola desde el teclado');
+    await page.keyboard.press('Enter');
+    await page.waitForSelector('.chat-message.ai.error', { timeout: 8000 });
+    const afterEnter = { posts: posts.length, focus: await page.evaluate(() => document.activeElement.getAttribute('aria-label')) };
+    // Espacio sobre una pregunta rápida (recarga)
+    await page.reload();
+    await page.waitForSelector('.chat-welcome');
+    await page.locator('.chat-quick-prompt').nth(2).focus();
+    await page.keyboard.press('Space');
+    await page.waitForSelector('.chat-message.ai.error', { timeout: 8000 });
+    const space = { posts: posts.length, focusAfter: await page.evaluate(() => document.activeElement.tagName) };
+    await page.keyboard.press('Escape');
+    const afterEsc = new URL(page.url()).pathname;
+    out.chat = { seq: fmt(seq), noVisible: seq.filter((f) => !f.visible).map((f) => `${f.label} (cambia: ${(f.diff || []).join(',') || 'nada'})`), textarea: seq.find((f) => f.tag === 'TEXTAREA'), afterEnter, space, afterEsc, issues: summarize(issues) };
+    await context.close();
+  }
+
+  // ---------- /crew ----------
+  {
+    const { page, issues, context } = await guardedPage(browser, 'escritorio', { origin: W });
+    await page.goto(`${W}/crew`);
+    await page.waitForSelector('.crew-card');
+    await page.mouse.move(0, 0);
+    const seq = await tabAll(page, 70, (f, s) => s.length > 3 && f.label === s[0].label);
+    out.crewSeq = { seq: fmt(seq), count: seq.length, noVisible: seq.filter((f) => !f.visible).map((f) => `${f.label}#${f.id} (cambia: ${(f.diff || []).join(',') || 'nada'})`), cardDiffs: seq.filter((f) => (f.id || '').startsWith('cromo-')).slice(0, 2).map((f) => f.diff || []) };
+    // Giro con Enter y con Espacio, foco y Escape
+    await page.reload();
+    await page.waitForSelector('.crew-card');
+    await page.mouse.move(0, 0);
+    const front = page.locator('#cromo-tumbao .crew-card-front .crew-girar');
+    await front.focus();
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(700);
+    const enter = await page.evaluate(() => ({ flipped: document.querySelector('#cromo-tumbao').classList.contains('is-flipped'), focus: document.activeElement.innerText.trim(), inBack: Boolean(document.activeElement.closest('.crew-card-back')) }));
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(700);
+    const space = await page.evaluate(() => ({ flipped: document.querySelector('#cromo-tumbao').classList.contains('is-flipped'), focus: document.activeElement.innerText.trim(), inFront: Boolean(document.activeElement.closest('.crew-card-front')) }));
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(700);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(300);
+    const esc = await page.evaluate(() => ({ flipped: document.querySelector('#cromo-tumbao').classList.contains('is-flipped'), focus: document.activeElement.innerText.trim() }));
+    // Aro de la carta con el ratón encima
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Tab');
+    await page.waitForTimeout(300);
+    const ringNoHover = await page.locator('#cromo-tumbao .crew-card-inner').evaluate((e) => getComputedStyle(e).boxShadow);
+    const box = await page.locator('#cromo-tumbao').boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.waitForTimeout(300);
+    const ringHover = await page.locator('#cromo-tumbao .crew-card-inner').evaluate((e) => getComputedStyle(e).boxShadow);
+    const stillFocused = await page.evaluate(() => document.activeElement.closest('.crew-card')?.id);
+    await shot(page, 'chat-crew', 'evidencia-TECLADO-crew-foco-con-raton-encima');
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(300);
+    await shot(page, 'chat-crew', 'evidencia-TECLADO-crew-foco-sin-raton');
+    out.crew = { enter, space, esc, ringNoHover, ringHover, stillFocused, issues: summarize(issues) };
+    await context.close();
+  }
+
+  // ---------- /mi-crew ----------
+  {
+    const { page, issues, context } = await guardedPage(browser, 'escritorio', { origin: W });
+    await page.goto(`${W}/mi-crew`);
+    await page.waitForSelector('.crew-gate-hero');
+    await page.mouse.move(0, 0);
+    const seq = await tabAll(page, 40, (f, s) => s.length > 3 && f.label === s[0].label);
+    const first = page.locator('.crew-preview-card-slot .crew-card-front .crew-girar').first();
+    await first.focus();
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(700);
+    const enter = await page.evaluate(() => { const c = document.querySelector('.crew-preview-card-slot .crew-card'); return { flipped: c.classList.contains('is-flipped'), focus: document.activeElement.innerText.trim() }; });
+    await page.keyboard.press('Shift+Tab');
+    await page.waitForTimeout(150);
+    const backPrev = await page.evaluate(() => document.activeElement.innerText.trim());
+    await page.keyboard.press('Escape');
+    const afterEsc = new URL(page.url()).pathname;
+    out.miCrew = { seq: fmt(seq), noVisible: seq.filter((f) => !f.visible).map((f) => `${f.label} (cambia: ${(f.diff || []).join(',') || 'nada'})`), enter, backPrev, afterEsc, issues: summarize(issues) };
+    await context.close();
+  }
+} catch (e) {
+  out.error = String(e.stack || e);
+} finally {
+  await browser.close();
+  inst.stop();
+}
+save('teclado', out);
+console.log(JSON.stringify(out, null, 1));

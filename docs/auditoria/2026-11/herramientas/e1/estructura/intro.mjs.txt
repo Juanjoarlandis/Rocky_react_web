@@ -1,0 +1,306 @@
+// R-NAV-01..04, TECLADO-intro y candidatos C-EST-03/04/05.
+import fs from 'node:fs';
+import path from 'node:path';
+import { chromium } from 'playwright';
+import { VIEWPORTS } from '../harness.mjs';
+import { launchBrowser, open, sum, clean, shot, ORIGIN, sleep, results, focusInfo, fmtFocus, SCRATCH } from './common.mjs';
+
+const R = results('intro');
+const b = await launchBrowser();
+
+// Marca cuándo aparece y desaparece la capa de la intro (ms desde el inicio de la navegación).
+const splashTimer = () => {
+  window.__splash = {};
+  new MutationObserver(() => {
+    const el = document.querySelector('.splash-intro');
+    if (el && !window.__splash.added) window.__splash.added = performance.now();
+    if (!el && window.__splash.added && !window.__splash.removed) window.__splash.removed = performance.now();
+  }).observe(document, { childList: true, subtree: true });
+};
+
+// Deslizamiento táctil real (touchStart/touchMove/touchEnd por CDP).
+export async function swipe(page, dy, x = 200, y = 650) {
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+  for (let i = 1; i <= 12; i += 1) {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y - (dy * i) / 12 }] });
+    await sleep(16);
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await cdp.detach();
+}
+
+async function scrollAttempt(page, vp) {
+  if (vp === 'escritorio') {
+    await page.mouse.move(700, 450);
+    await page.mouse.wheel(0, 900);
+  } else {
+    await swipe(page, 400);
+  }
+  await sleep(500);
+  return page.evaluate(() => Math.round(window.scrollY));
+}
+
+async function introRun(vp, route, reducedMotion = 'no-preference') {
+  const o = await open(b, vp, { skipIntro: false, reducedMotion });
+  await o.context.addInitScript(splashTimer);
+  const { page } = o;
+  await page.goto(ORIGIN + route);
+  await page.waitForSelector('.splash-intro', { timeout: 3000 });
+  await sleep(150);
+  const info = await page.evaluate(() => {
+    const s = document.querySelector('.splash-intro');
+    const cs = getComputedStyle(s);
+    const r = s.getBoundingClientRect();
+    const delays = (sel) => [...document.querySelectorAll(sel)].map((e) => parseFloat(e.style.getPropertyValue('--delay')));
+    const anim = (sel) => {
+      const e = document.querySelector(sel);
+      if (!e) return null;
+      const c = getComputedStyle(e);
+      return `${c.animationName} ${c.animationDuration} ${c.animationDelay}`;
+    };
+    const sq = document.querySelector('.splash-squiggle path');
+    return {
+      role: s.getAttribute('role'),
+      z: cs.zIndex,
+      pos: cs.position,
+      covers: r.width >= innerWidth - 1 && r.height >= innerHeight - 1,
+      logoAlt: s.querySelector('.splash-logo')?.alt,
+      lema: s.querySelector('.splash-lema')?.textContent,
+      munecos: s.querySelectorAll('.splash-muneco').length,
+      heads: s.querySelectorAll('.splash-head').length,
+      dMun: delays('.splash-muneco'),
+      dHead: delays('.splash-head'),
+      squiggle: Boolean(sq),
+      sqDash: sq ? getComputedStyle(sq).strokeDashoffset : null,
+      bodyOverflow: document.body.style.overflow,
+      animMun: anim('.splash-muneco'),
+      animHead: anim('.splash-head'),
+      animLogo: anim('.splash-logo'),
+      animLema: anim('.splash-lema'),
+      animSq: sq ? `${getComputedStyle(sq).animationName}` : null,
+      animIntro: `${cs.animationName} ${cs.animationDuration} ${cs.animationDelay}`,
+      prioDuring: document.querySelectorAll('main [fetchpriority="high"]').length,
+      peeker: document.querySelectorAll('[data-testid="curious-peeker"]').length,
+    };
+  });
+  const scrollY = await scrollAttempt(page, vp);
+  // Estampida desactivada durante la intro
+  await page.keyboard.type('035');
+  await sleep(1700);
+  const estampidaDuring = await page.locator('[data-testid="estampida"]').count();
+  await page.waitForSelector('.splash-intro', { state: 'detached', timeout: 5000 });
+  await sleep(300);
+  const after = await page.evaluate(() => ({
+    t: window.__splash,
+    seen: sessionStorage.getItem('rocky-splash-seen'),
+    bodyOverflow: document.body.style.overflow,
+    h1: document.querySelector('main h1, main h2')?.textContent?.trim().slice(0, 40),
+    path: location.pathname,
+    prioAfter: document.querySelectorAll('main [fetchpriority="high"]').length,
+    notice: document.querySelector('.commerce-notice')?.textContent,
+  }));
+  return { o, info, scrollY, estampidaDuring, after };
+}
+
+try {
+  // ---------- R-NAV-01 ----------
+  for (const [vp, route] of [['escritorio', '/'], ['movil', '/'], ['escritorio', '/crew'], ['movil', '/legal/privacidad']]) {
+    const { o, info, scrollY, estampidaDuring, after } = await introRun(vp, route);
+    const dur = Math.round(after.t.removed - after.t.added);
+    const minM = Math.min(...info.dMun), maxM = Math.max(...info.dMun), minH = Math.min(...info.dHead), maxH = Math.max(...info.dHead);
+    const ok =
+      info.role === 'status' && info.z === '3000' && info.pos === 'fixed' && info.covers &&
+      info.logoAlt === 'Cargando ROCKY 035...' && info.lema === 'desde la colmena' && info.munecos === 12 && info.heads === 4 &&
+      minM === 0.1 && maxM === 1.09 && minH === 1.3 && maxH === 1.66 && info.bodyOverflow === 'hidden' && scrollY === 0 &&
+      estampidaDuring === 0 && after.seen === '1' && after.bodyOverflow === '' && dur > 2900 && dur < 3400 &&
+      /2\.45s/.test(info.animIntro) && after.path === route && clean(o);
+    const prio = route === '/' ? ` fetchpriority=high en main: durante=${info.prioDuring}, después=${after.prioAfter};` : '';
+    R.add({
+      id: 'R-NAV-01',
+      viewport: vp,
+      resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `ruta ${route}: capa role=${info.role} z=${info.z} ${info.pos} cubre=${info.covers}; alt logo «${info.logoAlt}», lema «${info.lema}», ${info.munecos} muñecos (delay ${minM}-${maxM}s), ${info.heads} caras (${minH}-${maxH}s), garabato=${info.squiggle}; animación capa: ${info.animIntro}; body overflow durante=«${info.bodyOverflow}», scrollY tras intentar scroll (${vp === "escritorio" ? "rueda" : "deslizamiento táctil"}) durante la intro=${scrollY}${scrollY > 0 ? " (la página se desplaza bajo la intro: html tiene overflow-x: clip y el overflow:hidden del body no llega al viewport)" : ""}; 035 durante la intro → estampida=${estampidaDuring}; capa montada ${dur} ms; después sessionStorage rocky-splash-seen=${after.seen}, overflow=«${after.bodyOverflow}», ruta ${after.path} («${after.h1}»), aviso «${after.notice}»;${prio} peeker durante=${info.peeker}; ${sum(o)}`,
+      hallazgos: scrollY > 0 ? 'NUEVO-1' : '',
+    });
+    if (!ok) await shot(o.page, 'estructura', `R-NAV-01-${vp}`);
+    await o.context.close();
+  }
+
+  // ---------- R-NAV-02 ----------
+  for (const vp of ['escritorio', 'movil']) {
+    const { o, info, after } = await introRun(vp, '/', 'reduce');
+    const dur = Math.round(after.t.removed - after.t.added);
+    const ok =
+      /splash-fade 0\.4s 0s/.test(info.animMun) && /splash-fade 0\.4s 0s/.test(info.animHead) && /splash-fade 0\.4s/.test(info.animLogo) &&
+      /splash-fade 0\.4s/.test(info.animLema) && info.animSq === 'none' && parseFloat(info.sqDash) === 0 &&
+      /splash-fade-out 0\.4s 2\.55s/.test(info.animIntro) && dur > 2900 && dur < 3400 && clean(o);
+    R.add({
+      id: 'R-NAV-02',
+      viewport: vp,
+      resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `movimiento reducido: muñecos «${info.animMun}», caras «${info.animHead}», logo «${info.animLogo}», lema «${info.animLema}», garabato animación=${info.animSq} dashoffset=${info.sqDash}; capa «${info.animIntro}»; capa montada ${dur} ms; ${sum(o)}`,
+    });
+    if (!ok) await shot(o.page, 'estructura', `R-NAV-02-${vp}`);
+    await o.context.close();
+  }
+
+  // ---------- R-NAV-03 ----------
+  for (const vp of ['escritorio', 'movil']) {
+    const o = await open(b, vp, { skipIntro: false });
+    await o.context.addInitScript(splashTimer);
+    const { page, context } = o;
+    await page.goto(ORIGIN + '/');
+    await page.waitForSelector('.splash-intro', { state: 'detached', timeout: 6000 });
+    // 1. Recargar
+    await page.reload();
+    await sleep(900);
+    const reloadSplash = await page.evaluate(() => Boolean(window.__splash.added));
+    // 2. Otra ruta con la barra (escritorio) o la hoja (móvil)
+    if (vp === 'escritorio') await page.getByRole('navigation', { name: 'Navegación principal' }).getByRole('link', { name: 'Drops' }).click();
+    else {
+      await page.getByRole('button', { name: 'Abrir el menú' }).click();
+      await page.getByRole('dialog', { name: 'Menú' }).getByRole('link', { name: 'Drops' }).click();
+    }
+    await sleep(700);
+    const navSplash = await page.locator('.splash-intro').count();
+    const navPath = await page.evaluate(() => location.pathname);
+    // 3. Pestaña nueva
+    const p2 = await context.newPage();
+    await p2.goto(ORIGIN + '/');
+    await sleep(500);
+    const newTabSplash = await p2.locator('.splash-intro').count();
+    await p2.close();
+    // 4. «Duplicar»: window.open copia sessionStorage, como duplicar la pestaña
+    const [dup] = await Promise.all([context.waitForEvent('page'), page.evaluate(() => window.open(location.href, '_blank'))]);
+    await dup.waitForLoadState('domcontentloaded');
+    await sleep(700);
+    const dupSplash = await dup.locator('.splash-intro').count();
+    const dupSeen = await dup.evaluate(() => sessionStorage.getItem('rocky-splash-seen'));
+    await dup.close();
+    await context.close();
+
+    // 5. Almacenamiento bloqueado de verdad (perfil de Chrome con cookies y datos del sitio bloqueados)
+    const dir = path.join(SCRATCH, `e1/estructura/perfil-bloqueado-${vp}`);
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.mkdirSync(path.join(dir, 'Default'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'Default/Preferences'), JSON.stringify({ profile: { default_content_setting_values: { cookies: 2 } } }));
+    const pctx = await chromium.launchPersistentContext(dir, { channel: 'chrome', ...VIEWPORTS[vp], locale: 'es-ES' });
+    const blockedLog = [];
+    let blockedSplash = [];
+    let rendered = [];
+    try {
+      await pctx.route((url) => url.hostname !== 'localhost', (r) => r.abort());
+      const bp = pctx.pages()[0] || (await pctx.newPage());
+      bp.on('pageerror', (e) => blockedLog.push(`pageerror: ${String(e).slice(0, 160)}`));
+      bp.on('console', (m) => m.type() === 'error' && blockedLog.push(`console: ${m.text().slice(0, 160)}`));
+      for (let i = 0; i < 2; i += 1) {
+        await bp.goto(ORIGIN + '/');
+        await sleep(600);
+        blockedSplash.push(await bp.locator('.splash-intro').count());
+        await sleep(3000);
+        rendered.push(await bp.locator('header.navbar').count());
+      }
+    } finally {
+      await pctx.close();
+    }
+    const ok = !reloadSplash && navSplash === 0 && navPath === '/menudrop' && newTabSplash === 1 && dupSplash === 0 && blockedSplash.every((n) => n === 1) && clean(o);
+    const uniqueBlocked = [...new Set(blockedLog)];
+    R.add({
+      id: 'R-NAV-03',
+      viewport: vp,
+      resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `1 recarga: intro=${reloadSplash}; 2 navegar a ${navPath}: intro=${navSplash}; 3 pestaña nueva: intro=${newTabSplash}; 4 pestaña abierta con window.open (aprox. de «duplicar», copia sessionStorage=${dupSeen}): intro=${dupSplash}; 5 almacenamiento bloqueado (perfil Chrome con cookies bloqueadas, sessionStorage lanza SecurityError): intro en cada carga=${JSON.stringify(blockedSplash)}, app pintada=${JSON.stringify(rendered)}, errores: ${uniqueBlocked.join(' | ') || 'ninguno'}; ${sum(o)}`,
+      hallazgos: uniqueBlocked.some((l) => /sessionStorage/.test(l)) ? 'C-EST-03' : '',
+    });
+  }
+
+  // ---------- R-NAV-04 + TECLADO-intro (C-EST-04) ----------
+  {
+    const o = await open(b, 'escritorio', { skipIntro: false });
+    await o.context.addInitScript(splashTimer);
+    const { page } = o;
+    await page.goto(ORIGIN + '/');
+    await page.waitForSelector('.splash-intro');
+    await sleep(200);
+    const seq = [];
+    for (let i = 0; i < 4; i += 1) {
+      await page.keyboard.press('Tab');
+      const f = await focusInfo(page);
+      seq.push(fmtFocus(f));
+    }
+    await page.keyboard.press('Enter');
+    await sleep(400);
+    const urlAfterEnter = await page.evaluate(() => location.pathname);
+    const splashAfterEnter = await page.locator('.splash-intro').count();
+    await page.keyboard.press('Escape');
+    await sleep(150);
+    const splashAfterEsc = await page.locator('.splash-intro').count();
+    // 035 con el foco fuera de campos
+    await page.keyboard.type('035');
+    await sleep(300);
+    const est = await page.locator('[data-testid="estampida"]').count();
+    const inertInfo = await page.evaluate(() => ({ inert: document.querySelector('.app')?.inert, ariaHidden: document.querySelector('.app')?.getAttribute('aria-hidden'), btns: document.querySelectorAll('.splash-intro button, .splash-intro a').length }));
+    await page.waitForSelector('.splash-intro', { state: 'detached', timeout: 5000 });
+    const t = await page.evaluate(() => window.__splash);
+    await sleep(1800);
+    const estAfter = await page.locator('[data-testid="estampida"]').count();
+    const dur = Math.round(t.removed - t.added);
+    const covered = seq.filter((s) => s.includes('TAPADO')).length;
+    // Lo que la ficha espera: la intro no se salta, Tab enfoca lo de debajo (tapado), Enter navega, 035 no lanza.
+    const ok = splashAfterEnter === 1 && splashAfterEsc === 1 && est === 0 && estAfter === 0 && urlAfterEnter === '/menudrop' && covered >= 3 && dur < 3400;
+    R.add({
+      id: 'R-NAV-04',
+      viewport: 'escritorio',
+      resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `Tab×4 durante la intro: ${seq.join(' → ')}; Enter → ${urlAfterEnter} con la intro aún encima (${splashAfterEnter}); Escape no la cierra (${splashAfterEsc}); sin botón ni enlace en la capa (${inertInfo.btns}); .app inert=${inertInfo.inert} aria-hidden=${inertInfo.ariaHidden}; 035 durante la intro → estampida=${est} (y ${estAfter} al acabar); capa montada ${dur} ms; ${sum(o)}`,
+      hallazgos: 'C-EST-04',
+    });
+    R.add({
+      id: 'TECLADO-intro',
+      viewport: 'escritorio',
+      resultado: covered ? 'FALLO' : 'OK',
+      evidencia: `Durante los 3 s de la intro el foco recorre la tienda tapada: ${seq.join(' → ')} (${covered} de ${seq.length} quedan bajo la capa z=3000: el anillo existe pero no se ve); no hay forma de saltar la intro (ni botón ni Escape); Enter activa un enlace invisible y navega a ${urlAfterEnter}.`,
+      hallazgos: 'C-EST-04',
+    });
+    if (covered) await shot(page, 'estructura', 'TECLADO-intro-escritorio');
+    await o.context.close();
+  }
+
+  // ---------- C-EST-05: menú abierto durante la intro (móvil, con teclado) ----------
+  {
+    const o = await open(b, 'movil', { skipIntro: false });
+    const { page } = o;
+    await page.goto(ORIGIN + '/');
+    await page.waitForSelector('.splash-intro');
+    await sleep(200);
+    const seq = [];
+    for (let i = 0; i < 6; i += 1) {
+      await page.keyboard.press('Tab');
+      const f = await focusInfo(page);
+      seq.push(fmtFocus(f));
+      if (f.name === 'Abrir el menú') break;
+    }
+    await page.keyboard.press('Enter');
+    await sleep(200);
+    const openDuring = await page.locator('.navbar-sheet').count();
+    const ovOpen = await page.evaluate(() => document.body.style.overflow);
+    await page.waitForSelector('.splash-intro', { state: 'detached', timeout: 5000 });
+    await sleep(200);
+    const ovAfterIntro = await page.evaluate(() => document.body.style.overflow);
+    const stillOpen = await page.locator('.navbar-sheet').count();
+    await page.keyboard.press('Escape');
+    await sleep(200);
+    const ovClosed = await page.evaluate(() => document.body.style.overflow);
+    await swipe(page, 400);
+    await sleep(600);
+    const y = await page.evaluate(() => Math.round(scrollY));
+    const navTop = await page.evaluate(() => Math.round(document.querySelector('header.navbar').getBoundingClientRect().top));
+    fs.writeFileSync(path.join(SCRATCH, 'e1/estructura/out/c-est-05.json'), JSON.stringify({ seq, openDuring, ovOpen, ovAfterIntro, stillOpen, ovClosed, y, navTop }, null, 1));
+    console.log('C-EST-05', { seq, openDuring, ovOpen, ovAfterIntro, stillOpen, ovClosed, y, navTop });
+    if (ovClosed === 'hidden') await shot(page, 'estructura', 'C-EST-05-movil');
+    await o.context.close();
+  }
+} finally {
+  await b.close();
+}

@@ -1,0 +1,26 @@
+import { launchBrowser, open, ORIGIN, sleep } from './common.mjs';
+const b = await launchBrowser();
+async function touch(page, dy) {
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Input.synthesizeScrollGesture', { x: 180, y: 600, yDistance: -dy, gestureSourceType: 'touch', speed: 800 });
+  await cdp.detach();
+  await sleep(500);
+  return page.evaluate(() => Math.round(scrollY));
+}
+try {
+  for (const vp of ['movil', 'escritorio']) {
+    const o = await open(b, vp);
+    await o.page.goto(ORIGIN + '/');
+    await sleep(1200);
+    const ov = await o.page.evaluate(() => ({ html: getComputedStyle(document.documentElement).overflowY + '/' + getComputedStyle(document.documentElement).overflowX, body: getComputedStyle(document.body).overflowY }));
+    console.log(vp, 'overflow', ov);
+    console.log(vp, 'touch normal ->', await touch(o.page, 400));
+    await o.page.evaluate(() => { scrollTo(0, 0); document.body.style.overflow = 'hidden'; });
+    await sleep(200);
+    console.log(vp, 'touch con body hidden ->', await touch(o.page, 400));
+    await o.page.evaluate(() => scrollTo(0, 0));
+    await o.page.mouse.move(180, 500); await o.page.mouse.wheel(0, 600); await sleep(400);
+    console.log(vp, 'wheel con body hidden ->', await o.page.evaluate(() => Math.round(scrollY)));
+    await o.context.close();
+  }
+} finally { await b.close(); }

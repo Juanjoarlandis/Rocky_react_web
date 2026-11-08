@@ -1,0 +1,70 @@
+// Pasa out/*.json (pasadas completas, no las parciales) a resultados-e1/estructura.tsv con record(),
+// una línea por ficha y viewport (si un script registró varias comprobaciones, se fusionan).
+import fs from 'node:fs';
+import path from 'node:path';
+import { record, SCRATCH } from '../harness.mjs';
+
+const OUT = path.join(SCRATCH, 'e1/estructura/out');
+const files = ['intro', 'nav', 'carga', 'piemuro', 'legal404', 'curioso', 'estampida', 'paparazzi'];
+const rows = files.flatMap((f) => {
+  const p = path.join(OUT, `${f}.json`);
+  if (!fs.existsSync(p)) {
+    console.error('falta', p);
+    return [];
+  }
+  const full = JSON.parse(fs.readFileSync(p, 'utf8'));
+  // Una repetición parcial (script con filtro de IDs) sustituye a esas fichas de la pasada completa
+  const pp = path.join(OUT, `${f}.parcial.json`);
+  if (!fs.existsSync(pp)) return full;
+  const part = JSON.parse(fs.readFileSync(pp, 'utf8'));
+  const redone = new Set(part.map((r) => r.id));
+  console.error(`${f}: ${[...redone].join(', ')} sustituidas por la repetición parcial`);
+  return [...full.filter((r) => !redone.has(r.id)), ...part];
+});
+const order = [
+  ...Array.from({ length: 25 }, (_, i) => `R-NAV-${String(i + 1).padStart(2, '0')}`),
+  ...Array.from({ length: 6 }, (_, i) => `R-LEGAL-${String(i + 1).padStart(2, '0')}`),
+  ...Array.from({ length: 4 }, (_, i) => `R-404-${String(i + 1).padStart(2, '0')}`),
+  ...Array.from({ length: 7 }, (_, i) => `R-EGG-${String(i + 1).padStart(2, '0')}`),
+  'TECLADO-intro', 'TECLADO-navbar', 'TECLADO-menu-movil', 'TECLADO-portada', 'TECLADO-pie', 'TECLADO-legal', 'TECLADO-404',
+];
+// Candidatos comprobados con pruebas aparte (candidatos.mjs) que cuelgan de estas fichas
+const EXTRA = {
+  'R-NAV-05': ['C-EST-08'],
+  'R-NAV-07': ['C-EST-05'],
+  'R-NAV-04': ['C-EST-05'],
+  'R-LEGAL-06': ['NUEVO-4'],
+  'R-EGG-01': ['C-EST-20', 'C-EST-21'],
+  'R-EGG-03': ['C-EST-20'],
+  'R-404-01': ['C-EST-13 (descartado)'],
+};
+const vpOrder = ['escritorio', 'movil', 'no aplica (HTTP)'];
+const groups = new Map();
+for (const r of rows) {
+  const k = `${r.id}\u0000${r.viewport}`;
+  if (!groups.has(k)) groups.set(k, []);
+  groups.get(k).push(r);
+}
+const keys = [...groups.keys()].sort((a, b) => {
+  const [ia, va] = a.split('\u0000');
+  const [ib, vb] = b.split('\u0000');
+  return order.indexOf(ia) - order.indexOf(ib) || vpOrder.indexOf(va) - vpOrder.indexOf(vb);
+});
+const tsv = path.join(SCRATCH, 'resultados-e1', 'estructura.tsv');
+if (fs.existsSync(tsv)) fs.rmSync(tsv);
+const count = {};
+for (const k of keys) {
+  const list = groups.get(k);
+  const [id, viewport] = k.split('\u0000');
+  const res = list.some((r) => r.resultado === 'FALLO') ? 'FALLO' : list.some((r) => r.resultado === 'OK') ? 'OK' : list[0].resultado;
+  const evidencia = list.length > 1 ? list.map((r, i) => `[${i + 1}] ${r.evidencia}`).join(' || ') : list[0].evidencia;
+  const hallazgos = [...new Set([...list.flatMap((r) => String(r.hallazgos || '').split(/,\s*/)), ...(EXTRA[id] || [])].filter(Boolean))].join(', ');
+  record('estructura', { id, viewport, resultado: res, evidencia, hallazgos });
+  const bucket = res.startsWith('NO EJECUTADO') ? 'NO EJECUTADO' : res;
+  count[viewport] = count[viewport] || {};
+  count[viewport][bucket] = (count[viewport][bucket] || 0) + 1;
+}
+const missing = order.filter((id) => !rows.some((r) => r.id === id));
+console.log(JSON.stringify(count, null, 1));
+console.log('fichas sin registro:', missing);
+console.log('FALLOS:', keys.filter((k) => groups.get(k).some((r) => r.resultado === 'FALLO')).map((k) => k.replace('\u0000', ' ')));

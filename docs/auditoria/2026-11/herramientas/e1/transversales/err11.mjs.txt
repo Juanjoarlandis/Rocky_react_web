@@ -1,0 +1,46 @@
+// R-ERR-11 en E1 con un almacén cifrado de prueba (clave aleatoria, fichero en el
+// scratchpad): directorio sin escritura → el alta de aviso falla con un error interno.
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { startInstance, launchBrowser, openPage, summarize, shot, SCRATCH } from '../harness.mjs';
+import { card, saveObs, sleep } from './util.mjs';
+const dir = path.join(SCRATCH, 'e1', 'transversales', 'state3');
+fs.rmSync(dir, { recursive: true, force: true });
+fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+const cards = [];
+const inst = await startInstance(3309, { APP_ENCRYPTION_KEY: crypto.randomBytes(32).toString('base64'), STATE_STORE_PATH: path.join(dir, 'rocky-state.enc') });
+const b = await launchBrowser();
+try {
+  for (const vp of ['escritorio', 'movil']) {
+    const c = card('R-ERR-11', vp);
+    const { page, issues, context } = await openPage(b, vp, {});
+    await page.goto(`${inst.origin}/product/rockyracing`, { waitUntil: 'networkidle' });
+    const f = page.locator('[data-testid="drop-aviso"]');
+    await f.locator('input[type=email]').fill(`prueba-${vp}@example.com`);
+    await f.locator('input[type=checkbox]').check();
+    fs.chmodSync(dir, 0o500);
+    const [resp] = await Promise.all([page.waitForResponse((r) => r.url().endsWith('/api/avisos')), f.getByRole('button', { name: 'Avísame' }).click()]);
+    const body = await resp.text();
+    await f.locator('[role=alert]').waitFor({ timeout: 5000 }).catch(() => {});
+    const at = (await f.locator('[role=alert]').count()) ? await f.locator('[role=alert]').innerText() : '(sin alerta)';
+    fs.chmodSync(dir, 0o700);
+    c.check('500 {"message":"Algo se ha roto en el servidor."} sin code', resp.status() === 500 && body === '{"message":"Algo se ha roto en el servidor."}', `${resp.status()} ${body}`);
+    c.check('el aviso muestra «Algo se ha roto en el servidor.»', at === 'Algo se ha roto en el servidor.', at);
+    const lines = inst.log.join('').split('\n').filter((l) => l.includes('internal_error'));
+    const last = lines.at(-1) || '';
+    let parsed = {};
+    try { parsed = JSON.parse(last); } catch {}
+    c.check('log «Unhandled request error» con requestId, nombre, mensaje y stack', parsed.message === 'Unhandled request error' && parsed.requestId && parsed.stack, `message=«${String(parsed.message).replace(dir, '<dir>').slice(0, 120)}» requestId=${Boolean(parsed.requestId)} reason=${parsed.reason} name=${parsed.name} stack=${Boolean(parsed.stack)}`);
+    c.check('el log no lleva cuerpo, cabeceras, cookies ni email', !/prueba-|cookie|rocky_session|"body"|"headers"/i.test(last), 'revisado sobre la línea');
+    c.note('Ejecutado en E1 con almacén cifrado de prueba en el scratchpad (APP_ENCRYPTION_KEY aleatoria solo en el entorno del proceso) y el directorio en 0500 durante el envío. ' + summarize(issues).slice(0, 150));
+    if (!c.ok) await shot(page, 'transversales', `R-ERR-11-${vp}`);
+    await context.close();
+    cards.push(c);
+  }
+} finally {
+  try { fs.chmodSync(dir, 0o700); } catch {}
+  await b.close(); inst.stop(); await sleep(500);
+  fs.rmSync(dir, { recursive: true, force: true });
+  saveObs('err11', cards);
+}

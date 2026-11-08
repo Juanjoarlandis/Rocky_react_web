@@ -1,0 +1,163 @@
+// Comprobaciones complementarias para candidatos y fichas de revisión:
+// C-TRANS-05 / R-GATE-10 (logout con la puerta), C-TRANS-22 y R-SYS-09 (almacén
+// cifrado de prueba en el scratchpad, arranque y parada), C-TRANS-02 (fallo de
+// chunk repetido sin ErrorBoundary).
+import crypto from 'node:crypto';
+import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import http from 'node:http';
+import path from 'node:path';
+import { startInstance, launchBrowser, openPage, summarize, shot, REPO, SCRATCH } from '../harness.mjs';
+import { raw, brief, card, saveObs, sleep } from './util.mjs';
+
+const NODE = '/RUTA/A/node24';
+const cards = [];
+function exampleEnv() {
+  const out = {};
+  for (const line of fs.readFileSync(path.join(REPO, '.env.example'), 'utf8').split('\n')) {
+    const m = line.match(/^([A-Z][A-Z0-9_]*)=(.*)$/);
+    if (m) out[m[1]] = m[2];
+  }
+  return out;
+}
+function spawnServer(port, env) {
+  const O = `http://localhost:${port}`;
+  const child = spawn(NODE, ['server/index.mjs'], {
+    cwd: REPO,
+    env: { PATH: process.env.PATH, HOME: process.env.HOME, ...exampleEnv(), PORT: String(port), PUBLIC_ORIGIN: O, API_ALLOWED_ORIGINS: O, ...env },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let out = '';
+  child.stdout.on('data', (d) => (out += d));
+  child.stderr.on('data', (d) => (out += d));
+  const exit = new Promise((r) => child.once('exit', (code, signal) => r({ code, signal, at: Date.now() })));
+  return { child, out: () => out, exit };
+}
+async function waitUp(port, ms = 6000) {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    try { await raw('GET', `http://localhost:${port}/api/health`); return true; } catch { await sleep(150); }
+  }
+  return false;
+}
+async function hardStop(s) {
+  if (s.child.exitCode !== null || s.child.signalCode !== null) return;
+  s.child.kill('SIGTERM');
+  await Promise.race([s.exit, sleep(1500)]);
+  if (s.child.exitCode === null && s.child.signalCode === null) s.child.kill('SIGKILL');
+}
+
+const browser = await launchBrowser();
+try {
+  // ---------- C-TRANS-05 / R-GATE-10: logout de cliente con la puerta ----------
+  {
+    const c = card('R-GATE-10', 'api-e1');
+    const PW = crypto.randomBytes(12).toString('base64url');
+    const inst = await startInstance(3307, { SITE_ACCESS_ENABLED: 'true', SITE_ACCESS_PASSWORD: PW });
+    const O = inst.origin;
+    try {
+      const unlock = await raw('POST', `${O}/access-gate`, { headers: { Origin: O, 'Content-Type': 'application/x-www-form-urlencoded' }, body: `password=${encodeURIComponent(PW)}` });
+      const cookie = (unlock.headers['set-cookie'] || [])[0]?.split(';')[0];
+      const before = await raw('GET', `${O}/api/shopify/status`, { headers: { Cookie: cookie } });
+      c.check('desbloqueado: /api/shopify/status 200', unlock.status === 303 && before.status === 200, `${unlock.status} → ${before.status}`);
+      const out = await raw('POST', `${O}/api/shopify/account/logout`, { headers: { Origin: O, Cookie: cookie, 'Content-Type': 'application/json' }, body: '{}' });
+      const sc = (out.headers['set-cookie'] || []).join(' || ');
+      c.check('logout (sin cuentas de cliente en E1) → 200 y cookie con Max-Age=0', out.status === 200 && /rocky_session=; Max-Age=0; Path=\/; HttpOnly; SameSite=Lax/.test(sc), `${brief(out, ['content-type'])} set-cookie=${sc}`);
+      const doc = await raw('GET', `${O}/`, { headers: { Cookie: cookie, Accept: 'text/html' } });
+      const api = await raw('GET', `${O}/api/shopify/status`, { headers: { Cookie: cookie } });
+      c.check('tras el logout se pierde siteAccessGrant: la portada vuelve a ser la puerta y la API da 404 «Not found.»', doc.body.includes('ROCKY 035 — Coming soon') && api.status === 404 && api.body === 'Not found.', `doc puerta=${doc.body.includes('Coming soon')} api=${api.status} «${api.body}»`);
+      c.note('Ejecución parcial en E1: la ruta de logout se monta aunque no haya cuentas de cliente y destruye la sesión entera (sessions.mjs:152-161). El login con cuentas reales (que conserva la concesión) solo se cubre por test: account.test.mjs «preserves the grant on OAuth…», en verde. Ningún test cubre la puerta tras el logout.');
+    } finally {
+      inst.stop();
+      await sleep(800);
+    }
+    cards.push(c);
+  }
+
+  // ---------- C-TRANS-22 y R-SYS-09: almacén cifrado de prueba ----------
+  {
+    const c = card('R-SYS-09', 'api-e1');
+    const c22 = card('C-TRANS-22', 'api-e1');
+    const dir = path.join(SCRATCH, 'e1', 'transversales', 'state');
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+    const file = path.join(dir, 'rocky-state.enc');
+    const env = { APP_ENCRYPTION_KEY: crypto.randomBytes(32).toString('base64'), STATE_STORE_PATH: file };
+    let s = spawnServer(3309, env);
+    try {
+      const up = await waitUp(3309);
+      const h1 = await raw('GET', 'http://localhost:3309/api/health');
+      c22.check('arranca con almacén cifrado (sin fichero todavía) y la salud da 200', up && h1.status === 200, brief(h1));
+      fs.writeFileSync(file, 'esto-no-es-un-sobre-cifrado\n');
+      const h2 = await raw('GET', 'http://localhost:3309/api/health');
+      c22.check('fichero de estado dañado con el proceso vivo: la salud sigue en 200 (no vuelve a descifrar)', h2.status === 200, brief(h2));
+      fs.chmodSync(dir, 0o500);
+      const h3 = await raw('GET', 'http://localhost:3309/api/health');
+      const logged = /"State store probe failed".*"reason":"store_unavailable"/.test(s.out());
+      c22.check('directorio sin escritura: 503 {"status":"unavailable"} y log «State store probe failed»', h3.status === 503 && h3.body === '{"status":"unavailable"}' && logged, `${brief(h3)} log=${logged}`);
+      fs.chmodSync(dir, 0o700);
+      // Parada con SIGTERM y una conexión keep-alive abierta.
+      const agent = new http.Agent({ keepAlive: true });
+      await new Promise((res) => http.get({ host: 'localhost', port: 3309, path: '/api/health', agent }, (r) => { r.resume(); r.on('end', res); }));
+      const t0 = Date.now();
+      s.child.kill('SIGTERM');
+      const ex = await Promise.race([s.exit, sleep(12000).then(() => null)]);
+      const closing = /"Closing HTTP server".*"signal":"SIGTERM"/.test(s.out());
+      c.check('SIGTERM con una conexión keep-alive inactiva: log «Closing HTTP server» y sale con código 0', ex && ex.code === 0 && closing, ex ? `code=${ex.code} en ${ex.at - t0} ms; log=${closing}` : 'no salió en 12 s');
+      agent.destroy();
+    } finally {
+      try { fs.chmodSync(dir, 0o700); } catch { /* ya restaurado */ }
+      await hardStop(s);
+    }
+    // Arranque con un almacén que no descifra (el fichero dañado de antes).
+    s = spawnServer(3309, env);
+    const ex = await Promise.race([s.exit, sleep(6000).then(() => null)]);
+    const probeLog = /"State store probe failed".*"reason":"store_unavailable"/.test(s.out());
+    c.check('arranque con un almacén que no descifra: log JSON «State store probe failed», código 1 y no escucha', ex && ex.code === 1 && probeLog && !(await waitUp(3309, 500)), ex ? `code=${ex.code} log=${probeLog}` : 'no salió');
+    await hardStop(s);
+    // Configuración de producción no válida.
+    const prod = [
+      ['PUBLIC_ORIGIN sin HTTPS', { NODE_ENV: 'production', PUBLIC_ORIGIN: 'http://localhost:3309', API_ALLOWED_ORIGINS: 'https://rocky.test', TRUST_PROXY_HOPS: '1' }, 'PUBLIC_ORIGIN debe usar HTTPS en producción.'],
+      ['TRUST_PROXY_HOPS=0', { NODE_ENV: 'production', PUBLIC_ORIGIN: 'https://rocky.test', API_ALLOWED_ORIGINS: 'https://rocky.test', TRUST_PROXY_HOPS: '0' }, 'TRUST_PROXY_HOPS debe ser el número exacto'],
+      ['orígenes no HTTPS', { NODE_ENV: 'production', PUBLIC_ORIGIN: 'https://rocky.test', API_ALLOWED_ORIGINS: 'http://rocky.test', TRUST_PROXY_HOPS: '1' }, 'API_ALLOWED_ORIGINS sólo puede contener orígenes HTTPS en producción.'],
+      ['modelo de pago', { OPENROUTER_MODELS: 'openai/gpt-4o' }, 'OPENROUTER_MODELS sólo puede contener modelos gratuitos'],
+    ];
+    for (const [label, e, msg] of prod) {
+      const p = spawnServer(3309, e);
+      const r = await Promise.race([p.exit, sleep(5000).then(() => null)]);
+      c.check(`arranque rechazado: ${label}`, r && r.code !== 0 && p.out().includes(msg), r ? `code=${r.code}; ${p.out().includes(msg) ? 'mensaje presente (traza de Node)' : p.out().slice(0, 160)}` : 'siguió vivo');
+      await hardStop(p);
+    }
+    c.note('Tests: server/config/app.test.mjs (7, en verde). server/index.mjs no tiene tests y está excluido de la cobertura (vite.config.mjs:40). El forzado a los 10 s con una petición en curso no se ha reproducido (no hay ruta lenta en E1).');
+    fs.rmSync(dir, { recursive: true, force: true });
+    cards.push(c, c22);
+  }
+
+  // ---------- C-TRANS-02: fallo de chunk repetido ----------
+  {
+    const c = card('C-TRANS-02', 'escritorio');
+    const inst = await startInstance(3309, {});
+    try {
+      const { page, issues, context } = await openPage(browser, 'escritorio', {});
+      await page.route('**/assets/ChatComponent-*.js', (route) => route.abort('failed'));
+      await page.goto(`${inst.origin}/`, { waitUntil: 'networkidle' });
+      const navs = [];
+      page.on('framenavigated', (f) => { if (f === page.mainFrame()) navs.push(f.url().replace(inst.origin, '')); });
+      const link = page.locator('a[href="/rockyIA"]:visible').first();
+      if (await link.count()) await link.click({ noWaitAfter: true });
+      else await page.evaluate(() => { history.pushState({}, '', '/rockyIA'); dispatchEvent(new PopStateEvent('popstate')); });
+      await sleep(5000);
+      const root = await page.evaluate(() => document.getElementById('root')?.innerHTML.length ?? -1);
+      const guard = await page.evaluate(() => sessionStorage.getItem('rocky-preload-reload'));
+      c.check('un chunk que falla dos veces seguidas deja un mensaje de error, no la página en blanco', root > 0, `#root=${root} car.; navegaciones=${navs.join(' > ') || 'ninguna'}; guarda=${guard}; ${summarize(issues).slice(0, 400)}`);
+      if (root <= 0) await shot(page, 'transversales', 'C-TRANS-02-escritorio');
+      await context.close();
+    } finally {
+      inst.stop();
+    }
+    cards.push(c);
+  }
+} finally {
+  await browser.close();
+  saveObs('extras', cards);
+}

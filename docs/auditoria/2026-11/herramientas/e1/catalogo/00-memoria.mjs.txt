@@ -1,0 +1,57 @@
+// Memoria residente de los procesos de Chrome al pintar una foto de 5906 px frente a una de 1254 px.
+import fs from 'node:fs';
+import { startInstance, launchBrowser, openPage } from '../harness.mjs';
+
+const inst = await startInstance(3202, {});
+const browser = await launchBrowser();
+const rss = (pid) => {
+  try {
+    const m = fs.readFileSync(`/proc/${pid}/status`, 'utf8').match(/VmRSS:\s+(\d+)/);
+    return m ? Number(m[1]) : 0;
+  } catch {
+    return 0;
+  }
+};
+try {
+  const bcdp = await browser.newBrowserCDPSession();
+  const snapshot = async () => {
+    const { processInfo } = await bcdp.send('SystemInfo.getProcessInfo');
+    const by = {};
+    for (const p of processInfo) by[p.type] = (by[p.type] || 0) + rss(p.id);
+    return by;
+  };
+  for (const vp of ['movil', 'escritorio']) {
+    for (const url of (process.env.URLS || '/product/rocky-night-runner,/product/smoker-edition,/product/rockydz-boyz').split(',')) {
+      const { page, context } = await openPage(browser, vp, { origin: inst.origin });
+      await page.goto(inst.origin + '/robots.txt');
+      await page.waitForTimeout(800);
+      const before = await snapshot();
+      await page.goto(inst.origin + url);
+      if (!url.startsWith('/product/')) {
+        await page.waitForSelector('.commerce-notice');
+        await page.evaluate(() => document.querySelector('.product-grid').scrollIntoView());
+        await page.waitForTimeout(2500);
+        const after = await snapshot();
+        const fmt = (o) => Object.entries(o).filter(([k]) => /renderer|GPU/.test(k)).map(([k, v]) => `${k} ${Math.round(v / 1024)}MB`).join(', ');
+        console.log(`${vp} ${url}: antes ${fmt(before)} → con la rejilla a la vista ${fmt(after)}`);
+        await context.close();
+        continue;
+      }
+      await page.waitForSelector('img.detail-image');
+      await page.waitForFunction(() => document.querySelector('img.detail-image').complete);
+      await page.waitForTimeout(1500);
+      const after = await snapshot();
+      // Abre el lightbox (foto más grande en pantalla)
+      await page.locator('button.detail-media').click();
+      await page.waitForSelector('dialog.lightbox[open]');
+      await page.waitForTimeout(1500);
+      const lb = await snapshot();
+      const fmt = (o) => Object.entries(o).map(([k, v]) => `${k} ${Math.round(v / 1024)}MB`).join(', ');
+      console.log(`${vp} ${url}\n  antes: ${fmt(before)}\n  ficha: ${fmt(after)}\n  lightbox: ${fmt(lb)}`);
+      await context.close();
+    }
+  }
+} finally {
+  await browser.close();
+  inst.stop();
+}

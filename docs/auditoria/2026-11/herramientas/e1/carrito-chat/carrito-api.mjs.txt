@@ -1,0 +1,80 @@
+// Fichas de API de carrito, checkout y cuenta en E1 (R-CART-03, R-CART-04,
+// R-CHK-01 pasos 2-3, R-ACC-01 pasos 4-6 y R-ACC-02).
+import { startInstance } from '../harness.mjs';
+import { call, brief, save } from './common.mjs';
+
+const inst = await startInstance(3203, {
+  CHAT_RATE_LIMIT_MAX: '50',
+  SHOPIFY_RATE_LIMIT_MAX: '2000',
+});
+const W = inst.origin;
+const J = { 'Content-Type': 'application/json' };
+const O = { ...J, Origin: W };
+const out = {};
+try {
+  const status = await call(`${W}/api/shopify/status`);
+  out.status = brief(status);
+
+  // R-CART-03
+  const post = JSON.stringify({ variantId: 'gid://shopify/ProductVariant/1', quantity: 1, operationId: 'audit-0001' });
+  out.cart03 = {
+    get: await call(`${W}/api/shopify/cart`),
+    post: await call(`${W}/api/shopify/cart/lines`, { method: 'POST', headers: O, body: post }),
+    patch: await call(`${W}/api/shopify/cart/lines`, {
+      method: 'PATCH', headers: O,
+      body: JSON.stringify({ lineId: 'gid://shopify/CartLine/abc', quantity: 2, operationId: 'audit-0002' }),
+    }),
+    del: await call(`${W}/api/shopify/cart/lines`, {
+      method: 'DELETE', headers: O,
+      body: JSON.stringify({ lineId: 'gid://shopify/CartLine/abc', operationId: 'audit-0003' }),
+    }),
+    invalid: await call(`${W}/api/shopify/cart/lines`, { method: 'POST', headers: O, body: '{"quantity":0}' }),
+    broken: await call(`${W}/api/shopify/cart/lines`, { method: 'POST', headers: O, body: '{' }),
+  };
+
+  // R-CART-04
+  out.cart04 = {
+    noOrigin: await call(`${W}/api/shopify/cart/lines`, { method: 'POST', headers: J, body: post }),
+    evil: await call(`${W}/api/shopify/cart/lines`, {
+      method: 'POST', headers: { ...J, Origin: 'https://evil.example' }, body: post,
+    }),
+    statusEvil: await call(`${W}/api/shopify/status`, { headers: { Origin: 'https://evil.example' } }),
+    options: await call(`${W}/api/shopify/cart/lines`, {
+      method: 'OPTIONS', headers: { Origin: W, 'Access-Control-Request-Method': 'POST' },
+    }),
+  };
+
+  // R-CHK-01 pasos 2 y 3
+  out.chk01 = {
+    withOrigin: await call(`${W}/api/shopify/checkout`, { method: 'POST', headers: O, body: '{}' }),
+    noOrigin: await call(`${W}/api/shopify/checkout`, { method: 'POST', headers: J, body: '{}' }),
+  };
+
+  // R-ACC-01 pasos 4-6 (los 5 y 6 también se abren en el navegador en carrito-ui)
+  out.acc01 = {
+    account: await call(`${W}/api/shopify/account`),
+    login: await call(`${W}/api/shopify/account/login?returnPath=%2Fmi-crew`),
+    callback: await call(`${W}/api/shopify/account/callback?state=x&code=y`),
+  };
+
+  // R-ACC-02
+  const fake = 'A'.repeat(20) + 'b_c-d'.repeat(5);
+  out.acc02 = {
+    withOrigin: await call(`${W}/api/shopify/account/logout`, { method: 'POST', headers: O, body: '{}' }),
+    noOrigin: await call(`${W}/api/shopify/account/logout`, { method: 'POST', headers: J, body: '{}' }),
+    fakeCookie: await call(`${W}/api/shopify/account/logout`, {
+      method: 'POST', headers: { ...O, Cookie: `rocky_session=${fake}` }, body: '{}',
+    }),
+    fakeLen: fake.length,
+  };
+} finally {
+  inst.stop();
+}
+out.serverLog = inst.log.join('').slice(-3000);
+save('carrito-api', out);
+for (const [k, v] of Object.entries(out)) {
+  if (typeof v === 'string') { console.log(k, v.slice(0, 1500)); continue; }
+  for (const [kk, vv] of Object.entries(v)) {
+    console.log(`${k}.${kk}:`, typeof vv === 'object' ? `${brief(vv)} | ${JSON.stringify(vv.headers)}` : vv);
+  }
+}

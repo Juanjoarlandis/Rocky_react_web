@@ -1,0 +1,152 @@
+// R-CAT-12 (API de estado y catálogo), R-DROP-10 (límite de altas) y R-DROP-12 (altas manipuladas)
+// con instancias en los límites por defecto (3302 y 3303).
+import { execFileSync } from 'node:child_process';
+import { startInstance, launchBrowser, openPage } from '../harness.mjs';
+import { Checks, rec, waitStore } from './util.mjs';
+
+const ONLY = process.argv[2] ? new Set(process.argv[2].split(',')) : null;
+const want = (id) => !ONLY || ONLY.has(id);
+const browser = await launchBrowser();
+
+const avisosAdded = (inst) => inst.log.join('').split('\n').filter((l) => l.includes('Aviso de drop apuntado'));
+
+try {
+  // ---------------- R-DROP-10 ----------------
+  if (want('R-DROP-10')) {
+    const inst = await startInstance(3302);
+    const O = inst.origin;
+    const { page, issues, context } = await openPage(browser, 'escritorio', { origin: O });
+    const c = new Checks();
+    try {
+      const products = ['dwag', 'hobby', 'dots', 'mugshot', 'danger', 'flora-blue', 'flora-red'];
+      const results = [];
+      for (const [i, h] of products.entries()) {
+        await page.goto(`${O}/product/${h}`);
+        await waitStore(page);
+        const f = page.locator('#aviso form.drop-aviso');
+        await f.locator('input[type=email]').fill('auditoria+limite@rocky.test');
+        await f.locator('input[name=consentimiento]').check();
+        const respP = page.waitForResponse((r) => r.url().endsWith('/api/avisos'));
+        await f.locator('button[type=submit]').click();
+        const r = await respP;
+        let body = null;
+        try {
+          body = await r.json();
+        } catch {
+          /* sin json */
+        }
+        await page.waitForTimeout(300);
+        results.push({ n: i + 1, status: r.status(), body, limit: r.headers()['ratelimit-limit'], remaining: r.headers()['ratelimit-remaining'], retry: r.headers()['retry-after'] });
+      }
+      c.ok('seis primeras: 200', results.slice(0, 6).every((x) => x.status === 200), results.slice(0, 6).map((x) => `${x.n}:${x.status} rem ${x.remaining}`).join(', '));
+      const seventh = results[6];
+      c.eq('séptima: 429 y mensaje', [seventh.status, seventh.body], [429, { message: 'Demasiadas peticiones. Inténtalo más tarde.' }]);
+      c.ok('séptima: Retry-After y RateLimit-Limit 6', Number(seventh.retry) > 0 && seventh.limit === '6', `Retry-After ${seventh.retry}, RateLimit-Limit ${seventh.limit}, Remaining ${seventh.remaining}`);
+      const ui = await page.evaluate(() => {
+        const a = document.querySelector('#aviso .drop-aviso-fallo');
+        const f2 = document.querySelector('#aviso form.drop-aviso');
+        return { role: a?.getAttribute('role'), msg: a?.textContent.trim(), enabled: f2 ? !f2.querySelector('button[type=submit]').disabled && !f2.querySelector('input[type=email]').disabled : null };
+      });
+      c.eq('el formulario muestra el texto y sigue activo', ui, { role: 'alert', msg: 'Demasiadas peticiones. Inténtalo más tarde.', enabled: true });
+      // Una petición rechazada por validación también cuenta: con el cupo agotado, un 400 pasa a 429
+      const extra = await page.evaluate(async () => {
+        const r = await fetch('/api/avisos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ producto: '', email: 'x', consentimiento: false, apodo: '' }) });
+        return r.status;
+      });
+      c.eq('con el cupo agotado, una petición inválida también da 429', extra, 429);
+      c.note(`altas registradas en el log: ${avisosAdded(inst).length}`);
+      await rec({ id: 'R-DROP-10', viewport: 'escritorio', checks: c, issues, page, hallazgos: '' });
+    } finally {
+      await context.close();
+      inst.stop();
+    }
+  }
+
+  // ---------------- R-DROP-12 y R-CAT-12 ----------------
+  if (want('R-DROP-12') || want('R-CAT-12')) {
+    const inst = await startInstance(3303);
+    const O = inst.origin;
+    const { page, issues, context } = await openPage(browser, 'escritorio', { origin: O });
+    try {
+      await page.goto(O + '/');
+      await waitStore(page);
+      if (want('R-DROP-12')) {
+        const c = new Checks();
+        const post = (body) =>
+          page.evaluate(async (b) => {
+            const r = await fetch('/api/avisos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) });
+            let j = null;
+            try {
+              j = await r.json();
+            } catch {
+              /* sin json */
+            }
+            return { status: r.status, body: j, remaining: r.headers.get('RateLimit-Remaining') };
+          }, body);
+        const base = { email: 'auditoria+api@rocky.test', consentimiento: true, apodo: '' };
+        const before = avisosAdded(inst).length;
+        const r1 = await post({ ...base, producto: 'rocky-drop-4', email: 'bot@rocky.test', apodo: 'bot' });
+        c.eq('1 campo trampa', [r1.status, r1.body], [200, { ok: true, duplicate: false, product: null }]);
+        c.eq('1 campo trampa: no se guarda nada (sin línea de alta en el log)', avisosAdded(inst).length - before, 0);
+        const r2 = await post({ ...base, producto: 'no-existe' });
+        c.eq('2 producto desconocido', [r2.status, r2.body], [400, { message: 'Ese producto no está en la tienda.' }]);
+        const r3a = await post({ ...base, producto: '' });
+        const r3b = await post({ ...base, producto: '!indice' });
+        c.eq('3 producto vacío', [r3a.status, r3a.body], [400, { message: 'Falta saber de qué producto avisarte.' }]);
+        c.eq('3 producto !indice', [r3b.status, r3b.body], [400, { message: 'Falta saber de qué producto avisarte.' }]);
+        const r4 = await post({ ...base, producto: 'rocky-drop-4', consentimiento: false });
+        c.eq('4 sin consentimiento', [r4.status, r4.body], [400, { message: 'Necesitamos tu permiso para apuntarte.' }]);
+        const r5 = await post({ ...base, producto: 'rocky-airwave' });
+        c.eq('5 concepto de vista previa', [r5.status, r5.body], [200, { ok: true, duplicate: false, product: 'rocky-airwave' }]);
+        c.ok('5 alta guardada (línea en el log)', avisosAdded(inst).some((l) => l.includes('rocky-airwave')), avisosAdded(inst).map((l) => l.replace(/.*"producto"/, '"producto"').slice(0, 50)).join(' | '));
+        c.note(`RateLimit-Remaining tras las 6 peticiones: ${r5.remaining}`);
+        // 6 con curl
+        const curl = (extra) => {
+          const out = execFileSync('curl', ['-s', '-o', '-', '-w', '\n%{http_code}', '-X', 'POST', `${O}/api/avisos`, '-H', 'Content-Type: application/json', ...extra, '--data', JSON.stringify({ ...base, producto: 'rocky-drop-4' })], { encoding: 'utf8' });
+          const lines = out.trim().split('\n');
+          return { status: Number(lines.pop()), body: JSON.parse(lines.join('\n') || 'null') };
+        };
+        const r6a = curl([]);
+        const r6b = curl(['-H', 'Origin: https://evil.example']);
+        c.eq('6 curl sin Origin', [r6a.status, r6a.body], [403, { message: 'Petición de origen no confiable.' }]);
+        c.eq('6 curl con Origin ajeno', [r6b.status, r6b.body], [403, { message: 'Origen no permitido.' }]);
+        c.ok('las respuestas 400 no llevan code', [r2, r3a, r3b, r4].every((r) => r.body && !('code' in r.body)));
+        await rec({ id: 'R-DROP-12', viewport: 'api', checks: c, issues, page, hallazgos: 'C-CAT-13' });
+      }
+      if (want('R-CAT-12')) {
+        Object.values(issues).forEach((a) => a.splice(0));
+        const c = new Checks();
+        const get = async (path) => {
+          const r = await page.goto(O + path);
+          const h = r.headers();
+          let body = null;
+          try {
+            body = JSON.parse(await r.text());
+          } catch {
+            /* sin json */
+          }
+          return { status: r.status(), body, rl: [h['ratelimit-limit'], h['ratelimit-remaining'], h['ratelimit-reset']] };
+        };
+        const s1 = await get('/api/shopify/status');
+        c.eq('1 estado', [s1.status, s1.body], [200, { mode: 'demo', apiVersion: '2026-07', capabilities: { catalog: false, cart: false, customerAccounts: false, admin: false, webhooks: false } }]);
+        const s2 = await get('/api/shopify/products?first=8');
+        c.eq('2 catálogo sin Shopify', [s2.status, s2.body], [503, { message: 'El catálogo Shopify no está configurado.' }]);
+        const bad = [];
+        for (const q of ['first=0', 'first=51', 'first=abc', `after=${'x'.repeat(501)}`]) {
+          const r = await get(`/api/shopify/products?${q}`);
+          const field = q.startsWith('after') ? 'after' : 'first';
+          bad.push(r);
+          c.eq(`3 ${q.slice(0, 12)}`, [r.status, r.body], [400, { message: `El campo «${field}» no es válido.`, code: 'INVALID_QUERY' }]);
+        }
+        const all = [s1, s2, ...bad];
+        c.ok('cabeceras RateLimit-* (límite 120) en todas', all.every((r) => r.rl[0] === '120' && r.rl[1] !== undefined && r.rl[2] !== undefined), all.map((r) => `${r.rl[0]}/${r.rl[1]}`).join(', '));
+        await rec({ id: 'R-CAT-12', viewport: 'api', checks: c, issues, page, hallazgos: 'C-CAT-13' });
+      }
+    } finally {
+      await context.close();
+      inst.stop();
+    }
+  }
+} finally {
+  await browser.close();
+}

@@ -1,0 +1,428 @@
+// Recorridos transversales sobre la instancia pública (sin puerta) en :3207.
+// API: R-SYS-01, 03, 04, 05, 06, 07, 08; R-ERR-02, 06, 07, 08; R-HOOK-07.
+// Interfaz: R-ERR-09, R-ERR-12 y R-ERR-01 en escritorio y móvil.
+import fs from 'node:fs';
+import { startInstance, launchBrowser, openPage, summarize, shot, REPO } from '../harness.mjs';
+import { raw, brief, card, saveObs, sleep } from './util.mjs';
+
+const PORT = 3207;
+const O = `http://localhost:${PORT}`;
+const cards = [];
+const jsAsset = fs.readdirSync(`${REPO}/dist/assets`).find((n) => /^index-.*\.js$/.test(n));
+const CSP =
+  "default-src 'self'; base-uri 'self'; connect-src 'self'; font-src 'self'; form-action 'self' https://*.myshopify.com; frame-ancestors 'none'; frame-src 'self' https://open.spotify.com; img-src 'self' data: https://cdn.shopify.com; media-src 'self'; object-src 'none'; script-src 'self'; style-src 'self'";
+
+const inst = await startInstance(PORT, {});
+const browser = await launchBrowser();
+try {
+  // ---------- R-SYS-01 ----------
+  {
+    const c = card('R-SYS-01', 'api');
+    const r = await raw('GET', `${O}/api/health`);
+    c.check('200 {"status":"ok"}', r.status === 200 && r.body === '{"status":"ok"}', brief(r));
+    c.check('Cache-Control no-store', r.headers['cache-control'] === 'no-store', r.headers['cache-control']);
+    c.check('X-Request-Id UUID', /^[0-9a-f-]{36}$/.test(r.headers['x-request-id'] || ''), r.headers['x-request-id']);
+    c.check('cabeceras de seguridad', r.headers['content-security-policy'] === CSP && r.headers['x-frame-options'] === 'DENY', 'CSP/XFO presentes');
+    c.note('Sin Vite propio: la petición va directa a Express de :3207 (equivale al paso por el proxy). Almacén en memoria, sonda siempre pasa.');
+    cards.push(c);
+  }
+
+  // ---------- R-SYS-03 ----------
+  {
+    const c = card('R-SYS-03', 'api');
+    const targets = ['/', `/assets/${jsAsset}`, '/api/health', '/crew'];
+    for (const t of targets) {
+      const r = await raw('GET', `${O}${t}`);
+      const h = r.headers;
+      const ok =
+        h['content-security-policy'] === CSP &&
+        h['cross-origin-opener-policy'] === 'same-origin' &&
+        h['cross-origin-resource-policy'] === 'same-origin' &&
+        h['permissions-policy'] === 'camera=(), geolocation=(), microphone=()' &&
+        h['referrer-policy'] === 'strict-origin-when-cross-origin' &&
+        h['x-content-type-options'] === 'nosniff' &&
+        h['x-frame-options'] === 'DENY' &&
+        /^[0-9a-f-]{36}$/.test(h['x-request-id'] || '') &&
+        h['x-powered-by'] === undefined;
+      c.check(`cabeceras comunes en ${t}`, ok, `${r.status} csp=${h['content-security-policy'] === CSP} xpb=${h['x-powered-by'] ?? 'no'}`);
+      c.check(`sin HSTS en desarrollo (${t})`, h['strict-transport-security'] === undefined, h['strict-transport-security'] ?? 'ausente');
+      if (t.startsWith('/api/')) c.check('API no-store', h['cache-control'] === 'no-store', h['cache-control']);
+    }
+    // Consola de la SPA servida por Express: violaciones de CSP.
+    const { page, issues, context } = await openPage(browser, 'escritorio', {});
+    for (const p of ['/', '/crew', '/estudio', '/rockyIA', '/product/rocky-night-runner']) {
+      await page.goto(`${O}${p}`, { waitUntil: 'networkidle' });
+      await sleep(500);
+    }
+    const csp = issues.console.filter((m) => /Content Security Policy|Refused to/i.test(m));
+    c.check('sin violaciones de CSP en consola (/, /crew, /estudio, /rockyIA, ficha)', csp.length === 0, csp.join(' | ') || summarize(issues));
+    await context.close();
+    // Comparación con un documento de Vite (el E1 compartido en :3002, solo GET).
+    try {
+      const v = await raw('GET', 'http://[::1]:3002/', { headers: { Host: 'localhost:3002', Accept: 'text/html' } });
+      c.check('documento de Vite sin CSP ni XFO', !v.headers['content-security-policy'] && !v.headers['x-frame-options'], `${v.status} csp=${v.headers['content-security-policy'] ? 'sí' : 'no'} xfo=${v.headers['x-frame-options'] ? 'sí' : 'no'}`);
+    } catch (e) {
+      c.note(`Vite de :3002 no accesible para comparar (${e.code || e.message})`);
+    }
+    cards.push(c);
+  }
+
+  // ---------- R-SYS-04 ----------
+  {
+    const c = card('R-SYS-04', 'api');
+    const doc = 'public, max-age=0, must-revalidate';
+    for (const t of ['/', '/index.html', '/crew']) {
+      const r = await raw('GET', `${O}${t}`);
+      c.check(`documento ${t}`, r.headers['cache-control'] === doc && r.headers['cloudflare-cdn-cache-control'] === 'no-store' && r.headers.etag && r.headers['last-modified'], `${r.status} cc=${r.headers['cache-control']} cdn=${r.headers['cloudflare-cdn-cache-control']} etag=${Boolean(r.headers.etag)} lm=${Boolean(r.headers['last-modified'])}`);
+    }
+    const a = await raw('GET', `${O}/assets/${jsAsset}`);
+    c.check('asset con hash inmutable', a.headers['cache-control'] === 'public, max-age=31536000, immutable' && a.headers['cloudflare-cdn-cache-control'] === 'public, max-age=31536000', `${a.status} cc=${a.headers['cache-control']} cdn=${a.headers['cloudflare-cdn-cache-control']}`);
+    for (const t of ['/manifest.json', '/theme-init.js', '/products/rocky-racing.webp', '/music/barro.m4a']) {
+      const r = await raw('GET', `${O}${t}`);
+      c.check(`público estable ${t}`, r.status === 200 && r.headers['cache-control'] === 'public, max-age=14400, must-revalidate' && r.headers['cloudflare-cdn-cache-control'] === 'public, max-age=14400', `${r.status} ${r.headers['content-type']} cc=${r.headers['cache-control']} cdn=${r.headers['cloudflare-cdn-cache-control']}`);
+    }
+    const g = await raw('GET', `${O}/assets/${jsAsset}`, { headers: { 'Accept-Encoding': 'gzip, br' } });
+    c.check('sin Content-Encoding (no hay compresión)', g.headers['content-encoding'] === undefined, g.headers['content-encoding'] ?? 'ausente');
+    // Revalidación condicional del documento.
+    const first = await raw('GET', `${O}/crew`);
+    const cond = await raw('GET', `${O}/crew`, { headers: { 'If-None-Match': first.headers.etag } });
+    c.check('If-None-Match → 304', cond.status === 304, `${cond.status}`);
+    const { page, context } = await openPage(browser, 'escritorio', {});
+    await page.goto(`${O}/`, { waitUntil: 'networkidle' });
+    const statuses = [];
+    page.on('response', (r) => { if (r.url() === `${O}/`) statuses.push(r.status()); });
+    await page.reload({ waitUntil: 'networkidle' });
+    c.note(`Recarga en Chrome: estado del documento visto por Playwright = ${statuses.join(',') || 'sin respuesta'}`);
+    await context.close();
+    cards.push(c);
+  }
+
+  // ---------- R-SYS-05 ----------
+  {
+    const c = card('R-SYS-05', 'api');
+    for (const t of ['/crew', '/legal/privacidad', '/products/agotado', '/no-existe']) {
+      const r = await raw('GET', `${O}${t}`);
+      const canon = r.body.match(/<link rel="canonical" href="([^"]+)"/)?.[1];
+      const og = r.body.match(/property="og:url" content="([^"]+)"/)?.[1];
+      c.check(`${t} → 200 html con documento`, r.status === 200 && /text\/html/.test(r.headers['content-type']) && r.headers['cache-control'] === 'public, max-age=0, must-revalidate', `${r.status} ${r.headers['content-type']} canonical=${canon} og:url=${og}`);
+      c.check(`${t} canonical y og:url a la portada`, canon === 'https://rocky035.com/' && og === 'https://rocky035.com/', `${canon} / ${og}`);
+    }
+    const { page, issues, context } = await openPage(browser, 'escritorio', {});
+    await page.goto(`${O}/no-existe`, { waitUntil: 'networkidle' });
+    const txt = await page.locator('main').innerText();
+    c.check('NotFound pinta «Te has salido del mapa» y «La página que buscas no existe.»', /Te has salido del mapa/i.test(txt) && /La página que buscas no existe\./.test(txt), txt.slice(0, 160));
+    const canonLive = await page.evaluate(() => [document.querySelector('link[rel=canonical]')?.href, document.querySelector('meta[property="og:url"]')?.content]);
+    await page.goto(`${O}/legal/privacidad`, { waitUntil: 'networkidle' });
+    const canonLegal = await page.evaluate(() => [document.querySelector('link[rel=canonical]')?.href, document.querySelector('meta[property="og:url"]')?.content, document.title]);
+    c.note(`canonical/og:url en vivo: /no-existe=${canonLive.join(' , ')}; /legal/privacidad=${canonLegal.join(' , ')}`);
+    c.note(summarize(issues));
+    await context.close();
+    cards.push(c);
+  }
+
+  // ---------- R-SYS-06 ----------
+  {
+    const c = card('R-SYS-06', 'api');
+    const a = await raw('GET', `${O}/assets/no-existe.js`);
+    c.check('/assets/no-existe.js → 404 «Asset not found.» no-store', a.status === 404 && a.body === 'Asset not found.' && a.headers['cache-control'] === 'no-store' && /text\/plain/.test(a.headers['content-type']), brief(a));
+    for (const ext of ['webp', 'avif', 'jpg', 'jpeg', 'png']) {
+      const r = await raw('GET', `${O}/products/no-existe.${ext}`);
+      c.check(`/products/no-existe.${ext} → 404 «Product asset not found.»`, r.status === 404 && r.body === 'Product asset not found.' && r.headers['cache-control'] === 'no-store', brief(r));
+    }
+    const ag = await raw('GET', `${O}/products/agotado`);
+    c.check('/products/agotado → SPA 200', ag.status === 200 && /<div id="root">/.test(ag.body), `${ag.status} ${ag.headers['content-type']}`);
+    const p = await raw('GET', `${O}/products`);
+    c.check('/products → 301 a /products/', p.status === 301 && p.headers.location === '/products/', brief(p));
+    c.note(`301 cabeceras de caché: cache-control=${p.headers['cache-control'] ?? 'ausente'} cdn=${p.headers['cloudflare-cdn-cache-control'] ?? 'ausente'}`);
+    const p2 = await raw('GET', `${O}/products/`);
+    c.note(`/products/ → ${p2.status} ${p2.headers['content-type']} cc=${p2.headers['cache-control']}`);
+    for (const t of ['/music/no-existe.m4a', '/sitemap.xml']) {
+      const r = await raw('GET', `${O}${t}`);
+      c.check(`${t} → index.html 200 (soft 404)`, r.status === 200 && /<div id="root">/.test(r.body), `${r.status} ${r.headers['content-type']}`);
+    }
+    cards.push(c);
+  }
+
+  // ---------- R-SYS-07 ----------
+  {
+    const c = card('R-SYS-07', 'api');
+    const { page, context } = await openPage(browser, 'escritorio', {});
+    await page.goto(`${O}/`, { waitUntil: 'networkidle' });
+    const res = await page.evaluate(async () => {
+      const out = {};
+      const a = await fetch('/api/loquesea');
+      out.get = { s: a.status, cc: a.headers.get('cache-control'), b: await a.text() };
+      const d = await fetch('/api/loquesea', { method: 'DELETE' });
+      out.del = { s: d.status, b: await d.text() };
+      const ch = await fetch('/api/chat');
+      out.chat = { s: ch.status, b: await ch.text() };
+      const api = await fetch('/api');
+      out.api = { s: api.status, ct: api.headers.get('content-type') };
+      return out;
+    });
+    await context.close();
+    c.check('GET /api/loquesea → 404 JSON sin code, no-store', res.get.s === 404 && res.get.b === '{"message":"Ruta no encontrada."}' && res.get.cc === 'no-store', JSON.stringify(res.get));
+    c.check('DELETE /api/loquesea → 404 JSON', res.del.s === 404 && res.del.b === '{"message":"Ruta no encontrada."}', JSON.stringify(res.del));
+    c.check('GET /api/chat → 404 JSON', res.chat.s === 404 && res.chat.b === '{"message":"Ruta no encontrada."}', JSON.stringify(res.chat));
+    c.check('/api sin barra → index.html 200', res.api.s === 200 && /text\/html/.test(res.api.ct), JSON.stringify(res.api));
+    const p = await raw('POST', `${O}/loquesea`);
+    c.check('POST /loquesea → 404 HTML «Cannot POST /loquesea»', p.status === 404 && /Cannot POST \/loquesea/.test(p.body) && /text\/html/.test(p.headers['content-type']), brief(p));
+    cards.push(c);
+  }
+
+  // ---------- R-SYS-08 ----------
+  {
+    const c = card('R-SYS-08', 'api');
+    const ok = await raw('OPTIONS', `${O}/api/shopify/cart/lines`, { headers: { Origin: O, 'Access-Control-Request-Method': 'POST' } });
+    c.check('preflight permitido → 204 con CORS mínimos', ok.status === 204 && ok.headers['access-control-allow-origin'] === O && ok.headers.vary === 'Origin' && ok.headers['access-control-allow-methods'] === 'GET, POST, PATCH, DELETE, OPTIONS' && ok.headers['access-control-allow-headers'] === 'Content-Type' && ok.headers['access-control-max-age'] === '600' && ok.headers['access-control-allow-credentials'] === undefined, `${ok.status} acao=${ok.headers['access-control-allow-origin']} vary=${ok.headers.vary} methods=${ok.headers['access-control-allow-methods']} headers=${ok.headers['access-control-allow-headers']} max-age=${ok.headers['access-control-max-age']} cred=${ok.headers['access-control-allow-credentials'] ?? 'no'}`);
+    const any = await raw('OPTIONS', `${O}/cualquier/cosa`, { headers: { Origin: O, 'Access-Control-Request-Method': 'POST' } });
+    c.check('preflight en cualquier ruta → 204', any.status === 204, `${any.status}`);
+    const evil = await raw('OPTIONS', `${O}/api/shopify/cart/lines`, { headers: { Origin: 'https://evil.example', 'Access-Control-Request-Method': 'POST' } });
+    c.check('preflight ajeno → 403 JSON', evil.status === 403 && evil.body === '{"message":"Origen no permitido."}', brief(evil));
+    const doc = await raw('GET', `${O}/`, { headers: { Origin: 'https://evil.example' } });
+    c.check('GET / con Origin ajeno → 403 JSON sin Cache-Control ni Vary', doc.status === 403 && doc.body === '{"message":"Origen no permitido."}' && doc.headers['cache-control'] === undefined && doc.headers.vary === undefined, brief(doc));
+    const asset = await raw('GET', `${O}/assets/${jsAsset}`, { headers: { Origin: 'https://evil.example' } });
+    c.check('asset con Origin ajeno → 403 JSON', asset.status === 403, brief(asset));
+    const plain = await raw('GET', `${O}/`);
+    c.check('GET / sin Origin → 200 sin CORS', plain.status === 200 && plain.headers['access-control-allow-origin'] === undefined, `${plain.status} acao=${plain.headers['access-control-allow-origin'] ?? 'no'}`);
+    cards.push(c);
+  }
+
+  // ---------- R-ERR-02 ----------
+  {
+    const c = card('R-ERR-02', 'api');
+    for (const t of ['/api/avisos', '/api/shopify/checkout', '/api/chat']) {
+      const r = await raw('POST', `${O}${t}`, { headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      c.check(`${t} sin Origin → 403 «Petición de origen no confiable.»`, r.status === 403 && r.body === '{"message":"Petición de origen no confiable."}', brief(r, ['content-type', 'ratelimit-remaining']));
+    }
+    const bad = await raw('POST', `${O}/api/avisos`, { headers: { 'Content-Type': 'application/json' }, body: '{"producto":' });
+    c.check('JSON malformado sin Origin → 400 antes', bad.status === 400 && bad.body === '{"message":"JSON no válido."}', brief(bad));
+    cards.push(c);
+  }
+
+  // ---------- R-ERR-06, R-ERR-07, R-ERR-08 (consola del mismo origen) ----------
+  {
+    const { page, context } = await openPage(browser, 'escritorio', {});
+    await page.goto(`${O}/`, { waitUntil: 'networkidle' });
+    const r = await page.evaluate(async () => {
+      const j = async (res) => ({ s: res.status, b: await res.text(), ra: res.headers.get('retry-after') });
+      const out = {};
+      out.big = await j(await fetch('/api/avisos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'x'.repeat(17000) }) }));
+      out.e1 = await j(await fetch('/api/avisos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"producto":' }));
+      out.e2 = await j(await fetch('/api/avisos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: 'null' }));
+      out.e3 = await j(await fetch('/api/avisos', { method: 'POST', headers: { 'Content-Type': 'application/json; charset=latin1' }, body: '{}' }));
+      out.e4 = await j(await fetch('/api/avisos', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: '{}' }));
+      out.v1 = await j(await fetch('/api/shopify/products?first=abc'));
+      out.v2 = await j(await fetch('/api/shopify/products?first=1&first=2'));
+      out.v10 = await j(await fetch('/api/shopify/products?first=10'));
+      out.v3 = await j(await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: '   ' }) }));
+      out.v4 = await j(await fetch('/api/shopify/products?first=5&foo=bar'));
+      return out;
+    });
+    await context.close();
+    const logText = inst.log.join('');
+    const c6 = card('R-ERR-06', 'api');
+    c6.check('17 kB → 413 «Petición demasiado grande.» sin code', r.big.s === 413 && r.big.b === '{"message":"Petición demasiado grande."}', JSON.stringify(r.big));
+    c6.check('log «Request rejected» con reason body_too_large', /"Request rejected".*"reason":"body_too_large"|body_too_large/.test(logText), (logText.match(/[^\n]*body_too_large[^\n]*/) || ['sin línea'])[0].slice(0, 200));
+    cards.push(c6);
+    const c7 = card('R-ERR-07', 'api');
+    c7.check('paso 1 JSON cortado → 400 «JSON no válido.»', r.e1.s === 400 && r.e1.b === '{"message":"JSON no válido."}', JSON.stringify(r.e1));
+    c7.check('paso 2 null → 400 «JSON no válido.»', r.e2.s === 400 && r.e2.b === '{"message":"JSON no válido."}', JSON.stringify(r.e2));
+    c7.check('paso 3 latin1 → 415 «Codificación no soportada.»', r.e3.s === 415 && r.e3.b === '{"message":"Codificación no soportada."}', JSON.stringify(r.e3));
+    c7.check('paso 4 text/plain → 400 «Falta saber de qué producto avisarte.»', r.e4.s === 400 && r.e4.b === '{"message":"Falta saber de qué producto avisarte."}', JSON.stringify(r.e4));
+    cards.push(c7);
+    const c8 = card('R-ERR-08', 'api');
+    const inv = '{"message":"El campo «first» no es válido.","code":"INVALID_QUERY"}';
+    c8.check('first=abc → 400 INVALID_QUERY', r.v1.s === 400 && r.v1.b === inv, JSON.stringify(r.v1));
+    c8.check('first=1&first=2 → 400 INVALID_QUERY', r.v2.s === 400 && r.v2.b === inv, JSON.stringify(r.v2));
+    c8.check('first=10 → 503 (sin catálogo)', r.v10.s === 503, JSON.stringify(r.v10));
+    c8.check('mensaje vacío → 400 INVALID_MESSAGE', r.v3.s === 400 && r.v3.b === '{"message":"Mensaje no válido.","code":"INVALID_MESSAGE"}', JSON.stringify(r.v3));
+    c8.check('campo desconocido descartado (foo=bar → no 400)', r.v4.s !== 400, JSON.stringify(r.v4));
+    cards.push(c8);
+  }
+
+  // ---------- R-HOOK-07 (puerta apagada) ----------
+  {
+    const c = card('R-HOOK-07', 'api');
+    const r = await raw('POST', `${O}/api/shopify/webhooks`, { headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    c.check('POST /api/shopify/webhooks → 404 JSON «Ruta no encontrada.»', r.status === 404 && r.body === '{"message":"Ruta no encontrada."}', brief(r, ['content-type', 'ratelimit-limit', 'ratelimit-remaining']));
+    c.check('pasa por el limitador de /api/shopify (RateLimit-*)', r.headers['ratelimit-limit'] === '120', `RateLimit-Limit=${r.headers['ratelimit-limit']}`);
+    const s = await raw('GET', `${O}/api/shopify/status`);
+    const st = JSON.parse(s.body);
+    c.check('/api/shopify/status anuncia webhooks:false', st.capabilities?.webhooks === false, s.body.slice(0, 200));
+    cards.push(c);
+  }
+
+  // ---------- R-ERR-09 (interfaz) ----------
+  for (const vp of ['escritorio', 'movil']) {
+    const c = card('R-ERR-09', vp);
+    const { page, issues, context } = await openPage(browser, vp, {});
+    const apiCalls = [];
+    page.on('request', (r) => { if (r.url().includes('/api/')) apiCalls.push(`${r.method()} ${new URL(r.url()).pathname}`); });
+    await page.goto(`${O}/`, { waitUntil: 'networkidle' });
+    const notice = page.locator('.commerce-notice');
+    const text = (await notice.count()) ? await notice.innerText() : '';
+    const role = (await notice.count()) ? await notice.getAttribute('role') : '';
+    c.check('aviso «Modo demo · catálogo de muestra, sin stock ni pagos.» role=status', text === 'Modo demo · catálogo de muestra, sin stock ni pagos.' && role === 'status', `«${text}» role=${role}`);
+    const cardsCount = await page.locator('a[href^="/product/"]').count();
+    c.check('catálogo demo visible', cardsCount > 0, `${cardsCount} enlaces a fichas`);
+    c.check('la SPA no llama a products ni a cart', !apiCalls.some((x) => /\/api\/shopify\/(products|cart)/.test(x)), apiCalls.join(', '));
+    const r = await page.evaluate(async () => {
+      const t = async (p, o) => { const res = await fetch(p, o); return `${res.status} ${await res.text()}`; };
+      return [
+        await t('/api/shopify/products'),
+        await t('/api/shopify/cart'),
+        await t('/api/shopify/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }),
+        await t('/api/shopify/account/login'),
+      ];
+    });
+    const exp = [
+      '503 {"message":"El catálogo Shopify no está configurado."}',
+      '503 {"message":"El carrito Shopify no está configurado."}',
+      '503 {"message":"El checkout Shopify no está configurado."}',
+      '503 {"message":"Las cuentas de cliente no están configuradas."}',
+    ];
+    exp.forEach((e, i) => c.check(`llamada directa ${i + 1}`, r[i] === e, r[i]));
+    c.note(summarize(issues));
+    await context.close();
+    cards.push(c);
+  }
+
+  // ---------- R-ERR-12 (sin conexión) ----------
+  for (const vp of ['escritorio', 'movil']) {
+    const c = card('R-ERR-12', vp);
+    const { page, issues, context } = await openPage(browser, vp, {});
+    // Rocky IA
+    await page.goto(`${O}/rockyIA`, { waitUntil: 'networkidle' });
+    await context.setOffline(true);
+    await page.getByLabel('Mensaje para Rocky IA').fill('hola');
+    await page.getByRole('button', { name: 'Enviar mensaje' }).click();
+    const bubble = page.locator('.chat-message.error .chat-bubble').last();
+    await bubble.waitFor({ timeout: 8000 }).catch(() => {});
+    const chatText = (await bubble.count()) ? await bubble.innerText() : '(sin burbuja)';
+    c.check('Rocky IA: «No hay conexión con la Colmena. Revisa tu red y vuelve a intentarlo.»', chatText === 'No hay conexión con la Colmena. Revisa tu red y vuelve a intentarlo.', chatText);
+    await context.setOffline(false);
+    // Avisos
+    await page.goto(`${O}/product/rockyracing`, { waitUntil: 'networkidle' });
+    const form = page.locator('[data-testid="drop-aviso"]');
+    if (await form.count()) {
+      await form.locator('input[type=email]').fill('prueba@example.com');
+      await form.locator('input[type=checkbox]').check();
+      await context.setOffline(true);
+      await form.getByRole('button', { name: 'Avísame' }).click();
+      const alert = form.locator('[role=alert]');
+      await alert.waitFor({ timeout: 8000 }).catch(() => {});
+      const t = (await alert.count()) ? await alert.innerText() : '(sin alerta)';
+      c.check('Avisos: «No hemos podido apuntarte. Prueba otra vez.»', t === 'No hemos podido apuntarte. Prueba otra vez.', t);
+      c.check('botón vuelve a «Avísame»', (await form.getByRole('button').innerText()) === 'Avísame', await form.getByRole('button').innerText());
+      await context.setOffline(false);
+    } else {
+      c.check('formulario de aviso en /product/rockyracing', false, 'no aparece');
+    }
+    // Publicar un beat
+    await page.goto(`${O}/estudio`, { waitUntil: 'networkidle' });
+    const pub = page.getByRole('button', { name: 'Publicar en el ranking' });
+    if ((await pub.count()) && (await pub.isEnabled())) {
+      await pub.click();
+      const f = page.locator('form.mesa-publicar');
+      await f.locator('input[name=nombre]').fill('Prueba offline');
+      await f.locator('input[name=apodo]').fill('auditor');
+      await context.setOffline(true);
+      await f.getByRole('button', { name: 'Publicar', exact: true }).click();
+      await sleep(1500);
+      const t = await f.locator('[role=status]').innerText();
+      c.check('Publicar beat: «No se ha podido conectar con la tienda.»', t === 'No se ha podido conectar con la tienda.', t);
+      await context.setOffline(false);
+    } else {
+      c.note('Publicar en el ranking no disponible (patrón vacío o botón ausente)');
+    }
+    // Ruta diferida no visitada sin red: contexto nuevo para que el chunk no esté en caché.
+    const fresh = await openPage(browser, vp, {});
+    await fresh.page.goto(`${O}/`, { waitUntil: 'networkidle' });
+    await fresh.context.setOffline(true);
+    const navs = [];
+    fresh.page.on('framenavigated', (f) => { if (f === fresh.page.mainFrame()) navs.push(f.url()); });
+    const legalLink = fresh.page.locator('a[href="/legal/privacidad"]').first();
+    if (await legalLink.count()) {
+      await legalLink.click({ noWaitAfter: true }).catch((e) => navs.push(`click falló: ${e.message.slice(0, 80)}`));
+    } else {
+      await fresh.page.evaluate(() => { window.history.pushState({}, '', '/legal/privacidad'); window.dispatchEvent(new PopStateEvent('popstate')); });
+    }
+    await sleep(3000);
+    const finalUrl = fresh.page.url();
+    const body = await fresh.page.evaluate(() => document.body?.innerText?.slice(0, 200) || '').catch((e) => `no legible: ${e.message}`);
+    c.check('ruta diferida sin red → recarga y error del navegador', navs.length > 0, `navegaciones=${navs.join(' > ') || 'ninguna'}; url=${finalUrl}; texto=«${body.replace(/\s+/g, ' ').slice(0, 140)}»`);
+    if (!c.ok) await shot(fresh.page, 'transversales', `R-ERR-12-${vp}`);
+    await fresh.context.setOffline(false);
+    await fresh.context.close();
+    c.note(summarize(issues));
+    await context.close();
+    cards.push(c);
+  }
+
+  // ---------- R-ERR-01 (otro origen) ----------
+  for (const vp of ['escritorio', 'movil']) {
+    const c = card('R-ERR-01', vp);
+    const other = `http://127.0.0.1:${PORT}`;
+    // 1) Tal cual: la SPA servida por Express desde un origen no listado.
+    {
+      const { page, issues, context } = await openPage(browser, vp, {});
+      await page.goto(`${other}/product/rockyracing`, { waitUntil: 'networkidle' });
+      const rootLen = await page.evaluate(() => document.getElementById('root')?.innerHTML.length ?? -1);
+      const forb = issues.http.filter((x) => x.startsWith('403'));
+      c.check('la SPA carga desde un origen no listado', rootLen > 0, `#root vacío (${rootLen} car.); 403: ${forb.map((x) => x.replace(other, '')).join(' | ')}`);
+      if (rootLen <= 0) await shot(page, 'transversales', `R-ERR-01-${vp}`);
+      await context.close();
+    }
+    // 2) Simulación de Vite: los GET de /assets salen sin Origin (Vite sirve
+    //    módulos sin política de origen); los POST de la app van intactos.
+    {
+      const { page, issues, context } = await openPage(browser, vp, {});
+      // Chrome vuelve a poner Origin aunque se quite en route.continue: los GET
+      // se piden desde Node sin Origin (route.fetch) y se entregan al navegador.
+      await page.route('**/*', async (route) => {
+        const req = route.request();
+        if (req.method() === 'GET' && req.resourceType() !== 'document') {
+          const h = { ...req.headers() };
+          delete h.origin;
+          const resp = await route.fetch({ headers: h });
+          return route.fulfill({ response: resp });
+        }
+        return route.continue();
+      });
+      const posts = [];
+      page.on('response', async (r) => { if (r.request().method() === 'POST') posts.push(`${r.status()} ${new URL(r.url()).pathname} ${await r.text().catch(() => '')}`); });
+      await page.goto(`${other}/product/rockyracing`, { waitUntil: 'networkidle' });
+      const form = page.locator('[data-testid="drop-aviso"]');
+      if (await form.count()) {
+        await form.locator('input[type=email]').fill('prueba@example.com');
+        await form.locator('input[type=checkbox]').check();
+        await form.getByRole('button', { name: 'Avísame' }).click();
+        const alert = form.locator('[role=alert]');
+        await alert.waitFor({ timeout: 8000 }).catch(() => {});
+        const t = (await alert.count()) ? await alert.innerText() : '(sin alerta)';
+        c.check('[simulación] aviso muestra «Origen no permitido.» (role=alert) y botón «Avísame»', t === 'Origen no permitido.' && (await form.getByRole('button').innerText()) === 'Avísame', t);
+      } else {
+        c.check('[simulación] formulario de aviso visible', false, 'no aparece');
+      }
+      await page.goto(`${other}/rockyIA`, { waitUntil: 'networkidle' });
+      await page.getByLabel('Mensaje para Rocky IA').fill('hola');
+      await page.getByRole('button', { name: 'Enviar mensaje' }).click();
+      const bubble = page.locator('.chat-message.error .chat-bubble').last();
+      await bubble.waitFor({ timeout: 8000 }).catch(() => {});
+      const chatText = (await bubble.count()) ? await bubble.innerText() : '(sin burbuja)';
+      c.check('[simulación] Rocky IA: «Rocky IA sólo atiende desde la tienda oficial…»', chatText === 'Rocky IA sólo atiende desde la tienda oficial. Abre rocky035.com y vuelve a preguntar.', chatText);
+      c.check('[simulación] POST reciben 403 JSON «Origen no permitido.» sin code', posts.length >= 2 && posts.every((p) => p.startsWith('403') && p.endsWith('{"message":"Origen no permitido."}')), posts.join(' | '));
+      const st = await page.evaluate(async () => (await fetch('/api/shopify/status')).status);
+      c.check('[simulación] GET /api/shopify/status sigue funcionando', st === 200, String(st));
+      c.note(summarize(issues));
+      await context.close();
+    }
+    cards.push(c);
+  }
+} finally {
+  await browser.close();
+  inst.stop();
+  fs.writeFileSync(new URL('./obs/sys-server.log', import.meta.url), inst.log.join(''));
+  saveObs('sys', cards);
+}

@@ -1,0 +1,12 @@
+import { startInstance } from '../harness.mjs';
+import { call, brief, save } from './common.mjs';
+const out = {};
+for (const [port, v] of [[3308, '500'], [3309, '50']]) {
+  const inst = await startInstance(port, { CHAT_RATE_LIMIT_MAX: v });
+  try {
+    const r = await call(`${inst.origin}/api/chat`, { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: inst.origin }, body: '{"message":"hola"}' });
+    out[v] = { brief: brief(r), log: inst.log.join('').trim() };
+  } finally { inst.stop(); }
+}
+save('probe-config', out);
+console.log(JSON.stringify(out, null, 1));

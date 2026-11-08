@@ -1,0 +1,33 @@
+import { startInstance, launchBrowser, openPage, summarize } from '../harness.mjs';
+const inst = await startInstance(3206);
+const b = await launchBrowser();
+try {
+  for (const vp of ['escritorio', 'movil']) {
+    const { page, issues, context } = await openPage(b, vp, { origin: inst.origin });
+    const music = [];
+    page.on('request', (r) => { if (r.url().includes('/music/')) music.push(`${r.method()} ${r.url()} range=${r.headers().range || ''}`); });
+    await page.goto(inst.origin + '/');
+    await page.waitForTimeout(1500);
+    const info = await page.evaluate(() => ({
+      canShare: typeof navigator.canShare, share: typeof navigator.share,
+      audio: (() => { const a = document.querySelector('audio'); return { src: a.getAttribute('src'), preload: a.preload, paused: a.paused, ns: a.networkState, rs: a.readyState }; })(),
+      theme: document.documentElement.dataset.theme || null,
+      meta: document.querySelector('meta[name=theme-color]')?.content,
+      bulbs: [...document.querySelectorAll('button[aria-label*="descontrol"]')].map((b) => ({ label: b.getAttribute('aria-label'), visible: !!b.offsetParent, pressed: b.getAttribute('aria-pressed') })),
+      pill: [...document.querySelectorAll('.mini-player button, .mini-player a')].map((e) => e.getAttribute('aria-label')),
+      vis: document.visibilityState,
+    }));
+    console.log(vp, JSON.stringify(info), music, summarize(issues));
+    // probar play
+    await page.getByRole('button', { name: 'Reproducir BARRO' }).click();
+    await page.waitForTimeout(2000);
+    console.log(vp, await page.evaluate(() => { const a = document.querySelector('audio'); return { src: a.currentSrc, paused: a.paused, t: a.currentTime, rs: a.readyState, err: a.error?.code }; }), music);
+    // visibilidad con otra pestaña
+    const p2 = await context.newPage();
+    await p2.goto('about:blank'); await p2.bringToFront(); await page.waitForTimeout(500);
+    console.log('vis tras abrir otra', await page.evaluate(() => document.visibilityState));
+    await page.bringToFront(); await page.waitForTimeout(300);
+    console.log('vis tras volver', await page.evaluate(() => document.visibilityState));
+    await context.close();
+  }
+} finally { await b.close(); inst.stop(); }

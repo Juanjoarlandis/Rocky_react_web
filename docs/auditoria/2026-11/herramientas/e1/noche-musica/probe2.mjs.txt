@@ -1,0 +1,24 @@
+import { startInstance, launchBrowser, openPage, summarize } from '../harness.mjs';
+import { PORT, nightOn, themeState, touchDrag, line, sprayStorage, canvasInk, touchScroll } from './lib.mjs';
+const inst = await startInstance(PORT);
+const b = await launchBrowser();
+try {
+  const { page, issues, context } = await openPage(b, 'movil', { origin: inst.origin });
+  await page.goto(inst.origin + '/crew'); await page.waitForTimeout(1500);
+  await nightOn(page, 'movil');
+  console.log(await themeState(page));
+  await page.locator('.spray-fab').tap();
+  await page.waitForTimeout(200);
+  const y0 = await page.evaluate(() => scrollY);
+  await page.evaluate(() => { window.__pe = []; for (const t of ['pointerdown','pointermove','pointerup','pointercancel']) window.addEventListener(t, (e) => window.__pe.push(t+':'+e.pointerType+':'+e.isPrimary), true); });
+  await touchDrag(page, line(20, 300, 30, 500, 20));
+  await page.waitForTimeout(500);
+  console.log('scroll', y0, await page.evaluate(() => scrollY), (await page.evaluate(() => window.__pe)).slice(0, 5), (await page.evaluate(() => window.__pe)).length);
+  console.log(JSON.stringify(await sprayStorage(page)).slice(0, 300));
+  console.log(await canvasInk(page, { x: 0, y: 280, w: 60, h: 260 }));
+  // soltar y hacer scroll táctil
+  await page.locator('.spray-tool--close').tap();
+  await touchScroll(page, 200, 500, 600); await page.waitForTimeout(800);
+  console.log('scroll tras soltar', await page.evaluate(() => scrollY));
+  console.log(summarize(issues));
+} finally { await b.close(); inst.stop(); }

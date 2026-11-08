@@ -1,0 +1,29 @@
+import { launchBrowser, open, ORIGIN, sleep } from './common.mjs';
+const b = await launchBrowser();
+try {
+  for (let rep = 0; rep < 2; rep++) {
+    const o = await open(b, 'escritorio');
+    const { page } = o;
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto(ORIGIN + '/');
+    await sleep(900);
+    await page.locator('header .navbar-menu').click();
+    await sleep(250);
+    await page.evaluate(() => {
+      window.__log = [];
+      const t0 = performance.now();
+      const log = (m) => window.__log.push(`${Math.round(performance.now() - t0)} ${m} active=${document.activeElement?.className || document.activeElement?.tagName}`);
+      document.addEventListener('focusout', (e) => log(`focusout ${e.target.className}`), true);
+      document.addEventListener('focusin', (e) => log(`focusin ${e.target.className}`), true);
+      matchMedia('(min-width: 641px)').addEventListener('change', () => log('mq change'));
+      window.addEventListener('resize', () => log('resize'));
+    });
+    if (rep === 0) await page.locator('.navbar-sheet nav a').nth(2).focus();
+    else { await page.keyboard.press('Tab'); await page.keyboard.press('Tab'); }
+    console.log('foco antes:', await page.evaluate(() => document.activeElement.textContent.trim()));
+    await page.setViewportSize({ width: 700, height: 812 });
+    await sleep(500);
+    console.log(rep, await page.evaluate(() => ({ log: window.__log, active: document.activeElement.className || document.activeElement.tagName })));
+    await o.context.close();
+  }
+} finally { await b.close(); }

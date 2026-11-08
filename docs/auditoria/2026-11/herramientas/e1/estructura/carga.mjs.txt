@@ -1,0 +1,426 @@
+// R-NAV-16..20, 23, 24 y R-404-04 (carga diferida, rutas profundas, historial, metadatos, HTTP).
+import { launchBrowser, open, sum, clean, shot, ORIGIN, sleep, results } from './common.mjs';
+
+const R = results('carga');
+const b = await launchBrowser();
+const only = process.argv[2] ? process.argv[2].split(',') : null;
+const want = (id) => !only || only.includes(id);
+const VITE = 'http://localhost:3002';
+
+const loadingState = (page) =>
+  page.evaluate(() => {
+    const l = document.querySelector('.page-loading');
+    const sp = l?.querySelector('.page-loading-spinner');
+    return {
+      loading: Boolean(l),
+      text: l?.textContent.trim(),
+      role: l?.getAttribute('role') || null,
+      live: l?.getAttribute('aria-live') || null,
+      spinnerHidden: sp?.getAttribute('aria-hidden'),
+      spinnerAnim: sp ? getComputedStyle(sp).animationName : null,
+      nav: Boolean(document.querySelector('header.navbar')),
+      footer: Boolean(document.querySelector('footer.footer')),
+      path: location.pathname,
+      h1: document.querySelector('main h1')?.textContent?.trim().slice(0, 40) || null,
+      title: document.title,
+    };
+  });
+
+async function handles(page) {
+  await page.goto(ORIGIN + '/');
+  await sleep(900);
+  return page.evaluate(() => [...new Set([...document.querySelectorAll('a[href^="/product/"]')].map((a) => a.getAttribute('href')))]);
+}
+
+try {
+  // ---------- R-NAV-16 ----------
+  if (want('R-NAV-16')) {
+    for (const vp of ['escritorio', 'movil']) {
+      const parts = [];
+      let ok = true;
+      for (const rm of ['no-preference', 'reduce']) {
+        const o = await open(b, vp, { reducedMotion: rm });
+        const { page, context } = o;
+        await context.route('**/assets/Crew-*.js', async (route) => {
+          await sleep(2500);
+          return route.continue();
+        });
+        await page.goto(ORIGIN + '/crew', { waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('.page-loading', { timeout: 5000 }).catch(() => {});
+        const s = await loadingState(page);
+        await page.waitForSelector('.page-loading', { state: 'detached', timeout: 8000 }).catch(() => {});
+        const done = await loadingState(page);
+        const good = s.loading && s.text === 'Cargando...' && s.spinnerHidden === 'true' && s.nav && s.footer && (rm === 'reduce' ? s.spinnerAnim === 'none' : s.spinnerAnim === 'crosshair-spin') && !done.loading && done.title === 'La Crew · ROCKY 035';
+        ok = ok && good;
+        parts.push(`${rm === 'reduce' ? 'movimiento reducido' : 'normal'}: /crew por URL con el módulo retrasado 2,5 s → «${s.text}», diana aria-hidden=${s.spinnerHidden} animación=${s.spinnerAnim}, role=${s.role} aria-live=${s.live}, barra=${s.nav} pie=${s.footer}; al llegar «${done.title}»`);
+        if (rm === 'no-preference') {
+          // 4. Ya cargada la app: de / a «Estudio» sin haberlo abierto, con el módulo retrasado
+          await context.route('**/assets/Studio-*.js', async (route) => {
+            await sleep(2500);
+            return route.continue();
+          });
+          await page.getByRole('link', { name: 'Inicio' }).click();
+          await page.waitForFunction(() => location.pathname === '/');
+          await sleep(500);
+          const t0 = Date.now();
+          if (vp === 'escritorio') await page.locator('header nav').getByRole('link', { name: 'Estudio' }).click();
+          else {
+            await page.locator('header .navbar-menu').click();
+            await page.getByRole('dialog', { name: 'Menú' }).getByRole('link', { name: 'Estudio' }).click();
+          }
+          await sleep(400);
+          const mid = await page.evaluate(() => ({ path: location.pathname, loading: Boolean(document.querySelector('.page-loading')), home: Boolean(document.querySelector('.street-wall')), studio: Boolean(document.querySelector('.mesa, .studio, [class*="studio"]')), active: document.querySelector('header nav a.is-active')?.textContent, title: document.title, busy: document.querySelector('[aria-busy="true"]') ? 'sí' : 'no' }));
+          await page.waitForFunction(() => document.title === 'La Colmena · ROCKY 035', null, { timeout: 8000 }).catch(() => {});
+          const tStudio = Date.now() - t0;
+          // 5. Volver a «Crew», ya descargado
+          const t1 = Date.now();
+          if (vp === 'escritorio') await page.locator('header nav').getByRole('link', { name: 'Crew', exact: true }).click();
+          else {
+            await page.locator('header .navbar-menu').click();
+            await page.getByRole('dialog', { name: 'Menú' }).getByRole('link', { name: 'Crew', exact: true }).click();
+          }
+          await page.waitForFunction(() => document.title === 'La Crew · ROCKY 035', null, { timeout: 4000 }).catch(() => {});
+          const tCrew = Date.now() - t1;
+          const loadingCrew = await page.locator('.page-loading').count();
+          parts.push(`(4) clic en Estudio con el módulo retrasado: a los 400 ms URL=${mid.path}, «Cargando...»=${mid.loading}, sigue la portada=${mid.home}, enlace activo «${mid.active}», título «${mid.title}», aria-busy=${mid.busy}; Estudio pintado a los ${tStudio} ms; (5) Crew ya descargado: ${tCrew} ms, «Cargando...»=${loadingCrew}`);
+          ok = ok && mid.path === '/estudio' && tCrew < 1500;
+          o.c4 = mid;
+        }
+        ok = ok && clean(o);
+        parts.push(sum(o));
+        await context.close();
+      }
+      R.add({ id: 'R-NAV-16', viewport: vp, resultado: ok ? 'OK' : 'FALLO', evidencia: parts.join('; '), hallazgos: 'C-EST-09, C-EST-10' });
+    }
+  }
+
+  // ---------- R-NAV-17 ----------
+  if (want('R-NAV-17')) {
+    const o = await open(b, 'escritorio');
+    const { page, context } = o;
+    const navs = [];
+    page.on('framenavigated', (f) => {
+      if (f === page.mainFrame()) navs.push(`${Date.now() % 100000} ${new URL(f.url()).pathname}`);
+    });
+    await page.goto(ORIGIN + '/');
+    await sleep(11000); // que pase la ventana de 10 s del arranque
+    const block = (route) => route.abort();
+    await context.route('**/assets/Legal-*', block);
+    navs.length = 0;
+    await page.getByRole('navigation', { name: 'Información legal' }).getByRole('link', { name: 'Cookies' }).click();
+    await sleep(3500);
+    const s1 = await page.evaluate(() => ({ path: location.pathname, flag: sessionStorage.getItem('rocky-preload-reload'), root: document.getElementById('root').innerHTML.length, text: document.body.innerText.trim().slice(0, 80) }));
+    const navs1 = [...navs];
+    if (s1.root === 0) await shot(page, 'estructura', 'R-NAV-17-escritorio');
+    const errs1 = [...o.issues.pageErrors, ...o.issues.console.filter((c) => c.startsWith('error'))].map((e) => e.slice(0, 160));
+    // 5. Con el bloqueo puesto, repetir antes de 10 s
+    navs.length = 0;
+    await page.goto(ORIGIN + '/');
+    await sleep(1200);
+    const flagBefore = await page.evaluate(() => sessionStorage.getItem('rocky-preload-reload'));
+    await page.getByRole('navigation', { name: 'Información legal' }).getByRole('link', { name: 'Cookies' }).click();
+    await sleep(2500);
+    const s2 = await page.evaluate(() => ({ path: location.pathname, flag: sessionStorage.getItem('rocky-preload-reload'), root: document.getElementById('root').innerHTML.length }));
+    const navs2 = [...navs];
+    // 6. Quitar el bloqueo, esperar > 10 s y repetir
+    await context.unroute('**/assets/Legal-*', block);
+    await page.goto(ORIGIN + '/');
+    await sleep(10500);
+    const flag3 = await page.evaluate(() => sessionStorage.getItem('rocky-preload-reload'));
+    await page.getByRole('navigation', { name: 'Información legal' }).getByRole('link', { name: 'Cookies' }).click();
+    await page.waitForFunction(() => document.title === 'Cookies · ROCKY 035', null, { timeout: 5000 }).catch(() => {});
+    const s3 = await page.evaluate(() => ({ path: location.pathname, h1: document.querySelector('main h1')?.textContent }));
+    const blank = s1.root === 0 || s2.root === 0;
+    R.add({
+      id: 'R-NAV-17',
+      viewport: 'escritorio',
+      resultado: blank ? 'FALLO' : 'OK',
+      evidencia: `bloqueado /assets/Legal-* y clic en «Cookies» del pie: navegaciones ${JSON.stringify(navs1)} (recarga única), al final ruta ${s1.path}, marca rocky-preload-reload=${s1.flag}, #root con ${s1.root} caracteres${s1.root === 0 ? ' → PANTALLA EN BLANCO' : ''}, texto visible «${s1.text}»; errores: ${[...new Set(errs1)].join(' | ')}; (5) antes de 10 s (marca=${flagBefore}) otro clic: navegaciones ${JSON.stringify(navs2)} (sin recarga), #root ${s2.root} caracteres; (6) sin bloqueo y >10 s (marca=${flag3}): ${s3.path} «${s3.h1}». ${sum(o)}`,
+      hallazgos: blank ? 'C-EST-02' : '',
+    });
+    await context.close();
+  }
+
+  // ---------- R-NAV-18 ----------
+  if (want('R-NAV-18')) {
+    const h = await (async () => {
+      const o = await open(b, 'escritorio');
+      const x = await handles(o.page);
+      await o.context.close();
+      return x;
+    })();
+    const productPath = h[0] || '/product/1';
+    const routes = [
+      ['/menudrop', 'Drops · ROCKY 035', 'Drops'],
+      ['/crew', 'La Crew · ROCKY 035', 'Crew'],
+      ['/estudio', 'La Colmena · ROCKY 035', 'Estudio'],
+      ['/legal/privacidad', 'Privacidad · ROCKY 035', null],
+      [productPath, null, null],
+      ['/products/asphalt-afterdark', null, null],
+    ];
+    // Vite (servidor compartido): sólo una petición HTTP por ruta, sin navegador
+    const viteParts = [];
+    for (const [r] of routes) {
+      try {
+        const res = await fetch(VITE + r);
+        const body = await res.text();
+        viteParts.push(`${r} ${res.status} ${/<div id="root">/.test(body) ? 'SPA' : 'otro'}`);
+      } catch (e) {
+        viteParts.push(`${r} error ${e.message}`);
+      }
+    }
+    for (const vp of ['escritorio', 'movil']) {
+      const o = await open(b, vp);
+      const { page } = o;
+      const parts = [];
+      let ok = true;
+      for (const [r, title, active] of routes) {
+        const resp = await page.goto(ORIGIN + r);
+        const headers = resp.headers();
+        await sleep(300);
+        const firstLoading = await page.locator('.page-loading').count();
+        await page.waitForLoadState('networkidle').catch(() => {});
+        await sleep(400);
+        const s = await page.evaluate(() => ({ title: document.title, active: [...document.querySelectorAll('header nav a')].find((a) => a.getAttribute('aria-current') === 'page')?.textContent?.trim() || null, splash: document.querySelectorAll('.splash-intro').length, h1: document.querySelector('main h1')?.textContent?.trim().slice(0, 40), notfound: Boolean(document.querySelector('.notfound')) }));
+        await page.reload();
+        await page.waitForLoadState('networkidle').catch(() => {});
+        await sleep(400);
+        const s2 = await page.evaluate(() => ({ title: document.title, splash: document.querySelectorAll('.splash-intro').length }));
+        const good = resp.status() === 200 && headers['cache-control'] === 'public, max-age=0, must-revalidate' && !s.notfound && s.splash === 0 && (title ? s.title === title && s2.title === title : true) && (active ? s.active === (vp === 'movil' ? s.active : active) : true);
+        ok = ok && good;
+        parts.push(`${r}: HTTP ${resp.status()} Cache-Control «${headers['cache-control']}», «Cargando...» al principio=${firstLoading}, título «${s.title}», activo «${s.active}», h1 «${s.h1}», 404=${s.notfound}, intro=${s.splash}; tras F5 «${s2.title}»${good ? '' : ' ✗'}`);
+      }
+      ok = ok && clean(o);
+      R.add({ id: 'R-NAV-18', viewport: vp, resultado: ok ? 'OK' : 'FALLO', evidencia: `build en ${ORIGIN}: ${parts.join('; ')}; Vite ${VITE} (sólo HTTP): ${viteParts.join(', ')}; ${sum(o)}` });
+      await o.context.close();
+    }
+  }
+
+  // ---------- R-NAV-19 ----------
+  if (want('R-NAV-19')) {
+    for (const vp of ['escritorio', 'movil']) {
+      const o = await open(b, vp);
+      const { page } = o;
+      await page.goto(ORIGIN + '/');
+      await sleep(1200);
+      await page.locator('.street-wall').scrollIntoViewIfNeeded();
+      await sleep(800);
+      const yHome = await page.evaluate(() => Math.round(scrollY));
+      await page.getByRole('link', { name: 'Conoce a la crew →' }).click();
+      await page.waitForFunction(() => document.title === 'La Crew · ROCKY 035', null, { timeout: 6000 }).catch(() => {});
+      await sleep(400);
+      const yCrewStart = await page.evaluate(() => Math.round(scrollY));
+      await page.mouse.move(150, 400);
+      await page.mouse.wheel(0, 500);
+      await sleep(600);
+      const yCrew = await page.evaluate(() => Math.round(scrollY));
+      await page.goBack();
+      await sleep(1200);
+      const back = await page.evaluate(() => ({ path: location.pathname, y: Math.round(scrollY), h: document.documentElement.scrollHeight }));
+      await page.goForward();
+      await sleep(1200);
+      const fwd = await page.evaluate(() => ({ path: location.pathname, y: Math.round(scrollY) }));
+      let menuPart = '';
+      let menuOk = true;
+      if (vp === 'movil') {
+        await page.locator('header .navbar-menu').click();
+        await sleep(250);
+        await page.goBack();
+        await sleep(800);
+        const m = await page.evaluate(() => ({ path: location.pathname, sheet: Boolean(document.querySelector('.navbar-sheet')), overflow: document.body.style.overflow }));
+        menuOk = !m.sheet && m.overflow === '';
+        menuPart = `; (6) menú abierto + Atrás → ${m.path}, hoja=${m.sheet}, overflow «${m.overflow}»`;
+      }
+      const ok = yHome > 500 && yCrewStart === 0 && back.path === '/' && fwd.path === '/crew' && menuOk && clean(o);
+      R.add({
+        id: 'R-NAV-19',
+        viewport: vp,
+        resultado: ok ? 'OK' : 'FALLO',
+        evidencia: `(1) muro en y=${yHome}; (2) /crew empieza en y=${yCrewStart}; (3) baja a y=${yCrew}; (4) Atrás → ${back.path} y=${back.y} (antes ${yHome}; ${Math.abs(back.y - yHome) <= 5 ? 'restaurado' : back.y === 0 ? 'arriba del todo' : 'se queda corto'}, alto doc ${back.h}); (5) Adelante → ${fwd.path} y=${fwd.y} (antes ${yCrew})${menuPart}; ${sum(o)}`,
+      });
+      await o.context.close();
+    }
+  }
+
+  // ---------- R-NAV-20 ----------
+  if (want('R-NAV-20')) {
+    for (const vp of ['escritorio', 'movil']) {
+      const o = await open(b, vp);
+      const { page } = o;
+      const wheel = async (dy) => {
+        await page.mouse.move(150, 400);
+        await page.mouse.wheel(0, dy);
+        await sleep(500);
+        return page.evaluate(() => Math.round(scrollY));
+      };
+      const y = () => page.evaluate(() => Math.round(scrollY));
+      // 1. Navegación legal
+      await page.goto(ORIGIN + '/legal/aviso-legal');
+      await page.waitForFunction(() => document.title === 'Aviso legal · ROCKY 035');
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      await sleep(400);
+      const y1a = await y();
+      await page.evaluate(() => window.scrollTo(0, 0));
+      // la nav legal está arriba: bajar después de enfocarla no es posible con clic, así que se pulsa con el ratón tras volver a bajar con el teclado
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      await page.getByRole('navigation', { name: 'Páginas legales' }).getByRole('link', { name: 'Cookies' }).evaluate((a) => a.click());
+      await page.waitForFunction(() => document.title === 'Cookies · ROCKY 035');
+      await sleep(300);
+      const y1 = await y();
+      // 2-4. Tienda y logo sobre la ruta actual
+      const tienda = async () => {
+        if (vp === 'escritorio') await page.locator('header nav').getByRole('link', { name: 'Tienda' }).click();
+        else {
+          await page.locator('header .navbar-menu').click();
+          await page.getByRole('dialog', { name: 'Menú' }).getByRole('link', { name: 'Tienda' }).click();
+        }
+        await sleep(500);
+      };
+      const logo = async () => {
+        await page.getByRole('link', { name: 'Inicio' }).click();
+        await sleep(500);
+      };
+      const seq = [];
+      for (const [name, act] of [['Tienda', tienda], ['logo', logo]]) {
+        await page.goto(ORIGIN + '/');
+        await sleep(900);
+        const d1 = await wheel(1500);
+        await act();
+        const a1 = await y();
+        const d2 = await wheel(1500);
+        await act();
+        const a2 = await y();
+        const d3 = await wheel(800);
+        await act();
+        const a3 = await y();
+        seq.push(`${name}: 1.º clic desde y=${d1} → y=${a1}; 2.º seguido desde y=${d2} → y=${a2}; 3.º desde y=${d3} → y=${a3}`);
+        o[name] = { a1, a2, a3, d2 };
+      }
+      // 5. Sólo hash: el enlace «Saltar al contenido» cambia el hash sin cambiar pathname
+      await page.goto(ORIGIN + '/');
+      await sleep(900);
+      const dh = await wheel(1200);
+      await page.locator('.skip-link').evaluate((a) => a.click());
+      await sleep(400);
+      const ah = await page.evaluate(() => ({ y: Math.round(scrollY), hash: location.hash }));
+      const ok1 = y1 === 0 && y1a > 300;
+      const secondDoesNotScroll = o.Tienda.a2 > 0 || o.logo.a2 > 0;
+      const mobileNote = vp === 'movil' && o.Tienda.a2 === 0 ? ' En móvil «Tienda» se pulsa desde la hoja: al cerrarla el foco vuelve al botón de menú con el body en overflow:hidden y la página salta arriba (NUEVO-3), así que ahí sí sube, pero no por ScrollToTop; el logo de la barra confirma el comportamiento.' : '';
+      const ok = ok1 && o.Tienda.a1 === 0 && o.logo.a1 === 0 && clean(o);
+      R.add({
+        id: 'R-NAV-20',
+        viewport: vp,
+        resultado: ok ? 'OK' : 'FALLO',
+        evidencia: `(1) /legal/aviso-legal al final (y=${y1a}) → «Cookies» de la navegación legal → y=${y1}; ${seq.join('; ')}${secondDoesNotScroll ? ' → el segundo clic seguido sobre la ruta actual NO sube (como predice la ficha)' : ''}.${mobileNote} (5) sólo hash (#main-content con el enlace de salto) desde y=${dh} → y=${ah.y} hash ${ah.hash} (el navegador salta al ancla; ScrollToTop no actúa); query: no hay forma de cambiarla dentro de la SPA sin recargar; ${sum(o)}`,
+        hallazgos: [secondDoesNotScroll ? 'C-EST-07' : '', mobileNote ? 'NUEVO-3' : ''].filter(Boolean).join(', '),
+      });
+      await o.context.close();
+    }
+  }
+
+  // ---------- R-NAV-23 ----------
+  if (want('R-NAV-23')) {
+    const parts = [];
+    let ok = true;
+    for (const [label, origin] of [['build', ORIGIN], ['Vite', VITE]]) {
+      const context = await b.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 }, locale: 'es-ES' });
+      await context.route((url) => url.hostname !== 'localhost', (r) => r.abort());
+      const page = await context.newPage();
+      await page.goto(origin + '/');
+      await sleep(600);
+      const s = await page.evaluate(() => ({ text: document.body.innerText.trim(), title: document.title, font: getComputedStyle(document.body).fontFamily.slice(0, 40), bg: getComputedStyle(document.body).backgroundColor, sheets: document.styleSheets.length }));
+      parts.push(`${label} sin JS: texto «${s.text}», título «${s.title}», hojas de estilo ${s.sheets}, fuente «${s.font}», fondo ${s.bg}`);
+      ok = ok && s.text === 'Necesitas activar JavaScript para ver esta página.' && s.title === 'ROCKY 035' && (label === 'build' ? s.sheets >= 1 : true);
+      await context.close();
+    }
+    const o = await open(b, 'escritorio');
+    await o.page.goto(ORIGIN + '/');
+    await sleep(900);
+    const on = await o.page.evaluate(() => ({ nav: Boolean(document.querySelector('header.navbar')), noscriptVisible: document.body.innerText.includes('Necesitas activar JavaScript') }));
+    ok = ok && on.nav && !on.noscriptVisible && clean(o);
+    parts.push(`con JS: barra=${on.nav}, mensaje visible=${on.noscriptVisible}; ${sum(o)}`);
+    await o.context.close();
+    R.add({ id: 'R-NAV-23', viewport: 'escritorio', resultado: ok ? 'OK' : 'FALLO', evidencia: parts.join('; ') });
+  }
+
+  // ---------- R-NAV-24 ----------
+  if (want('R-NAV-24')) {
+    const o = await open(b, 'escritorio');
+    const { page } = o;
+    const h = await handles(page);
+    const productPath = h[0];
+    const meta = () => page.evaluate(() => ({
+      path: location.pathname,
+      title: document.title,
+      canonical: document.querySelector('link[rel=canonical]')?.href,
+      desc: document.querySelector('meta[name=description]')?.content.slice(0, 30),
+      ogUrl: document.querySelector('meta[property="og:url"]')?.content,
+      ogTitle: document.querySelector('meta[property="og:title"]')?.content,
+      robots: document.querySelector('meta[name=robots]')?.content || null,
+    }));
+    const fmt = (m) => `${m.path} «${m.title}» canonical ${m.canonical} og:url ${m.ogUrl} og:title «${m.ogTitle}» robots ${m.robots}`;
+    const direct = [];
+    for (const r of ['/', '/menudrop', '/legal/privacidad', '/loquesea', productPath]) {
+      await page.goto(ORIGIN + r);
+      await page.waitForLoadState('networkidle').catch(() => {});
+      await sleep(500);
+      direct.push(await meta());
+    }
+    // Por la SPA: / → Drops → Privacidad (pie) → un producto (desde /) → / (logo)
+    await page.goto(ORIGIN + '/');
+    await sleep(900);
+    const spa = [await meta()];
+    await page.locator('header nav').getByRole('link', { name: 'Drops' }).click();
+    await page.waitForFunction(() => document.title === 'Drops · ROCKY 035', null, { timeout: 5000 }).catch(() => {});
+    spa.push(await meta());
+    await page.getByRole('navigation', { name: 'Información legal' }).getByRole('link', { name: 'Privacidad' }).click();
+    await page.waitForFunction(() => document.title === 'Privacidad · ROCKY 035', null, { timeout: 5000 }).catch(() => {});
+    spa.push(await meta());
+    await page.getByRole('link', { name: 'Inicio' }).click();
+    await sleep(600);
+    spa.push(await meta());
+    await page.locator(`a[href="${productPath}"]`).first().click();
+    await page.waitForFunction(() => document.title !== 'ROCKY 035', null, { timeout: 5000 }).catch(() => {});
+    await sleep(300);
+    spa.push(await meta());
+    await page.goBack();
+    await sleep(600);
+    spa.push(await meta());
+    const titlesOk = direct[0].title === 'ROCKY 035' && direct[1].title === 'Drops · ROCKY 035' && direct[2].title === 'Privacidad · ROCKY 035' && direct[3].title === 'ROCKY 035' && direct[4].title.endsWith(' · ROCKY 035') && spa[3].title === 'ROCKY 035' && spa[5].title === 'ROCKY 035';
+    const metaFixed = [...direct, ...spa].every((m) => m.canonical === 'https://rocky035.com/' && m.ogUrl === 'https://rocky035.com/' && m.ogTitle === 'ROCKY 035 — Tienda oficial');
+    R.add({
+      id: 'R-NAV-24',
+      viewport: 'escritorio',
+      resultado: titlesOk && metaFixed && clean(o) ? 'OK' : 'FALLO',
+      evidencia: `carga directa: ${direct.map(fmt).join('; ')}; por la SPA: ${spa.map((m) => `${m.path} «${m.title}»`).join(' → ')}; canónico/og:url/og:title iguales en todas (${metaFixed}): siempre los de index.html, también en 404 y ficha de producto; ${sum(o)}`,
+      hallazgos: metaFixed ? 'C-EST-11, C-EST-12' : '',
+    });
+    await o.context.close();
+  }
+
+  // ---------- R-404-04 ----------
+  if (want('R-404-04')) {
+    const parts = [];
+    const head = async (url, method = 'HEAD') => {
+      const res = await fetch(url, { method, redirect: 'manual' });
+      const body = method === 'GET' ? await res.text() : '';
+      return { status: res.status, cc: res.headers.get('cache-control'), cf: res.headers.get('cloudflare-cdn-cache-control'), type: res.headers.get('content-type'), body };
+    };
+    const v = await head(`${VITE}/loquesea`, 'GET');
+    parts.push(`Vite /loquesea: ${v.status} ${v.type} SPA=${/<div id="root">/.test(v.body)} noindex=${/noindex/.test(v.body)}`);
+    const a = await head(`${ORIGIN}/loquesea`, 'GET');
+    parts.push(`build /loquesea: ${a.status} ${a.type} Cache-Control «${a.cc}» Cloudflare-CDN-Cache-Control «${a.cf}» noindex=${/noindex/.test(a.body)} canonical portada=${/rel="canonical" href="https:\/\/rocky035.com\/"/.test(a.body)}`);
+    const l = await head(`${ORIGIN}/legal/loquesea`, 'GET');
+    parts.push(`build /legal/loquesea: ${l.status} «${l.cc}» noindex=${/noindex/.test(l.body)}`);
+    const hd = await head(`${ORIGIN}/loquesea`, 'HEAD');
+    parts.push(`HEAD /loquesea: ${hd.status}`);
+    const as = await head(`${ORIGIN}/assets/noexiste.js`, 'GET');
+    parts.push(`/assets/noexiste.js: ${as.status} «${as.body.trim()}» Cache-Control «${as.cc}»`);
+    const api = await head(`${ORIGIN}/api/loquesea`, 'GET');
+    parts.push(`/api/loquesea: ${api.status} ${api.type} ${api.body.trim().slice(0, 120)}`);
+    const ok = v.status === 200 && a.status === 200 && l.status === 200 && a.cc === 'public, max-age=0, must-revalidate' && a.cf === 'no-store' && !/noindex/.test(a.body) && as.status === 404 && /Asset not found/.test(as.body) && api.status === 404 && /json/.test(api.type);
+    R.add({ id: 'R-404-04', viewport: 'no aplica (HTTP)', resultado: ok ? 'OK' : 'FALLO', evidencia: parts.join('; '), hallazgos: 'C-EST-12' });
+  }
+} finally {
+  await b.close();
+}

@@ -1,0 +1,18 @@
+import { startInstance, launchBrowser } from '../harness.mjs';
+import { guardedPage } from './common.mjs';
+const inst = await startInstance(3203, { SHOPIFY_RATE_LIMIT_MAX: '2000' });
+const b = await launchBrowser();
+try {
+  const c2 = await guardedPage(b, 'escritorio', { origin: inst.origin });
+  await c2.page.route(`**/assets/Cart-*.js`, async (r) => { await new Promise((x) => setTimeout(x, 2500)); await r.continue(); });
+  await c2.page.goto(inst.origin + '/');
+  await c2.page.waitForTimeout(1000);
+  await c2.page.locator('.navbar-cart').click();
+  for (const t of [50, 300, 1000]) {
+    await c2.page.waitForTimeout(t);
+    const main = await c2.page.evaluate(() => { const m = document.querySelector('main'); return { html: m.innerHTML.slice(0, 300), h: m.getBoundingClientRect().height, children: [...m.children].map(c => c.className + ' disp=' + getComputedStyle(c).display) }; });
+    console.log(t, new URL(c2.page.url()).pathname, JSON.stringify(main));
+  }
+  await c2.page.screenshot({ path: '/RUTA/AL/SCRATCH/e1/carrito-chat/out/probe-cart-loading.png' });
+  await c2.context.close();
+} finally { await b.close(); inst.stop(); }

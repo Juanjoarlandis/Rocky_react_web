@@ -1,0 +1,56 @@
+// Repetición limpia de la pasada de teclado sobre la portada con el aviso de
+// error (la primera falló por un artefacto: blur() conserva el punto de partida
+// de la navegación secuencial) y detalle del foco tras el error del aviso.
+import { startInstance, launchBrowser, openPage, summarize, shot } from '../harness.mjs';
+import { card, saveObs, sleep } from './util.mjs';
+const O = 'http://localhost:3309';
+const cards = [];
+const inst = await startInstance(3309, { SHOPIFY_RATE_LIMIT_MAX: '1', AVISOS_RATE_LIMIT_MAX: '1' });
+const b = await launchBrowser();
+const st = (page) => page.evaluate(() => { const a = document.activeElement; const cs = getComputedStyle(a); return { tag: a.tagName, id: a.id, type: a.getAttribute('type') || '', name: (a.getAttribute('aria-label') || a.textContent || '').trim().slice(0, 40), fv: a.matches(':focus-visible'), outline: `${cs.outlineStyle} ${cs.outlineWidth} ${cs.outlineColor}` }; });
+const fmt = (s) => `${s.tag}${s.id ? '#' + s.id : ''}${s.type ? `[${s.type}]` : ''} «${s.name}» fv=${s.fv} outline=${s.outline}`;
+try {
+  {
+    const k = card('TECLADO-portada-error', 'escritorio');
+    const { page, issues, context } = await openPage(b, 'escritorio', {});
+    await page.goto(`${O}/`, { waitUntil: 'networkidle' }); // 1.ª petición de status: 200
+    await page.reload({ waitUntil: 'networkidle' }); // 2.ª: 429
+    const nt = await page.locator('.commerce-notice').innerText();
+    k.check('estado: aviso rojo de la portada a la vista (429)', /Demasiadas peticiones/.test(nt) && (await page.locator('.commerce-notice').getAttribute('role')) === 'alert', nt);
+    const seq = [];
+    for (let i = 0; i < 6; i += 1) { await page.keyboard.press('Tab'); seq.push(await st(page)); }
+    k.check('orden de tabulación: «Saltar al contenido» y después la barra; foco visible en todos', /Saltar al contenido/.test(seq[0].name) && seq.every((s) => s.fv && !s.outline.startsWith('none')), seq.map(fmt).join(' → '));
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Enter');
+    await sleep(300);
+    const m = await st(page);
+    await page.keyboard.press('Tab');
+    const n = await st(page);
+    k.check('Enter en «Saltar al contenido» → foco en #main-content, que empieza por el aviso de error', m.id === 'main-content' && /Demasiadas peticiones/.test(m.name), `${fmt(m)}; siguiente Tab → ${fmt(n)}`);
+    k.note('El aviso (role=alert) no es enfocable ni tiene acciones; no hay formulario que enviar con Enter en esta pantalla. ' + summarize(issues).slice(0, 160));
+    await context.close();
+    cards.push(k);
+  }
+  {
+    const k = card('TECLADO-aviso-error', 'escritorio');
+    const { page, context } = await openPage(b, 'escritorio', {});
+    await page.goto(`${O}/product/rockyracing`, { waitUntil: 'networkidle' });
+    await page.evaluate(() => fetch('/api/avisos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }));
+    const f = page.locator('[data-testid="drop-aviso"]');
+    await f.locator('input[type=email]').fill('prueba@example.com');
+    await f.locator('input[type=checkbox]').check();
+    await f.locator('input[type=email]').focus();
+    await page.keyboard.press('Enter');
+    await f.locator('[role=alert]').waitFor({ timeout: 5000 });
+    await sleep(200);
+    const a = await st(page);
+    await page.keyboard.press('Tab');
+    const t1 = await st(page);
+    k.check('tras el error el foco sigue en el formulario', a.tag !== 'BODY', `foco=${fmt(a)}; siguiente Tab → ${fmt(t1)}`);
+    await shot(page, 'transversales', 'TECLADO-aviso-error-escritorio');
+    k.note('Causa: email y botón se deshabilitan mientras se envía (DropAviso.jsx:98 y :104) y el foco cae a <body>; al volver a «reposo» no se devuelve.');
+    await context.close();
+    cards.push(k);
+  }
+} finally { await b.close(); inst.stop(); saveObs('keyboard2', cards); }

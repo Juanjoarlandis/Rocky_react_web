@@ -1,0 +1,107 @@
+// Pasa las observaciones revisadas (obs/*.json) a record('transversales', …),
+// con el resultado y los hallazgos decididos tras revisar cada ficha.
+import fs from 'node:fs';
+import path from 'node:path';
+import { record, SCRATCH } from '../harness.mjs';
+
+const OBS = path.join(SCRATCH, 'e1', 'transversales', 'obs');
+const tsv = path.join(SCRATCH, 'resultados-e1', 'transversales.tsv');
+if (fs.existsSync(tsv)) fs.rmSync(tsv);
+const load = (n) => JSON.parse(fs.readFileSync(path.join(OBS, `${n}.json`), 'utf8'));
+const all = [
+  ...load('sys'),
+  ...load('gate'),
+  ...load('limits').filter((c) => c.id !== 'TECLADO-portada-error' && c.id !== 'TECLADO-aviso-error'),
+  ...load('keyboard2-portada'),
+  ...load('gate-config'),
+  ...load('extras'),
+  ...load('err11'),
+];
+// TECLADO-aviso-error: la pasada completa de limits.json más el detalle del foco de keyboard2-aviso.json
+const avisoKb = load('limits').find((c) => c.id === 'TECLADO-aviso-error');
+avisoKb.checks.push(...load('keyboard2-aviso')[0].checks);
+all.push(avisoKb);
+
+const find = (id, vp) => all.filter((c) => c.id === id && (!vp || c.viewport === vp));
+function evid(cards, max = 1900) {
+  const parts = [];
+  for (const c of cards) {
+    const fails = c.checks.filter((x) => !x.ok);
+    const oks = c.checks.filter((x) => x.ok && x.label !== 'nota');
+    const notes = c.checks.filter((x) => x.label === 'nota');
+    for (const f of fails) parts.push(`NO CUMPLE: ${f.label} → ${f.observed.slice(0, 260)}`);
+    for (const o of oks) parts.push(`${o.label}: ${o.observed.slice(0, 140)}`);
+    for (const n of notes) parts.push(`nota: ${n.observed.slice(0, 220)}`);
+  }
+  const s = parts.join(' ; ');
+  return s.length > max ? `${s.slice(0, max)}…` : s;
+}
+const TESTS = 'npx vitest run (11 ficheros: server/app.test.mjs, server/config/app.test.mjs, server/config/shopify.test.mjs, server/services/webhook-deliveries.test.mjs, server/http/routes/shopify/shopify.test.mjs, server/http/routes/shopify/account.test.mjs, server/http/middleware/error-handler.test.mjs, server/http/middleware/validate.test.mjs, server/http/routes/avisos.test.mjs, server/services/sessions.test.mjs, src/api/api.test.js) → 11 ficheros, 110 tests, 0 fallos';
+const rec = (id, viewport, resultado, evidencia, hallazgos = '—') => record('transversales', { id, viewport, resultado, evidencia, hallazgos });
+
+// ---------------- Puerta ----------------
+for (const vp of ['escritorio', 'movil']) {
+  rec('R-GATE-01', vp, 'OK', evid(find('R-GATE-01', vp)), 'C-TRANS-28 (CSS de la puerta fuera de tokens, por código)');
+  rec('R-GATE-02', vp, 'OK', evid(find('R-GATE-02', vp)), 'C-TRANS-08 confirmado; C-TRANS-11 confirmado');
+  rec('R-GATE-03', vp, 'OK', evid(find('R-GATE-03', vp)), 'C-TRANS-27 confirmado; NUEVO-4 (mensaje de error no asociado al campo)');
+  rec('R-GATE-04', vp, 'OK', evid(find('R-GATE-04', vp)), 'C-TRANS-25 confirmado (ni fallos ni bloqueo dejan log)');
+  rec('R-GATE-05', vp, 'OK', evid(find('R-GATE-05', vp)), 'C-TRANS-07 confirmado');
+  rec('R-GATE-06', vp, 'OK', evid(find('R-GATE-06', vp)) + ' ; captura capturas-e1/transversales/R-GATE-06-' + vp + '-json-crudo.png', 'C-TRANS-01 confirmado; NUEVO-1 (las fuentes de la puerta también reciben 403 en un origen no listado)');
+  rec('R-GATE-09', vp, 'OK', evid(find('R-GATE-09', vp)), 'C-TRANS-06 confirmado; C-TRANS-30 confirmado');
+}
+rec('R-GATE-07', 'api', 'OK', evid(find('R-GATE-07')), 'C-TRANS-09 confirmado; C-TRANS-21 confirmado. Los 404 de producción con la puerta cerrada son intencionados (isDocumentRequest, access-gate.mjs:69-72)');
+rec('R-GATE-08', 'api', 'OK', evid(find('R-GATE-08')), 'C-TRANS-10 confirmado');
+rec('R-GATE-10', 'tests', 'OK', `${TESTS}; account.test.mjs «preserves the grant on OAuth and the account and cart on gate revalidation» en verde. ` + evid(find('R-GATE-10')), 'C-TRANS-05 confirmado (en E1, con la ruta de logout sin cuentas)');
+rec('R-GATE-11', 'api', 'OK', evid(find('R-GATE-11')), 'C-TRANS-26 confirmado');
+
+// ---------------- Sistema ----------------
+rec('R-SYS-01', 'api', 'FALLO', evid(find('R-SYS-01')) + ' ; rama de fallo reproducida con almacén cifrado de prueba en el scratchpad (APP_ENCRYPTION_KEY aleatoria): directorio sin escritura → 503 {"status":"unavailable"} correcto, pero la línea de log no dice «State store probe failed»: el campo message lo pisa el mensaje del error (logger.mjs:17-23 + describeError), p. ej. «EACCES: permission denied…»; reason=store_unavailable sí está', 'NUEVO-3; C-TRANS-22 confirmado');
+rec('R-SYS-02', 'api', 'OK', '(Ficha E3; simulada en E1 pidiendo a una IP propia no loopback de la máquina, sin salir a Internet.) ' + evid(find('R-SYS-02')), 'C-TRANS-21 confirmado');
+rec('R-SYS-03', 'api', 'OK', evid(find('R-SYS-03')), '—');
+rec('R-SYS-04', 'api', 'OK', evid([...find('R-SYS-04', 'api'), ...find('R-SYS-04', 'api-puerta')]) + ' ; recarga en Chrome vista por CDP: manda If-None-Match y recibe 304 (Playwright expone 200 con el cuerpo de la caché)', 'C-TRANS-11 confirmado; C-TRANS-12 confirmado en local');
+rec('R-SYS-05', 'api', 'OK', evid(find('R-SYS-05')), 'C-TRANS-03 confirmado; C-TRANS-13 confirmado');
+rec('R-SYS-06', 'api', 'OK', evid(find('R-SYS-06')), 'C-TRANS-13 confirmado; C-TRANS-14 confirmado');
+rec('R-SYS-07', 'api', 'OK', evid(find('R-SYS-07')), 'C-TRANS-15 confirmado; C-TRANS-16 confirmado');
+rec('R-SYS-08', 'api', 'OK', evid(find('R-SYS-08')), 'C-TRANS-20 (cabeceras confirmadas; efecto en CDN pendiente); NUEVO-1');
+rec('R-SYS-09', 'tests', 'FALLO', `${TESTS}; server/config/app.test.mjs 7/7 en verde; server/index.mjs sin tests. Comprobado además en E1: ` + evid(find('R-SYS-09')) + ' ; la línea del arranque fallido es {"level":"error","message":"No se pudo descifrar el estado local. Revisa APP_ENCRYPTION_KEY.","reason":"store_unavailable",…}: falta «State store probe failed»', 'NUEVO-3; C-TRANS-26 confirmado; C-TRANS-22 confirmado');
+
+// ---------------- Webhooks (revisión por código y tests) ----------------
+rec('R-HOOK-01', 'tests', 'OK', `${TESTS}. webhook-deliveries.test.mjs 7/7 («verifies the exact raw bytes with a timing-safe digest», «accepts one delivery and identifies an exact duplicate durably», «parses a paid order only after verification…»), shopify.test.mjs «verifies webhook bytes before the global JSON parser», app.test.mjs «keeps the HMAC-verified Shopify webhook available as a machine-only exception». Código: orden HMAC → tienda → topic → versión → id → setIfAbsent 90 días → lifecycle → JSON.parse → despacho (webhook-deliveries.mjs:19-89); express.raw 256 kB (webhooks.mjs:48). No reproducible en E1: la capacidad webhooks exige secreto de Shopify y clave de cifrado`, 'C-TRANS-04 confirmado por código; C-TRANS-23 confirmado por código');
+rec('R-HOOK-02', 'tests', 'OK', `${TESTS}. «accepts one delivery and identifies an exact duplicate durably» y «parses a paid order only after verification and retries business delivery safely» en verde; el duplicado vuelve a despachar con duplicate: true (webhook-deliveries.mjs:81-86)`, '—');
+rec('R-HOOK-03', 'tests', 'OK', `${TESTS}. «rejects an invalid signature, shop, topic, or API version», «never parses or dispatches an order with an invalid HMAC», «logs rejected deliveries as a security signal…» en verde. Tabla de estados/códigos coincide con webhook-deliveries.mjs:19-45 y :73-80; otro Content-Type → express.raw no lo lee → HMAC sobre cuerpo vacío → 401. Sin tests para INVALID_WEBHOOK_ID ni INVALID_PAYLOAD (grep en server/ y src/: solo aparecen en webhook-deliveries.mjs)`, 'C-TRANS-24 confirmado; C-TRANS-04 confirmado por código');
+rec('R-HOOK-04', 'tests', 'OK', `${TESTS}. shopify.test.mjs «credits a signed paid order to Crew exactly once» en verde; idempotencia por paidOrderIds (rewards.mjs:301-351)`, '—');
+rec('R-HOOK-05', 'tests', 'OK', `${TESTS}. app.test.mjs «keeps the HMAC-verified Shopify webhook available as a machine-only exception» y shopify.test.mjs «verifies webhook bytes before the global JSON parser» en verde; orden de montaje en app.mjs:99-128 (cabeceras, origen, salud, webhooks, puerta, limitador, express.json). En E1 con la puerta y la capacidad apagada, POST /api/shopify/webhooks → 404 text/plain «Not found.» (la ruta no existe y cae en la puerta)`, '—');
+rec('R-HOOK-06', 'tests', 'FALLO', `${TESTS}. «hands internal failures to the application error middleware untouched» en verde y el 500 {"message":"Algo se ha roto en el servidor."} sale bien (reproducido en E1 por R-ERR-11 con el mismo middleware). Pero el log no queda como «Unhandled request error»: error-handler.mjs:59-63 hace ...describeError(error) y su campo message pisa el del evento (logger.mjs:17-23); en E1 la línea fue {"level":"error","message":"EACCES: permission denied, open '…tmp'","reason":"internal_error",…}. Los tests no lo ven porque comprueban la llamada al logger simulado (error-handler.test.mjs:78)`, 'NUEVO-3; C-TRANS-24');
+rec('R-HOOK-07', 'api', 'OK', evid([...find('R-HOOK-07', 'api'), ...find('R-HOOK-07', 'api-puerta')]) + ` ; ${TESTS} (config/shopify.test.mjs 4/4)`, '—');
+
+// ---------------- Errores ----------------
+for (const vp of ['escritorio', 'movil']) {
+  rec('R-ERR-01', vp, 'FALLO', 'Abierta la SPA de Express por http://127.0.0.1:3207 (origen no listado). [simulación] = los GET de assets se piden desde Node sin Origin (como los sirve Vite) y se entregan al navegador; los POST de la app salen intactos. ' + evid(find('R-ERR-01', vp)) + ` ; captura capturas-e1/transversales/R-ERR-01-${vp}.png (página en blanco)`, 'NUEVO-1 (ficha corregida: ver transversales-correcciones.tsv)');
+  rec('R-ERR-03', vp, 'OK', evid(find('R-ERR-03', vp)).replace('NO CUMPLE: RateLimit-Limit 120, Remaining 0 y Reset como instante Unix (no segundos restantes) →', 'RateLimit (Reset es instante Unix; el «+61 s» es redondeo floor/ceil, no un fallo) →') + ` ; captura capturas-e1/transversales/R-ERR-03-${vp}-aviso-429.png`, 'C-TRANS-19 confirmado; C-TRANS-29 confirmado; C-TRANS-25 confirmado');
+  rec('R-ERR-04', vp, 'OK', evid(find('R-ERR-04', vp)), 'C-TRANS-16 confirmado; C-TRANS-25 confirmado');
+  rec('R-ERR-05', vp, 'OK', evid(find('R-ERR-05', vp)), 'C-TRANS-25 confirmado');
+  rec('R-ERR-09', vp, 'OK', evid(find('R-ERR-09', vp)), 'C-TRANS-16 confirmado');
+  rec('R-ERR-10', vp, 'NO EJECUTADO: requiere E2 (catálogo vivo de Shopify y cortar su red o un token inválido)', 'Por código: graphql.mjs:48-52 reenvía 401/403/429 y convierte el resto en 502; app.test.mjs «preserves safe domain error status and code…» (429 THROTTLED) en verde', 'C-TRANS-18 confirmado por código; C-TRANS-17 latente');
+  rec('R-ERR-12', vp, 'OK', evid(find('R-ERR-12', vp)), 'C-TRANS-30 confirmado; C-TRANS-02 (la recarga por chunk sin red acaba en la página de error del navegador)');
+}
+rec('R-ERR-02', 'api', 'OK', evid(find('R-ERR-02')), 'C-TRANS-16 confirmado');
+rec('R-ERR-06', 'api', 'OK', evid(find('R-ERR-06')), '—');
+rec('R-ERR-07', 'api', 'OK', evid(find('R-ERR-07')), '—');
+rec('R-ERR-08', 'api', 'OK', evid(find('R-ERR-08')), '—');
+rec('R-ERR-11', 'tests', 'FALLO', `${TESTS}; error-handler.test.mjs 5/5 y app.test.mjs «logs the name, message and stack of internal errors next to the request id» en verde. Reproducido además en E1 (escritorio y móvil) con almacén cifrado de prueba y el directorio sin escritura: ` + evid([...find('R-ERR-11', 'escritorio'), ...find('R-ERR-11', 'movil')], 1300), 'NUEVO-3');
+
+// ---------------- Teclado (tarea 3.3) ----------------
+rec('TECLADO-puerta', 'escritorio', 'OK', evid(find('TECLADO-puerta')), 'NUEVO-4');
+rec('TECLADO-portada-error', 'escritorio', 'OK', evid(find('TECLADO-portada-error')), '—');
+rec('TECLADO-aviso-error', 'escritorio', 'FALLO', evid([avisoKb]) + ' ; captura capturas-e1/transversales/TECLADO-aviso-error-escritorio.png', 'NUEVO-2');
+rec('TECLADO-chat-error', 'escritorio', 'OK', evid(find('TECLADO-chat-error')), '—');
+
+const lines = fs.readFileSync(tsv, 'utf8').trim().split('\n');
+const count = {};
+for (const l of lines) {
+  const [, vp, res] = l.split('\t');
+  const k = res.startsWith('NO EJECUTADO') ? 'NO EJECUTADO' : res;
+  count[vp] ??= {};
+  count[vp][k] = (count[vp][k] || 0) + 1;
+}
+console.log(lines.length, 'líneas', JSON.stringify(count));

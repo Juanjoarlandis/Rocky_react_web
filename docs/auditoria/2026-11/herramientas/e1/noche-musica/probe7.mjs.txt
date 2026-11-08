@@ -1,0 +1,10 @@
+import { startInstance, launchBrowser, openPage } from '../harness.mjs';
+import { PORT, nightOn } from './lib.mjs';
+const inst = await startInstance(PORT);
+const b = await launchBrowser();
+try {
+  const { page } = await openPage(b, 'escritorio', { origin: inst.origin });
+  await page.goto(inst.origin + '/'); await page.waitForTimeout(1300);
+  await nightOn(page, 'escritorio');
+  console.log(await page.evaluate(() => [...document.querySelectorAll('main *')].map((e) => [e, getComputedStyle(e).backgroundColor]).filter(([, bg]) => bg !== 'rgba(0, 0, 0, 0)').slice(0, 25).map(([e, bg]) => { const r = e.getBoundingClientRect(); return `${e.tagName}.${e.className.toString().slice(0, 30)} ${bg} ${Math.round(r.left)},${Math.round(r.top)} ${Math.round(r.width)}x${Math.round(r.height)}`; })));
+} finally { await b.close(); inst.stop(); }

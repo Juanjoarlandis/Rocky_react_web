@@ -1,0 +1,1203 @@
+// Doble local de Shopify (Storefront, Customer Accounts, Admin) y de OpenRouter
+// para el entorno E2 simulado de la auditoría 2026-11.
+//
+// Se carga con NODE_OPTIONS=--import <ruta absoluta> en el proceso del servidor
+// y sustituye globalThis.fetch antes de que arranque server/index.mjs. El
+// servidor no cambia: sus clientes siguen llamando a las URLs reales y aquí se
+// responde con estado en memoria (carritos, tokens, códigos). Cualquier otra
+// salida a internet falla con un error claro, también por http/https.request.
+//
+// Variables que lee (las fija start-e2sim.mjs):
+//   E2SIM_CONTROL_FILE   JSON de control releído en cada petición (fallos, latencia, stock)
+//   E2SIM_LOG_FILE       JSONL con cada llamada interceptada (sin secretos)
+//   E2SIM_AUTHZ_KEY      clave HMAC de los códigos de autorización simulados
+//   E2SIM_OPENROUTER_MODE modo por defecto de OpenRouter (ok si no se fija)
+//   y las de la app: SHOPIFY_*, OPENROUTER_API_KEY, PUBLIC_ORIGIN.
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import http from 'node:http';
+import https from 'node:https';
+import { syncBuiltinESMExports } from 'node:module';
+import { verifyAuthCode } from './authz-code.mjs';
+import {
+  API_VERSION,
+  CUSTOMERS,
+  PRODUCTS,
+  SEED_ORDERS,
+  SHOP_ID,
+  STORE_DOMAIN,
+  VARIANTS,
+  customerById,
+  customerByKey,
+  findVariant,
+} from './fixtures.mjs';
+
+const env = process.env;
+const realFetch = globalThis.fetch;
+const CONTROL_FILE = env.E2SIM_CONTROL_FILE || '';
+const LOG_FILE = env.E2SIM_LOG_FILE || '';
+const AUTHZ_KEY = env.E2SIM_AUTHZ_KEY || '';
+
+const expected = {
+  storeDomain: (env.SHOPIFY_STORE_DOMAIN || STORE_DOMAIN).trim().toLowerCase(),
+  storefrontToken: env.SHOPIFY_STOREFRONT_ACCESS_TOKEN || '',
+  clientId: env.SHOPIFY_CLIENT_ID || '',
+  clientSecret: env.SHOPIFY_CLIENT_SECRET || '',
+  customerClientId: env.SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_ID || '',
+  openRouterKey: env.OPENROUTER_API_KEY || '',
+  publicOrigin: (env.PUBLIC_ORIGIN || '').replace(/\/$/, ''),
+};
+
+const AUTH_BASE = `https://shopify.com/authentication/${SHOP_ID}`;
+const CUSTOMER_API = `https://shopify.com/${SHOP_ID}/account/customer/api/${API_VERSION}/graphql`;
+
+// ---------------------------------------------------------------------------
+// Utilidades
+// ---------------------------------------------------------------------------
+
+const LOOPBACK = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
+function isLoopback(hostname) {
+  const host = String(hostname || '').toLowerCase();
+  return LOOPBACK.has(host) || host.endsWith('.localhost') || host.startsWith('127.');
+}
+
+function randomToken(bytes = 18) {
+  return crypto.randomBytes(bytes).toString('base64url').replace(/[-_]/g, 'x');
+}
+
+function warn(message) {
+  process.stderr.write(`[e2sim] ${message}\n`);
+}
+
+function logCall(entry) {
+  if (!LOG_FILE) return;
+  try {
+    fs.appendFileSync(LOG_FILE, `${JSON.stringify({ t: new Date().toISOString(), ...entry })}\n`);
+  } catch {
+    /* el registro nunca tumba una petición */
+  }
+}
+
+function json(status, body, headers = {}) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'x-request-id': `e2sim-${crypto.randomUUID()}`,
+      ...headers,
+    },
+  });
+}
+
+function text(status, body, contentType = 'text/html; charset=utf-8') {
+  return new Response(body, { status, headers: { 'content-type': contentType } });
+}
+
+function abortableDelay(ms, signal) {
+  if (!ms || ms <= 0) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(signal.reason);
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer);
+        reject(signal.reason);
+      },
+      { once: true }
+    );
+  });
+}
+
+// «Timeout»: no responde hasta que el cliente aborta (su propio timeout). Tope
+// de dos minutos para no dejar promesas colgadas si nadie aborta.
+async function hang(signal) {
+  await abortableDelay(120_000, signal);
+  return json(504, { errors: [{ message: 'e2sim: timeout simulado sin abortar' }] });
+}
+
+function networkError(url) {
+  const error = new TypeError('fetch failed');
+  error.cause = Object.assign(new Error(`e2sim: fallo de red simulado hacia ${url}`), {
+    code: 'ECONNRESET',
+  });
+  return error;
+}
+
+// Importes con el formato Decimal de Shopify: "35.0", "29.9", "29.99".
+function toCents(amount) {
+  return Math.round(Number(amount) * 100);
+}
+function money(cents) {
+  return { amount: (cents / 100).toFixed(2).replace(/0$/, ''), currencyCode: 'EUR' };
+}
+
+// ---------------------------------------------------------------------------
+// Control (fallos inyectados, latencia, stock) releído en cada petición
+// ---------------------------------------------------------------------------
+
+let controlRaw = null;
+let controlValue = {};
+const consumedFaults = new Map();
+
+function readControl() {
+  if (!CONTROL_FILE) return {};
+  let raw;
+  try {
+    raw = fs.readFileSync(CONTROL_FILE, 'utf8');
+  } catch (error) {
+    if (error.code !== 'ENOENT') warn(`no se pudo leer el control: ${error.message}`);
+    return {};
+  }
+  if (raw === controlRaw) return controlValue;
+  try {
+    controlValue = raw.trim() ? JSON.parse(raw) : {};
+    controlRaw = raw;
+    consumedFaults.clear();
+  } catch (error) {
+    warn(`control con JSON no válido, se mantiene el anterior: ${error.message}`);
+  }
+  return controlValue;
+}
+
+// Orden: failNext (con «times», se consume) > ops[op] > mode del servicio.
+function pickFault(control, service, op) {
+  const section = control?.[service] || {};
+  const rules = Array.isArray(section.failNext)
+    ? section.failNext
+    : section.failNext
+      ? [section.failNext]
+      : [];
+  for (let index = 0; index < rules.length; index += 1) {
+    const rule = rules[index];
+    if (!rule?.mode || (rule.op && rule.op !== op)) continue;
+    const key = `${service}:${index}`;
+    const used = consumedFaults.get(key) || 0;
+    if (used < (rule.times ?? 1)) {
+      consumedFaults.set(key, used + 1);
+      return rule.mode;
+    }
+  }
+  if (op && section.ops?.[op] && section.ops[op] !== 'ok') return section.ops[op];
+  return section.mode && section.mode !== 'ok' ? section.mode : null;
+}
+
+function latencyFor(control, service) {
+  return Number(control?.latencyMs || 0) + Number(control?.[service]?.latencyMs || 0);
+}
+
+// Fallos de transporte comunes a todos los servicios. Devuelve una Response,
+// lanza (red) o null si el modo no es de transporte.
+async function transportFault(mode, { url, signal, errorBody }) {
+  switch (mode) {
+    case 'timeout':
+      return hang(signal);
+    case 'network':
+      throw networkError(url);
+    case 'malformed':
+      return text(200, '<html><body>e2sim: respuesta que no es JSON</body></html>');
+    case 'http500':
+      return json(500, errorBody(500, 'Internal Server Error'));
+    case 'http502':
+      return json(502, errorBody(502, 'Bad Gateway'));
+    case 'http503':
+      return json(503, errorBody(503, 'Service Unavailable'));
+    case 'throttled':
+      return json(429, errorBody(429, 'Throttled'), { 'retry-after': '2' });
+    case 'unauthorized':
+      return json(401, errorBody(401, 'Unauthorized'));
+    case 'forbidden':
+      return json(403, errorBody(403, 'Forbidden'));
+    default:
+      return null;
+  }
+}
+
+const shopifyErrorBody = (status, message) =>
+  status === 401
+    ? { errors: '[API] Invalid API key or access token (unrecognized login or wrong password)' }
+    : { errors: [{ message: `${message} (e2sim)`, extensions: { code: `HTTP_${status}` } }] };
+
+// ---------------------------------------------------------------------------
+// Catálogo e inventario
+// ---------------------------------------------------------------------------
+
+function inventoryOf(variant, control) {
+  const overrides = control?.storefront?.inventory || {};
+  for (const key of [variant.id, variant.alias]) {
+    if (Object.hasOwn(overrides, key)) return Number(overrides[key]);
+  }
+  return variant.inventory;
+}
+
+function imageOf(product) {
+  return product.image ? { url: product.image.url, altText: product.image.altText } : null;
+}
+
+// Storefront: ProductVariant.image cae a la imagen del producto si la variante no tiene.
+function variantNode(variant, product, control, includeQuantity) {
+  const inventory = inventoryOf(variant, control);
+  const node = {
+    id: variant.id,
+    title: variant.title,
+    availableForSale: inventory > 0,
+    selectedOptions: variant.selectedOptions,
+    price: { amount: variant.price, currencyCode: 'EUR' },
+    image: imageOf(product),
+  };
+  if (includeQuantity) node.quantityAvailable = inventory;
+  return node;
+}
+
+function productNode(product, control, includeQuantity) {
+  return {
+    id: product.id,
+    handle: product.handle,
+    title: product.title,
+    description: product.description,
+    featuredImage: imageOf(product),
+    collections: { nodes: product.collections.map(({ handle, title }) => ({ handle, title })) },
+    variants: {
+      nodes: product.variants.map((v) => variantNode(v, product, control, includeQuantity)),
+    },
+  };
+}
+
+function encodeCursor(product) {
+  return Buffer.from(JSON.stringify({ last_id: product.n, last_value: product.n })).toString(
+    'base64url'
+  );
+}
+
+function listProducts(variables, control) {
+  const first = Number(variables.first);
+  if (!Number.isInteger(first) || first < 1 || first > 250) {
+    return {
+      errors: [
+        {
+          message: 'The first argument must be between 1 and 250.',
+          extensions: { code: 'BAD_REQUEST' },
+        },
+      ],
+    };
+  }
+  let start = 0;
+  if (variables.after) {
+    let lastId = null;
+    try {
+      lastId = JSON.parse(Buffer.from(String(variables.after), 'base64url').toString('utf8'))
+        ?.last_id;
+    } catch {
+      lastId = null;
+    }
+    const index = PRODUCTS.findIndex((p) => p.n === lastId);
+    if (index === -1) {
+      return {
+        errors: [{ message: 'Invalid cursor.', extensions: { code: 'BAD_REQUEST' } }],
+      };
+    }
+    start = index + 1;
+  }
+  const page = PRODUCTS.slice(start, start + first);
+  const includeQuantity = Boolean(variables.includeQuantity);
+  return {
+    data: {
+      products: {
+        pageInfo: {
+          hasNextPage: start + first < PRODUCTS.length,
+          endCursor: page.length ? encodeCursor(page.at(-1)) : null,
+        },
+        nodes: page.map((p) => productNode(p, control, includeQuantity)),
+      },
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Carritos (Storefront)
+// ---------------------------------------------------------------------------
+
+const carts = new Map(); // token -> { token, key, lines: [{ uuid, variantId, quantity }] }
+const CART_GID = /^gid:\/\/shopify\/Cart\/([A-Za-z0-9_-]+)\?key=([A-Za-z0-9]+)$/;
+const LINE_GID = /^gid:\/\/shopify\/CartLine\/([A-Za-z0-9-]+)(?:\?cart=([A-Za-z0-9_-]+))?$/;
+
+const cartGid = (cart) => `gid://shopify/Cart/${cart.token}?key=${cart.key}`;
+const lineGid = (cart, line) => `gid://shopify/CartLine/${line.uuid}?cart=${cart.token}`;
+
+function resolveCart(id) {
+  const match = CART_GID.exec(String(id || ''));
+  if (!match) return null;
+  const cart = carts.get(match[1]);
+  return cart && cart.key === match[2] ? cart : null;
+}
+
+function findLine(cart, id) {
+  const match = LINE_GID.exec(String(id || ''));
+  if (!match || (match[2] && match[2] !== cart.token)) return null;
+  return cart.lines.find((line) => line.uuid === match[1]) || null;
+}
+
+function cartNode(cart, control) {
+  let subtotal = 0;
+  let totalQuantity = 0;
+  const lines = cart.lines.map((line) => {
+    const variant = VARIANTS.get(line.variantId);
+    const lineCents = toCents(variant.price) * line.quantity;
+    subtotal += lineCents;
+    totalQuantity += line.quantity;
+    return {
+      id: lineGid(cart, line),
+      quantity: line.quantity,
+      cost: { totalAmount: money(lineCents) },
+      merchandise: {
+        id: variant.id,
+        title: variant.title,
+        availableForSale: inventoryOf(variant, control) > 0,
+        product: { handle: variant.product.handle, title: variant.product.title },
+        image: imageOf(variant.product),
+        price: { amount: variant.price, currencyCode: 'EUR' },
+      },
+    };
+  });
+  return {
+    id: cartGid(cart),
+    totalQuantity,
+    checkoutUrl: `https://${expected.storeDomain}/cart/c/${cart.token}?key=${cart.key}`,
+    lines: { nodes: lines },
+    cost: { subtotalAmount: money(subtotal), totalAmount: money(subtotal) },
+  };
+}
+
+// Mensajes de aviso en inglés como los devuelve Shopify sin @inContext(language).
+// El texto exacto es una aproximación; el código sí es el del enum real.
+function applyQuantity(cart, variant, desired, control, warnings, existingLine) {
+  const inventory = inventoryOf(variant, control);
+  const target = existingLine ? lineGid(cart, existingLine) : variant.id;
+  if (inventory <= 0) {
+    warnings.push({
+      code: 'MERCHANDISE_OUT_OF_STOCK',
+      message: `The product '${variant.product.title}' is already sold out.`,
+      target,
+    });
+    return existingLine ? existingLine.quantity : 0;
+  }
+  if (desired > inventory) {
+    warnings.push({
+      code: 'MERCHANDISE_NOT_ENOUGH_STOCK',
+      message: `Only ${inventory} items were added to your cart due to availability.`,
+      target,
+    });
+    return inventory;
+  }
+  return desired;
+}
+
+function addLines(cart, lines, control, warnings) {
+  for (const input of lines) {
+    const variant = VARIANTS.get(input.merchandiseId);
+    const existing = cart.lines.find((line) => line.variantId === variant.id);
+    const desired = (existing?.quantity || 0) + Number(input.quantity ?? 1);
+    const quantity = applyQuantity(cart, variant, desired, control, warnings, existing);
+    if (existing) existing.quantity = quantity;
+    else if (quantity > 0) {
+      cart.lines.push({ uuid: crypto.randomUUID(), variantId: variant.id, quantity });
+    }
+  }
+}
+
+function merchandiseErrors(lines, prefix) {
+  const errors = [];
+  (Array.isArray(lines) ? lines : []).forEach((line, index) => {
+    if (!VARIANTS.has(line?.merchandiseId)) {
+      errors.push({
+        field: [...prefix, String(index), 'merchandiseId'],
+        message: `The merchandise with id ${line?.merchandiseId} does not exist.`,
+        code: 'INVALID',
+      });
+    } else if (!Number.isInteger(Number(line.quantity ?? 1)) || Number(line.quantity ?? 1) < 1) {
+      errors.push({
+        field: [...prefix, String(index), 'quantity'],
+        message: 'The quantity must be greater than 0.',
+        code: 'INVALID',
+      });
+    }
+  });
+  return errors;
+}
+
+const missingCart = () => [
+  { field: ['cartId'], message: 'The specified cart does not exist.', code: 'INVALID' },
+];
+const missingLine = (index, id) => ({
+  field: ['lines', String(index), 'id'],
+  message: `The merchandise line with id ${id} does not exist.`,
+  code: 'INVALID_MERCHANDISE_LINE',
+});
+
+function mutationResult(name, cart, control, userErrors = [], warnings = []) {
+  return {
+    data: {
+      [name]: {
+        cart: userErrors.length || !cart ? null : cartNode(cart, control),
+        userErrors,
+        warnings,
+      },
+    },
+  };
+}
+
+const storefrontOperations = {
+  RockyProducts: (variables, control) => listProducts(variables, control),
+
+  RockyCart: (variables, control) => {
+    const cart = resolveCart(variables.id);
+    return { data: { cart: cart ? cartNode(cart, control) : null } };
+  },
+
+  RockyCartCreate: (variables, control) => {
+    const lines = variables.lines || [];
+    const errors = merchandiseErrors(lines, ['input', 'lines']);
+    if (errors.length) return mutationResult('cartCreate', null, control, errors);
+    const cart = { token: `e2${randomToken(18)}`, key: crypto.randomBytes(16).toString('hex'), lines: [] };
+    carts.set(cart.token, cart);
+    const warnings = [];
+    addLines(cart, lines, control, warnings);
+    return mutationResult('cartCreate', cart, control, [], warnings);
+  },
+
+  RockyCartLinesAdd: (variables, control) => {
+    const cart = resolveCart(variables.cartId);
+    if (!cart) return mutationResult('cartLinesAdd', null, control, missingCart());
+    const errors = merchandiseErrors(variables.lines, ['lines']);
+    if (errors.length) return mutationResult('cartLinesAdd', cart, control, errors);
+    const warnings = [];
+    addLines(cart, variables.lines, control, warnings);
+    return mutationResult('cartLinesAdd', cart, control, [], warnings);
+  },
+
+  RockyCartLinesUpdate: (variables, control) => {
+    const cart = resolveCart(variables.cartId);
+    if (!cart) return mutationResult('cartLinesUpdate', null, control, missingCart());
+    const updates = Array.isArray(variables.lines) ? variables.lines : [];
+    const errors = [];
+    updates.forEach((update, index) => {
+      if (!findLine(cart, update?.id)) errors.push(missingLine(index, update?.id));
+    });
+    if (errors.length) return mutationResult('cartLinesUpdate', cart, control, errors);
+    const warnings = [];
+    for (const update of updates) {
+      const line = findLine(cart, update.id);
+      const quantity = Number(update.quantity);
+      if (quantity === 0) {
+        cart.lines = cart.lines.filter((candidate) => candidate !== line);
+        continue;
+      }
+      const variant = VARIANTS.get(line.variantId);
+      line.quantity = applyQuantity(cart, variant, quantity, control, warnings, line);
+    }
+    return mutationResult('cartLinesUpdate', cart, control, [], warnings);
+  },
+
+  RockyCartLinesRemove: (variables, control) => {
+    const cart = resolveCart(variables.cartId);
+    if (!cart) return mutationResult('cartLinesRemove', null, control, missingCart());
+    const ids = Array.isArray(variables.lineIds) ? variables.lineIds : [];
+    const errors = [];
+    ids.forEach((id, index) => {
+      if (!findLine(cart, id)) {
+        errors.push({ ...missingLine(index, id), field: ['lineIds', String(index)] });
+      }
+    });
+    if (errors.length) return mutationResult('cartLinesRemove', cart, control, errors);
+    const remove = new Set(ids.map((id) => findLine(cart, id)));
+    cart.lines = cart.lines.filter((line) => !remove.has(line));
+    return mutationResult('cartLinesRemove', cart, control, [], []);
+  },
+};
+
+function operationName(query) {
+  return /\b(?:query|mutation)\s+([A-Za-z_][A-Za-z0-9_]*)/.exec(String(query || ''))?.[1] || null;
+}
+
+async function handleStorefront(request, url, signal, control) {
+  const version = /^\/api\/([^/]+)\/graphql\.json$/.exec(url.pathname)?.[1];
+  const privateToken = request.headers.get('shopify-storefront-private-token');
+  const publicToken = request.headers.get('x-shopify-storefront-access-token');
+  const presented = privateToken ?? publicToken;
+  const auth = presented === null ? 'tokenless' : privateToken !== null ? 'private' : 'public';
+  let body = null;
+  try {
+    body = JSON.parse(await request.text());
+  } catch {
+    body = null;
+  }
+  const op = operationName(body?.query);
+  const entry = {
+    service: 'storefront',
+    op,
+    version,
+    auth,
+    buyerIp: Boolean(request.headers.get('shopify-storefront-buyer-ip')),
+  };
+
+  await abortableDelay(latencyFor(control, 'storefront'), signal);
+  const fault = pickFault(control, 'storefront', op);
+  if (fault) {
+    logCall({ ...entry, fault });
+    const response = await transportFault(fault, {
+      url: url.href,
+      signal,
+      errorBody: shopifyErrorBody,
+    });
+    if (response) return response;
+    if (fault === 'graphqlError') {
+      return json(200, {
+        errors: [
+          { message: 'Internal error (e2sim)', extensions: { code: 'INTERNAL_SERVER_ERROR' } },
+        ],
+      });
+    }
+    if (fault === 'graphqlThrottled') {
+      return json(200, { errors: [{ message: 'Throttled', extensions: { code: 'THROTTLED' } }] });
+    }
+    if (fault === 'userError' && op && op !== 'RockyProducts' && op !== 'RockyCart') {
+      const name = {
+        RockyCartCreate: 'cartCreate',
+        RockyCartLinesAdd: 'cartLinesAdd',
+        RockyCartLinesUpdate: 'cartLinesUpdate',
+        RockyCartLinesRemove: 'cartLinesRemove',
+      }[op];
+      return json(
+        200,
+        mutationResult(name, null, control, [
+          { field: ['lines'], message: 'Simulated user error (e2sim).', code: 'INVALID' },
+        ])
+      );
+    }
+  }
+
+  if (presented !== null && presented !== expected.storefrontToken) {
+    logCall({ ...entry, status: 401, note: 'token Storefront no válido' });
+    return json(401, shopifyErrorBody(401));
+  }
+  if (!body || typeof body.query !== 'string') {
+    logCall({ ...entry, status: 400, note: 'cuerpo GraphQL no válido' });
+    return json(400, { errors: [{ message: 'Parameter Missing or Invalid: query' }] });
+  }
+  const handler = op && storefrontOperations[op];
+  if (!handler) {
+    logCall({ ...entry, status: 200, unexpected: true, note: 'operación Storefront no simulada' });
+    warn(`operación Storefront no simulada: ${op || '(sin nombre)'}`);
+    return json(200, {
+      errors: [
+        {
+          message: `e2sim: operación Storefront no simulada (${op || 'sin nombre'})`,
+          extensions: { code: 'E2SIM_UNSUPPORTED' },
+        },
+      ],
+    });
+  }
+  const result = handler(body.variables || {}, control);
+  logCall({
+    ...entry,
+    status: 200,
+    userErrors: Object.values(result.data || {})[0]?.userErrors?.map((e) => e.code),
+    warnings: Object.values(result.data || {})[0]?.warnings?.map((w) => w.code),
+    graphqlErrors: result.errors?.map((e) => e.extensions?.code),
+  });
+  return json(200, result);
+}
+
+// ---------------------------------------------------------------------------
+// Customer Account API (OpenID, token, cliente)
+// ---------------------------------------------------------------------------
+
+const signingKey = crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' });
+const foreignKey = crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' });
+const SIGNING_KID = `e2sim-${randomToken(6)}`;
+const publicJwk = { ...signingKey.publicKey.export({ format: 'jwk' }), kid: SIGNING_KID, alg: 'ES256', use: 'sig' };
+
+const usedCodes = new Set();
+const accessTokens = new Map(); // token -> { customer, expiresAt }
+const refreshTokens = new Map(); // token -> { customer, clientId }
+
+function signJwt(payload, { kid = SIGNING_KID, privateKey = signingKey.privateKey } = {}) {
+  const header = Buffer.from(JSON.stringify({ alg: 'ES256', kid, typ: 'JWT' })).toString('base64url');
+  const claims = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const signature = crypto.sign('sha256', Buffer.from(`${header}.${claims}`), {
+    key: privateKey,
+    dsaEncoding: 'ieee-p1363',
+  });
+  return `${header}.${claims}.${signature.toString('base64url')}`;
+}
+
+function openIdDiscovery() {
+  return {
+    issuer: AUTH_BASE,
+    authorization_endpoint: `${AUTH_BASE}/oauth/authorize`,
+    token_endpoint: `${AUTH_BASE}/oauth/token`,
+    end_session_endpoint: `${AUTH_BASE}/logout`,
+    jwks_uri: `${AUTH_BASE}/.well-known/jwks.json`,
+    response_types_supported: ['code'],
+    grant_types_supported: ['authorization_code', 'refresh_token'],
+    scopes_supported: ['openid', 'email', 'customer-account-api:full'],
+    code_challenge_methods_supported: ['S256'],
+    id_token_signing_alg_values_supported: ['ES256'],
+    subject_types_supported: ['public'],
+    token_endpoint_auth_methods_supported: ['none', 'client_secret_basic'],
+  };
+}
+
+// Manipulaciones del ID token para probar la verificación del servidor.
+function buildIdToken({ customer, nonce, control }) {
+  const tamper = control?.customerAccount?.idToken || 'ok';
+  const now = Math.floor(Date.now() / 1_000);
+  const payload = {
+    iss: tamper === 'wrongIssuer' ? 'https://shopify.com/authentication/1' : AUTH_BASE,
+    aud: tamper === 'wrongAudience' ? 'otro-cliente' : expected.customerClientId,
+    sub: customer.id,
+    exp: tamper === 'expired' ? now - 3_600 : now + 3_600,
+    iat: tamper === 'expired' ? now - 7_200 : now,
+    auth_time: now,
+    nonce: tamper === 'wrongNonce' ? 'nonce-que-no-es' : nonce,
+    sid: crypto.randomUUID(),
+    dest: expected.storeDomain,
+    email: customer.email,
+    email_verified: true,
+  };
+  if (tamper === 'missing') return undefined;
+  if (tamper === 'badSignature') return signJwt(payload, { privateKey: foreignKey.privateKey });
+  if (tamper === 'unknownKid') return signJwt(payload, { kid: 'kid-desconocido' });
+  return signJwt(payload);
+}
+
+function issueTokens({ customerKey, clientId, nonce, control }) {
+  const customer = customerByKey(customerKey);
+  const expiresIn = Number(control?.customerAccount?.tokenExpiresIn || 3_600);
+  const accessToken = `shcat_e2sim_${randomToken(24)}`;
+  const refreshToken = `shcrt_e2sim_${randomToken(24)}`;
+  accessTokens.set(accessToken, { customerKey, expiresAt: Date.now() + expiresIn * 1_000 });
+  refreshTokens.set(refreshToken, { customerKey, clientId, nonce });
+  const idToken = buildIdToken({ customer, nonce, control });
+  return {
+    access_token: accessToken,
+    expires_in: expiresIn,
+    ...(idToken ? { id_token: idToken } : {}),
+    refresh_token: refreshToken,
+    scope: 'openid email customer-account-api:full',
+    token_type: 'Bearer',
+  };
+}
+
+const oauthError = (status, error, description) =>
+  json(status, { error, error_description: `${description} (e2sim)` });
+
+async function handleCustomerToken(request, signal, control) {
+  const form = new URLSearchParams(await request.text());
+  const grantType = form.get('grant_type');
+  const origin = request.headers.get('origin');
+  const entry = { service: 'customer-account', op: `token:${grantType}`, origin };
+  await abortableDelay(latencyFor(control, 'customerAccount'), signal);
+  const fault = pickFault(control, 'customerAccount', 'token');
+  if (fault) {
+    logCall({ ...entry, fault });
+    const response = await transportFault(fault, {
+      url: request.url,
+      signal,
+      errorBody: (status, message) => ({ error: 'server_error', error_description: message }),
+    });
+    if (response) return response;
+    if (fault === 'reject') return oauthError(400, 'invalid_grant', 'Rechazo simulado');
+  }
+  // Cliente público: Shopify sólo acepta los JavaScript origins registrados.
+  if (!origin || origin !== expected.publicOrigin) {
+    logCall({ ...entry, status: 400, note: 'Origin ausente o no registrado' });
+    return oauthError(400, 'invalid_request', 'Origin not allowed');
+  }
+  if (form.get('client_id') !== expected.customerClientId) {
+    logCall({ ...entry, status: 401, note: 'client_id no válido' });
+    return oauthError(401, 'invalid_client', 'Unknown client');
+  }
+
+  if (grantType === 'authorization_code') {
+    const code = verifyAuthCode(AUTHZ_KEY, form.get('code'));
+    if (!code || code.exp < Date.now() || usedCodes.has(code.jti)) {
+      logCall({ ...entry, status: 400, note: 'código no válido, caducado o reutilizado' });
+      return oauthError(400, 'invalid_grant', 'Invalid authorization code');
+    }
+    usedCodes.add(code.jti);
+    const challenge = crypto
+      .createHash('sha256')
+      .update(form.get('code_verifier') || '')
+      .digest('base64url');
+    const checks = {
+      clientId: code.cid === expected.customerClientId,
+      redirectUri: code.ru === form.get('redirect_uri'),
+      pkce: Boolean(form.get('code_verifier')) && challenge === code.cc,
+      customer: Boolean(customerByKey(code.c)),
+    };
+    const failed = Object.entries(checks)
+      .filter(([, ok]) => !ok)
+      .map(([name]) => name);
+    if (failed.length) {
+      logCall({ ...entry, status: 400, failed });
+      return oauthError(400, 'invalid_grant', `Checks failed: ${failed.join(', ')}`);
+    }
+    logCall({ ...entry, status: 200, customer: code.c, pkce: true });
+    return json(200, issueTokens({ customerKey: code.c, clientId: code.cid, nonce: code.n, control }));
+  }
+
+  if (grantType === 'refresh_token') {
+    const record = refreshTokens.get(form.get('refresh_token') || '');
+    if (!record) {
+      logCall({ ...entry, status: 400, note: 'refresh token desconocido o ya rotado' });
+      return oauthError(400, 'invalid_grant', 'Invalid refresh token');
+    }
+    refreshTokens.delete(form.get('refresh_token'));
+    logCall({ ...entry, status: 200, customer: record.customerKey });
+    return json(200, issueTokens({ ...record, control }));
+  }
+
+  logCall({ ...entry, status: 400, note: 'grant_type no soportado' });
+  return oauthError(400, 'unsupported_grant_type', 'Unsupported grant type');
+}
+
+async function handleCustomerGraphql(request, signal, control) {
+  const token = request.headers.get('authorization') || '';
+  let body = null;
+  try {
+    body = JSON.parse(await request.text());
+  } catch {
+    body = null;
+  }
+  const op = operationName(body?.query);
+  const entry = { service: 'customer-account', op: `graphql:${op}` };
+  await abortableDelay(latencyFor(control, 'customerAccount'), signal);
+  const fault = pickFault(control, 'customerAccount', 'graphql');
+  if (fault) {
+    logCall({ ...entry, fault });
+    const response = await transportFault(fault, { url: request.url, signal, errorBody: shopifyErrorBody });
+    if (response) return response;
+  }
+  const record = accessTokens.get(token);
+  if (!record || record.expiresAt <= Date.now()) {
+    logCall({ ...entry, status: 401, note: record ? 'token caducado' : 'token desconocido' });
+    return json(401, { errors: [{ message: 'Unauthorized', extensions: { code: 'UNAUTHORIZED' } }] });
+  }
+  if (!/\bcustomer\s*\{/.test(body?.query || '')) {
+    logCall({ ...entry, status: 200, unexpected: true, note: 'consulta Customer no simulada' });
+    warn(`consulta Customer Account no simulada: ${op || '(sin nombre)'}`);
+    return json(200, {
+      errors: [{ message: 'e2sim: consulta no simulada', extensions: { code: 'E2SIM_UNSUPPORTED' } }],
+    });
+  }
+  const customer = customerByKey(record.customerKey);
+  logCall({ ...entry, status: 200, customer: record.customerKey });
+  return json(200, {
+    data: {
+      customer: {
+        id: customer.id,
+        displayName: customer.displayName,
+        firstName: customer.firstName || null,
+        lastName: customer.lastName || null,
+        emailAddress: { emailAddress: customer.email },
+      },
+    },
+  });
+}
+
+async function handleDiscovery(kind, request, signal, control) {
+  const entry = { service: 'customer-account', op: kind };
+  await abortableDelay(latencyFor(control, 'customerAccount'), signal);
+  const fault = pickFault(control, 'customerAccount', kind);
+  if (fault) {
+    logCall({ ...entry, fault });
+    const response = await transportFault(fault, {
+      url: request.url,
+      signal,
+      errorBody: (status, message) => ({ error: message }),
+    });
+    if (response) return response;
+  }
+  logCall({ ...entry, status: 200 });
+  if (kind === 'openid') return json(200, openIdDiscovery());
+  if (kind === 'customer-account-api') return json(200, { graphql_api: CUSTOMER_API });
+  return json(200, { keys: [publicJwk] });
+}
+
+// ---------------------------------------------------------------------------
+// Admin API (client credentials + GraphQL de pedidos). El servidor no la usa
+// en ejecución; se responde para detectar y servir a quien la llame.
+// ---------------------------------------------------------------------------
+
+const adminTokens = new Set();
+
+async function handleAdminToken(request, signal, control) {
+  const form = new URLSearchParams(await request.text());
+  const entry = { service: 'admin', op: `token:${form.get('grant_type')}` };
+  const fault = pickFault(control, 'admin', 'token');
+  if (fault) {
+    logCall({ ...entry, fault });
+    const response = await transportFault(fault, { url: request.url, signal, errorBody: shopifyErrorBody });
+    if (response) return response;
+  }
+  if (
+    form.get('grant_type') !== 'client_credentials' ||
+    form.get('client_id') !== expected.clientId ||
+    form.get('client_secret') !== expected.clientSecret
+  ) {
+    logCall({ ...entry, status: 401 });
+    return oauthError(401, 'invalid_client', 'Client authentication failed');
+  }
+  const token = `shpat_e2sim_${randomToken(24)}`;
+  adminTokens.add(token);
+  logCall({ ...entry, status: 200 });
+  return json(200, {
+    access_token: token,
+    scope: 'read_orders,read_products,read_inventory',
+    expires_in: 86_399,
+  });
+}
+
+function adminOrderNode(order) {
+  return {
+    id: order.id,
+    name: order.name,
+    processedAt: order.processedAt,
+    createdAt: order.processedAt,
+    displayFinancialStatus: order.financialStatus,
+    currencyCode: order.currency,
+    totalPriceSet: { shopMoney: { amount: order.total, currencyCode: order.currency } },
+    currentTotalPriceSet: { shopMoney: { amount: order.total, currencyCode: order.currency } },
+    customer: customerById(order.customerId) ? { id: order.customerId } : null,
+    lineItems: {
+      nodes: order.lines.map((line) => {
+        const variant = findVariant(line.variantId);
+        return {
+          title: variant?.product.title || 'Producto',
+          variantTitle: variant?.title || null,
+          quantity: line.quantity,
+          variant: variant ? { id: variant.id } : null,
+        };
+      }),
+    },
+  };
+}
+
+async function handleAdminGraphql(request, signal, control) {
+  let body = null;
+  try {
+    body = JSON.parse(await request.text());
+  } catch {
+    body = null;
+  }
+  const query = body?.query || '';
+  const op = operationName(query) || (/\borders\s*\(/.test(query) ? 'orders' : null);
+  const entry = { service: 'admin', op: `graphql:${op}` };
+  const fault = pickFault(control, 'admin', 'graphql');
+  if (fault) {
+    logCall({ ...entry, fault });
+    const response = await transportFault(fault, { url: request.url, signal, errorBody: shopifyErrorBody });
+    if (response) return response;
+  }
+  if (!adminTokens.has(request.headers.get('x-shopify-access-token') || '')) {
+    logCall({ ...entry, status: 401 });
+    return json(401, shopifyErrorBody(401));
+  }
+  const data = {};
+  if (/\borders\s*\(/.test(query)) {
+    data.orders = {
+      pageInfo: { hasNextPage: false, endCursor: null },
+      nodes: SEED_ORDERS.map(adminOrderNode),
+    };
+  }
+  if (/\bshop\s*\{/.test(query)) {
+    data.shop = { name: 'ROCKY 035 (E2 simulada)', myshopifyDomain: expected.storeDomain, currencyCode: 'EUR' };
+  }
+  if (/\bcurrentAppInstallation\b/.test(query)) {
+    data.currentAppInstallation = {
+      accessScopes: ['read_orders', 'read_products', 'read_inventory'].map((handle) => ({ handle })),
+    };
+  }
+  if (!Object.keys(data).length) {
+    logCall({ ...entry, status: 200, unexpected: true, note: 'operación Admin no simulada' });
+    warn(`operación Admin no simulada: ${op || '(sin nombre)'}`);
+    return json(200, {
+      errors: [{ message: 'e2sim: operación Admin no simulada', extensions: { code: 'E2SIM_UNSUPPORTED' } }],
+    });
+  }
+  logCall({ ...entry, status: 200 });
+  return json(200, { data, extensions: { cost: { requestedQueryCost: 1 } } });
+}
+
+// ---------------------------------------------------------------------------
+// OpenRouter (chat/completions)
+// ---------------------------------------------------------------------------
+
+const FREE_MODEL = /^(?:openrouter\/free|[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*:free)$/;
+const MODEL_MODES = ['fail', 'timeout', 'cost', 'nocost', 'empty', 'ratelimit', 'malformed', 'english', 'length', 'network'];
+
+function normalize(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase();
+}
+
+function crewFacts(messages) {
+  const block = messages.find(
+    (m) => m.role === 'system' && String(m.content).startsWith('PERFIL CREW VERIFICADO')
+  )?.content;
+  if (!block) return null;
+  return {
+    level: /Nivel: ([^.\n]+)\./.exec(block)?.[1] || '¿?',
+    xp: /Progreso: (\d+) XP/.exec(block)?.[1] || '0',
+    tickets: /Saldo: ([\d.]+) Crew Tickets/.exec(block)?.[1] || '0',
+  };
+}
+
+function chatReply(userText, messages) {
+  const t = normalize(userText);
+  const crew = crewFacts(messages);
+  if (/\b(nivel|xp|tickets?|perfil|mi crew)\b/.test(t)) {
+    return crew
+      ? `Vas por el nivel ${crew.level} con ${crew.xp} XP y ${crew.tickets} Crew Tickets, colega. Cada pedido pagado suma.`
+      : 'Desde aquí no veo tu perfil, tío. Entra en tu cuenta de la Crew y lo tienes todo en Mi Crew.';
+  }
+  if (/\b(hola|buenas|que pasa|ey|hey)\b/.test(t)) {
+    return 'Qué pasa, colega. Aquí estoy con el spray listo; pregúntame por ROCKY 035, los drops o la crew.';
+  }
+  if (/\b(drop|fecha|cuando sale|lanzamiento)\b/.test(t)) {
+    return 'La fecha del próximo drop aún no está pintada en el muro, tío. Cuando la crew la suelte saldrá en la tienda y en @rocky035.';
+  }
+  if (/\b(descuento|codigo|cupon|rebaja)\b/.test(t)) {
+    return 'No te pinto un descuento falso ni aunque me prestes el spray. Los válidos son sólo los que publique ROCKY 035.';
+  }
+  if (/\b(colmena|estudio|beat|beats|musica)\b/.test(t)) {
+    return 'En LA COLMENA tienes la mesa de beats: cuatro sonidos, dieciséis pasos y El Freeze bailando lo que montes.';
+  }
+  if (/\b(crew|cromo|cromos|muneco|munecos|personaje)\b/.test(t)) {
+    return 'En LA CREW tienes el álbum de cromos de la casa: gira cada cromo y lee el expediente de cada muñeco.';
+  }
+  return 'Te pillo, tío. Eso no lo tengo pintado en el muro, pero si va de ROCKY 035, los drops o la crew, dispara.';
+}
+
+// Cuatro versos válidos para services/chat/barra.mjs (6-12 palabras, sin dos puntos).
+const BARRA_VERSES = [
+  'Suena el bombo en la Colmena y la crew se mueve',
+  'cada golpe de la caja pinta el muro cuando llueve',
+  'el hi-hat corre ligero por la calle del barrio',
+  'Rocky marca el tempo fino y lo firma a diario',
+];
+
+function openRouterError(status, message, extra = {}) {
+  return json(status, { error: { code: status, message: `${message} (e2sim)`, ...extra } });
+}
+
+async function handleOpenRouter(request, signal, control) {
+  let body = null;
+  try {
+    body = JSON.parse(await request.text());
+  } catch {
+    body = null;
+  }
+  const messages = Array.isArray(body?.messages) ? body.messages : [];
+  const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+  const userText = String(lastUser?.content || '');
+  const isBarra = messages.some((m) => m.role === 'system' && /barras de rap/.test(m.content || ''));
+  const models = [body?.model, ...(Array.isArray(body?.models) ? body.models : [])].filter(Boolean);
+  const invariants = {
+    freeOnly: models.length > 0 && models.every((m) => FREE_MODEL.test(m)),
+    maxPriceZero: body?.provider?.max_price?.prompt === 0 && body?.provider?.max_price?.completion === 0,
+    usageInclude: body?.usage?.include === true,
+    reasoningOff: body?.reasoning?.enabled === false,
+  };
+  const marker = /#e2sim:([a-z]+)/i.exec(userText)?.[1]?.toLowerCase() || null;
+  const entry = { service: 'openrouter', op: isBarra ? 'barra' : 'chat', models, invariants, marker };
+
+  await abortableDelay(latencyFor(control, 'openrouter'), signal);
+
+  if (request.headers.get('authorization') !== `Bearer ${expected.openRouterKey}` || !expected.openRouterKey) {
+    logCall({ ...entry, status: 401 });
+    return openRouterError(401, 'No auth credentials found');
+  }
+
+  // Precedencia: marcador en el mensaje > control > modelo > E2SIM_OPENROUTER_MODE.
+  let mode = marker || pickFault(control, 'openrouter', entry.op) || null;
+  let usedModel = null;
+  if (!mode || mode === 'ok') {
+    // e2sim/down…:free = modelo caído: OpenRouter pasa al siguiente de `models`.
+    const available = models.filter((m) => !/^e2sim\/down/.test(m));
+    if (available.length === 0) mode = 'down';
+    else {
+      usedModel = available[0];
+      const fromModel = /^e2sim\/([a-z]+)/.exec(usedModel)?.[1];
+      mode = MODEL_MODES.includes(fromModel) ? fromModel : env.E2SIM_OPENROUTER_MODE || 'ok';
+    }
+  }
+  usedModel ||= models[0] || 'desconocido';
+  // Un modelo de pago cobra: así salta el cortacircuitos si el servidor lo pidiera.
+  if (!invariants.freeOnly && mode === 'ok') mode = 'cost';
+  logCall({ ...entry, mode, usedModel });
+
+  switch (mode) {
+    case 'down':
+      return openRouterError(503, 'No endpoints available for the requested models', {
+        metadata: { models },
+      });
+    case 'fail':
+      return openRouterError(500, 'Internal Server Error');
+    case 'ratelimit':
+      return openRouterError(429, 'Rate limit exceeded: free-models-per-day');
+    case 'unauthorized':
+      return openRouterError(401, 'User not found');
+    case 'timeout':
+      return hang(signal);
+    case 'network':
+      throw networkError(request.url);
+    case 'malformed':
+      return text(200, '<html>e2sim: OpenRouter devolvió HTML</html>');
+    default:
+      break;
+  }
+
+  let content = isBarra ? BARRA_VERSES.join('\n') : chatReply(userText.replace(/#e2sim:[a-z]+/gi, ''), messages);
+  let finishReason = 'stop';
+  if (mode === 'empty') content = '';
+  if (mode === 'english') {
+    content = 'The user wants a short answer in Spanish. I should keep the lines under the word limit and output only the draft.';
+  }
+  if (mode === 'length') finishReason = 'length';
+  const promptTokens = Math.ceil(messages.reduce((n, m) => n + String(m.content || '').length, 0) / 4);
+  const completionTokens = Math.ceil(content.length / 4);
+  const usage = {
+    prompt_tokens: promptTokens,
+    completion_tokens: completionTokens,
+    total_tokens: promptTokens + completionTokens,
+    ...(mode === 'nocost' ? {} : { cost: mode === 'cost' ? 0.00042 : 0 }),
+    is_byok: false,
+    prompt_tokens_details: { cached_tokens: 0 },
+    completion_tokens_details: { reasoning_tokens: 0 },
+  };
+  return json(200, {
+    id: `gen-e2sim-${Date.now()}-${randomToken(6)}`,
+    provider: 'E2Sim',
+    model: usedModel,
+    object: 'chat.completion',
+    created: Math.floor(Date.now() / 1_000),
+    choices: [
+      {
+        logprobs: null,
+        finish_reason: finishReason,
+        native_finish_reason: finishReason,
+        index: 0,
+        message: { role: 'assistant', content, refusal: null, reasoning: null },
+      },
+    ],
+    usage,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Enrutado y bloqueo del resto de salidas
+// ---------------------------------------------------------------------------
+
+function blocked(kind, target) {
+  const message = `e2sim: salida a internet bloqueada (no prevista): ${kind} ${target}`;
+  warn(message);
+  logCall({ service: 'blocked', op: kind, url: target, unexpected: true });
+  return message;
+}
+
+function notSimulated(request, url) {
+  const message = `e2sim: ruta no simulada ${request.method} ${url.origin}${url.pathname}`;
+  warn(message);
+  logCall({ service: 'unexpected', op: request.method, url: `${url.origin}${url.pathname}`, unexpected: true });
+  return json(404, { errors: [{ message, extensions: { code: 'E2SIM_NOT_SIMULATED' } }] });
+}
+
+async function e2simFetch(input, init = undefined) {
+  const request = new Request(input, init);
+  const url = new URL(request.url);
+  if (isLoopback(url.hostname)) return realFetch(input, init);
+  const signal = init?.signal ?? (input instanceof Request ? input.signal : undefined);
+  if (signal?.aborted) throw signal.reason;
+  const control = readControl();
+  const host = url.hostname.toLowerCase();
+  const method = request.method;
+
+  if (host === expected.storeDomain) {
+    if (method === 'POST' && /^\/api\/[^/]+\/graphql\.json$/.test(url.pathname)) {
+      return handleStorefront(request, url, signal, control);
+    }
+    if (method === 'GET' && url.pathname === '/.well-known/openid-configuration') {
+      return handleDiscovery('openid', request, signal, control);
+    }
+    if (method === 'GET' && url.pathname === '/.well-known/customer-account-api') {
+      return handleDiscovery('customer-account-api', request, signal, control);
+    }
+    if (method === 'POST' && url.pathname === '/admin/oauth/access_token') {
+      return handleAdminToken(request, signal, control);
+    }
+    if (method === 'POST' && /^\/admin\/api\/[^/]+\/graphql\.json$/.test(url.pathname)) {
+      return handleAdminGraphql(request, signal, control);
+    }
+    return notSimulated(request, url);
+  }
+  if (host === 'shopify.com') {
+    if (method === 'GET' && url.pathname === `/authentication/${SHOP_ID}/.well-known/jwks.json`) {
+      return handleDiscovery('jwks', request, signal, control);
+    }
+    if (method === 'POST' && url.pathname === `/authentication/${SHOP_ID}/oauth/token`) {
+      return handleCustomerToken(request, signal, control);
+    }
+    if (method === 'POST' && url.href === CUSTOMER_API) {
+      return handleCustomerGraphql(request, signal, control);
+    }
+    return notSimulated(request, url);
+  }
+  if (host === 'openrouter.ai') {
+    if (method === 'POST' && url.pathname === '/api/v1/chat/completions') {
+      return handleOpenRouter(request, signal, control);
+    }
+    return notSimulated(request, url);
+  }
+  throw new TypeError(blocked(`fetch ${method}`, `${url.origin}${url.pathname}`));
+}
+
+globalThis.fetch = e2simFetch;
+
+// http/https.request y get: sólo loopback. El servidor no los usa hoy; si alguna
+// dependencia lo hiciera, falla aquí con un mensaje claro en vez de salir.
+function targetOf(args, protocol) {
+  const [first, second] = args;
+  let options = {};
+  if (typeof first === 'string' || first instanceof URL) {
+    const url = new URL(first);
+    options = { hostname: url.hostname, path: url.pathname };
+    if (second && typeof second === 'object') options = { ...options, ...second };
+  } else if (first && typeof first === 'object') options = first;
+  const hostname = options.hostname || String(options.host || 'localhost').replace(/:\d+$/, '');
+  return { hostname, label: `${protocol}//${hostname}${options.path || '/'}` };
+}
+
+for (const [mod, protocol] of [
+  [http, 'http:'],
+  [https, 'https:'],
+]) {
+  for (const name of ['request', 'get']) {
+    const original = mod[name];
+    mod[name] = function e2simGuard(...args) {
+      const target = targetOf(args, protocol);
+      if (!isLoopback(target.hostname)) throw new Error(blocked(`${protocol.slice(0, -1)}.${name}`, target.label));
+      return original.apply(this, args);
+    };
+  }
+}
+syncBuiltinESMExports();
+
+warn(
+  `doble activo: Storefront/Customer Accounts/Admin en ${expected.storeDomain}, ` +
+    `OpenRouter; ${Object.keys(CUSTOMERS).length} clientes, ${PRODUCTS.length} productos; ` +
+    'el resto de salidas está bloqueado.'
+);

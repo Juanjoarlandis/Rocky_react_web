@@ -1,0 +1,31 @@
+// Exploración inicial: estructura de la portada y la ficha para calibrar selectores.
+import { startInstance, launchBrowser, openPage, summarize } from '../harness.mjs';
+
+const inst = await startInstance(3202, { AVISOS_RATE_LIMIT_MAX: '100', SHOPIFY_RATE_LIMIT_MAX: '2000' });
+const browser = await launchBrowser();
+try {
+  const st = await (await fetch(inst.origin + '/api/shopify/status')).json();
+  console.log('status', JSON.stringify(st));
+  const { page, issues, context } = await openPage(browser, 'escritorio', { origin: inst.origin });
+  await page.goto(inst.origin + '/');
+  await page.waitForSelector('.commerce-notice');
+  const info = await page.evaluate(() => ({
+    title: document.title,
+    h1: [...document.querySelectorAll('h1')].map((e) => e.textContent),
+    notice: document.querySelector('.commerce-notice')?.outerHTML,
+    count: [...document.querySelectorAll('.product-count')].map((e) => e.textContent),
+    cards: [...document.querySelectorAll('.product-grid > article')].map((a) => ({
+      cls: a.className,
+      title: a.querySelector('.product-title')?.textContent,
+      badge: a.querySelector('.badge')?.textContent,
+      links: [...a.querySelectorAll('a,button')].map((b) => `${b.tagName}:${b.textContent.trim()}:${b.getAttribute('aria-label') || ''}:${b.disabled ? 'dis' : ''}:${b.getAttribute('href') || ''}`),
+    })),
+    cta: document.querySelector('.product-page-hero-cta')?.outerHTML,
+  }));
+  console.log(JSON.stringify(info, null, 1));
+  console.log(summarize(issues));
+  await context.close();
+} finally {
+  await browser.close();
+  inst.stop();
+}

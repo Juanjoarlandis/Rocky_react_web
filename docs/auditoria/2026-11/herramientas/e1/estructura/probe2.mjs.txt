@@ -1,0 +1,21 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { chromium } from 'playwright';
+import { VIEWPORTS } from '../harness.mjs';
+import { ORIGIN, sleep, SCRATCH } from './common.mjs';
+const dir = path.join(SCRATCH, 'e1/estructura/perfil-bloqueado');
+fs.rmSync(dir, { recursive: true, force: true });
+fs.mkdirSync(path.join(dir, 'Default'), { recursive: true });
+fs.writeFileSync(path.join(dir, 'Default/Preferences'), JSON.stringify({ profile: { default_content_setting_values: { cookies: 2 } } }));
+const ctx = await chromium.launchPersistentContext(dir, { channel: 'chrome', ...VIEWPORTS.escritorio, locale: 'es-ES' });
+try {
+  const page = ctx.pages()[0] || (await ctx.newPage());
+  const errs = [];
+  page.on('pageerror', (e) => errs.push(String(e)));
+  page.on('console', (m) => m.type() === 'error' && errs.push('console: ' + m.text()));
+  await page.goto(ORIGIN + '/');
+  await sleep(800);
+  console.log('splash?', await page.locator('.splash-intro').count());
+  console.log(await page.evaluate(() => { try { sessionStorage.length; return 'session ok'; } catch (e) { return 'session throws ' + e.name; } }));
+  console.log(errs);
+} finally { await ctx.close(); }

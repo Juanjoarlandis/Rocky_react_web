@@ -6,6 +6,7 @@ seguridad; `CLAUDE.md` y `CONTRIBUTING.md`, las convenciones de trabajo.
 
 | Carpeta | Qué contiene |
 | --- | --- |
+| `auditoria/` | Auditorías fechadas de la web. `2026-11/`: recorridos de usuario, hallazgos, arte, métricas de partida y plan de fases (ver su `README.md`). |
 | `design/` | QA visual de la portada (`design-qa.md`) y la previsualización del muñeco cotilla (`cotilla-esquina-preview.html`). |
 | `images/` | Capturas que usa el README. |
 | `marketing/` | Plan para sacar `posters/` y los binarios de `prompts-munecos/` a un repositorio aparte. |

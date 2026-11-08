@@ -1,0 +1,174 @@
+H-007	bloq	legal/privacid	2	Las páginas legales publican «PENDIENTE» en lugar de los datos del titular	
+H-008	impo	funcional	2	El catálogo vivo solo carga 8 productos: los demás no salen y su ficha dice «Producto no encont	
+H-001	impo	operación	2	El código publicado no estaba en Git y el proceso de publicación no está versionado	
+H-002	impo	seguridad obse	2	`npm audit` encuentra 15 vulnerabilidades y el CI fallaría	
+H-003	impo	rendimiento	4	Dos fotos de producto miden 5906 × 5906 px	
+H-009	impo	funcional	2	Un fallo al cargar o al pintar una página deja la web en blanco	
+H-010	impo	funcional	2	El bloqueo de scroll no bloquea: la página se mueve bajo la intro, el menú móvil y el lightbox	
+H-011	impo	funcional (tam	2	Abrir la web desde un origen no listado la deja en blanco: la política de origen bloquea los re	
+H-012	impo	SEO	4	El canónico y `og:url` apuntan a la portada en todas las rutas	
+H-013	impo	accesibilidad	2	«Saltar al contenido» queda tapado por la barra	
+H-014	impo	accesibilidad	2	La hoja del menú móvil no se puede cerrar desde dentro	
+H-015	impo	accesibilidad	2	Al cambiar de ruta no se mueve el foco ni se anuncia la página nueva	
+H-016	impo	accesibilidad	2	El foco cae al `<body>` cuando el botón pulsado se deshabilita o desaparece	
+H-017	impo	legal/privacid	2	La política de cookies no cuenta lo que se guarda ni el reproductor de Spotify, que se carga si	
+H-018	impo	legal/privacid	2	El historial de Rocky IA se guarda 30 días en el servidor: la política dice que no, y el usuari	
+H-019	impo	funcional	2	En modo Shopify, un producto a la venta sin foto se esconde «bajo llave»	
+H-020	impo	operación	2	Los avisos de un mismo drop se reparten en listas distintas y el envío no los junta	
+H-021	impo	funcional	2	La sesión no suelta un carrito que Shopify ya no devuelve	
+H-022	impo	seguridad obse	2	Cerrar sesión depende de Shopify: si falla, tampoco se cierra en local	
+H-023	impo	funcional	2	Con el token de cliente revocado, la cuenta se queda sin forma de entrar ni de salir	
+H-024	impo	funcional	2	Los errores del login de cliente acaban en JSON crudo, sin vuelta a la tienda	
+H-025	impo	operación (pru	2	Faltan pruebas del checkout, del cierre de sesión, de los errores del callback y de los contrat	
+H-026	impo	funcional (los	2	Rocky IA llama al modelo aunque luego vaya a responder con la frase fija de compra	
+H-027	impo	funcional	2	Rocky IA contesta con los primeros productos del catálogo cuando la búsqueda se queda sin térmi	
+H-028	impo	funcional	2	El «Marco Tinta Azul» se canjea y se equipa, pero no se ve	
+H-029	impo	funcional	2	Si falla el perfil Crew, `/mi-crew` se queda en la pantalla de carga sin salida	
+H-030	impo	funcional	2	«Remezclar» carga el beat de la URL anterior	
+H-031	impo	funcional	2	Los parámetros de un enlace de beat se quedan en la URL y pisan las ediciones al recargar	
+H-032	impo	funcional	2	Un beat del ranking sigue sonando sin botón para pararlo cuando su fila desaparece	
+H-033	impo	seguridad obse	2	Una sola persona puede ocultar cualquier beat o inflar los «me mola» borrando la cookie	
+H-034	impo	funcional (maq	2	En escritorio, el paso 16 del secuenciador no cabe	
+H-035	impo	funcional (tam	2	Al apagar el descontrol con MODO NEÓN sonando, la radio se calla pero la interfaz sigue «sonand	
+H-036	impo	accesibilidad 	3	Bajo la oscuridad del modo noche, el texto secundario no llega al contraste mínimo	
+H-037	impo	operación	2	Si la versión de API de un webhook no coincide exactamente, se rechaza y los créditos Crew no l	
+H-038	impo	arte	3	La web usa dos nombres de marca: «ROCKY 35» y «ROCKY 035»	
+H-169	impo	rendimiento	4	La animación del pie pesa 650 kB y se descarga en todas las páginas con pie	
+H-170	impo	rendimiento	4	El pie se desplaza al cargar: CLS de 0,2 a 0,5 en cinco páginas	
+H-171	impo	rendimiento	4	LCP de 5 a 10 s en móvil	
+H-172	impo	accesibilidad	3	Contraste insuficiente en las etiquetas «Próximamente» y en los rótulos pequeños grises	
+H-174	impo	legal/privacid	2	La API de avisos revela si un email ya está apuntado	
+H-004	meno	arte	3	Hay pósters duplicados con distinto número	
+H-005	meno	arte	3	El arte no tiene una convención de nombres escrita	
+H-006	meno	operación	2	`.env.example` no documenta nueve variables que el servidor lee	
+H-039	meno	funcional	2	`preloadRecovery.js` lee `sessionStorage` sin protegerse de un almacenamiento bloqueado	
+H-040	meno	accesibilidad	2	La intro no se puede saltar y la tienda de debajo sigue recibiendo el foco	
+H-041	meno	funcional	2	`ScrollToTop` decide por el tipo de navegación: no sube en el segundo clic y sí sube al remezcl	
+H-042	meno	accesibilidad	2	La carga de una página diferida no se indica ni se anuncia	
+H-043	meno	SEO	4	Las páginas que no existen responden 200, sin `noindex` y con un título que no corresponde	
+H-044	meno	funcional	2	En el 404 a oscuras en móvil, «Salir de aquí» puede quedar cortado fuera de la pantalla	
+H-045	meno	accesibilidad	2	La cinta del pie se mueve sin fin y no se puede parar	
+H-046	meno	funcional	2	La Estampida cuenta teclas que ya usa la mesa de beats	
+H-047	meno	rendimiento	4	La primera Estampida descarga 615 KiB de ilustraciones grandes para pintarlas pequeñas	
+H-048	meno	accesibilidad	2	La preferencia de movimiento reducido no se sigue en vivo, y el hook que lo haría no se usa	
+H-049	meno	funcional	2	El Curioso rompe la app con ventanas de menos de unos 86 px de ancho	
+H-050	meno	accesibilidad	2	Los garabatos decorativos declaran a la vez `role="img"` y `aria-hidden="true"`	
+H-051	meno	accesibilidad	2	Al ensanchar la ventana con la hoja del menú abierta, el foco a veces acaba en `<body>`	
+H-052	meno	funcional	2	Si falla `/api/shopify/status`, la tienda se queda sin productos aunque el catálogo de vista pr	
+H-053	meno	funcional	2	Mientras carga, la portada dice «0 diseños» y la categoría enseña su handle	
+H-054	meno	accesibilidad	2	Con el aviso ya apuntado, «Avísame» y el enlace `#aviso` no hacen nada visible	
+H-055	meno	accesibilidad	2	Controles repetidos con el mismo nombre accesible	
+H-056	meno	funcional (con	2	Las fichas de demo enseñan «Próximamente» dos veces	
+H-057	meno	accesibilidad	2	La foto de la ficha y su lightbox pierden la descripción de la imagen	
+H-058	meno	operación	2	Errores respondidos a mano: sin `code` y sin línea de log	
+H-059	meno	funcional	2	El mockup de un diseño bajo llave dice siempre «Drop 4 · sin revelar»	
+H-060	meno	funcional	2	Un drop sale «Disponible» aunque todo esté agotado o el carrito no funcione	
+H-061	meno	funcional	2	El servidor solo reconoce los 50 productos más recientes para los avisos	
+H-062	meno	SEO	4	Hay URLs duplicadas en el catálogo, y en `/products/...` ningún enlace de la barra queda activo	
+H-063	meno	funcional (nav	2	Las 19 fichas de diseños bajo llave no tienen ningún enlace	
+H-064	meno	accesibilidad	2	El campo de email del aviso no tiene etiqueta visible	
+H-065	meno	accesibilidad	2	El botón de la foto de un diseño bajo llave está deshabilitado pero se anuncia como «Ver … en g	
+H-066	meno	funcional	2	«← Volver a la tienda» lleva siempre a la portada	
+H-067	meno	accesibilidad	2	El anillo de foco de las fotos de las tarjetas queda recortado	
+H-068	meno	rendimiento	4	En móvil, `/menudrop` descarga la ilustración que oculta	
+H-069	meno	funcional	2	Salir de la cuenta destruye la sesión entera: se pierde el carrito y, con la puerta activa, el 	
+H-070	meno	legal/privacid	2	`GET /account` manda al navegador el identificador y el email del cliente sin necesitarlos	
+H-071	meno	funcional (tex	2	Textos del carrito que no dicen lo que pasa	
+H-072	meno	funcional	2	El carrito no tiene estado de carga ni de error: dice que está vacío en los dos casos	
+H-073	meno	funcional	2	Tras un error de carrito, la web sigue enseñando líneas que ya no existen	
+H-074	meno	funcional	2	Los avisos y errores del carrito se duplican, se borran o reaparecen donde no toca	
+H-075	meno	accesibilidad	2	Los cambios del carrito no se anuncian y la lista de avisos pierde su semántica de lista	
+H-076	meno	accesibilidad	2	Botones de cantidad de 28 px y cursor de espera sin nada pendiente	
+H-077	meno	funcional	2	El icono del carrito no tiene estado activo visible en `/cart`	
+H-078	meno	seguridad obse	2	El servidor reenvía al navegador el `target` de los avisos de Shopify, con el token del carrito	
+H-079	meno	funcional	2	La cookie de sesión caduca a los 30 días de crearse, aunque haya actividad	
+H-080	meno	operación (hig	2	Volver a entrar sin haber salido deja huérfano el token de cliente anterior	
+H-081	meno	funcional	2	El login abre una sesión antes de validar la ruta de retorno	
+H-082	meno	operación (man	2	En modo demo no se puede comprar nada, así que el carrito demo y sus textos son código muerto	
+H-083	meno	rendimiento	4	Con la red lenta, el repartidor del carrito cruza sin dibujo la primera vez	
+H-084	meno	operación (man	2	El tope de 20 unidades por línea está escrito en cuatro sitios	
+H-085	meno	funcional	2	Rocky IA no distingue por qué falla	
+H-086	meno	funcional	2	El filtro contra la manipulación del prompt bloquea preguntas con el verbo «dan»	
+H-087	meno	funcional	2	Una pregunta sobre el perfil Crew con una palabra de compra entra en modo compra	
+H-088	meno	funcional	2	En modo Shopify, Rocky IA sigue usando el catálogo de vista previa	
+H-089	meno	accesibilidad	2	El historial del chat se lee mal con un lector de pantalla	
+H-090	meno	operación	2	Cada mensaje fallido del chat deja un `console.error`	
+H-091	meno	operación (man	2	El CSS del chat tiene dos bloques `@media (max-width: 640px)` seguidos y el segundo pisa al pri	
+H-092	meno	funcional (con	2	El prompt de Rocky IA no incluye a «El Vigía» en LA CREW	
+H-093	meno	funcional	2	`/mi-crew` enseña la vista previa antes de saber si hay sesión	
+H-094	meno	accesibilidad	2	Los botones de canjear y equipar ocultan el coste y el estado a los lectores de pantalla	
+H-095	meno	funcional (tex	2	Los números y plurales del perfil Crew no siguen el formato español	
+H-096	meno	rendimiento	4	Leer el perfil Crew reescribe entero el almacén cifrado	
+H-097	meno	rendimiento	4	`useCrewProfile` devuelve un objeto nuevo en cada render y anula la memoización de la tienda	
+H-098	meno	funcional	2	Un marco equipado no se puede quitar	
+H-099	meno	funcional	2	Cambiar el hash estando en `/crew` centra el cromo nuevo pero no lo gira	
+H-100	meno	accesibilidad	2	Los lectores de pantalla no reciben la puntuación de las estadísticas del cromo	
+H-101	meno	accesibilidad	2	«¡Enlace copiado!» no se anuncia	
+H-102	meno	accesibilidad	2	El aro de foco de los cromos desaparece con el ratón encima	
+H-103	meno	operación	2	Un límite numérico fuera de rango vuelve en silencio al valor por defecto	
+H-104	meno	funcional (con	2	Las tarjetas de Rocky IA enseñan «Default Title» en los productos de variante única	
+H-105	meno	funcional	2	El «● REC» del LCD nunca se pone rojo ni parpadea	
+H-106	meno	funcional (tex	2	La mesa promete que un enlace «se abre sonando», y no suena	
+H-107	meno	funcional	2	Publicar un beat repetido de uno oculto dice «te lo enseñamos», pero no se ve	
+H-108	meno	seguridad obse	2	`GET /api/beats` no tiene límite de peticiones y carga todo el almacén en cada lectura	
+H-109	meno	funcional	2	El filtro de palabras del ranking tiene falsos positivos y culpa al nombre cuando el rechazado 	
+H-110	meno	funcional	2	El chip «Boom bap» sale marcado aunque el patrón cargado sea otro	
+H-111	meno	accesibilidad	2	El atajo «Espacio arranca» no se puede usar	
+H-112	meno	accesibilidad	2	Las celdas del secuenciador no distinguen fantasma, golpe y acento, y borrar en táctil depende 	
+H-113	meno	accesibilidad	2	El botón de silenciar se llama como la pista, y los chips de ritmo no exponen su estado	
+H-114	meno	accesibilidad	2	Las pestañas del ranking y los colores del spray usan roles compuestos, pero no responden a las	
+H-115	meno	accesibilidad	2	La barra de Rocky IA anida un `role="status"` dentro de una región `aria-live`	
+H-116	meno	funcional (tex	2	Los mensajes genéricos de error hablan de «la tienda» fuera de la tienda	
+H-117	meno	funcional	2	Al pasar de un beat del ranking a otro, el nuevo entra a mitad de compás	
+H-118	meno	rendimiento	4	La mesa y el ranking crean cada uno su propio `AudioContext`	
+H-119	meno	funcional	2	De noche, la setlist del estudio marca BARRO mientras suena MODO NEÓN	
+H-120	meno	funcional	2	Con REC encendido, los pads sin pista suenan pero no se graban, y nada lo avisa	
+H-121	meno	funcional	2	El pad de una pista silenciada no suena	
+H-122	meno	funcional	2	Si el autocompletado rellena el campo trampa, el beat se descarta y la web dice «Publicado»	
+H-123	meno	funcional	2	En móvil no se puede cambiar el volumen de cada pista	
+H-124	meno	funcional	2	Cerrar la barra de Rocky IA no cancela la petición: el panel vuelve a abrirse solo y gasta cupo	
+H-125	meno	funcional	2	Un aviso del ranking sustituye para siempre a la nota de ayuda	
+H-126	meno	seguridad obse	2	Moderación del ranking: llave en claro, botón «Quitar» con cualquier valor y límite compartido 	
+H-127	meno	accesibilidad	2	Tras remezclar, la vista salta a la mesa pero el foco se queda en el ranking	
+H-128	meno	accesibilidad	2	En táctil, los botones deshabilitados de publicar y de la barra no dicen por qué	
+H-129	meno	funcional	2	«Tema siguiente» y «Tema anterior» no hacen lo que dicen con un solo tema por cinta	
+H-130	meno	funcional	2	Si la cinta falla, la radio no avisa y no se recupera sin recargar	
+H-131	meno	accesibilidad	2	Encender el descontrol pone música sin avisar	
+H-132	meno	accesibilidad	2	La barra de progreso de la radio avanza 0,1 s por pulsación de flecha y se anuncia sin unidad	
+H-133	meno	funcional	2	El radiocasete dice 0:00 / 0:00 hasta el primer play, mientras la setlist dice 1:53	
+H-134	meno	operación (pru	2	Un comentario y un test dicen que en Rocky IA no hay pared de noche, pero sí la hay	
+H-135	meno	rendimiento	4	El lienzo del spray ocupa toda la página en cada ruta de noche, aunque nadie pinte	
+H-136	meno	rendimiento	4	La linterna repinta la ventana entera en cada movimiento	
+H-137	meno	rendimiento	4	Cada componente con `useNightMode` crea su propio `MutationObserver`	
+H-138	meno	funcional	2	El spray arrastra estado de la página anterior al cambiar de ruta	
+H-139	meno	funcional	2	La pintada guardada no coincide con lo que se ve: pierde el último trazo, recorta en silencio o	
+H-140	meno	funcional	2	Una pintada guardada con datos corruptos deja la página en blanco al encender el descontrol	
+H-141	meno	funcional (tex	2	Si `toBlob` falla, la foto del spray dice «Pinta algo primero.»	
+H-142	meno	funcional	2	En móvil, el bote y la caja del spray quedan por encima de la hoja del menú	
+H-143	meno	accesibilidad	2	El interruptor del descontrol cambia a la vez su nombre y `aria-pressed`	
+H-144	meno	operación	2	`modo-neon.m4a` y `theme-init.js` tienen permisos 600 en el árbol de trabajo y en `dist/`	
+H-145	meno	rendimiento	4	BARRO pesa 2,68 MB a 190 kbps, tres veces la tasa de MODO NEÓN	
+H-146	meno	funcional	2	El primer toque en una zona sin enlaces ni botones lleva la linterna al centro de `<main>`	
+H-147	meno	arte	3	En móvil, «MODO NEÓN» queda cortado en la cabecera del chat	
+H-148	meno	funcional	2	Cuando caduca el acceso de la puerta, la web abierta solo dice «La tienda no ha podido completa	
+H-149	meno	funcional	2	En algunos errores, la puerta responde con texto plano o JSON en vez de con su página	
+H-150	meno	funcional	2	Tras desbloquear la puerta se pierde la ruta que se había pedido	
+H-151	meno	operación	2	Con la puerta activa, `HEAD /` responde 404	
+H-152	meno	rendimiento	4	El CSS y los medios de la puerta van con `no-store` y se descargan en cada visita	
+H-153	meno	rendimiento	4	`GET /products`, sin barra final, recibe un 301 sin las cabeceras de caché de la app	
+H-154	meno	funcional	2	`/api`, sin barra final, devuelve la SPA con 200	
+H-155	meno	funcional (lat	2	El servidor usa `NETWORK_ERROR` para una caída de Shopify, el mismo código que «el navegador no	
+H-156	meno	operación	2	Un 401 o un 403 de Shopify llegan al navegador como si el problema fuera del usuario	
+H-157	meno	funcional	2	`RateLimit-Reset` lleva una fecha absoluta en vez de los segundos que faltan	
+H-158	meno	seguridad obse	2	Con la puerta activa, `/api/health` responde distinto que el resto y delata que existe	
+H-159	meno	operación	2	La sonda de salud no detecta un almacén dañado después del arranque	
+H-160	meno	operación	2	Los avisos de desinstalación de la app de Shopify se guardan y nadie los lee	
+H-161	meno	operación	2	La entrega de un webhook se registra como aceptada antes de procesarla	
+H-162	meno	operación	2	Un error de configuración tumba el servidor con una traza de Node, sin línea de log JSON	
+H-163	meno	operación	2	Las líneas de log de error pierden el nombre del evento	
+H-164	meno	accesibilidad	2	El error de la puerta no se asocia al campo de la contraseña	
+H-165	meno	arte	3	Estilos fuera del sistema de tokens: la tipografía monoespaciada del estudio y el CSS de la pue	
+H-166	meno	arte (también 	3	Con movimiento reducido, el patinador se queda detrás del botón de la portada	
+H-167	meno	arte	3	A 900 px, la ficha deja el precio y la compra por debajo del pliegue	
+H-168	meno	arte	3	A 480 px, el DJ tapa parte del subtítulo del estudio	
+H-173	meno	accesibilidad	2	Nombres accesibles que no coinciden con el texto visible y encabezados fuera de orden	

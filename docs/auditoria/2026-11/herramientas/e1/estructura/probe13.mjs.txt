@@ -1,0 +1,22 @@
+import { launchBrowser, open, ORIGIN, sleep } from './common.mjs';
+const b = await launchBrowser();
+try {
+  const o = await open(b, 'escritorio');
+  const { page } = o;
+  await page.goto(ORIGIN + '/estudio');
+  await sleep(1200);
+  await page.locator('header .navbar-tools > .navbar-theme').click();
+  await sleep(800);
+  console.log('fab', await page.getByRole('button', { name: 'Coge el spray' }).count());
+  await page.getByRole('button', { name: 'Coge el spray' }).click();
+  await sleep(500);
+  console.log('tools', await page.locator('.spray-tools').count(), await page.locator('.spray-status').textContent());
+  const pt = await page.evaluate(() => { for (const [x, y] of [[700, 450], [300, 600], [1000, 300], [100, 400]]) { const el = document.elementFromPoint(x, y); if (!el.closest('a, button, input, textarea, select, label, summary, iframe, [role="button"], [role="slider"], .navbar, .spray-tools')) return [x, y, el.tagName + '.' + el.className]; } return null; });
+  console.log('punto', pt);
+  await page.mouse.move(pt[0], pt[1]);
+  await page.mouse.down();
+  await page.mouse.move(pt[0] + 120, pt[1] + 40, { steps: 10 });
+  await page.mouse.up();
+  await sleep(2500);
+  console.log(await page.evaluate(() => Object.keys(localStorage)));
+} finally { await b.close(); }

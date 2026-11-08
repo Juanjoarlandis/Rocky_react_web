@@ -1,0 +1,276 @@
+// R-NAV-21 (pie), R-NAV-22 (muro «La banda») y R-NAV-25 (dibujos e iconos compartidos).
+import { launchBrowser, open, sum, clean, shot, ORIGIN, sleep, results } from './common.mjs';
+
+const R = results('piemuro');
+const b = await launchBrowser();
+const only = process.argv[2] ? process.argv[2].split(',') : null;
+const want = (id) => !only || only.includes(id);
+
+const DAY_TICKER = ['ROCKY 035', 'Drop 4 PRÓXIMAMENTE', 'TODO DESDE CERO', 'ロッキー・スリーファイブ', 'DESDE LA COLMENA', 'LA CREW AL COMPLETO', 'EDICIONES LIMITADAS', 'CUANDO VUELAN, VUELAN'].map((t) => `${t} ✦ `).join('');
+
+const footerState = (page) =>
+  page.evaluate(() => {
+    const t = document.querySelector('.ticker');
+    const track = document.querySelector('.ticker-track');
+    const span = track?.querySelector('span');
+    const lata = document.querySelector('.ticker-lata-image');
+    const lataBox = document.querySelector('.ticker-lata');
+    const ill = document.querySelector('.footer-illustration');
+    const insta = document.querySelector('.footer-social');
+    return {
+      footer: Boolean(document.querySelector('footer.footer')),
+      tickerHidden: t?.getAttribute('aria-hidden'),
+      text: span?.textContent,
+      transform: span ? getComputedStyle(span).textTransform : null,
+      anim: track ? `${getComputedStyle(track).animationName} ${getComputedStyle(track).animationDuration} ${getComputedStyle(track).animationIterationCount}` : null,
+      lataAnim: lataBox ? getComputedStyle(lataBox).animationName : null,
+      lataRight: lataBox ? getComputedStyle(lataBox).right : null,
+      lata: (lata?.currentSrc || lata?.getAttribute('src'))?.split('/').pop(),
+      tickerBg: t ? getComputedStyle(t).backgroundColor : null,
+      ill: ill?.currentSrc?.split('/').pop() || ill?.getAttribute('src')?.split('/').pop(),
+      illAlt: ill?.alt,
+      kata: document.querySelector('.footer-katakana')?.textContent,
+      insta: insta ? { href: insta.href, target: insta.target, rel: insta.rel, label: insta.getAttribute('aria-label'), text: insta.textContent.trim() } : null,
+      brand: document.querySelector('.footer-brand')?.textContent,
+      brandIsLink: Boolean(document.querySelector('.footer-brand a')),
+      legal: [...document.querySelectorAll('.footer-links a')].map((a) => `${a.textContent}→${a.getAttribute('href')}`),
+      legalLabel: document.querySelector('.footer-links')?.getAttribute('aria-label'),
+      copy: document.querySelector('.footer-legal')?.textContent.trim(),
+    };
+  });
+
+try {
+  // ---------- R-NAV-21 ----------
+  if (want('R-NAV-21')) {
+    for (const vp of ['escritorio', 'movil']) {
+      const o = await open(b, vp);
+      const { page, context } = o;
+      const reqs = [];
+      page.on('request', (r) => reqs.push(r.url()));
+      await page.goto(ORIGIN + '/');
+      await sleep(1200);
+      const s0 = await footerState(page);
+      const animReqBefore = reqs.some((u) => /lata-spray-walk-seedance-224-/.test(u));
+      await page.locator('.ticker').scrollIntoViewIfNeeded();
+      await sleep(1200);
+      const s1 = await footerState(page);
+      const animReqAfter = reqs.some((u) => /lata-spray-walk-seedance-224-/.test(u));
+      // 4. Instagram (la navegación externa queda bloqueada por el arnés)
+      const [popup] = await Promise.all([context.waitForEvent('page', { timeout: 4000 }).catch(() => null), page.locator('.footer-social').click()]);
+      await sleep(600);
+      const popupUrl = popup ? popup.url() : null;
+      const blockedInsta = o.external.some((u) => u.startsWith('https://www.instagram.com/rocky035'));
+      if (popup) await popup.close();
+      // 5. Enlaces legales
+      const legalNav = [];
+      for (const name of ['Aviso legal', 'Privacidad', 'Cookies', 'Compras y devoluciones']) {
+        await page.getByRole('navigation', { name: 'Información legal' }).getByRole('link', { name }).click();
+        await page.waitForFunction((n) => document.title === `${n} · ROCKY 035`, name, { timeout: 5000 }).catch(() => {});
+        legalNav.push(`${name}→${await page.evaluate(() => location.pathname)} «${await page.title()}»`);
+      }
+      // 6. De noche
+      await page.goto(ORIGIN + '/');
+      await sleep(900);
+      if (vp === 'movil') {
+        await page.locator('header .navbar-menu').click();
+        await page.locator('.navbar-sheet .navbar-theme--sheet').click();
+        await page.keyboard.press('Escape');
+      } else await page.locator('header .navbar-tools > .navbar-theme').click();
+      await page.locator('.ticker').scrollIntoViewIfNeeded();
+      await sleep(1200);
+      const sN = await footerState(page);
+      // 8. /rockyIA
+      await page.goto(ORIGIN + '/rockyIA');
+      await sleep(1200);
+      const chat = await footerState(page);
+      const okDay = s0.tickerHidden === 'true' && s0.text === DAY_TICKER && s0.transform === 'uppercase' && /ticker-scroll 30s infinite/.test(s0.anim) && /poster/.test(s0.lata) && !animReqBefore && animReqAfter && /seedance-224-/.test(s1.lata) && !/poster/.test(s1.lata) &&
+        s0.illAlt === 'Ilustración de tres chicos sentados con ropa ROCKY' && s0.insta?.href === 'https://www.instagram.com/rocky035/' && s0.insta?.target === '_blank' && s0.insta?.rel === 'noopener noreferrer' && s0.insta?.label === 'Instagram de ROCKY 035' &&
+        s0.brand === 'ROCKY 035 — www.rocky035.com' && !s0.brandIsLink && s0.legal.join() === 'Aviso legal→/legal/aviso-legal,Privacidad→/legal/privacidad,Cookies→/legal/cookies,Compras y devoluciones→/legal/compra' &&
+        s0.copy === `© ${new Date().getFullYear()} Todos los derechos reservados · Designed by AKAYAY`;
+      const okNight = /^DESCONTROL ACTIVADO ✦ NO MIRES ATRÁS ✦ /.test(sN.text) && sN.lata !== s1.lata && sN.ill !== s0.ill;
+      const ok = okDay && okNight && popupUrl !== null && blockedInsta && !chat.footer && chat.tickerHidden === undefined && clean(o);
+      R.add({
+        id: 'R-NAV-21',
+        viewport: vp,
+        resultado: ok ? 'OK' : 'FALLO',
+        evidencia: `cinta aria-hidden=${s0.tickerHidden}, texto «${s0.text}» (text-transform ${s0.transform}), animación ${s0.anim}; lata lejos del pie: ${s0.lata} (WebP animado pedido=${animReqBefore}); cerca: ${s1.lata} (pedido=${animReqAfter}); katakana «${s0.kata}»; ilustración ${s0.ill} alt «${s0.illAlt}»; Instagram ${JSON.stringify(s0.insta)} → abre pestaña nueva=${popupUrl !== null} (${popupUrl}), petición externa bloqueada por el arnés=${blockedInsta}; «${s0.brand}» enlace=${s0.brandIsLink}; nav «${s0.legalLabel}»: ${legalNav.join(', ')}; «${s0.copy}»; noche: cinta «${sN.text?.slice(0, 60)}…» fondo ${sN.tickerBg} (día ${s0.tickerBg}), lata ${sN.lata}, ilustración ${sN.ill}; /rockyIA: pie=${chat.footer}; ${sum(o)}`,
+      });
+      if (!ok) await shot(page, 'estructura', `R-NAV-21-${vp}`);
+      await context.close();
+      // 7. Movimiento reducido
+      const r = await open(b, vp, { reducedMotion: 'reduce' });
+      await r.page.goto(ORIGIN + '/');
+      await sleep(900);
+      await r.page.locator('.ticker').scrollIntoViewIfNeeded();
+      await sleep(1200);
+      const sR = await footerState(r.page);
+      const okR = /^none/.test(sR.anim) && sR.lataAnim === 'none' && /poster/.test(sR.lata) && sR.lataRight !== 'auto' && clean(r);
+      R.add({ id: 'R-NAV-21', viewport: vp, resultado: okR ? 'OK' : 'FALLO', evidencia: `(paso 7, movimiento reducido) cinta animación «${sR.anim}», lata animación ${sR.lataAnim}, right=${sR.lataRight}, imagen ${sR.lata}; ${sum(r)}`, hallazgos: 'C-EST-17' });
+      await r.context.close();
+    }
+  }
+
+  // ---------- R-NAV-22 ----------
+  if (want('R-NAV-22')) {
+    for (const vp of ['escritorio', 'movil']) {
+      const o = await open(b, vp);
+      const { page, context } = o;
+      const reqs = [];
+      page.on('request', (r) => reqs.push(r.url()));
+      await page.goto(ORIGIN + '/');
+      await page.waitForLoadState('networkidle').catch(() => {});
+      await sleep(800);
+      const wallReq = () => ['rockydz-boyz', 'rocky-racing', 'rocky35-camel'].map((n) => reqs.some((u) => u.includes(`/street/${n}`) || (u.includes(n) && u.endsWith('.webp') && !u.includes('/products/'))));
+      const before = await page.evaluate(() => [...document.querySelectorAll('.street-wall-grid img')].map((i) => `${i.getAttribute('src') ? 'src' : 'sin-src'}/${i.getAttribute('alt') === '' ? 'alt-vacío' : i.getAttribute('alt')}`));
+      const reqBefore = wallReq();
+      const allWallUrls = reqs.filter((u) => /rockydz-boyz|rocky-racing|rocky35-camel/.test(u));
+      // Las tarjetas del catálogo de la portada usan los mismos tres ficheros
+      const cardsSameFiles = await page.evaluate(() => ['rockydz-boyz', 'rocky-racing', 'rocky35-camel'].filter((n) => document.querySelector(`.product-card img.product-image[src="/products/${n}.webp"]`)).length);
+      await page.locator('.street-wall').scrollIntoViewIfNeeded();
+      await sleep(1500);
+      const w = await page.evaluate(() => {
+        const wall = document.querySelector('.street-wall');
+        const handle = wall.querySelector('.street-wall-handle');
+        const ph = wall.querySelector('.street-photographer');
+        return {
+          title: wall.querySelector('h2')?.textContent,
+          handle: { text: handle.textContent, href: handle.href, target: handle.target, rel: handle.rel },
+          photographer: getComputedStyle(ph).display,
+          figs: [...wall.querySelectorAll('figure')].map((f) => ({ cap: f.querySelector('figcaption').textContent, src: f.querySelector('img').getAttribute('src'), alt: f.querySelector('img').alt, loaded: f.querySelector('img').complete && f.querySelector('img').naturalWidth > 0, filter: getComputedStyle(f.querySelector('img')).filter })),
+          cta: wall.querySelector('.street-wall-cta a')?.textContent,
+          ctaHref: wall.querySelector('.street-wall-cta a')?.getAttribute('href'),
+        };
+      });
+      const reqAfter = wallReq();
+      const [popup] = await Promise.all([context.waitForEvent('page', { timeout: 4000 }).catch(() => null), page.locator('.street-wall-handle').click()]);
+      await sleep(400);
+      const popupUrl = popup?.url() || null;
+      if (popup) await popup.close();
+      await page.getByRole('link', { name: 'Conoce a la crew →' }).click();
+      await page.waitForFunction(() => document.title === 'La Crew · ROCKY 035', null, { timeout: 6000 }).catch(() => {});
+      const crewPath = await page.evaluate(() => location.pathname);
+      await page.goto(ORIGIN + '/products/asphalt-afterdark');
+      await sleep(900);
+      const wallInCat = await page.locator('.street-wall').count();
+      await page.goto(ORIGIN + '/products');
+      await sleep(900);
+      const wallInProducts = await page.locator('.street-wall').count();
+      const caps = w.figs.map((f) => f.cap).join(' | ');
+      const ok = before.every((x) => x.startsWith('sin-src/alt-vacío')) && cardsSameFiles === 3 && w.title === 'La banda' && w.handle.text === 'del insta @rocky035' && w.handle.target === '_blank' && w.handle.rel === 'noopener noreferrer' &&
+        w.photographer === (vp === 'movil' ? 'none' : w.photographer) && caps === 'Rockydz boyz — print de la casa | Racing Club, since 2022 | Smoker Edition, el camello' && w.figs.every((f) => f.src && f.alt && f.loaded) && w.cta === 'Conoce a la crew →' && crewPath === '/crew' && wallInCat === 0 && wallInProducts === 1 && clean(o);
+      R.add({
+        id: 'R-NAV-22',
+        viewport: vp,
+        resultado: ok ? 'OK' : 'FALLO',
+        evidencia: `sin scroll: fotos del muro [${before}] (sin src ni alt, correcto); los ficheros sí se piden (${allWallUrls.map((u) => u.split('/').pop()).join(', ')}) pero por las ${cardsSameFiles} tarjetas del catálogo de la portada, que usan las mismas URL /products/*.webp; en pantalla: «${w.title}», «${w.handle.text}» ${w.handle.href} target=${w.handle.target} rel=${w.handle.rel}, fotógrafo display=${w.photographer}; fotos: ${w.figs.map((f) => `«${f.cap}» ${f.src?.split('/').pop()} alt «${f.alt}» cargada=${f.loaded} filtro ${f.filter}`).join('; ')}; CTA «${w.cta}» → ${crewPath}; insta abre pestaña nueva (${popupUrl}); /products/asphalt-afterdark muro=${wallInCat}; /products muro=${wallInProducts}; ${sum(o)}`,
+      });
+      if (!ok) await shot(page, 'estructura', `R-NAV-22-${vp}`);
+      await context.close();
+    }
+    // Variante sin IntersectionObserver
+    const n = await open(b, 'escritorio');
+    await n.context.addInitScript(() => {
+      delete window.IntersectionObserver;
+    });
+    await n.page.goto(ORIGIN + '/');
+    await sleep(1200);
+    const noIO = await n.page.evaluate(() => [...document.querySelectorAll('.street-wall-grid img')].map((i) => (i.getAttribute('src') ? 'src' : 'sin-src')));
+    R.add({ id: 'R-NAV-22', viewport: 'escritorio', resultado: noIO.every((x) => x === 'src') && !n.issues.pageErrors.length ? 'OK' : 'FALLO', evidencia: `(variante sin IntersectionObserver) fotos del muro con src al cargar: [${noIO}]; ${sum(n)}` });
+    await n.context.close();
+  }
+
+  // ---------- R-NAV-25 ----------
+  if (want('R-NAV-25')) {
+    for (const vp of ['escritorio', 'movil']) {
+      const o = await open(b, vp);
+      const { page, context } = o;
+      const svgAudit = (sel) =>
+        page.evaluate((s) => {
+          return [...document.querySelectorAll(s)].map((svg) => {
+            const hidden = svg.closest('[aria-hidden="true"]') !== null;
+            const shapes = [...svg.querySelectorAll('path, circle, rect, polygon, text')];
+            const colors = [...new Set(shapes.flatMap((p) => [getComputedStyle(p).stroke, getComputedStyle(p).fill]).filter((c) => c && c !== 'none'))].slice(0, 4);
+            const parent = svg.closest('a, button');
+            return { cls: svg.getAttribute('class') || svg.parentElement.className, role: svg.getAttribute('role'), hidden, colors: colors.join(' '), owner: parent ? (parent.getAttribute('aria-label') || parent.textContent.trim()).slice(0, 30) : '' };
+          });
+        }, sel);
+      const day = {};
+      const night = {};
+      const audit = async (store) => {
+        await page.goto(ORIGIN + '/');
+        await sleep(900);
+        store.contador = await svgAudit('.product-page-hero-count-mark');
+        store.ojo = await svgAudit('main .product-zoom svg');
+        store.radio = await svgAudit('.mini-player-slot svg');
+        const h = await page.evaluate(() => document.querySelector('a[href^="/product/"]')?.getAttribute('href'));
+        await page.goto(ORIGIN + h);
+        await sleep(900);
+        store.fichaOjo = await svgAudit('main svg[width="1em"]');
+        await page.goto(ORIGIN + '/estudio');
+        await page.waitForSelector('.studio-bee', { timeout: 6000 }).catch(() => {});
+        await sleep(600);
+        store.abeja = await svgAudit('.studio-bee');
+        store.pegatina = await svgAudit('.studio-sticker');
+        store.ep = await svgAudit('.ep-cover');
+        store.epText = await page.evaluate(() => [...document.querySelectorAll('.ep-cover text')].map((t) => t.textContent).join(','));
+        store.mesa = await svgAudit('.mesa svg, [class*="beat"] button svg');
+      };
+      await audit(day);
+      // De noche: encender sin recargar
+      const turnOn = async () => {
+        if (vp === 'movil') {
+          await page.locator('header .navbar-menu').click();
+          await page.locator('.navbar-sheet .navbar-theme--sheet').click();
+          await page.keyboard.press('Escape');
+        } else await page.locator('header .navbar-tools > .navbar-theme').click();
+        await sleep(300);
+      };
+      // Repetir la auditoría de noche navegando por la SPA para no perder el tema
+      await page.goto(ORIGIN + '/');
+      await sleep(900);
+      await turnOn();
+      night.contador = await svgAudit('.product-page-hero-count-mark');
+      night.ojo = await svgAudit('main .product-zoom svg');
+      night.radio = await svgAudit('.mini-player-slot svg');
+      await page.locator('a[href^="/product/"]').first().click();
+      await sleep(900);
+      night.fichaOjo = await svgAudit('main svg[width="1em"]');
+      if (vp === 'movil') {
+        await page.locator('header .navbar-menu').click();
+        await page.getByRole('dialog', { name: 'Menú' }).getByRole('link', { name: 'Estudio' }).click();
+      } else await page.locator('header nav').getByRole('link', { name: 'Estudio' }).click();
+      await page.waitForSelector('.studio-bee', { timeout: 6000 }).catch(() => {});
+      await sleep(600);
+      night.abeja = await svgAudit('.studio-bee');
+      night.pegatina = await svgAudit('.studio-sticker');
+      night.ep = await svgAudit('.ep-cover');
+      night.mesa = await svgAudit('.mesa svg, [class*="beat"] button svg');
+      const theme = await page.evaluate(() => document.documentElement.dataset.theme);
+      // La diana de carga
+      await context.route('**/assets/Crew-*.js', async (route) => {
+        await sleep(1500);
+        return route.continue();
+      });
+      await page.goto(ORIGIN + '/crew', { waitUntil: 'domcontentloaded' });
+      await page.waitForSelector('.page-loading-spinner', { timeout: 4000 }).catch(() => {});
+      const spinner = await svgAudit('.page-loading-spinner');
+      const keys = ['contador', 'ojo', 'fichaOjo', 'radio', 'abeja', 'pegatina', 'ep', 'mesa'];
+      const all = keys.flatMap((k) => day[k] || []).concat(spinner);
+      const allHidden = all.every((x) => x.hidden);
+      const changed = keys.filter((k) => day[k]?.[0] && night[k]?.[0]).map((k) => `${k}: ${day[k][0].colors} → ${night[k][0].colors}${day[k][0].colors === night[k][0].colors ? ' (igual)' : ''}`);
+      const roles = ['abeja', 'pegatina'].map((k) => `${k} role=${day[k]?.[0]?.role}`).concat(`diana role=${spinner[0]?.role}`);
+      const counts = keys.map((k) => `${k}=${day[k]?.length ?? 0}`).join(' ');
+      const ok = allHidden && theme === 'neon' && day.ep?.length > 0 && day.abeja?.length === 1 && day.pegatina?.length === 1 && spinner.length === 1 && clean(o);
+      R.add({
+        id: 'R-NAV-25',
+        viewport: vp,
+        resultado: ok ? 'OK' : 'FALLO',
+        evidencia: `SVG en línea localizados: ${counts} diana-carga=${spinner.length}; todos aria-hidden (o dentro de aria-hidden)=${allHidden}; ${roles.join(', ')}; iniciales de las portadas EP: ${day.epText}; nombre del control que los contiene: ojo «${day.ojo?.[0]?.owner}», radio «${day.radio?.map((x) => x.owner).join('/')}»; colores día → noche: ${changed.join('; ')}; ${sum(o)}`,
+        hallazgos: 'C-EST-22',
+      });
+      await context.close();
+    }
+  }
+} finally {
+  await b.close();
+}

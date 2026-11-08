@@ -1,0 +1,502 @@
+// Arranque del entorno E2 simulado (auditoría 2026-11).
+//
+// startE2Instance(port, envExtra, options) lanza `node server/index.mjs` del repo
+// con el doble de Shopify/OpenRouter precargado (NODE_OPTIONS=--import), sirve
+// dist/ y la API en el mismo origen y, con { https: true }, levanta delante un
+// proxy HTTPS local (certificado autofirmado) para que la cuenta de cliente se
+// active. Sigue el patrón de ../e1/harness.mjs: fija todas las variables de
+// .env.example (y las que el servidor lee fuera de él) para que un .env en la
+// raíz del repo no se cuele.
+//
+// Uso como CLI:  node start-e2sim.mjs --port 3401 [--https [--https-port 3402]]
+import { spawn } from 'node:child_process';
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import http from 'node:http';
+import https from 'node:https';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { signAuthCode } from './authz-code.mjs';
+import { API_VERSION, CDN_PREFIX, SHOP_ID, STORE_DOMAIN, TEST_SECRETS, customerByKey } from './fixtures.mjs';
+
+export const REPO = '/RUTA/AL/REPO';
+export const E2SIM = path.dirname(fileURLToPath(import.meta.url));
+export const SCRATCH = path.dirname(E2SIM);
+export const NODE = '/RUTA/A/node24';
+export const PRELOAD = path.join(E2SIM, 'mock-preload.mjs');
+export const CERT_FILE = path.join(E2SIM, 'certs', 'localhost-cert.pem');
+export const KEY_FILE = path.join(E2SIM, 'certs', 'localhost-key.pem');
+const STATE_DIR = path.join(E2SIM, 'state');
+
+// Variables que el servidor lee y no están en .env.example: vacías para que
+// tampoco las aporte un .env (dotenv no pisa lo que ya existe).
+const EXTRA_SERVER_VARS = [
+  'AVISOS_BATCH_SIZE',
+  'AVISOS_FROM',
+  'AVISOS_REPLY_TO',
+  'BEATS_ADMIN_TOKEN',
+  'BEATS_PUBLISH_RATE_LIMIT_MAX',
+  'BEATS_RATE_LIMIT_WINDOW_MS',
+  'BEATS_VOTE_RATE_LIMIT_MAX',
+  'RESEND_API_KEY',
+];
+
+function exampleEnv() {
+  const out = {};
+  for (const line of fs.readFileSync(path.join(REPO, '.env.example'), 'utf8').split('\n')) {
+    const m = line.match(/^([A-Z][A-Z0-9_]*)=(.*)$/);
+    if (m) out[m[1]] = m[2];
+  }
+  for (const key of EXTRA_SERVER_VARS) out[key] = '';
+  return out;
+}
+
+// Valores de prueba de E2 simulado (todos ficticios, ver fixtures.mjs).
+function e2Env() {
+  return {
+    SHOPIFY_STORE_DOMAIN: STORE_DOMAIN,
+    SHOPIFY_API_VERSION: API_VERSION,
+    SHOPIFY_STOREFRONT_ACCESS_TOKEN: TEST_SECRETS.SHOPIFY_STOREFRONT_ACCESS_TOKEN,
+    SHOPIFY_STOREFRONT_TOKEN_TYPE: 'private',
+    SHOPIFY_CLIENT_ID: TEST_SECRETS.SHOPIFY_CLIENT_ID,
+    SHOPIFY_CLIENT_SECRET: TEST_SECRETS.SHOPIFY_CLIENT_SECRET,
+    SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_ID: TEST_SECRETS.SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_ID,
+    OPENROUTER_API_KEY: TEST_SECRETS.OPENROUTER_API_KEY,
+    APP_ENCRYPTION_KEY: crypto.randomBytes(32).toString('base64'),
+  };
+}
+
+async function waitFor(check, { tries = 80, delayMs = 250, child } = {}) {
+  for (let i = 0; i < tries; i += 1) {
+    try {
+      if (await check()) return true;
+    } catch {
+      /* todavía arrancando */
+    }
+    if (child && child.exitCode !== null) return false;
+    await new Promise((r) => setTimeout(r, delayMs));
+  }
+  return false;
+}
+
+function httpsGetStatus(url) {
+  return new Promise((resolve, reject) => {
+    const req = https.get(url, { ca: fs.readFileSync(CERT_FILE) }, (res) => {
+      res.resume();
+      resolve(res.statusCode);
+    });
+    req.on('error', reject);
+  });
+}
+
+// Proxy HTTPS → Express. Conserva Host (el login exige el host canónico) y
+// añade X-Forwarded-* como un proxy de borde: X-Forwarded-For se encadena, así
+// que con TRUST_PROXY_HOPS=1 se puede auditar la suplantación de IP.
+export function startHttpsProxy({ listenPort, targetPort }) {
+  const server = https.createServer(
+    { key: fs.readFileSync(KEY_FILE), cert: fs.readFileSync(CERT_FILE) },
+    (req, res) => {
+      const remote = req.socket.remoteAddress;
+      const previous = req.headers['x-forwarded-for'];
+      const headers = {
+        ...req.headers,
+        'x-forwarded-for': previous ? `${previous}, ${remote}` : remote,
+        'x-forwarded-proto': 'https',
+        'x-forwarded-host': req.headers.host,
+      };
+      const upstream = http.request(
+        { hostname: '127.0.0.1', port: targetPort, method: req.method, path: req.url, headers },
+        (up) => {
+          const out = { ...up.headers };
+          delete out.connection;
+          delete out['keep-alive'];
+          res.writeHead(up.statusCode, up.statusMessage, out);
+          up.pipe(res);
+        }
+      );
+      upstream.on('error', (error) => {
+        if (!res.headersSent) res.writeHead(502, { 'content-type': 'text/plain; charset=utf-8' });
+        res.end(`e2sim proxy: Express no responde (${error.code || error.message})`);
+      });
+      req.pipe(upstream);
+    }
+  );
+  return new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(listenPort, () => resolve(server));
+  });
+}
+
+// Arranca una instancia. port = Express (HTTP). Con options.https, el origen
+// público es https://localhost:<httpsPort> (por defecto port + 1) y el navegador
+// debe entrar por ahí; Express sigue accesible en http://localhost:<port> para
+// webhooks y comprobaciones de máquina (sin Origin).
+export async function startE2Instance(port, envExtra = {}, options = {}) {
+  const useHttps = Boolean(options.https);
+  const httpsPort = options.httpsPort ?? port + 1;
+  const httpOrigin = `http://localhost:${port}`;
+  const origin = useHttps ? `https://localhost:${httpsPort}` : httpOrigin;
+
+  fs.mkdirSync(STATE_DIR, { recursive: true, mode: 0o700 });
+  const statePath = path.join(STATE_DIR, `rocky-state-${port}.enc`);
+  const controlFile = path.join(STATE_DIR, `control-${port}.json`);
+  const logFile = path.join(STATE_DIR, `calls-${port}.jsonl`);
+  fs.rmSync(statePath, { force: true });
+  fs.writeFileSync(controlFile, '{}\n');
+  fs.writeFileSync(logFile, '');
+  const authzKey = crypto.randomBytes(32).toString('base64url');
+
+  const env = {
+    PATH: process.env.PATH,
+    HOME: process.env.HOME,
+    ...exampleEnv(),
+    ...e2Env(),
+    PORT: String(port),
+    PUBLIC_ORIGIN: origin,
+    API_ALLOWED_ORIGINS: origin,
+    STATE_STORE_PATH: statePath,
+    NODE_OPTIONS: `--import ${PRELOAD}`,
+    E2SIM_CONTROL_FILE: controlFile,
+    E2SIM_LOG_FILE: logFile,
+    E2SIM_AUTHZ_KEY: authzKey,
+    ...envExtra,
+  };
+
+  const child = spawn(NODE, ['server/index.mjs'], {
+    cwd: REPO,
+    env,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const log = [];
+  child.stdout.on('data', (d) => log.push(String(d)));
+  child.stderr.on('data', (d) => log.push(String(d)));
+  const exited = new Promise((resolve) => child.once('exit', resolve));
+
+  const healthy = await waitFor(async () => (await fetch(`${httpOrigin}/api/health`)).ok, { child });
+  if (!healthy) {
+    child.kill('SIGTERM');
+    throw new Error(`La instancia E2 de ${httpOrigin} no arrancó:\n${log.join('').slice(-3000)}`);
+  }
+
+  let proxy = null;
+  if (useHttps) {
+    proxy = await startHttpsProxy({ listenPort: httpsPort, targetPort: port });
+    const proxied = await waitFor(async () => (await httpsGetStatus(`${origin}/api/health`)) === 200);
+    if (!proxied) {
+      proxy.close();
+      child.kill('SIGTERM');
+      throw new Error(`El proxy HTTPS de ${origin} no responde.`);
+    }
+  }
+
+  const writeControl = (value) => {
+    const tmp = `${controlFile}.tmp`;
+    fs.writeFileSync(tmp, `${JSON.stringify(value, null, 2)}\n`);
+    fs.renameSync(tmp, controlFile);
+  };
+  let control = {};
+
+  return {
+    origin,
+    httpOrigin,
+    port,
+    httpsPort: useHttps ? httpsPort : null,
+    https: useHttps,
+    env: { PUBLIC_ORIGIN: origin, NODE_ENV: env.NODE_ENV, TRUST_PROXY_HOPS: env.TRUST_PROXY_HOPS },
+    customerClientId: env.SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_ID,
+    webhookSecret: env.SHOPIFY_CLIENT_SECRET,
+    authzKey,
+    controlFile,
+    logFile,
+    statePath,
+    child,
+    log,
+    // Control del doble: se relee en cada petición saliente del servidor.
+    setControl(value) {
+      control = value || {};
+      writeControl(control);
+    },
+    patchControl(partial) {
+      control = { ...control };
+      for (const [key, value] of Object.entries(partial || {})) {
+        control[key] =
+          value && typeof value === 'object' && !Array.isArray(value)
+            ? { ...(control[key] || {}), ...value }
+            : value;
+      }
+      writeControl(control);
+    },
+    resetControl() {
+      control = {};
+      writeControl(control);
+    },
+    // Llamadas que el servidor ha hecho a los servicios simulados (JSONL).
+    calls(filter = () => true) {
+      return fs
+        .readFileSync(logFile, 'utf8')
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line))
+        .filter(filter);
+    },
+    unexpectedCalls() {
+      return this.calls((c) => c.unexpected);
+    },
+    async stop() {
+      if (proxy) await new Promise((r) => proxy.close(r));
+      if (child.exitCode === null) child.kill('SIGTERM');
+      await Promise.race([exited, new Promise((r) => setTimeout(r, 5_000))]);
+      if (child.exitCode === null) child.kill('SIGKILL');
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Playwright (no importa playwright: recibe el contexto ya creado)
+// ---------------------------------------------------------------------------
+
+const MIME = { '.webp': 'image/webp', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.avif': 'image/avif' };
+const LOCAL = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+function htmlPage(title, body) {
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${title}</title>
+<style>body{font:16px system-ui,sans-serif;max-width:40rem;margin:3rem auto;padding:0 1rem}code{word-break:break-all}</style>
+</head><body>${body}</body></html>`;
+}
+
+// Resuelve el paso «authorize» de Customer Accounts como lo haría Shopify con
+// un cliente ya identificado: valida la petición del servidor y redirige al
+// callback con code y state (o con error=access_denied si decision='deny').
+export function authorizeRedirect(instance, authorizeUrl, { customer = 'ana', decision = 'allow' } = {}) {
+  const url = new URL(authorizeUrl);
+  const p = url.searchParams;
+  const registeredCallback = `${instance.origin}/api/shopify/account/callback`;
+  const problems = [];
+  if (p.get('response_type') !== 'code') problems.push('response_type debe ser code');
+  if (p.get('client_id') !== instance.customerClientId) problems.push('client_id desconocido');
+  if (p.get('redirect_uri') !== registeredCallback) problems.push(`redirect_uri no registrada (${p.get('redirect_uri')})`);
+  if (p.get('code_challenge_method') !== 'S256' || !p.get('code_challenge')) problems.push('falta PKCE S256');
+  if (!p.get('state')) problems.push('falta state');
+  if (!(p.get('scope') || '').split(' ').includes('openid')) problems.push('scope sin openid');
+  if (!customerByKey(customer)) problems.push(`cliente de prueba desconocido: ${customer}`);
+  if (problems.length) {
+    return {
+      status: 400,
+      contentType: 'text/html; charset=utf-8',
+      body: htmlPage('Shopify (simulado): solicitud no válida', `<h1>Solicitud de autorización rechazada (e2sim)</h1><ul>${problems.map((x) => `<li>${x}</li>`).join('')}</ul>`),
+    };
+  }
+  const callback = new URL(p.get('redirect_uri'));
+  if (decision === 'deny') {
+    callback.searchParams.set('error', 'access_denied');
+    callback.searchParams.set('error_description', 'El cliente ha cancelado el acceso (e2sim)');
+  } else {
+    callback.searchParams.set(
+      'code',
+      signAuthCode(instance.authzKey, {
+        clientId: p.get('client_id'),
+        redirectUri: p.get('redirect_uri'),
+        codeChallenge: p.get('code_challenge'),
+        nonce: p.get('nonce'),
+        customer,
+        scope: p.get('scope'),
+      })
+    );
+  }
+  callback.searchParams.set('state', p.get('state'));
+  return { status: 302, location: callback.toString() };
+}
+
+// Instala en un BrowserContext de Playwright las rutas del entorno simulado:
+//  - localhost: pasa tal cual;
+//  - cdn.shopify.com: sirve las imágenes del catálogo desde dist/products/;
+//  - shopify.com/authentication/<id>/oauth/authorize: authorizeRedirect();
+//  - shopify.com/authentication/<id>/logout: vuelve a post_logout_redirect_uri;
+//  - <tienda>.myshopify.com: página de «checkout simulado» (no hay pago);
+//  - todo lo demás: se aborta y se anota en routes.blocked.
+export async function installE2Routes(context, instance, { customer = 'ana', decision = 'allow' } = {}) {
+  const state = { customer, decision, blocked: [], authorizations: [], checkouts: [], logouts: [] };
+  const authPrefix = `/authentication/${SHOP_ID}/`;
+  const loginPath = '/api/shopify/account/login';
+  await context.route('**/*', async (route) => {
+    const request = route.request();
+    let url;
+    try {
+      url = new URL(request.url());
+    } catch {
+      return route.continue();
+    }
+    // Playwright sólo enruta la primera URL de una cadena de redirecciones: el
+    // 302 del login a shopify.com/…/authorize no pasaría por aquí. Se pide la
+    // respuesta del servidor sin seguirla y se sustituye el salto a Shopify por
+    // el 302 al callback, conservando su Set-Cookie (la sesión que liga el state).
+    if (url.origin === instance.origin && url.pathname === loginPath) {
+      const response = await route.fetch({ maxRedirects: 0 });
+      const location = response.headers().location || '';
+      let target = null;
+      try {
+        target = new URL(location);
+      } catch {
+        target = null;
+      }
+      if (response.status() === 302 && target?.hostname === 'shopify.com' && target.pathname === `${authPrefix}oauth/authorize`) {
+        const result = authorizeRedirect(instance, target.href, state);
+        state.authorizations.push({ at: Date.now(), customer: state.customer, decision: state.decision, status: result.status });
+        const headers = { ...response.headers() };
+        delete headers['content-length'];
+        if (result.status === 302) {
+          headers.location = result.location;
+          return route.fulfill({ status: 302, headers, body: '' });
+        }
+        delete headers.location;
+        headers['content-type'] = result.contentType;
+        return route.fulfill({ status: result.status, headers, body: result.body });
+      }
+      return route.fulfill({ response });
+    }
+    if (!['http:', 'https:'].includes(url.protocol) || LOCAL.has(url.hostname)) return route.continue();
+
+    if (url.hostname === 'cdn.shopify.com' && url.href.startsWith(CDN_PREFIX)) {
+      const file = path.join(REPO, 'dist', 'products', path.basename(url.pathname));
+      if (fs.existsSync(file)) {
+        return route.fulfill({
+          status: 200,
+          contentType: MIME[path.extname(file)] || 'application/octet-stream',
+          body: fs.readFileSync(file),
+          headers: { 'access-control-allow-origin': '*', 'cache-control': 'public, max-age=3600' },
+        });
+      }
+      return route.fulfill({ status: 404, contentType: 'text/plain', body: 'e2sim: imagen no encontrada' });
+    }
+
+    if (url.hostname === 'shopify.com' && url.pathname === `${authPrefix}oauth/authorize`) {
+      const result = authorizeRedirect(instance, url.href, state);
+      state.authorizations.push({ at: Date.now(), customer: state.customer, decision: state.decision, status: result.status });
+      return result.status === 302
+        ? route.fulfill({ status: 302, headers: { location: result.location } })
+        : route.fulfill({ status: result.status, contentType: result.contentType, body: result.body });
+    }
+
+    if (url.hostname === 'shopify.com' && url.pathname === `${authPrefix}logout`) {
+      const back = url.searchParams.get('post_logout_redirect_uri') || '';
+      state.logouts.push({ at: Date.now(), hasIdTokenHint: Boolean(url.searchParams.get('id_token_hint')), back });
+      if (back.replace(/\/$/, '') === instance.origin) {
+        return route.fulfill({ status: 302, headers: { location: back } });
+      }
+      return route.fulfill({
+        status: 400,
+        contentType: 'text/html; charset=utf-8',
+        body: htmlPage('Shopify (simulado)', `<h1>post_logout_redirect_uri no registrada (e2sim)</h1><p><code>${back}</code></p>`),
+      });
+    }
+
+    if (url.hostname === STORE_DOMAIN) {
+      state.checkouts.push({ at: Date.now(), url: url.href });
+      return route.fulfill({
+        status: 200,
+        contentType: 'text/html; charset=utf-8',
+        body: htmlPage(
+          'Checkout simulado · ROCKY 035',
+          `<h1 data-e2sim="checkout">Checkout simulado (E2)</h1><p>Aquí empezaría el checkout de Shopify. No hay pago real.</p><p>URL: <code>${url.pathname}</code></p><p><a href="${instance.origin}/cart">Volver a la tienda</a></p>`
+        ),
+      });
+    }
+
+    state.blocked.push(`${request.method()} ${url.origin}${url.pathname}`);
+    return route.abort('blockedbyclient');
+  });
+  return {
+    get blocked() {
+      return state.blocked;
+    },
+    get authorizations() {
+      return state.authorizations;
+    },
+    get checkouts() {
+      return state.checkouts;
+    },
+    get logouts() {
+      return state.logouts;
+    },
+    setCustomer(key) {
+      state.customer = key;
+    },
+    setDecision(value) {
+      state.decision = value;
+    },
+  };
+}
+
+export const VIEWPORTS = {
+  escritorio: { viewport: { width: 1440, height: 900 } },
+  movil: { viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
+};
+
+// Barrera de red: todo lo que no sea loopback va a un proxy que no existe
+// (127.0.0.1:9, puerto discard cerrado) y falla con ERR_PROXY_CONNECTION_FAILED.
+// Las rutas de installE2Routes se resuelven antes de la red, así que siguen
+// funcionando; lo que se escape de ellas (p. ej. una redirección no prevista)
+// no llega a internet.
+export const OFFLINE_PROXY = Object.freeze({ server: 'http://127.0.0.1:9', bypass: 'localhost,127.0.0.1,[::1]' });
+
+export function launchE2Browser(chromium, options = {}) {
+  return chromium.launch({ channel: 'chrome', proxy: OFFLINE_PROXY, ...options });
+}
+
+// Contexto listo para E2: HTTPS autofirmado aceptado, intro saltada (como en E1),
+// barrera de red, rutas simuladas instaladas y recogida de errores de consola/red.
+export async function openE2Page(browser, instance, { viewportName = 'escritorio', skipIntro = true, customer = 'ana', decision = 'allow', reducedMotion = 'no-preference' } = {}) {
+  const context = await browser.newContext({
+    ...VIEWPORTS[viewportName],
+    ignoreHTTPSErrors: true,
+    locale: 'es-ES',
+    reducedMotion,
+    proxy: OFFLINE_PROXY,
+  });
+  if (skipIntro) {
+    await context.addInitScript(() => {
+      try {
+        sessionStorage.setItem('rocky-splash-seen', '1');
+      } catch {
+        /* almacenamiento bloqueado */
+      }
+    });
+  }
+  const routes = await installE2Routes(context, instance, { customer, decision });
+  const page = await context.newPage();
+  const issues = { console: [], pageErrors: [], failed: [], http: [] };
+  page.on('console', (m) => {
+    if (m.type() === 'error' || m.type() === 'warning') issues.console.push(`${m.type()}: ${m.text()}`.slice(0, 300));
+  });
+  page.on('pageerror', (e) => issues.pageErrors.push(String(e).slice(0, 300)));
+  page.on('requestfailed', (r) => issues.failed.push(`${r.method()} ${r.url()} ${r.failure()?.errorText}`));
+  page.on('response', (r) => {
+    if (r.status() >= 400) issues.http.push(`${r.status()} ${r.request().method()} ${r.url()}`);
+  });
+  return { context, page, routes, issues };
+}
+
+// ---------------------------------------------------------------------------
+// CLI
+// ---------------------------------------------------------------------------
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  const args = process.argv.slice(2);
+  const value = (flag, fallback) => {
+    const index = args.indexOf(flag);
+    return index === -1 ? fallback : args[index + 1];
+  };
+  const port = Number(value('--port', '3401'));
+  const useHttps = args.includes('--https');
+  const httpsPort = Number(value('--https-port', String(port + 1)));
+  const instance = await startE2Instance(port, {}, { https: useHttps, httpsPort });
+  process.stdout.write(
+    `E2 simulado listo\n  web y API: ${instance.origin}\n  Express:   ${instance.httpOrigin}\n  control:   ${instance.controlFile}\n  llamadas:  ${instance.logFile}\nCtrl+C para parar.\n`
+  );
+  const stop = async () => {
+    await instance.stop();
+    process.exit(0);
+  };
+  process.once('SIGINT', stop);
+  process.once('SIGTERM', stop);
+}

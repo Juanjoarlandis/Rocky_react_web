@@ -1,0 +1,176 @@
+// Comprobaciones específicas de candidatos C-CAT-NN que no cubre del todo una ficha,
+// incluidas las de E2 que dependen solo del cliente, con respuestas del BFF simuladas (page.route).
+import { startInstance, launchBrowser, openPage } from '../harness.mjs';
+import { waitStore, text, texts } from './util.mjs';
+
+const inst = await startInstance(3202, { AVISOS_RATE_LIMIT_MAX: '100', SHOPIFY_RATE_LIMIT_MAX: '2000' });
+const browser = await launchBrowser();
+const O = inst.origin;
+const out = {};
+const log = (k, v) => {
+  out[k] = v;
+  console.log(`${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`);
+};
+
+try {
+  const { page, context } = await openPage(browser, 'escritorio', { origin: O });
+
+  // C-CAT-02: canonical y og:* en ficha y categoría
+  const meta = async (path) => {
+    const r = await page.goto(O + path);
+    await waitStore(page);
+    await page.waitForTimeout(300);
+    return page.evaluate((st) => ({
+      status: st,
+      title: document.title,
+      canonical: document.querySelector('link[rel=canonical]')?.href,
+      ogUrl: document.querySelector('meta[property="og:url"]')?.content,
+      ogTitle: document.querySelector('meta[property="og:title"]')?.content,
+      description: document.querySelector('meta[name=description]')?.content?.slice(0, 40),
+      robots: document.querySelector('meta[name=robots]')?.content ?? null,
+    }), r.status());
+  };
+  log('C-CAT-02 /product/rockyracing', await meta('/product/rockyracing'));
+  log('C-CAT-02 /products/costa-035', await meta('/products/costa-035'));
+  // C-CAT-03: soft 404
+  for (const p of ['/product/no-existe', '/products/no-existe']) {
+    const r = await page.goto(O + p);
+    log(`C-CAT-03 ${p}`, { status: r.status(), xRobots: r.headers()['x-robots-tag'] ?? null, robots: await page.evaluate(() => document.querySelector('meta[name=robots]')?.content ?? null) });
+  }
+
+  // C-CAT-06: categoría y portada mientras carga el estado
+  await page.route('**/api/shopify/status', async (route) => {
+    await new Promise((r) => setTimeout(r, 1500));
+    await route.continue().catch(() => {});
+  });
+  await page.goto(O + '/products/costa-035');
+  await page.waitForSelector('.product-grid');
+  log('C-CAT-06 categoría durante la carga', { h1: await text(page, 'main h1'), count: await texts(page, '.product-count'), title: await page.title() });
+  await waitStore(page);
+  log('C-CAT-06 categoría tras la carga', { h1: await text(page, 'main h1'), count: await texts(page, '.product-count') });
+  await page.goto(O + '/');
+  await page.waitForSelector('.product-grid');
+  log('C-CAT-06 portada durante la carga', { count: await texts(page, '.product-count') });
+  await waitStore(page);
+  await page.unroute('**/api/shopify/status');
+
+  // C-CAT-23: volver desde una categoría
+  await page.goto(O + '/products/costa-035');
+  await waitStore(page);
+  await page.locator('article', { hasText: 'Solar Club' }).getByRole('link', { name: 'Detalles' }).click();
+  await page.waitForSelector('.detail');
+  const backHref = await page.getAttribute('.detail-back', 'href');
+  await page.click('.detail-back');
+  await page.waitForTimeout(500);
+  log('C-CAT-23', { backHref, landed: new URL(page.url()).pathname });
+
+  // C-CAT-20, C-CAT-19, C-CAT-21, C-CAT-11, C-CAT-12 en la portada
+  await page.goto(O + '/');
+  await waitStore(page);
+  log('C-CAT-20', await page.evaluate(() => {
+    const l = [...document.querySelectorAll('.product-grid a')].filter((a) => a.textContent.trim() === 'Detalles');
+    return { detalles: l.length, distintos: new Set(l.map((a) => a.getAttribute('aria-label') || a.textContent.trim())).size, describedby: l.filter((a) => a.getAttribute('aria-describedby')).length };
+  }));
+  const lockedHandles = ['35-red', '35-white', 'dwag', 'danger-basic', 'danger-multi', 'danger', 'dots', 'flora-blue', 'flora-red', 'hobby', 'level-blue', 'level-orange', 'mugshot', 'noname', 'rockystar', 'rockydz-black', 'rockydz-stars', 'rockydz', 'ssttaarr'];
+  const linksTo = async () => page.evaluate((hs) => [...document.querySelectorAll('a[href^="/product/"]')].filter((a) => hs.includes(a.getAttribute('href').replace('/product/', '').replace(/#.*/, ''))).length, lockedHandles);
+  const c19 = { portada: await linksTo() };
+  await page.goto(O + '/products/rocky-drop-4');
+  await waitStore(page);
+  c19.categoria = await linksTo();
+  await page.goto(O + '/menudrop');
+  await waitStore(page);
+  c19.menudrop = await linksTo();
+  let fichas = 0;
+  for (const h of lockedHandles) {
+    await page.goto(`${O}/product/${h}`);
+    await page.waitForSelector('.detail, .product-empty');
+    if (await page.locator('.detail h1').count()) fichas += 1;
+  }
+  c19.fichasQueExisten = fichas;
+  log('C-CAT-19', c19);
+  await page.goto(O + '/');
+  await waitStore(page);
+  log('C-CAT-21', await page.evaluate(() => {
+    const i = document.querySelector('[data-testid="locked-designs"] input[type=email]');
+    return { labels: i.labels.length, placeholder: i.placeholder, ariaLabel: i.getAttribute('aria-label'), visibleLabelText: !!i.closest('label') };
+  }));
+  log('C-CAT-12 portada', await page.evaluate(() => ({ tarjetasConFotoDeshabilitada: document.querySelectorAll('.product-grid > article:not(.product-card--locked) button.product-media[disabled]').length, placeholdersEnTarjetas: document.querySelectorAll('.product-grid > article:not(.product-card--locked) .placeholder-tee').length })));
+  const cardAlt = await page.getAttribute('button[aria-label="Ver Night Runner en grande"] img', 'alt');
+  await page.goto(O + '/product/rocky-night-runner');
+  await page.waitForSelector('.detail');
+  log('C-CAT-11', { tarjeta: cardAlt, ficha: await page.getAttribute('img.detail-image', 'alt') });
+  await page.locator('button.detail-media').click();
+  await page.waitForSelector('dialog.lightbox[open]');
+  log('C-CAT-11 lightbox ficha', await page.evaluate(() => [document.querySelector('dialog.lightbox').getAttribute('aria-label'), document.querySelector('dialog.lightbox img').alt]));
+  await page.keyboard.press('Escape');
+
+  // Destino por defecto del correo de la lista del bloque (scripts/enviar-avisos.mjs:81)
+  await page.goto(O + '/product/rocky-drop-4');
+  await page.waitForSelector('.detail, .product-empty');
+  log('NUEVO enviar-avisos /product/rocky-drop-4', { h1: await text(page, 'main h1'), title: await page.title() });
+
+  // C-CAT-09, C-CAT-22 en 35-red
+  await page.goto(O + '/product/35-red');
+  await page.waitForSelector('.detail');
+  log('C-CAT-09/22', { avisame: await page.getByRole('button', { name: 'Avísame', exact: true }).count(), foto: await page.evaluate(() => { const b = document.querySelector('button.detail-media'); return { disabled: b.disabled, ariaLabel: b.getAttribute('aria-label') }; }) });
+  await context.close();
+
+  // ---------- E2 simulado: estado shopify + catálogo de 10 productos ----------
+  const mk = (i, extra = {}) => ({
+    id: `gid://shopify/Product/${i}`,
+    handle: `mock-${i}`,
+    title: `Mock ${i}`,
+    description: 'Producto simulado para la auditoría.',
+    image: { url: '/products/rocky-airwave.webp', alt: `Mock ${i}` },
+    drop: { handle: 'drop-mock', title: 'DROP MOCK' },
+    variants: [{ id: `gid://shopify/ProductVariant/${i}`, title: 'Default', availableForSale: false, quantityAvailable: null, selectedOptions: [], price: { amount: '25.0', currencyCode: 'EUR' }, image: null }],
+    ...extra,
+  });
+  const catalog = [
+    mk(1),
+    mk(2),
+    mk(3, { image: null, drop: { handle: 'drop-5', title: 'ROCKY DROP 5' }, variants: [{ id: 'gid://shopify/ProductVariant/3', title: 'Default', availableForSale: false, quantityAvailable: null, selectedOptions: [], price: { amount: '30.0', currencyCode: 'EUR' }, image: null }] }),
+    mk(4),
+    mk(5),
+    mk(6),
+    mk(7),
+    mk(8),
+    mk(9),
+    mk(10),
+  ];
+  for (const cart of [false, true]) {
+    const { page: p, context: ctx } = await openPage(browser, 'escritorio', { origin: O });
+    const requests = [];
+    await p.route('**/api/shopify/status', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ mode: 'shopify', apiVersion: '2026-07', capabilities: { catalog: true, cart, customerAccounts: false, admin: false, webhooks: false } }) }));
+    await p.route('**/api/shopify/products**', (route) => {
+      const u = new URL(route.request().url());
+      requests.push(u.pathname + u.search);
+      const first = Number(u.searchParams.get('first') || 20);
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ products: catalog.slice(0, first), pageInfo: { hasNextPage: first < catalog.length, endCursor: 'cursor-8' } }) });
+    });
+    await p.route('**/api/shopify/cart', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ cart: null }) }));
+    await p.goto(O + '/');
+    await p.waitForSelector('.product-grid > article');
+    await p.waitForTimeout(500);
+    const home = await p.evaluate(() => ({
+      count: document.querySelector('.product-count')?.textContent.trim(),
+      cards: [...document.querySelectorAll('.product-grid > article')].map((a) => `${a.querySelector('.product-title')?.textContent.trim()}|${a.querySelector('.product-price, .badge')?.textContent.trim()}|${[...a.querySelectorAll('.product-actions button, .product-actions a')].map((b) => b.textContent.trim()).join('+')}`),
+      notice: document.querySelector('.commerce-notice')?.textContent.trim() ?? null,
+    }));
+    log(`E2 simulado (cart ${cart}) portada`, home);
+    log(`E2 simulado (cart ${cart}) peticiones de catálogo`, requests);
+    await p.goto(O + '/menudrop');
+    await p.waitForSelector('nav[aria-label="Categorías"] a');
+    log(`E2 simulado (cart ${cart}) menudrop`, await p.evaluate(() => [...document.querySelectorAll('nav[aria-label="Categorías"] a')].map((a) => `${a.querySelector('.drops-link-title')?.textContent.trim()}|${a.querySelector('.drops-link-meta')?.textContent.trim()}|${a.querySelector('.drops-link-state')?.textContent.trim() ?? ''}`)));
+    await p.goto(O + '/product/mock-3');
+    await p.waitForSelector('.detail');
+    log(`E2 simulado (cart ${cart}) ficha sin foto (drop 5)`, await p.evaluate(() => ({ kicker: document.querySelector('.detail-drop')?.textContent.trim(), etiqueta: [...document.querySelectorAll('.placeholder-tee__label > *')].map((e) => e.textContent.trim()), precio: document.querySelector('.detail-price')?.textContent.trim(), boton: document.querySelector('.detail-buy button')?.textContent.trim() })));
+    await p.goto(O + '/product/mock-9');
+    await p.waitForSelector('.detail, .product-empty');
+    log(`E2 simulado (cart ${cart}) ficha del 9.º producto`, { h1: await text(p, 'main h1'), peticiones: requests.length });
+    await ctx.close();
+  }
+} finally {
+  await browser.close();
+  inst.stop();
+}

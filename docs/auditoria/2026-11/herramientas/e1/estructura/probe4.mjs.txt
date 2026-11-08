@@ -1,0 +1,22 @@
+import { launchBrowser, open, ORIGIN, sleep } from './common.mjs';
+const b = await launchBrowser();
+async function swipe(page, dy) {
+  const cdp = await page.context().newCDPSession(page);
+  const x = 200; let y = 650;
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+  for (let i = 1; i <= 12; i++) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y - (dy * i) / 12 }] }); await sleep(16); }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await cdp.detach();
+  await sleep(700);
+  return page.evaluate(() => Math.round(scrollY));
+}
+try {
+  const o = await open(b, 'movil');
+  await o.page.goto(ORIGIN + '/');
+  await sleep(1200);
+  console.log('swipe normal ->', await swipe(o.page, 400));
+  await o.page.evaluate(() => { scrollTo(0, 0); document.body.style.overflow = 'hidden'; });
+  await sleep(200);
+  console.log('swipe con body hidden ->', await swipe(o.page, 400));
+  await o.context.close();
+} finally { await b.close(); }

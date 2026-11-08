@@ -1,0 +1,481 @@
+// R-NIGHT-01..05, R-NIGHT-12 y capturas de día y noche.
+import { startInstance, launchBrowser, openPage, summarize } from '../harness.mjs';
+import {
+  emptySpot, sum, PORT, collector, snap, themeState, toggleNight, nightOn, spaGo, navTo, audioState, trackMusic,
+  cdp, touchDrag, line, sprayStorage, canvasInk, mouseStroke, sleep,
+} from './lib.mjs';
+
+const C = collector('tema');
+const only = process.argv.slice(2);
+const want = (id) => !only.length || only.some((o) => id.includes(o));
+
+const imgNames = (page) =>
+  page.evaluate(() => [...document.images].map((i) => (i.getAttribute('src') || '').split('/').pop().replace(/-[A-Za-z0-9_-]{8}\.(webp|png|jpe?g|svg|gif)$/, '.$1')));
+
+function analyseFlash(samples) {
+  // samples: [t, opacidadCapa, opacidadRótulo]; el rótulo va dentro de la capa: su opacidad efectiva es el producto.
+  const pres = samples.filter((x) => x[2] !== null);
+  if (!pres.length) return { visible: false };
+  const t0 = pres[0][0];
+  const series = pres.map(([t, o1, o2]) => ({ t: t - t0, o: o1 * o2, capa: o1 }));
+  const ext = [series[0]];
+  let trend = 0;
+  let cand = series[0];
+  for (const p of series) {
+    if (trend === 0) {
+      if (p.o - ext[0].o >= 0.1) { trend = 1; cand = p; } else if (ext[0].o - p.o >= 0.1) { trend = -1; cand = p; }
+    } else if (trend === 1) {
+      if (p.o > cand.o) cand = p; else if (cand.o - p.o >= 0.1) { ext.push(cand); trend = -1; cand = p; }
+    } else if (p.o < cand.o) cand = p; else if (p.o - cand.o >= 0.1) { ext.push(cand); trend = 1; cand = p; }
+  }
+  ext.push(cand);
+  const changes = [];
+  for (let i = 1; i < ext.length; i += 1) if (Math.abs(ext[i].o - ext[i - 1].o) >= 0.1) changes.push({ t: ext[i].t, from: ext[i - 1].o, to: ext[i].o });
+  let maxFlashes = 0;
+  for (const c of changes) {
+    const inWin = changes.filter((x) => x.t >= c.t && x.t < c.t + 1000).length;
+    maxFlashes = Math.max(maxFlashes, Math.floor(inWin / 2));
+  }
+  const capaFin = series.find((x) => x.capa < 0.99);
+  return {
+    visible: true,
+    lastMs: series[series.length - 1].t,
+    extremos: ext.map((e) => `${e.t}ms:${e.o.toFixed(2)}`).join(' '),
+    cambios: changes.length,
+    maxDestellosPorSegundo: maxFlashes,
+    capaEmpiezaAFundir: capaFin?.t,
+  };
+}
+
+async function installFlashSampler(page) {
+  await page.evaluate(() => {
+    window.__flash = [];
+    window.__flashSeen = 0;
+    const t0 = performance.now();
+    const loop = () => {
+      const f = document.querySelector('.descontrol-flash');
+      const s = f?.querySelector('span');
+      if (f) window.__flashSeen += 1;
+      window.__flash.push([Math.round(performance.now() - t0), f ? Number(getComputedStyle(f).opacity) : null, s ? Number(getComputedStyle(s).opacity) : null]);
+      if (performance.now() - t0 < 2600) requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+    window.__flashAdded = [];
+    window.__flashObs?.disconnect();
+    window.__flashObs = new MutationObserver((muts) => {
+      for (const m of muts) for (const n of m.addedNodes) if (n.classList?.contains('descontrol-flash')) {
+        const cs = getComputedStyle(n);
+        window.__flashAdded.push({ t: Math.round(performance.now() - t0), z: cs.zIndex, pe: cs.pointerEvents, ariaHidden: n.getAttribute('aria-hidden'), text: n.textContent, bg: cs.backgroundColor });
+      }
+    });
+    window.__flashObs.observe(document.body, { childList: true, subtree: true });
+  });
+}
+
+const inst = await startInstance(PORT);
+const browser = await launchBrowser();
+try {
+  // ---------------- R-NIGHT-01 (escritorio) ----------------
+  if (want('R-NIGHT-01')) {
+    const vp = 'escritorio';
+    const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin });
+    const music = trackMusic(page);
+    await page.goto(`${inst.origin}/`);
+    await page.waitForTimeout(1500);
+    const before = await themeState(page);
+    const dayImgs = await imgNames(page);
+    const reqBefore = music.reqs.length;
+    await installFlashSampler(page);
+    const bulb = page.getByRole('button', { name: 'Activar el descontrol' });
+    await bulb.click();
+    await page.waitForTimeout(120);
+    const during = await themeState(page);
+    const clickThrough = await page.evaluate(() => {
+      const el = document.elementFromPoint(innerWidth / 2, innerHeight / 2);
+      return el ? `${el.tagName.toLowerCase()}.${[...el.classList].join('.')}` : null;
+    });
+    await page.waitForTimeout(1500);
+    const after = await themeState(page);
+    const samples = await page.evaluate(() => window.__flash);
+    const added = await page.evaluate(() => window.__flashAdded);
+    const fl = analyseFlash(samples);
+    const fab = await page.evaluate(() => {
+      const f = document.querySelector('.spray-fab');
+      if (!f) return null;
+      const r = f.getBoundingClientRect();
+      return { label: f.getAttribute('aria-label'), text: f.textContent.trim(), right: Math.round(innerWidth - r.right), bottom: Math.round(innerHeight - r.bottom) };
+    });
+    const nightImgs = await imgNames(page);
+    const changedImgs = nightImgs.filter((n, i) => n !== dayImgs[i]);
+    const audio = await audioState(page);
+    const ok =
+      during.theme === 'neon' && during.meta === '#0c0917' && added.length === 1 && added[0].pe === 'none' && added[0].ariaHidden === 'true' &&
+      /Descontrol activado/i.test(added[0].text) && !after.flash && after.wall && after.dark && fab?.label === 'Coge el spray' &&
+      after.bulbs[0].pressed === 'true' && after.bulbs[0].label === 'Apagar el descontrol' && after.bulbs[0].title === 'Apagar el descontrol' && after.bulbs[0].on &&
+      audio.currentSrc === '/music/modo-neon.m4a' && audio.paused === false && audio.pillBtn === 'Pausar MODO NEÓN' && !clickThrough?.includes('descontrol-flash');
+    C.add({
+      id: 'R-NIGHT-01', viewport: vp, resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `antes: theme=${before.theme} meta=${before.meta} bulb=${before.bulbs[0].label}/${before.bulbs[0].pressed}; audio previo sin peticiones (${reqBefore}); tras clic: data-theme=${during.theme}, meta=${during.meta}; apagón añadido ${JSON.stringify(added)}; elementFromPoint centro durante el apagón=${clickThrough} (pointer-events:none); apagón visible ${fl.lastMs} ms tras aparecer (FLASH_MS=1400), retirado=${!after.flash}; rótulo (opacidad efectiva, extremos) ${fl.extremos}; cambios ≥0,1=${fl.cambios}; máx. destellos (pares de cambios opuestos) en 1 s=${fl.maxDestellosPorSegundo}; la capa negra empieza a fundirse a ${fl.capaEmpiezaAFundir} ms; escena: uv-wall=${after.wall} uv-oscuridad=${after.dark} canvas=${after.canvas}; bote ${JSON.stringify(fab)}; botón ${JSON.stringify(after.bulbs[0])}; dibujos cambiados ${changedImgs.length}: ${[...new Set(changedImgs)].join(', ')}; radio ${JSON.stringify({ src: audio.currentSrc, paused: audio.paused, pill: audio.pillBtn, bpm: audio.bpm, groove: audio.groove })}; peticiones de música ${JSON.stringify(music.reqs.map((r) => r.url))}; ${sum(issues)}`,
+      hallazgos: 'C-NOCHE-04, C-NOCHE-24',
+    });
+    if (!ok) await snap(page, `R-NIGHT-01-${vp}`);
+    await context.close();
+  }
+
+  // ---------------- R-NIGHT-02 (móvil) ----------------
+  if (want('R-NIGHT-02')) {
+    const vp = 'movil';
+    const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin });
+    await page.goto(`${inst.origin}/`);
+    await page.waitForTimeout(1500);
+    await page.locator('button.navbar-menu').tap();
+    await page.waitForTimeout(300);
+    const sheetInfo = await page.evaluate(() => {
+      const s = document.querySelector('.navbar-sheet');
+      const hb = document.querySelector('header button.navbar-theme');
+      const sb = s?.querySelector('button.navbar-theme--sheet');
+      return { dialog: s?.getAttribute('role'), modal: s?.getAttribute('aria-modal'), sheetZ: s && getComputedStyle(s).zIndex, headerBulbDisplay: hb && getComputedStyle(hb).display, sheetBulbText: sb?.textContent.trim(), sheetBulbLabel: sb?.getAttribute('aria-label') };
+    });
+    await installFlashSampler(page);
+    await page.locator('.navbar-sheet button.navbar-theme--sheet').tap();
+    await page.waitForTimeout(150);
+    const during = await themeState(page);
+    const added = await page.evaluate(() => window.__flashAdded);
+    await page.waitForTimeout(1500);
+    const afterOn = await page.evaluate(() => {
+      const s = document.querySelector('.navbar-sheet');
+      const f = document.querySelector('.spray-fab');
+      const r = f?.getBoundingClientRect();
+      const top = r ? document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) : null;
+      return {
+        sheetOpen: !!s, sheetBtn: s?.querySelector('button.navbar-theme--sheet')?.textContent.trim(),
+        fabZ: f && getComputedStyle(f).zIndex, sheetZ: s && getComputedStyle(s).zIndex,
+        fabOnTop: top ? (f.contains(top) ? 'bote encima de la hoja' : `tapa: ${top.className}`) : null,
+        fabText: f && getComputedStyle(f.querySelector('span')).display,
+      };
+    });
+    const audioOn = await audioState(page);
+    // ¿Se puede tocar el bote con la hoja abierta? (C-NOCHE-22)
+    await page.locator('.spray-fab').tap();
+    await page.waitForTimeout(250);
+    const withSheet = await page.evaluate(() => ({ tools: !!document.querySelector('.spray-tools'), sheet: !!document.querySelector('.navbar-sheet'), spraying: document.documentElement.classList.contains('is-spraying') }));
+    // Con el spray cogido, arrastrar el dedo por el papel vacío de la hoja.
+    const emptyY = await page.evaluate(() => {
+      const links = document.querySelector('.navbar-sheet-links').getBoundingClientRect();
+      const foot = document.querySelector('.navbar-sheet-footer').getBoundingClientRect();
+      return Math.round((links.bottom + foot.top) / 2);
+    });
+    const targetAt = await page.evaluate((y) => document.elementFromPoint(300, y)?.className, emptyY);
+    await touchDrag(page, line(250, emptyY, 330, emptyY + 30, 12));
+    await page.waitForTimeout(650);
+    const storeSheet = await sprayStorage(page);
+    const strokesOnSheet = storeSheet?.pages?.['/']?.strokes?.length ?? 0;
+    await page.locator('.spray-tool--close').tap();
+    // Cerrar la hoja con su botón y comprobar el foco.
+    await page.locator('button.navbar-menu').tap();
+    await page.waitForTimeout(250);
+    const focusAfterClose = await page.evaluate(() => document.activeElement?.getAttribute('aria-label'));
+    // Reabrir, cerrar con Escape (foco al botón) y reabrir para apagar.
+    await page.locator('button.navbar-menu').tap();
+    await page.waitForTimeout(250);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(200);
+    const focusAfterEsc = await page.evaluate(() => ({ focus: document.activeElement?.getAttribute('aria-label'), sheet: !!document.querySelector('.navbar-sheet') }));
+    await page.locator('button.navbar-menu').tap();
+    await page.waitForTimeout(250);
+    await page.locator('.navbar-sheet button.navbar-theme--sheet', { hasText: 'Apagar el descontrol' }).tap();
+    await page.waitForTimeout(400);
+    const off = await themeState(page);
+    const audioOff = await audioState(page);
+    if (audioOff.pillBtn !== 'Reproducir BARRO') {
+      await page.locator('button.navbar-menu').tap();
+      await page.waitForTimeout(300);
+      await snap(page, `R-NIGHT-02-${vp}`);
+    }
+    const ok =
+      sheetInfo.headerBulbDisplay === 'none' && sheetInfo.sheetBulbText === 'Activar el descontrol' && during.theme === 'neon' &&
+      added.length === 1 && added[0].z === '3000' && afterOn.sheetOpen && off.theme === null && !off.wall && !off.fab &&
+      audioOff.currentSrc === '/music/barro.m4a' && audioOn.currentSrc === '/music/modo-neon.m4a' && focusAfterEsc.focus === 'Abrir el menú' &&
+      audioOff.pillBtn === 'Reproducir BARRO' && audioOff.groove === null;
+    C.add({
+      id: 'R-NIGHT-02', viewport: vp, resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `hoja ${JSON.stringify(sheetInfo)}; tras tocar: theme=${during.theme} meta=${during.meta}, apagón ${JSON.stringify(added)}; después ${JSON.stringify(afterOn)}; radio ${audioOn.currentSrc} paused=${audioOn.paused} pill=${audioOn.pillBtn}; tocar el bote con la hoja abierta → ${JSON.stringify(withSheet)}; elemento en el papel vacío de la hoja (y=${emptyY}): ${targetAt}; arrastrar el dedo ahí con el spray cogido guarda ${strokesOnSheet} trazo(s) en '/' (pintura invisible detrás de la hoja); foco tras «Cerrar el menú»: ${focusAfterClose}; tras Escape: ${JSON.stringify(focusAfterEsc)}; al apagar: theme=${off.theme} meta=${off.meta} escena=${off.wall || off.fab} radio=${audioOff.currentSrc} paused=${audioOff.paused} pill=${audioOff.pillBtn} pillPlaying=${audioOff.pillPlaying} body[data-groove]=${audioOff.groove} --bpm=${audioOff.bpm}; ${sum(issues)}`,
+      hallazgos: [strokesOnSheet > 0 || withSheet.tools ? 'C-NOCHE-22' : '', audioOff.pillBtn !== 'Reproducir BARRO' ? 'NUEVO-2' : ''].filter(Boolean).join(', '),
+    });
+    await context.close();
+  }
+
+  // ---------------- R-NIGHT-03 (ambos) ----------------
+  for (const vp of ['escritorio', 'movil']) {
+    if (!want('R-NIGHT-03')) break;
+    const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin });
+    await page.goto(`${inst.origin}/crew`);
+    await page.waitForTimeout(1500);
+    await nightOn(page, vp);
+    const on = await themeState(page);
+    // Spray: trazo y apagar en los 300 ms siguientes.
+    if (vp === 'escritorio') await page.locator('.spray-fab').click();
+    else await page.locator('.spray-fab').tap();
+    await page.waitForTimeout(150);
+    let tRelease;
+    let blockedBySpray = '';
+    if (vp === 'escritorio') {
+      await mouseStroke(page, [[40, 300], [60, 420], [50, 520]]);
+      tRelease = Date.now();
+      await page.locator('header button.navbar-theme').click();
+    } else {
+      await touchDrag(page, line(12, 300, 20, 480, 14));
+      tRelease = Date.now();
+      // Un toque en los ~600 ms siguientes a un trazo táctil sintético no genera click en la emulación.
+      await page.waitForTimeout(600);
+      await page.locator('button.navbar-menu').tap();
+      await page.waitForTimeout(300);
+      // ¿Tapa la caja del spray el interruptor de la hoja?
+      blockedBySpray = await page.evaluate(() => {
+        const b = document.querySelector('.navbar-sheet button.navbar-theme--sheet');
+        const t = document.querySelector('.spray-tools');
+        if (!b) return 'sin interruptor';
+        const r = b.getBoundingClientRect();
+        const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        const tr = t?.getBoundingClientRect();
+        return b.contains(top) ? '' : `el centro del interruptor (${Math.round(r.top)}-${Math.round(r.bottom)} px) lo tapa ${top?.closest('.spray-tools') ? '.spray-tools' : top?.className} (${tr ? `${Math.round(tr.top)}-${Math.round(tr.bottom)} px` : ''})`;
+      });
+      if (blockedBySpray) {
+        await snap(page, `R-NIGHT-03-${vp}`);
+        await page.locator('.spray-tool--close').tap();
+        await page.waitForTimeout(200);
+      }
+      await page.locator('.navbar-sheet button.navbar-theme--sheet').tap();
+    }
+    const elapsed = Date.now() - tRelease;
+    await page.waitForTimeout(100);
+    const off = await themeState(page);
+    const htmlCls = await page.evaluate(() => ({ html: document.documentElement.className, body: document.body.className }));
+    const store = await sprayStorage(page);
+    const audioOff = await audioState(page);
+    if (vp === 'movil') await page.locator('button.navbar-menu').tap();
+    if (audioOff.pillBtn !== 'Reproducir BARRO') { await page.waitForTimeout(300); await snap(page, vp === 'movil' ? `R-NIGHT-03-${vp}-radio` : `R-NIGHT-03-${vp}`); }
+    // Encender y apagar antes de que acabe el apagón.
+    await toggleNight(page, vp);
+    await page.waitForTimeout(vp === 'escritorio' ? 300 : 50);
+    const midFlash = (await themeState(page)).flash;
+    await toggleNight(page, vp);
+    await page.waitForTimeout(80);
+    const afterQuick = await themeState(page);
+    // Reactivar en la misma ruta.
+    await toggleNight(page, vp);
+    await page.waitForTimeout(150);
+    const reFlash = (await themeState(page)).flash;
+    await page.waitForTimeout(1500);
+    const ink = await canvasInk(page, { x: 0, y: 280, w: 90, h: 260 });
+    const ok =
+      off.theme === null && off.meta === '#1a1a1a' && !off.flash && !off.wall && !off.dark && !off.canvas && !off.fab && !off.tools &&
+      !htmlCls.html.includes('is-spraying') && !htmlCls.body.includes('uv-fondo') && (store?.pages?.['/crew']?.strokes?.length ?? 0) === 1 &&
+      audioOff.currentSrc === '/music/barro.m4a' && audioOff.paused === true && !afterQuick.flash && reFlash && ink?.n > 0 && !blockedBySpray &&
+      audioOff.pillBtn === 'Reproducir BARRO' && audioOff.groove === null;
+    C.add({
+      id: 'R-NIGHT-03', viewport: vp, resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `${blockedBySpray ? `con el spray cogido no se puede pulsar «Apagar el descontrol» en la hoja: ${blockedBySpray}; se suelta el spray con ✕ y se apaga; ` : ''}encendido: theme=${on.theme}; apagado ${elapsed} ms después de soltar el trazo: theme=${off.theme} meta=${off.meta} apagón=${off.flash} pared=${off.wall} oscuridad=${off.dark} lienzo=${off.canvas} bote=${off.fab} caja=${off.tools}; html.class="${htmlCls.html}" body.class="${htmlCls.body}"; rocky-spray['/crew'] trazos=${store?.pages?.['/crew']?.strokes?.length ?? 0}; radio tras apagar ${audioOff.currentSrc} paused=${audioOff.paused} t=${audioOff.t} pill=${audioOff.pillBtn} pillPlaying=${audioOff.pillPlaying} body[data-groove]=${audioOff.groove} --bpm=${audioOff.bpm} (no suena, pero la píldora dice que sí); encender y apagar a mitad: apagón a mitad=${midFlash}, tras apagar apagón=${afterQuick.flash}; reactivar: apagón=${reFlash}, pintada repintada (px con tinta en el margen)=${ink?.n}; ${sum(issues)}`,
+      hallazgos: [blockedBySpray ? 'NUEVO-1, C-NOCHE-22' : '', audioOff.pillBtn !== 'Reproducir BARRO' ? 'NUEVO-2' : ''].filter(Boolean).join(', '),
+    });
+
+    await context.close();
+  }
+
+  // ---------------- R-NIGHT-04 (ambos, movimiento reducido) ----------------
+  for (const vp of ['escritorio', 'movil']) {
+    if (!want('R-NIGHT-04')) break;
+    const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin, reducedMotion: 'reduce' });
+    await page.goto(`${inst.origin}/`);
+    await page.waitForTimeout(1500);
+    await installFlashSampler(page);
+    await toggleNight(page, vp);
+    await page.waitForTimeout(600);
+    const st = await themeState(page);
+    const flashAdded = await page.evaluate(() => window.__flashAdded.length);
+    // Chorretón: quieto más de medio segundo con el spray.
+    if (vp === 'escritorio') await page.locator('.spray-fab').click();
+    else await page.locator('.spray-fab').tap();
+    await page.waitForTimeout(150);
+    const dripTest = async (x, y) => {
+      if (vp === 'escritorio') {
+        await page.mouse.move(x, y);
+        await page.mouse.down();
+        await page.mouse.move(x + 4, y + 10, { steps: 3 });
+      } else {
+        const s = await cdp(page);
+        await s.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y, id: 1 }] });
+        await s.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + 2, y: y + 6, id: 1 }] });
+        await s.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + 4, y: y + 10, id: 1 }] });
+      }
+      await page.waitForTimeout(520);
+      const scrollY = await page.evaluate(() => scrollY);
+      const box = { x: x - 10, y: y + scrollY + 14, w: 28, h: 90 };
+      const a = await canvasInk(page, box);
+      await page.waitForTimeout(1000);
+      const b = await canvasInk(page, box);
+      if (vp === 'escritorio') await page.mouse.up();
+      else await (await cdp(page)).send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      return { a: a.maxY, b: b.maxY, nA: a.n, nB: b.n };
+    };
+    const xs = vp === 'escritorio' ? [40, 60, 80, 1380, 1400] : [6, 10, 14, 362, 366];
+    const spotA = await emptySpot(page, xs.flatMap((x) => [260, 320, 380, 440, 500].map((y) => [x, y])));
+    const reducedDrip = spotA ? await dripTest(spotA[0], spotA[1]) : { a: null, b: null, nA: 0, nB: 0 };
+    // Radio y animaciones.
+    const anim = await page.evaluate(() => {
+      const pick = (sel) => {
+        const el = document.querySelector(sel);
+        return el ? getComputedStyle(el).animationName : 'ausente';
+      };
+      return { groove: document.body.dataset.groove, alRitmo: pick('[data-groove] .al-ritmo'), disco: pick('.mini-player.is-playing .mini-player-disc'), fabTrans: getComputedStyle(document.querySelector('.spray-tools .spray-color') || document.body).transitionDuration };
+    });
+    const audio = await audioState(page);
+    await page.locator('.spray-tool--close').evaluate((b) => b.click());
+    const fabTrans = await page.evaluate(() => getComputedStyle(document.querySelector('.spray-fab')).transitionDuration);
+    await navTo(page, vp, 'Estudio');
+    const bb = await page.evaluate(() => {
+      const pick = (sel) => {
+        const el = document.querySelector(sel);
+        return el ? `${getComputedStyle(el).animationName}/op ${getComputedStyle(el).opacity}` : 'ausente';
+      };
+      return { spool: pick('.bb-art.is-playing .bb-spool'), diana: pick('.bb-art.is-playing .bb-diana'), senal: pick('.bb-art.is-playing .bb-senal'), luz: document.querySelector('.bb-art.is-playing .bb-luz') ? getComputedStyle(document.querySelector('.bb-art.is-playing .bb-luz')).fill : 'ausente' };
+    });
+    // Quitar la emulación con la escena puesta.
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await navTo(page, vp, 'Tienda');
+    if (vp === 'escritorio') await page.locator('.spray-fab').click();
+    else await page.locator('.spray-fab').tap();
+    await page.waitForTimeout(150);
+    const spotB = await emptySpot(page, xs.flatMap((x) => [520, 560, 600, 640].map((y) => [x, y])));
+    const liveDrip = spotB ? await dripTest(spotB[0], spotB[1]) : { a: null, b: null, nA: 0, nB: 0 };
+    await page.locator('.spray-tool--close').evaluate((b) => b.click());
+    await installFlashSampler(page);
+    await toggleNight(page, vp); // apagar
+    await page.waitForTimeout(200);
+    await toggleNight(page, vp); // encender
+    await page.waitForTimeout(300);
+    const flashAfter = await page.evaluate(() => window.__flashAdded.length);
+    const ok =
+      flashAdded === 0 && st.wall && st.fab && reducedDrip.a === reducedDrip.b && reducedDrip.nA > 0 && anim.alRitmo === 'none' &&
+      anim.disco === 'none' && bb.spool.startsWith('none') && bb.diana.startsWith('none') && bb.senal.startsWith('none') && liveDrip.b > liveDrip.a && flashAfter >= 1;
+    C.add({
+      id: 'R-NIGHT-04', viewport: vp, resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `con reduce: apagón añadido ${flashAdded} veces, escena pared=${st.wall} bote=${st.fab}; chorretón en ${spotA} (borde inferior en px de página a +70 ms y a +1070 ms del disparo): ${reducedDrip.a} → ${reducedDrip.b} (px ${reducedDrip.nA} → ${reducedDrip.nB}); radio ${audio.currentSrc} paused=${audio.paused} groove=${anim.groove}; animación .al-ritmo=${anim.alRitmo}, disco=${anim.disco}; transición color spray=${anim.fabTrans}, bote=${fabTrans}; radiocasete ${JSON.stringify(bb)}; quitando la emulación con la escena puesta: chorretón en ${spotB} ${liveDrip.a} → ${liveDrip.b} (crece), apagón al reencender=${flashAfter}; ${sum(issues)}`,
+      hallazgos: 'C-NOCHE-25',
+    });
+    if (!ok) await snap(page, `R-NIGHT-04-${vp}`);
+    await context.close();
+  }
+
+  // ---------------- R-NIGHT-05 (ambos) ----------------
+  for (const vp of ['escritorio', 'movil']) {
+    if (!want('R-NIGHT-05')) break;
+    const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin });
+    await page.goto(`${inst.origin}/crew`);
+    await page.waitForTimeout(1500);
+    await nightOn(page, vp);
+    if (vp === 'escritorio') {
+      await page.locator('.spray-fab').click();
+      await mouseStroke(page, [[40, 300], [60, 420], [50, 520]]);
+    } else {
+      await page.locator('.spray-fab').tap();
+      await touchDrag(page, line(12, 300, 20, 480, 14));
+    }
+    await page.waitForTimeout(500);
+    await page.locator('.spray-tool--close').evaluate((b) => b.click());
+    const audioBefore = await audioState(page);
+    await page.evaluate(() => localStorage.setItem('rocky-theme', 'neon'));
+    await page.reload();
+    await page.waitForTimeout(1500);
+    const st = await themeState(page);
+    const audio = await audioState(page);
+    const legacy = await page.evaluate(() => localStorage.getItem('rocky-theme'));
+    const url = page.url();
+    await installFlashSampler(page);
+    await toggleNight(page, vp);
+    await page.waitForTimeout(200);
+    const flash = await page.evaluate(() => window.__flashAdded.length);
+    await page.waitForTimeout(1500);
+    const ink = await canvasInk(page, { x: 0, y: 280, w: 90, h: 260 });
+    // Pestaña nueva.
+    const p2 = await context.newPage();
+    await p2.goto(`${inst.origin}/crew`);
+    await p2.waitForTimeout(1500);
+    const st2 = await themeState(p2);
+    // data-theme desde la consola (borde documentado).
+    await p2.evaluate(() => { document.documentElement.dataset.theme = 'neon'; });
+    await p2.waitForTimeout(400);
+    const forced = await themeState(p2);
+    const forcedAudio = await audioState(p2);
+    const ok = st.theme === null && !st.fab && audio.src === null && audio.paused === true && audio.pillBtn === 'Reproducir BARRO' && legacy === null && flash === 1 && ink?.n > 0 && st2.theme === null;
+    C.add({
+      id: 'R-NIGHT-05', viewport: vp, resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `antes de recargar: radio ${audioBefore.currentSrc} paused=${audioBefore.paused}; tras F5 (${url}): theme=${st.theme} meta=${st.meta} bote=${st.fab}; radio src=${audio.src} paused=${audio.paused} pill=${audio.pillBtn}; localStorage['rocky-theme'] (puesto a 'neon' antes de recargar)=${legacy}; reactivar: apagón=${flash}, pintada repintada px=${ink?.n}; pestaña nueva: theme=${st2.theme}; con data-theme forzado desde la consola: escena pared=${forced.wall} bote=${forced.fab}, bombilla ${forced.bulbs[0].label}/aria-pressed=${forced.bulbs[0].pressed}, radio src=${forcedAudio.src} pill=${forcedAudio.pillBtn} (desincronizada); ${sum(issues)}`,
+      hallazgos: '',
+    });
+    if (!ok) await snap(page, `R-NIGHT-05-${vp}`);
+    await context.close();
+  }
+
+  // ---------------- R-NIGHT-12 (ambos; visibilidad simulada) ----------------
+  for (const vp of ['escritorio', 'movil']) {
+    if (!want('R-NIGHT-12')) break;
+    const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin });
+    await page.goto(`${inst.origin}/crew`);
+    await page.waitForTimeout(1500);
+    const setHidden = (hidden) =>
+      page.evaluate((h) => {
+        Object.defineProperty(document, 'hidden', { configurable: true, get: () => h });
+        Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (h ? 'hidden' : 'visible') });
+        document.dispatchEvent(new Event('visibilitychange'));
+      }, hidden);
+    await nightOn(page, vp);
+    const t0 = await page.title();
+    await setHidden(true);
+    const tHidden = await page.title();
+    await setHidden(false);
+    const tBack = await page.title();
+    await setHidden(true);
+    const tHidden2 = await page.title();
+    await toggleNight(page, vp); // apagar con la pestaña «oculta»
+    await page.waitForTimeout(200);
+    const tOff = await page.title();
+    await setHidden(false);
+    await setHidden(true);
+    const tDay = await page.title();
+    await setHidden(false);
+    const ok = tHidden === 'Te estamos viendo…' && tBack === t0 && tHidden2 === 'Te estamos viendo…' && tOff === t0 && tDay === t0;
+    C.add({
+      id: 'R-NIGHT-12', viewport: vp, resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `visibilidad simulada (document.hidden + visibilitychange; Chrome headless no oculta pestañas con bringToFront): título «${t0}» → oculto «${tHidden}» → visible «${tBack}»; oculto otra vez «${tHidden2}» y apagar el descontrol → «${tOff}»; de día oculto → «${tDay}»; ${sum(issues)}`,
+      hallazgos: '',
+    });
+    if (!ok) await snap(page, `R-NIGHT-12-${vp}`);
+    await context.close();
+  }
+
+  // ---------------- Capturas de día y noche ----------------
+  if (want('capturas')) {
+    for (const vp of ['escritorio', 'movil']) {
+      const { page, context } = await openPage(browser, vp, { origin: inst.origin });
+      await page.goto(`${inst.origin}/`);
+      await page.waitForTimeout(2500);
+      await snap(page, `tema-portada-dia-${vp}`);
+      await nightOn(page, vp);
+      await page.mouse.move(vp === 'escritorio' ? 720 : 187, 380);
+      await page.waitForTimeout(800);
+      await snap(page, `tema-portada-noche-${vp}`);
+      await navTo(page, vp, 'Estudio');
+      await page.waitForTimeout(1500);
+      await snap(page, `tema-estudio-noche-${vp}`);
+      await page.goto(`${inst.origin}/estudio`);
+      await page.waitForTimeout(2500);
+      await snap(page, `tema-estudio-dia-${vp}`);
+      await context.close();
+    }
+    console.log('capturas hechas');
+  }
+} finally {
+  await browser.close();
+  inst.stop();
+}

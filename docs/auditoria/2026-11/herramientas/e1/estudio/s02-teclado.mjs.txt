@@ -1,0 +1,324 @@
+// Teclado: R-STU-06, R-STU-13 y la pasada de teclado (tarea 3.3) de /estudio.
+import { run, seed } from './runner.mjs';
+import { open, sum, snap, sleep, gotoStudio, audioState, appendTsv } from './common.mjs';
+
+const verdict = (f) => (f.length ? 'FALLO' : 'OK');
+const ESC = ['escritorio'];
+
+const describe = () => {
+  const el = document.activeElement;
+  if (!el || el === document.body) return { d: '<body>' };
+  const cs = getComputedStyle(el);
+  return {
+    d: (el.tagName === 'MAIN' ? `main#${el.id}` : '') || el.getAttribute('aria-label') || (el.tagName === 'INPUT' ? `input[${el.name || el.type}]` : el.tagName === 'SELECT' ? 'select' : el.textContent.trim().replace(/\s+/g, ' ').slice(0, 30)),
+    tag: el.tagName,
+    fv: el.matches(':focus-visible'),
+    outline: `${cs.outlineStyle} ${cs.outlineWidth} ${cs.outlineColor}`,
+    shadow: cs.boxShadow !== 'none',
+    visible: el.getBoundingClientRect().width > 0 && cs.visibility !== 'hidden',
+  };
+};
+const focusOk = (f) => f.fv && ((f.outline.startsWith('solid') && parseFloat(f.outline.split(' ')[1]) >= 2) || f.shadow);
+
+async function tabs(page, n) {
+  const out = [];
+  for (let i = 0; i < n; i += 1) {
+    await page.keyboard.press('Tab');
+    out.push(await page.evaluate(describe));
+  }
+  return out;
+}
+
+const cases = [];
+
+// ---------------- R-STU-06 ----------------
+cases.push({
+  id: 'R-STU-06',
+  vps: ESC,
+  fn: async ({ browser, vp, origin }) => {
+    const ev = [];
+    const fails = [];
+    const hallazgos = [];
+    const { page, issues, blocked, context } = await open(browser, vp, origin);
+    await gotoStudio(page, origin);
+    await page.evaluate(() => document.addEventListener('contextmenu', (e) => { window.__ctxmenu = (window.__ctxmenu || 0) + 1; window.__ctxPrevented = e.defaultPrevented; }));
+    // 1. Orden de tabulación desde el último ritmo
+    await page.locator('.mesa-presets .chip').last().focus();
+    const seq = await tabs(page, 152);
+    const names = ['Bombo', 'Caja', 'Hi-hat', 'Diana', 'Palmas', 'Hat abierto', 'Tom', '808'];
+    const expected = names.flatMap((n) => [n, `Solo de ${n}`, `Volumen de ${n}`, ...Array.from({ length: 16 }, (_, i) => `${n}, paso ${i + 1}`)]);
+    const got = seq.map((s) => s.d);
+    const mismatch = expected.findIndex((e, i) => e !== got[i]);
+    const cellFocus = seq.filter((s) => / paso /.test(s.d));
+    const badFocus = seq.filter((s) => !focusOk(s));
+    // Flechas
+    await page.locator('button.celda[aria-label="Bombo, paso 1"]').focus();
+    await page.keyboard.press('ArrowRight');
+    const afterArrow = (await page.evaluate(describe)).d;
+    // 2. Espacio y Enter sobre una celda apagada
+    const diana = page.locator('button.celda[aria-label="Diana, paso 1"]');
+    await diana.focus();
+    await page.keyboard.press('Space');
+    const v1 = await diana.getAttribute('class');
+    const lcdAfterSpace = await page.locator('.lcd-rec').textContent();
+    await page.keyboard.press('Enter');
+    const v2 = await diana.getAttribute('class');
+    // 3. Tecla de menú contextual sobre una celda encendida
+    await page.keyboard.press('Shift+F10');
+    await sleep(100);
+    const afterShiftF10 = await diana.getAttribute('aria-pressed');
+    await page.keyboard.press('ContextMenu').catch(() => {});
+    await sleep(100);
+    const afterMenuKey = await diana.getAttribute('aria-pressed');
+    const ctxCount = await page.evaluate(() => window.__ctxmenu || 0);
+    // 4. Q con el foco en una celda
+    await page.locator('button.celda[aria-label="Tom, paso 3"]').focus();
+    const s0 = (await audioState(page)).starts;
+    await page.keyboard.press('q');
+    const flash = await page.evaluate(() => document.querySelector('.pad--golpe')?.getAttribute('aria-label'));
+    await sleep(100);
+    const s1 = (await audioState(page)).starts;
+    const tomAfterQ = await page.locator('button.celda[aria-label="Tom, paso 3"]').getAttribute('aria-pressed');
+    // 5. Espacio para arrancar (C-STU-11): no hay ningún sitio en la mesa donde funcione
+    const nonButtons = await page.evaluate(() => [...document.querySelector('.mesa-wrap').querySelectorAll('button, a[href], input, select, textarea, [tabindex]')].filter((e) => e.tabIndex >= 0 && !['BUTTON', 'A', 'INPUT', 'SELECT', 'TEXTAREA'].includes(e.tagName)).length);
+    await page.locator('.mesa-lcd').click();
+    const afterLcdClick = (await page.evaluate(describe)).d;
+    await page.keyboard.press('Space');
+    await sleep(200);
+    const lcdSpace = await page.locator('.lcd-rec').textContent();
+    await page.locator('input[aria-label="Tempo en pulsos por minuto"]').focus();
+    await page.keyboard.press('Space');
+    await sleep(200);
+    const lcdSpaceRange = await page.locator('.lcd-rec').textContent();
+    // 6. Lo que oye un lector: acento (Bombo 1) frente a fantasma (Hi-hat 3)
+    const accent = await page.locator('button.celda[aria-label="Bombo, paso 1"]').ariaSnapshot();
+    const ghost = await page.locator('button.celda[aria-label="Hi-hat, paso 3"]').ariaSnapshot();
+    const classes = `${await page.locator('button.celda[aria-label="Bombo, paso 1"]').getAttribute('class')} / ${await page.locator('button.celda[aria-label="Hi-hat, paso 3"]').getAttribute('class')}`;
+    ev.push(`Tab desde «House»: ${mismatch === -1 ? 'orden exacto' : `difiere en ${mismatch}: «${got[mismatch]}» en vez de «${expected[mismatch]}»`} (nombre, S, volumen y 16 celdas por pista; ${cellFocus.length} celdas); primeras: ${got.slice(0, 5).join(' › ')}; sin foco visible: ${badFocus.length}${badFocus.length ? ` (${badFocus.slice(0, 3).map((b) => `${b.d}: ${b.outline}`).join('; ')})` : ` (anillo ${seq[3].outline})`}`);
+    ev.push(`flecha derecha en «Bombo, paso 1» → foco en «${afterArrow}»`);
+    ev.push(`Espacio en «Diana, paso 1» → clase «${v1.trim()}», LCD «${lcdAfterSpace}»; Enter → «${v2.trim()}»`);
+    ev.push(`Mayús+F10 → aria-pressed ${afterShiftF10}; tecla Menú → ${afterMenuKey}; eventos contextmenu recibidos ${ctxCount}: Chrome los genera con el teclado y la celda se borra`);
+    ev.push(`Q con foco en «Tom, paso 3» → pad iluminado «${flash}», voces +${s1 - s0}, la celda no cambia (aria-pressed ${tomAfterQ})`);
+    ev.push(`Espacio: elementos enfocables de la mesa que no son botón/campo = ${nonButtons}; clic en el LCD deja el foco en ${afterLcdClick} y Espacio → «${lcdSpace}»; con foco en Tempo → «${lcdSpaceRange}»`);
+    ev.push(`lector: acento ${accent.replace(/\n/g, ' ')} | fantasma ${ghost.replace(/\n/g, ' ')} (clases ${classes})`);
+    if (mismatch !== -1) fails.push('orden de tabulación');
+    if (badFocus.length) fails.push('foco no visible');
+    if (afterArrow !== 'Bombo, paso 1') ev.push('las flechas mueven el foco (inesperado)');
+    if (!/v2/.test(v1) || !/v3/.test(v2) || lcdAfterSpace.trim() !== '■ STOP') fails.push('Espacio/Enter en celdas');
+    if (flash !== 'Pad 5: Palmas' || s1 === s0) fails.push('Q no toca el pad 5');
+    const c11 = nonButtons === 0 && lcdSpace.trim() === '■ STOP' && lcdSpaceRange.trim() === '■ STOP';
+    if (c11) { fails.push('«espacio arranca» (comentario y manejador de teclado) no se puede alcanzar desde ningún sitio (C-STU-11)'); hallazgos.push('C-STU-11'); }
+    const c13 = accent.replace('Bombo, paso 1', 'X') === ghost.replace('Hi-hat, paso 3', 'X');
+    if (c13) { fails.push('el lector no distingue acento de fantasma (C-STU-13)'); hallazgos.push('C-STU-13'); }
+    ev.push(sum(issues, blocked));
+    if (fails.length) await snap(page, `R-STU-06-${vp}`);
+    await context.close();
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; '), hallazgos: hallazgos.join(', ') };
+  },
+});
+
+// ---------------- R-STU-13 ----------------
+cases.push({
+  id: 'R-STU-13',
+  vps: ESC,
+  fn: async ({ browser, vp, origin }) => {
+    const ev = [];
+    const fails = [];
+    const hallazgos = [];
+    const { page, issues, blocked, context } = await open(browser, vp, origin);
+    await gotoStudio(page, origin);
+    await page.evaluate(() => {
+      window.__hits = [];
+      const obs = new MutationObserver((m) => m.forEach((r) => { if (r.target.classList?.contains('pad--golpe')) window.__hits.push(r.target.getAttribute('aria-label')); }));
+      document.querySelectorAll('button.pad').forEach((p) => obs.observe(p, { attributes: true, attributeFilter: ['class'] }));
+      window.__prevented = [];
+      window.addEventListener('keydown', (e) => window.__prevented.push(`${e.key}:${e.defaultPrevented}`));
+    });
+    const hits = () => page.evaluate(() => window.__hits.slice());
+    const reset = () => page.evaluate(() => { window.__hits.length = 0; window.__prevented.length = 0; });
+    // 1. Sin clic
+    await page.keyboard.press('1');
+    await sleep(100);
+    const step1 = { hits: (await hits()).length, ctx: (await audioState(page)).ctxs.length };
+    // 2. Clic en un pad y las 16 teclas
+    await page.locator('button.pad[aria-label^="Pad 1:"]').click();
+    await sleep(200);
+    await reset();
+    const keys = '1234qwerasdfzxcv'.split('');
+    for (const k of keys) { await page.keyboard.press(k); await sleep(160); }
+    const step2 = await hits();
+    const prevented = await page.evaluate(() => window.__prevented.slice());
+    await page.locator('.mesa-tap').focus();
+    await reset();
+    await page.keyboard.press('w');
+    await sleep(160);
+    const fromTap = await hits();
+    // 3. Mantener Q
+    await page.locator('button.pad[aria-label^="Pad 1:"]').focus();
+    await reset();
+    const a = (await audioState(page)).starts;
+    await page.keyboard.down('q'); await sleep(50); await page.keyboard.down('q'); await sleep(50); await page.keyboard.down('q'); await page.keyboard.up('q');
+    await sleep(200);
+    const held = { hits: (await hits()).length, starts: (await audioState(page)).starts - a };
+    // 4. Modificadores
+    await reset();
+    for (const k of ['Control+c', 'Alt+q', 'Meta+1', 'Shift+Q']) { await page.keyboard.press(k); await sleep(150); }
+    const mods = await hits();
+    // 5. Tempo y Tono
+    await reset();
+    await page.locator('input[aria-label="Tempo en pulsos por minuto"]').focus();
+    await page.keyboard.press('q');
+    await page.locator('.pads-tono select').focus();
+    await page.keyboard.press('q');
+    await sleep(150);
+    const fields = await hits();
+    // 7. Espacio y Enter sobre un pad
+    await page.locator('button.pad[aria-label^="Pad 3:"]').focus();
+    await reset();
+    await page.keyboard.press('Space'); await sleep(160);
+    await page.keyboard.press('Enter'); await sleep(160);
+    const spaceEnter = await hits();
+    const lcd = await page.locator('.lcd-rec').textContent();
+    // 6. Formulario de publicar
+    await page.locator('button', { hasText: 'Publicar en el ranking' }).click();
+    const focusAfterOpen = (await page.evaluate(describe)).d;
+    await reset();
+    await page.keyboard.press('1');
+    await sleep(150);
+    const afterOpen = await hits();
+    await page.locator('input[name="nombre"]').click();
+    await page.keyboard.type('qwer');
+    await sleep(150);
+    const typed = { value: await page.locator('input[name="nombre"]').inputValue(), hits: (await hits()).length };
+    await page.locator('form.mesa-publicar button', { hasText: 'Cerrar' }).click();
+    const focusAfterClose = (await page.evaluate(describe)).d;
+    await reset();
+    await page.keyboard.press('2');
+    await sleep(150);
+    const afterClose = await hits();
+    // 8. Barra
+    await page.locator('button', { hasText: 'Rocky IA, rapéame' }).click();
+    await sleep(500);
+    const focusAfterBarra = (await page.evaluate(describe)).d;
+    await reset();
+    await page.keyboard.press('3');
+    await sleep(150);
+    const afterBarra = await hits();
+    const expectedPads = keys.map((_, i) => `Pad ${i + 1}:`);
+    const okAll = expectedPads.every((p, i) => step2[i]?.startsWith(p)) && step2.length === 16;
+    ev.push(`1) sin clic, «1» → pads ${step1.hits}, AudioContext ${step1.ctx}`);
+    ev.push(`2) con foco en un pad, 1234 QWER ASDF ZXCV → ${okAll ? 'pads 1…16 en orden' : step2.join(',')}; preventDefault: ${prevented.filter((p) => p.endsWith('true')).length}/16; «w» con foco en TAP → ${fromTap.join(',') || 'nada'}`);
+    ev.push(`3) Q mantenida (3 keydown, 2 con repeat) → ${held.hits} golpe(s)`);
+    ev.push(`4) Ctrl+C, Alt+Q y Meta+1 no tocan nada; Mayús+Q sí toca (${mods.join(',') || 'nada'}): el manejador no excluye Mayús, como tampoco lo hace la ficha`);
+    ev.push(`5) Q en Tempo y en Tono → ${fields.length} golpes`);
+    ev.push(`6) «qwer» en «Nombre del beat» → valor «${typed.value}», golpes ${typed.hits}`);
+    ev.push(`7) Espacio y Enter en el pad 3 → ${spaceEnter.join(',')}; LCD «${lcd}»`);
+    ev.push(`8) foco tras abrir «Publicar» con clic: ${focusAfterOpen} → «1» toca ${afterOpen.length}; tras «Cerrar»: ${focusAfterClose} → «2» toca ${afterClose.length}; tras «Rocky IA, rapéame»: ${focusAfterBarra} → «3» toca ${afterBarra.length}`);
+    if (step1.hits || step1.ctx) fails.push('1');
+    if (!okAll || prevented.filter((p) => p.endsWith('true')).length < 16 || !fromTap[0]?.startsWith('Pad 6:')) fails.push('2');
+    if (held.hits !== 1) fails.push('3');
+    if (mods.some((m) => !m.startsWith('Pad 5:'))) fails.push('4');
+    if (mods.length > 1) fails.push('4: un modificador toca');
+    if (fields.length) fails.push('5');
+    if (typed.value !== 'qwer' || typed.hits) fails.push('6');
+    if (spaceEnter.length !== 2 || lcd.trim() !== '■ STOP') fails.push('7');
+    const c12 = [focusAfterOpen, focusAfterClose, focusAfterBarra].every((f) => f === '<body>') && !afterOpen.length && !afterClose.length && !afterBarra.length;
+    if (c12) { fails.push('al abrir/cerrar el formulario o la barra el foco cae al body y los atajos de pads dejan de funcionar (C-STU-12)'); hallazgos.push('C-STU-12'); }
+    ev.push(sum(issues, blocked));
+    if (fails.length) await snap(page, `R-STU-13-${vp}`);
+    await context.close();
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; '), hallazgos: hallazgos.join(', ') };
+  },
+});
+
+// ---------------- Pasada de teclado (tarea 3.3) ----------------
+cases.push({
+  id: 'TECLADO',
+  vps: ESC,
+  fn: async ({ browser, vp, origin }) => {
+    await seed(origin, { preset: 'house', bpm: 124, name: 'Casa vieja', alias: 'vecino' });
+    await seed(origin, { preset: 'drill', bpm: 142, name: 'Drill de barrio', alias: 'vecina' });
+    const { page, issues, blocked, context } = await open(browser, vp, origin);
+    await gotoStudio(page, origin);
+    const lines = {};
+    const fmt = (list) => list.map((f) => `${f.d}${focusOk(f) ? '' : ' [SIN FOCO VISIBLE]'}`).join(' › ');
+    // Transporte: desde la última fila del setlist
+    await page.locator('button.setlist-row').last().focus();
+    const transporte = await tabs(page, 12);
+    lines.transporte = { list: transporte, expected: ['Reproducir el beat', 'REC', 'TAP', 'Tempo en pulsos por minuto', 'Cantidad de swing', 'Volumen general', 'Boom bap', 'Trap', 'Drill', 'Reggaetón', 'Funk', 'House'] };
+    // Secuenciador (resumen; el detalle en R-STU-06)
+    const secuenciador = await tabs(page, 152);
+    lines.secuenciador = { list: secuenciador, expectedCount: 152 };
+    // Pads y acciones
+    const pads = await tabs(page, 25);
+    lines.pads = { list: pads, expected: ['Batería', 'Teclas', 'Efectos', 'select', ...Array.from({ length: 16 }, (_, i) => `Pad ${i + 1}:`), 'Limpiar', 'Sorpréndeme', 'Compartir beat', 'Publicar en el ranking', 'Rocky IA, rapéame'] };
+    // Publicar con teclado
+    await page.locator('button', { hasText: 'Publicar en el ranking' }).focus();
+    await page.keyboard.press('Enter');
+    const afterOpen = await page.evaluate(describe);
+    const publicar = await tabs(page, 5);
+    await page.keyboard.press('Escape');
+    const formAfterEsc = await page.locator('form.mesa-publicar').count();
+    await page.locator('form.mesa-publicar button', { hasText: 'Cerrar' }).focus();
+    await page.keyboard.press('Enter');
+    const afterClose = await page.evaluate(describe);
+    const afterCloseTab = await tabs(page, 1);
+    // Barra con teclado
+    await page.locator('button', { hasText: 'Rocky IA, rapéame' }).focus();
+    await page.keyboard.press('Enter');
+    await page.waitForSelector('.mesa-barra .is-error', { timeout: 5000 }).catch(() => {});
+    const afterBarra = await page.evaluate(describe);
+    const barraTab = await tabs(page, 3);
+    // Pestañas del ranking
+    await page.locator('#ranking-tab-semana').focus();
+    const tabFocus = await page.evaluate(describe);
+    await page.keyboard.press('ArrowRight');
+    const afterArrow = await page.evaluate(describe);
+    const selAfterArrow = await page.locator('#ranking-tab-nuevos').getAttribute('aria-selected');
+    const tabIdx = await page.locator('[role="tab"]').evaluateAll((t) => t.map((x) => x.tabIndex).join(','));
+    await page.keyboard.press('Tab');
+    const secondTab = await page.evaluate(describe);
+    await page.keyboard.press('Enter');
+    await sleep(400);
+    const selAfterEnter = await page.locator('#ranking-tab-nuevos').getAttribute('aria-selected');
+    // Ranking: filas
+    const ranking = await tabs(page, 9);
+    // Reportar con teclado
+    const rep = page.locator('.ranking-beat').first().locator('button', { hasText: 'Reportar' });
+    await rep.focus();
+    await page.keyboard.press('Enter');
+    const repText = await page.locator('.ranking-beat').first().locator('.ranking-link--muted').textContent();
+    const repFocus = (await page.evaluate(describe)).d;
+    await page.keyboard.press('Enter');
+    await sleep(500);
+    const note = await page.locator('.ranking-note').textContent();
+    // Remezclar con teclado
+    const remix = page.locator('.ranking-beat').first().locator('button', { hasText: 'Remezclar' });
+    await remix.focus();
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Enter');
+    await sleep(1200);
+    const afterRemix = await page.evaluate(describe);
+    const out = [];
+    const check = (name, ok, text, hall = '') => { out.push({ id: `TECLADO-${name}`, resultado: ok ? 'OK' : 'FALLO', evidencia: text, hallazgos: hall }); };
+    const tOk = lines.transporte.expected.every((e, i) => transporte[i].d === e) && transporte.every(focusOk);
+    check('transporte', tOk, `Tab desde la última fila del setlist: ${fmt(transporte)}; anillo ${transporte[0].outline}; sin atajos prometidos en la interfaz para el transporte`);
+    const sOk = secuenciador.filter(focusOk).length === 152 && secuenciador[0].d === 'Bombo' && secuenciador[151].d === '808, paso 16';
+    check('secuenciador', sOk, `152 paradas (nombre, S, volumen y 16 celdas por pista) de «${secuenciador[0].d}» a «${secuenciador[151].d}»; con foco visible ${secuenciador.filter(focusOk).length}/152 (celda: ${secuenciador[3].outline}); sin flechas (detalle en R-STU-06); el Espacio no arranca desde aquí (C-STU-11)`, 'C-STU-11');
+    const pOk = lines.pads.expected.every((e, i) => pads[i].d.startsWith(e)) && pads.every(focusOk);
+    check('pads', pOk, `Tab tras el secuenciador: ${fmt(pads.slice(0, 6))} › … › ${fmt(pads.slice(19))}; atajos prometidos en «${(await page.locator('.pads-nota').textContent()).trim().slice(0, 60)}…» funcionan con el foco en la mesa (R-STU-13); fuera de la mesa no`);
+    const pubOk = afterOpen.d !== '<body>' && publicar.every(focusOk);
+    check('publicar', pubOk, `Enter en «Publicar en el ranking» → el botón se desmonta y el foco cae en ${afterOpen.d} (en Chrome el siguiente Tab sigue en el formulario porque conserva el punto de partida, pero el foco no se lleva al primer campo y los atajos de pads dejan de funcionar); siguientes Tab: ${fmt(publicar)}; Escape no cierra (formulario sigue: ${formAfterEsc}); Enter en «Cerrar» → foco en ${afterClose.d} y el siguiente Tab va a «${afterCloseTab[0].d}»; campo trampa fuera del tabulador`, afterOpen.d === '<body>' ? 'C-STU-12' : '');
+    check('barra', afterBarra.d !== '<body>' && barraTab.every(focusOk), `Enter en «Rocky IA, rapéame» → foco en ${afterBarra.d}; siguientes Tab: ${fmt(barraTab)}`, afterBarra.d === '<body>' ? 'C-STU-12' : '');
+    const tabsOk = focusOk(tabFocus) && focusOk(secondTab) && selAfterEnter === 'true';
+    check('pestañas', tabsOk, `foco en «${tabFocus.d}» (${tabFocus.outline}); flecha derecha → foco sigue en «${afterArrow.d}» y «Nuevos» aria-selected=${selAfterArrow}; tabIndex de las pestañas ${tabIdx} (sin roving tabindex); Tab → «${secondTab.d}», Enter la selecciona (${selAfterEnter})`, 'C-STU-15');
+    const rOk = ranking.every(focusOk) && repText === '¿Reportar?' && /Gracias/.test(note);
+    check('ranking', rOk, `Tab por las filas: ${fmt(ranking)}; Enter en «Reportar» → «${repText}» con el foco en ${repFocus}, Enter otra vez → nota «${note.trim()}»; Enter dos veces en «Remezclar» → la página baja a la mesa pero el foco se queda en ${afterRemix.d}`);
+    for (const o of out) console.log(o.id, o.resultado, o.evidencia.slice(0, 300));
+    await snap(page, 'TECLADO-escritorio');
+    await context.close();
+    return { resultado: 'MULTI', evidencia: JSON.stringify(out), hallazgos: sum(issues, blocked) };
+  },
+});
+
+await run('s02-teclado', cases);

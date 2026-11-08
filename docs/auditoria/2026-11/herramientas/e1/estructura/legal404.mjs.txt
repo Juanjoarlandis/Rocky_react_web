@@ -1,0 +1,597 @@
+// R-LEGAL-01..06, R-404-01..03, TECLADO-legal y TECLADO-404.
+import { launchBrowser, open, sum, clean, shot, ORIGIN, sleep, results, focusInfo, fmtFocus } from './common.mjs';
+
+const R = results('legal404');
+const b = await launchBrowser();
+const only = process.argv[2] ? process.argv[2].split(',') : null;
+const want = (id) => !only || only.includes(id);
+
+const PAGES = [
+  ['Aviso legal', '/legal/aviso-legal'],
+  ['Privacidad', '/legal/privacidad'],
+  ['Cookies', '/legal/cookies'],
+  ['Compras y devoluciones', '/legal/compra'],
+];
+
+const legalState = (page) =>
+  page.evaluate(() => {
+    const nav = document.querySelector('nav[aria-label="Páginas legales"]');
+    return {
+      path: location.pathname,
+      title: document.title,
+      h1: document.querySelector('main h1')?.textContent,
+      sub: document.querySelector('main .subtitle')?.textContent,
+      nav: nav ? [...nav.querySelectorAll('a')].map((a) => `${a.textContent}${a.classList.contains('is-active') ? '*' : ''}${a.getAttribute('aria-current') === 'page' ? '(current)' : ''}`) : null,
+      article: Boolean(document.querySelector('main article.legal-texto')),
+      notice: document.querySelector('.commerce-notice')?.textContent,
+      y: Math.round(scrollY),
+      notfound: Boolean(document.querySelector('.notfound')),
+    };
+  });
+
+function contrast(fg, bg) {
+  const lum = (c) => {
+    const [r, g, b2] = c.match(/[\d.]+/g).slice(0, 3).map(Number).map((v) => {
+      const s = v / 255;
+      return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b2;
+  };
+  const [l1, l2] = [lum(fg), lum(bg)].sort((a, c) => c - a);
+  return ((l1 + 0.05) / (l2 + 0.05)).toFixed(2);
+}
+
+const turnOn = async (page, vp) => {
+  if (vp === 'movil') {
+    await page.locator('header .navbar-menu').click();
+    await page.locator('.navbar-sheet .navbar-theme--sheet').click();
+    await page.keyboard.press('Escape');
+  } else await page.locator('header .navbar-tools > .navbar-theme').click();
+  await sleep(300);
+};
+
+try {
+  // ---------- R-LEGAL-01 ----------
+  if (want('R-LEGAL-01')) {
+    for (const vp of ['escritorio', 'movil']) {
+      const o = await open(b, vp);
+      const { page } = o;
+      const parts = [];
+      let ok = true;
+      for (const [name, path] of PAGES) {
+        await page.goto(ORIGIN + '/');
+        await sleep(700);
+        await page.locator('footer').scrollIntoViewIfNeeded();
+        await page.getByRole('navigation', { name: 'Información legal' }).getByRole('link', { name }).click();
+        await page.waitForFunction((n) => document.title === `${n} · ROCKY 035`, name, { timeout: 5000 }).catch(() => {});
+        await sleep(300);
+        const s = await legalState(page);
+        const good = s.path === path && s.title === `${name} · ROCKY 035` && s.h1 === name && s.sub === 'Última revisión: 4 de septiembre de 2026' && s.nav.length === 4 && s.nav.filter((x) => x.endsWith('*(current)')).length === 1 && s.nav.find((x) => x.endsWith('*(current)')).startsWith(name) && s.article && s.notice?.startsWith('Modo demo') && s.y === 0;
+        ok = ok && good;
+        parts.push(`pie→${s.path} «${s.title}» h1 «${s.h1}» «${s.sub}» nav [${s.nav}] y=${s.y}${good ? '' : ' ✗'}`);
+      }
+      for (const [name, path] of PAGES) {
+        await page.goto(ORIGIN + path);
+        await page.waitForFunction((n) => document.title === `${n} · ROCKY 035`, name, { timeout: 5000 }).catch(() => {});
+        const s = await legalState(page);
+        const good = s.h1 === name && s.title === `${name} · ROCKY 035`;
+        ok = ok && good;
+        parts.push(`URL ${path}: «${s.title}»${good ? '' : ' ✗'}`);
+      }
+      ok = ok && clean(o);
+      R.add({ id: 'R-LEGAL-01', viewport: vp, resultado: ok ? 'OK' : 'FALLO', evidencia: `${parts.join('; ')}; aviso demo arriba en todas; ${sum(o)}` });
+      await o.context.close();
+    }
+  }
+
+  // ---------- R-LEGAL-02 ----------
+  if (want('R-LEGAL-02')) {
+    for (const vp of ['escritorio', 'movil']) {
+      const o = await open(b, vp);
+      const { page, context } = o;
+      const parts = [];
+      let ok = true;
+      const inText = (t) => page.locator('main article').getByRole('link', { name: t, exact: true });
+      await page.goto(ORIGIN + '/legal/aviso-legal');
+      await page.waitForFunction(() => document.title === 'Aviso legal · ROCKY 035');
+      for (const [t, path, title] of [['política de privacidad', '/legal/privacidad', 'Privacidad'], ['política de cookies', '/legal/cookies', 'Cookies'], ['condiciones de compra', '/legal/compra', 'Compras y devoluciones']]) {
+        await inText(t).scrollIntoViewIfNeeded();
+        const yBefore = await page.evaluate(() => Math.round(scrollY));
+        await inText(t).click();
+        await page.waitForFunction((x) => document.title === `${x} · ROCKY 035`, title, { timeout: 5000 }).catch(() => {});
+        await sleep(200);
+        const s = await legalState(page);
+        const good = s.path === path && s.h1 === title && s.nav.some((x) => x.startsWith(title) && x.endsWith('(current)')) && s.y === 0;
+        ok = ok && good;
+        parts.push(`«${t}» (desde y=${yBefore}) → ${s.path} h1 «${s.h1}» y=${s.y}${good ? '' : ' ✗'}`);
+        if (path !== '/legal/compra') {
+          await page.goBack();
+          await page.waitForFunction(() => document.title === 'Aviso legal · ROCKY 035');
+          await sleep(400);
+          parts.push(`Atrás → ${await page.evaluate(() => `${location.pathname} y=${Math.round(scrollY)}`)}`);
+        }
+      }
+      // 2. @rocky035 en «Responsabilidad»
+      await page.goto(ORIGIN + '/legal/aviso-legal');
+      await page.waitForFunction(() => document.title === 'Aviso legal · ROCKY 035');
+      const insta = page.locator('main article a[href*="instagram.com"]');
+      const ia = await insta.evaluate((a) => ({ text: a.textContent, target: a.target, rel: a.rel, href: a.href }));
+      const [popup] = await Promise.all([context.waitForEvent('page', { timeout: 4000 }).catch(() => null), insta.click()]);
+      if (popup) await popup.close();
+      parts.push(`«${ia.text}» ${ia.href} target=${ia.target} rel=${ia.rel} → pestaña nueva=${Boolean(popup)}`);
+      ok = ok && ia.target === '_blank' && ia.rel === 'noopener noreferrer' && Boolean(popup);
+      // 3. «aviso legal» en /legal/compra
+      await page.goto(ORIGIN + '/legal/compra');
+      await page.waitForFunction(() => document.title === 'Compras y devoluciones · ROCKY 035');
+      await inText('aviso legal').click();
+      await page.waitForFunction(() => document.title === 'Aviso legal · ROCKY 035', null, { timeout: 5000 }).catch(() => {});
+      const s3 = await legalState(page);
+      ok = ok && s3.path === '/legal/aviso-legal';
+      parts.push(`compra «aviso legal» → ${s3.path}`);
+      // 4. Recorrer con la navegación legal y 5. Atrás varias veces
+      const visited = [];
+      for (const [name] of PAGES.slice(1)) {
+        await page.evaluate(() => window.scrollTo(0, 300));
+        await page.getByRole('navigation', { name: 'Páginas legales' }).getByRole('link', { name }).click();
+        await page.waitForFunction((n) => document.title === `${n} · ROCKY 035`, name, { timeout: 5000 }).catch(() => {});
+        const s = await legalState(page);
+        visited.push(`${s.path} y=${s.y}`);
+        ok = ok && s.y === 0;
+      }
+      const backs = [];
+      for (let i = 0; i < 3; i += 1) {
+        await page.goBack();
+        await sleep(500);
+        backs.push(await page.evaluate(() => `${location.pathname} «${document.title}» y=${Math.round(scrollY)}`));
+      }
+      parts.push(`navegación legal: ${visited.join(', ')}; Atrás×3: ${backs.join(' → ')}`);
+      ok = ok && clean(o);
+      R.add({ id: 'R-LEGAL-02', viewport: vp, resultado: ok ? 'OK' : 'FALLO', evidencia: `${parts.join('; ')}; ${sum(o)}` });
+      await context.close();
+    }
+  }
+
+  // ---------- R-LEGAL-03 ----------
+  if (want('R-LEGAL-03')) {
+    for (const vp of ['escritorio', 'movil']) {
+      const o = await open(b, vp);
+      const { page } = o;
+      const dl = async (path) => {
+        await page.goto(ORIGIN + path);
+        await page.waitForSelector('main article', { timeout: 5000 });
+        return page.evaluate(() => {
+          const d = document.querySelector('main dl.legal-titular');
+          const pairs = d ? [...d.querySelectorAll('dt')].map((dt) => `${dt.textContent}: ${dt.nextElementSibling.textContent}`) : [];
+          const mails = [...document.querySelectorAll('main a[href^="mailto:"]')].map((a) => `${a.textContent}→${a.getAttribute('href')}`);
+          const webIsLink = Boolean(d && [...d.querySelectorAll('dd')][4]?.querySelector('a'));
+          const h2 = d ? d.previousElementSibling?.textContent : null;
+          return { pairs, mails, webIsLink, h2 };
+        });
+      };
+      const a = await dl('/legal/aviso-legal');
+      const p = await dl('/legal/privacidad');
+      const c = await dl('/legal/compra');
+      const pend = [...a.pairs, ...p.pairs].filter((x) => /PENDIENTE/.test(x));
+      const ok = a.pairs.join('|') === 'Titular: PENDIENTE: nombre y apellidos o razón social|NIF: PENDIENTE: NIF|Domicilio: PENDIENTE: domicilio a efectos de notificaciones|Email: hola@rocky035.com|Web: https://rocky035.com' && p.pairs.join('|') === a.pairs.join('|') && !a.webIsLink && c.mails.length === 2 && [...a.mails, ...p.mails, ...c.mails].every((m) => m === 'hola@rocky035.com→mailto:hola@rocky035.com');
+      R.add({
+        id: 'R-LEGAL-03',
+        viewport: vp,
+        resultado: pend.length ? 'FALLO' : ok ? 'OK' : 'FALLO',
+        evidencia: `aviso legal: [${a.pairs.join(' | ')}] (web como texto=${!a.webIsLink}); privacidad («${p.h2}»): [${p.pairs.join(' | ')}]; correos: aviso [${a.mails}], privacidad [${p.mails}], compra [${c.mails}]. La página pinta tal cual LEGAL_ENTITY: ${pend.length} datos del titular salen como «PENDIENTE…» en la web pública y nada lo avisa ni lo oculta (contenido legal incompleto). ${sum(o)}`,
+        hallazgos: 'C-EST-15',
+      });
+      if (pend.length) await shot(page, 'estructura', `R-LEGAL-03-${vp}`, { fullPage: false });
+      await o.context.close();
+    }
+  }
+
+  // ---------- R-LEGAL-04 ----------
+  if (want('R-LEGAL-04')) {
+    for (const vp of ['escritorio', 'movil']) {
+      const o = await open(b, vp);
+      const { page } = o;
+      const parts = [];
+      let ok = true;
+      const cases = [
+        ['/legal/loquesea', true, '404'],
+        ['/legal/Privacidad', true, '404'],
+        ['/legal/%3Cscript%3E', true, '404'],
+        ['/legal', false, '404'],
+        ['/legal/', false, '404'],
+        ['/legal/aviso-legal/extra', false, '404'],
+        ['/LEGAL/privacidad', true, 'Privacidad'],
+      ];
+      for (const [url, lazy, expect] of cases) {
+        const ctx = await open(b, vp);
+        const reqs = [];
+        ctx.page.on('request', (r) => reqs.push(r.url()));
+        await ctx.page.goto(ORIGIN + url);
+        await ctx.page.waitForLoadState('networkidle').catch(() => {});
+        await sleep(400);
+        const s = await ctx.page.evaluate(() => ({ h1: document.querySelector('main h1')?.textContent, title: document.title, body: document.querySelector('main').innerText }));
+        const legalChunk = reqs.some((u) => /\/assets\/Legal-.*\.js/.test(u));
+        const echoes = /loquesea|<script>|%3Cscript/i.test(s.body);
+        const good = (expect === '404' ? s.h1 === 'Te has salido del mapa' && s.title === 'ROCKY 035' : s.h1 === expect) && legalChunk === lazy && !echoes;
+        ok = ok && good && ctx.issues.pageErrors.length === 0;
+        parts.push(`${url}: h1 «${s.h1}» «${s.title}» módulo Legal descargado=${legalChunk} parámetro pintado=${echoes}${good ? '' : ' ✗'}`);
+        if (url === '/legal/loquesea') {
+          await ctx.page.getByRole('link', { name: 'Volver a la tienda' }).click();
+          await sleep(500);
+          const back = await ctx.page.evaluate(() => location.pathname);
+          ok = ok && back === '/';
+          parts.push(`«Volver a la tienda» → ${back}`);
+        }
+        parts.push(sum(ctx));
+        await ctx.context.close();
+      }
+      R.add({ id: 'R-LEGAL-04', viewport: vp, resultado: ok ? 'OK' : 'FALLO', evidencia: parts.join('; ') });
+      await o.context.close();
+    }
+  }
+
+  // ---------- R-LEGAL-05 + TECLADO-legal ----------
+  if (want('R-LEGAL-05')) {
+    for (const vp of ['escritorio', 'movil']) {
+      const o = await open(b, vp);
+      const { page } = o;
+      await page.goto(ORIGIN + '/legal/privacidad');
+      await page.waitForSelector('main article');
+      const struct = await page.evaluate(() => ({
+        h1: [...document.querySelectorAll('main h1')].map((h) => h.textContent),
+        h2: [...document.querySelectorAll('main article h2')].map((h) => h.textContent),
+        lists: document.querySelectorAll('main article ul > li').length,
+        dl: document.querySelectorAll('main article dl').length,
+        skipped: [...document.querySelectorAll('main h3, main h4')].length,
+      }));
+      // Tab por la navegación legal y los enlaces del texto
+      await page.locator('main h1').evaluate((h) => {
+        h.setAttribute('tabindex', '-1');
+        h.focus();
+        h.removeAttribute('tabindex');
+      });
+      const seq = [];
+      for (let i = 0; i < 10; i += 1) {
+        await page.keyboard.press('Tab');
+        const inMain = await page.evaluate(() => Boolean(document.activeElement.closest('main')));
+        if (!inMain) break;
+        seq.push(await focusInfo(page));
+      }
+      const day = await page.evaluate(() => ({ text: getComputedStyle(document.querySelector('main article p')).color, bg: getComputedStyle(document.body).backgroundColor, active: getComputedStyle(document.querySelector('.legal-nav a.is-active')).backgroundColor, activeText: getComputedStyle(document.querySelector('.legal-nav a.is-active')).color }));
+      await turnOn(page, vp);
+      const night = await page.evaluate(() => ({ text: getComputedStyle(document.querySelector('main article p')).color, h2: getComputedStyle(document.querySelector('main article h2')).color, bg: getComputedStyle(document.body).backgroundColor, active: getComputedStyle(document.querySelector('.legal-nav a.is-active')).backgroundColor, activeText: getComputedStyle(document.querySelector('.legal-nav a.is-active')).color, link: getComputedStyle(document.querySelector('main article a')).color, theme: document.documentElement.dataset.theme }));
+      const cDay = contrast(day.text, day.bg);
+      const cNight = contrast(night.text, night.bg);
+      const cActiveN = contrast(night.activeText, night.active);
+      const cLinkN = contrast(night.link, night.bg);
+      // Zoom 200 %: la mitad de ancho CSS
+      const half = vp === 'escritorio' ? 720 : 188;
+      await page.setViewportSize({ width: half, height: vp === 'escritorio' ? 450 : 406 });
+      await sleep(400);
+      const z = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: innerWidth, wide: [...document.querySelectorAll('main *')].filter((e) => e.getBoundingClientRect().right > innerWidth + 1).slice(0, 4).map((e) => `${e.tagName.toLowerCase()}.${String(e.className).split(' ')[0]}`) }));
+      if (z.wide.length) await shot(page, 'estructura', `R-LEGAL-05-${vp}-zoom200`);
+      const ringsOk = seq.every((f) => f.ring && f.focusVisible && !f.covered);
+      const ok = struct.h1.length === 1 && struct.h2.join('|') === 'Responsable del tratamiento|Qué datos tratamos y para qué|Quién más ve tus datos|Cuánto tiempo los guardamos|Tus derechos' && struct.lists > 0 && struct.dl === 1 && ringsOk && Number(cNight) >= 4.5 && Number(cActiveN) >= 4.5 && z.sw <= z.iw && clean(o);
+      R.add({
+        id: 'R-LEGAL-05',
+        viewport: vp,
+        resultado: ok ? 'OK' : 'FALLO',
+        evidencia: `h1 [${struct.h1}], h2 [${struct.h2.join(' | ')}], ${struct.lists} li, ${struct.dl} dl, h3/h4=${struct.skipped}; Tab desde el h1: ${seq.map(fmtFocus).join(' → ')}; contraste texto día ${cDay}:1, noche ${cNight}:1 (texto ${night.text} sobre ${night.bg}); enlace activo de noche ${night.activeText} sobre ${night.active} = ${cActiveN}:1; enlaces del texto de noche ${cLinkN}:1; zoom 200 % (${half} px CSS): scrollWidth ${z.sw} / ancho ${z.iw}${z.wide.length ? `, se salen: ${z.wide.join(', ')}` : ''}; ${sum(o)}`,
+      });
+      if (vp === 'escritorio') R.add({ id: 'TECLADO-legal', viewport: 'escritorio', resultado: ringsOk && seq.length >= 4 ? 'OK' : 'FALLO', evidencia: `/legal/privacidad, Tab desde el h1: ${seq.map(fmtFocus).join(' → ')}; todos con anillo visible y sin tapar=${ringsOk}; la página actual lleva aria-current="page".` });
+      await o.context.close();
+    }
+  }
+
+  // ---------- R-LEGAL-06 ----------
+  if (want('R-LEGAL-06')) {
+    const o = await open(b, 'escritorio', { skipIntro: false });
+    const { page, context } = o;
+    await page.goto(ORIGIN + '/legal/cookies');
+    await page.waitForSelector('.splash-intro', { state: 'detached', timeout: 6000 });
+    await page.waitForSelector('main article');
+    const policy = await page.evaluate(() => [...document.querySelectorAll('main article li')].map((li) => li.textContent.replace(/\s+/g, ' ').trim()));
+    // Usar la web: un cromo en /crew, la mesa en /estudio y el spray de noche
+    await page.locator('header nav').getByRole('link', { name: 'Crew', exact: true }).click();
+    await page.waitForSelector('article[aria-label^="Cromo de"]', { timeout: 6000 });
+    await page.locator('article[aria-label^="Cromo de"]').first().click();
+    await sleep(800);
+    await page.locator('header nav').getByRole('link', { name: 'Estudio' }).click();
+    await page.waitForSelector('button[aria-label^="Pad 1:"]', { timeout: 6000 });
+    await page.locator('button[aria-label^="Pad 1:"]').click();
+    await sleep(500);
+    await page.locator('header .navbar-tools > .navbar-theme').click();
+    await sleep(500);
+    await page.getByRole('button', { name: 'Coge el spray' }).click().catch(() => {});
+    await sleep(400);
+    // Pintar desde un punto que no sea interactivo (el spray ignora botones, enlaces, la barra…)
+    const pt = await page.evaluate(() => {
+      for (const [x, y] of [[700, 450], [300, 600], [1000, 300], [100, 400], [1300, 700]]) {
+        const el = document.elementFromPoint(x, y);
+        if (el && !el.closest('a, button, input, textarea, select, label, summary, iframe, [role="button"], [role="slider"], .navbar, .spray-tools')) return [x, y];
+      }
+      return [700, 450];
+    });
+    await page.mouse.move(pt[0], pt[1]);
+    await page.mouse.down();
+    await page.mouse.move(pt[0] + 120, pt[1] + 40, { steps: 10 });
+    await page.mouse.up();
+    await sleep(2500);
+    const store = await page.evaluate(() => ({ local: Object.keys(localStorage).sort(), session: Object.keys(sessionStorage).sort() }));
+    const cookies = (await context.cookies()).map((c) => `${c.name} (httpOnly=${c.httpOnly}, ${c.expires === -1 ? 'sesión' : 'persistente'})`);
+    const notInPolicy = store.local.filter((k) => !/aviso|apodo/.test(k));
+    R.add({
+      id: 'R-LEGAL-06',
+      viewport: 'escritorio',
+      resultado: notInPolicy.length || store.session.includes('rocky-splash-seen') ? 'FALLO' : 'OK',
+      evidencia: `política: ${policy.map((p) => `«${p.slice(0, 160)}»`).join(' ')}; tras intro + cromo en /crew + pad en /estudio + spray de noche: cookies [${cookies.join(', ') || 'ninguna'}], localStorage [${store.local}], sessionStorage [${store.session}]. Diferencias: localStorage guarda ${notInPolicy.join(', ')}, que la política no nombra; «si ya has visto la intro» va en sessionStorage (rocky-splash-seen), no en el almacenamiento local; en E1 no hay cookie de sesión (carrito demo en memoria). ${sum(o)}`,
+      hallazgos: 'C-EST-16',
+    });
+    await context.close();
+  }
+
+  // ---------- R-404-01 ----------
+  if (want('R-404-01')) {
+    for (const vp of ['escritorio', 'movil']) {
+      const o = await open(b, vp);
+      const { page } = o;
+      const parts = [];
+      let ok = true;
+      for (const url of ['/loquesea', '/products/a/b', '/rockyIA/extra']) {
+        await page.goto(ORIGIN + url);
+        await page.waitForLoadState('networkidle').catch(() => {});
+        await sleep(500);
+        const s = await page.evaluate(() => {
+          const imgs = [...document.querySelectorAll('.notfound img')];
+          return {
+            title: document.title,
+            nav: Boolean(document.querySelector('header.navbar')),
+            footer: Boolean(document.querySelector('footer.footer')),
+            notice: document.querySelector('.commerce-notice')?.textContent,
+            imgs: imgs.map((i) => `${i.className.split(' ')[0]} alt «${i.alt}» w=${i.getAttribute('width')} h=${i.getAttribute('height')} cargada=${i.complete && i.naturalWidth > 0}`),
+            h1: document.querySelector('main h1')?.textContent,
+            text: document.querySelector('.notfound-text')?.textContent,
+            btn: document.querySelector('.notfound a')?.textContent,
+            btnHref: document.querySelector('.notfound a')?.getAttribute('href'),
+            chat: Boolean(document.querySelector('.app--chat')),
+          };
+        });
+        const good = s.title === 'ROCKY 035' && s.nav && s.footer && s.notice?.startsWith('Modo demo') && s.h1 === 'Te has salido del mapa' && s.text === 'La página que buscas no existe.' && s.btn === 'Volver a la tienda' && s.btnHref === '/' && !s.chat && s.imgs.length === 2;
+        ok = ok && good;
+        parts.push(`${url}: «${s.title}», barra=${s.nav} pie=${s.footer} aviso=${Boolean(s.notice)}, imágenes [${s.imgs.join('; ')}], h1 «${s.h1}», «${s.text}», «${s.btn}»→${s.btnHref}${good ? '' : ' ✗'}`);
+      }
+      await page.goto(ORIGIN + '/loquesea');
+      await sleep(600);
+      // Desplazamiento de la maqueta por el perro sin dimensiones: medir la posición del h1 al cargar
+      await page.getByRole('link', { name: 'Volver a la tienda' }).click();
+      await sleep(400);
+      const back = await page.evaluate(() => location.pathname);
+      ok = ok && back === '/' && clean(o);
+      R.add({ id: 'R-404-01', viewport: vp, resultado: ok ? 'OK' : 'FALLO', evidencia: `${parts.join('; ')}; «Volver a la tienda» → ${back}; ${sum(o)}` });
+      await o.context.close();
+    }
+    // C-EST-13: ¿se mueve la maqueta cuando llega el perro? (caché fría, imagen del perro retrasada)
+    for (const vp of ['escritorio', 'movil']) {
+      const o = await open(b, vp);
+      await o.context.route('**/assets/perro-rocky-hd-*', async (route) => {
+        await sleep(1500);
+        return route.continue();
+      });
+      await o.context.addInitScript(() => {
+        window.__cls = 0;
+        new PerformanceObserver((l) => {
+          for (const e of l.getEntries()) if (!e.hadRecentInput) window.__cls += e.value;
+        }).observe({ type: 'layout-shift', buffered: true });
+      });
+      await o.page.goto(ORIGIN + '/loquesea');
+      await o.page.waitForSelector('main h1');
+      await sleep(300);
+      const y0 = await o.page.evaluate(() => Math.round(document.querySelector('main h1').getBoundingClientRect().top));
+      await sleep(2200);
+      const y1 = await o.page.evaluate(() => ({ y: Math.round(document.querySelector('main h1').getBoundingClientRect().top), cls: window.__cls.toFixed(3), dog: document.querySelector('.notfound-dog').getBoundingClientRect().height }));
+      o.page.__c13 = { y0, ...y1 };
+      R.add({ id: 'R-404-01', viewport: vp, resultado: 'OK', evidencia: `(comprobación de C-EST-13, perro retrasado 1,5 s) h1 en y=${y0} antes de llegar el perro y y=${y1.y} después (perro ${Math.round(y1.dog)} px de alto); CLS acumulado ${y1.cls}`, hallazgos: y0 !== y1.y ? 'C-EST-13' : '' });
+      await o.context.close();
+    }
+  }
+
+  // ---------- R-404-02 + TECLADO-404 ----------
+  if (want('R-404-02')) {
+    for (const vp of ['escritorio', 'movil']) {
+      const parts = [];
+      let ok = true;
+      const exits = [];
+      for (let rep = 0; rep < (vp === 'movil' ? 6 : 3); rep += 1) {
+        const o = await open(b, vp);
+        const { page } = o;
+        await page.goto(ORIGIN + '/loquesea');
+        await sleep(700);
+        await turnOn(page, vp);
+        await sleep(300);
+        const s = await page.evaluate(() => {
+          const dark = document.querySelector('.notfound-oscuridad');
+          const exit = document.querySelector('.notfound-salida');
+          const r = exit?.getBoundingClientRect();
+          const nav = document.querySelector('header.navbar');
+          const pista = document.querySelector('.notfound-pista');
+          return {
+            h1: document.querySelector('main h1')?.textContent,
+            text: document.querySelector('.notfound-text')?.textContent,
+            darkZ: dark ? getComputedStyle(dark).zIndex : null,
+            darkPE: dark ? getComputedStyle(dark).pointerEvents : null,
+            mask: dark ? getComputedStyle(dark).maskImage.slice(0, 60) : null,
+            navZ: getComputedStyle(nav).zIndex,
+            navHit: document.elementFromPoint(innerWidth / 2, 20)?.closest('header') !== null,
+            exit: exit ? { text: exit.textContent, href: exit.getAttribute('href'), sx: exit.style.getPropertyValue('--sx'), sy: exit.style.getPropertyValue('--sy'), left: Math.round(r.left), right: Math.round(r.right), top: Math.round(r.top), w: Math.round(r.width), vw: innerWidth, pos: getComputedStyle(exit).position } : null,
+            pista: pista?.textContent,
+            pistaBottom: pista ? Math.round(innerHeight - pista.getBoundingClientRect().bottom) : null,
+          };
+        });
+        exits.push(s.exit);
+        if (rep === 0) {
+          // Linterna: puntero y foco
+          await page.mouse.move(300, 300);
+          await sleep(150);
+          const t1 = await page.evaluate(() => document.querySelector('.notfound-oscuridad').style.cssText);
+          if (vp === 'movil') {
+            await page.touchscreen.tap(120, 500);
+            await sleep(150);
+          }
+          const t2 = await page.evaluate(() => document.querySelector('.notfound-oscuridad').style.cssText);
+          // Alumbrar la salida y pulsarla
+          const ex = s.exit;
+          const inView = ex.left >= 0 && ex.right <= ex.vw;
+          await page.mouse.move(Math.min(Math.max(ex.left + ex.w / 2, 5), ex.vw - 5), ex.top + 20);
+          await sleep(200);
+          if (vp === 'movil') await page.touchscreen.tap(Math.min(Math.max(ex.left + ex.w / 2, 5), ex.vw - 5), ex.top + 20);
+          else await page.mouse.click(ex.left + ex.w / 2, ex.top + 20);
+          await sleep(500);
+          const after = await page.evaluate(() => location.pathname);
+          // 4. Atrás: el 404 vuelve todavía de noche; llegar con Tab
+          await page.goBack();
+          await sleep(700);
+          const back = await page.evaluate(() => ({ path: location.pathname, theme: document.documentElement.dataset.theme, h1: document.querySelector('main h1')?.textContent }));
+          const seq = [];
+          let reached = null;
+          for (let i = 0; i < 25; i += 1) {
+            await page.keyboard.press('Tab');
+            const f = await focusInfo(page);
+            seq.push(f);
+            if (f.name === 'Salir de aquí') {
+              reached = f;
+              break;
+            }
+          }
+          const torch = await page.evaluate(() => document.querySelector('.notfound-oscuridad')?.style.cssText);
+          parts.push(`textos «${s.h1}» / «${s.text}»; oscuridad z=${s.darkZ} pointer-events=${s.darkPE}, barra z=${s.navZ} visible y pulsable=${s.navHit}; linterna tras mover el puntero: «${t1}»${vp === 'movil' ? `, tras tocar: «${t2}»` : ''}; salida «${ex.text}» → ${ex.href} en --sx=${ex.sx} --sy=${ex.sy}; clic sobre ella → ${after}; Atrás → ${back.path} data-theme=${back.theme} «${back.h1}»; con Tab llega a «${reached?.name}» tras ${seq.length} pulsaciones (${fmtFocus(reached || seq[seq.length - 1])}), linterna al foco: «${torch}»; pista «${s.pista}» a ${s.pistaBottom}px del borde inferior`);
+          ok = ok && s.h1 === 'No deberías estar aquí' && s.text === 'Se ha ido la luz. Busca la salida.' && s.darkZ === '950' && s.navHit && after === '/' && back.theme === 'neon' && Boolean(reached) && /--tx/.test(torch);
+          o.inView = inView;
+        }
+        ok = ok && clean(o);
+        if (rep === 0) parts.push(sum(o));
+        await o.context.close();
+      }
+      const cut = exits.filter((e) => e.left < 0 || e.right > e.vw);
+      if (vp === 'movil') parts.push(`posiciones de la salida en ${exits.length} cargas (ancho ${exits[0].vw}px, botón ${exits[0].w}px): ${exits.map((e) => `x=${e.sx}→${e.left}..${e.right}`).join(', ')}; cortadas por la derecha: ${cut.length}`);
+      R.add({ id: 'R-404-02', viewport: vp, resultado: ok && !cut.length ? 'OK' : 'FALLO', evidencia: parts.join('; '), hallazgos: vp === 'movil' ? 'C-EST-14' : '' });
+    }
+    // C-EST-14 con posiciones forzadas (Math.random fijo) en móvil
+    const forced = [];
+    for (const rnd of [0.3, 0.5, 0.7, 0.99]) {
+      const o = await open(b, 'movil');
+      await o.context.addInitScript((r) => {
+        const orig = Math.random;
+        window.__forceExit = true;
+        Math.random = function () {
+          return window.__forceExit ? r : orig();
+        };
+      }, rnd);
+      await o.page.goto(ORIGIN + '/loquesea');
+      await sleep(600);
+      await o.page.evaluate(() => { window.__forceExit = true; });
+      await turnOn(o.page, 'movil');
+      await sleep(300);
+      // El 404 se monta al cargar: x = 10 + rnd*66. Forzar requiere que hiddenExit corra con Math.random fijo
+      const e = await o.page.evaluate(() => {
+        const ex = document.querySelector('.notfound-salida');
+        const r = ex.getBoundingClientRect();
+        return { sx: ex.style.getPropertyValue('--sx'), left: Math.round(r.left), right: Math.round(r.right), vw: innerWidth };
+      });
+      forced.push(`x=${e.sx}: ${e.left}..${e.right} de ${e.vw}px${e.right > e.vw ? ' (CORTADO)' : ''}`);
+      if (e.right > e.vw && rnd === 0.99) await shot(o.page, 'estructura', 'R-404-02-movil-salida-cortada');
+      await o.context.close();
+    }
+    R.add({ id: 'R-404-02', viewport: 'movil', resultado: forced.some((f) => f.includes('CORTADO')) ? 'FALLO' : 'OK', evidencia: `(C-EST-14 con Math.random fijado al cargar) ${forced.join('; ')}`, hallazgos: 'C-EST-14' });
+  }
+
+  // ---------- TECLADO-404 ----------
+  if (want('TECLADO-404')) {
+    const o = await open(b, 'escritorio');
+    const { page } = o;
+    const walk = async () => {
+      await page.evaluate(() => { document.body.setAttribute('tabindex', '-1'); document.body.focus(); document.body.removeAttribute('tabindex'); });
+      const seq = [];
+      for (let i = 0; i < 30; i += 1) {
+        await page.keyboard.press('Tab');
+        const f = await focusInfo(page);
+        seq.push(f);
+        if (/Volver a la tienda|Salir de aquí/.test(f.name)) break;
+      }
+      return seq;
+    };
+    await page.goto(ORIGIN + '/loquesea');
+    await sleep(800);
+    const day = await walk();
+    await page.keyboard.press('Shift+Tab');
+    await turnOn(page, 'escritorio');
+    const night = await walk();
+    await sleep(300);
+    const lit = await page.evaluate(() => {
+      const ex = document.querySelector('.notfound-salida').getBoundingClientRect();
+      const d = document.querySelector('.notfound-oscuridad').style;
+      return { tx: parseFloat(d.getPropertyValue('--tx')), ty: parseFloat(d.getPropertyValue('--ty')), cx: Math.round(ex.left + ex.width / 2), cy: Math.round(ex.top + ex.height / 2) };
+    });
+    await page.keyboard.press('Enter');
+    await sleep(500);
+    const after = await page.evaluate(() => location.pathname);
+    const dLast = day[day.length - 1];
+    const nLast = night[night.length - 1];
+    const ok = dLast.name === 'Volver a la tienda' && dLast.ring && !dLast.covered && nLast.name === 'Salir de aquí' && nLast.ring && Math.abs(lit.tx - lit.cx) <= 2 && Math.abs(lit.ty - lit.cy) <= 2 && after === '/';
+    R.add({ id: 'TECLADO-404', viewport: 'escritorio', resultado: ok ? 'OK' : 'FALLO', evidencia: `día, ${day.length} Tab hasta ${fmtFocus(dLast)} (${dLast.outline}); noche, ${night.length} Tab hasta ${fmtFocus(nLast)} (${nLast.outline}); la linterna apunta al foco (${lit.tx},${lit.ty}) = centro del botón (${lit.cx},${lit.cy}); Enter → ${after}; la barra sigue usable con teclado por encima de la oscuridad; ${sum(o)}` });
+    await o.context.close();
+  }
+
+  // ---------- R-404-03 ----------
+  if (want('R-404-03')) {
+    for (const vp of ['escritorio', 'movil']) {
+      const o = await open(b, vp);
+      const { page } = o;
+      await page.goto(ORIGIN + '/');
+      await sleep(600);
+      await page.goto(ORIGIN + '/loquesea');
+      await sleep(600);
+      const parts = [];
+      let ok = true;
+      if (vp === 'escritorio') {
+        await page.locator('header nav').getByRole('link', { name: 'Drops' }).click();
+      } else {
+        await page.locator('header .navbar-menu').click();
+        await page.getByRole('dialog', { name: 'Menú' }).getByRole('link', { name: 'Drops' }).click();
+      }
+      await page.waitForFunction(() => location.pathname === '/menudrop');
+      await page.goBack();
+      await sleep(600);
+      const back = await page.evaluate(() => ({ path: location.pathname, h1: document.querySelector('main h1')?.textContent }));
+      parts.push(`Drops → /menudrop, Atrás → ${back.path} «${back.h1}»`);
+      ok = ok && back.path === '/loquesea' && back.h1 === 'Te has salido del mapa';
+      if (vp === 'movil') {
+        await page.locator('header .navbar-menu').click();
+        await page.getByRole('dialog', { name: 'Menú' }).getByRole('link', { name: 'Tienda' }).click();
+        await sleep(500);
+        const p = await page.evaluate(() => location.pathname);
+        parts.push(`menú → Tienda → ${p}`);
+        ok = ok && p === '/';
+        await page.goBack();
+        await sleep(600);
+      }
+      // 4. De noche la barra queda por encima de la oscuridad y se usa
+      await turnOn(page, vp);
+      const n = await page.evaluate(() => {
+        const pts = [[40, 28], [innerWidth / 2, 28], [innerWidth - 30, 28]].map(([x, y]) => document.elementFromPoint(x, y)?.closest('header') !== null);
+        return { pts, dark: Boolean(document.querySelector('.notfound-oscuridad')) };
+      });
+      if (vp === 'escritorio') await page.locator('header nav').getByRole('link', { name: 'Crew', exact: true }).click();
+      else {
+        await page.locator('header .navbar-menu').click();
+        await page.getByRole('dialog', { name: 'Menú' }).getByRole('link', { name: 'Crew', exact: true }).click();
+      }
+      await page.waitForFunction(() => location.pathname === '/crew', null, { timeout: 5000 }).catch(() => {});
+      const p2 = await page.evaluate(() => location.pathname);
+      parts.push(`de noche (oscuridad=${n.dark}) la barra recibe los puntos [${n.pts}] y «Crew» lleva a ${p2}`);
+      ok = ok && n.pts.every(Boolean) && p2 === '/crew' && clean(o);
+      R.add({ id: 'R-404-03', viewport: vp, resultado: ok ? 'OK' : 'FALLO', evidencia: `${parts.join('; ')}; ${sum(o)}` });
+      await o.context.close();
+    }
+  }
+} finally {
+  await b.close();
+}

@@ -1,0 +1,15 @@
+// C-CAT-16: ejecuta createCatalogCache + createKnownProducts del repo con un storefront simulado de 60 productos.
+import { createCatalogCache } from '/RUTA/AL/REPO/server/services/catalog-cache.mjs';
+import { createKnownProducts } from '/RUTA/AL/REPO/server/services/known-products.mjs';
+
+const all = Array.from({ length: 60 }, (_, i) => ({ handle: `mock-${i + 1}`, title: `Mock ${i + 1}`, drop: null }));
+const calls = [];
+const storefront = {
+  async listProducts({ first }) {
+    calls.push(first);
+    return { products: all.slice(0, first), pageInfo: { hasNextPage: first < all.length, endCursor: 'c' } };
+  },
+};
+const cache = createCatalogCache({ storefront });
+const known = createKnownProducts({ catalog: cache, demoCatalogPath: '/RUTA/AL/REPO/src/data/demoCatalog.json' });
+console.log(JSON.stringify({ 'mock-1': await known.includes('mock-1'), 'mock-50': await known.includes('mock-50'), 'mock-51': await known.includes('mock-51'), 'mock-60': await known.includes('mock-60'), peticiones: calls }));

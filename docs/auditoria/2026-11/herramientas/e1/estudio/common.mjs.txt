@@ -1,0 +1,172 @@
+// Utilidades del área «Estudio de beats» sobre el arnés común de E1.
+import { openPage, summarize, record, shot } from '../harness.mjs';
+import fs from 'node:fs';
+import path from 'node:path';
+import { SCRATCH } from '../harness.mjs';
+
+export const AREA = 'estudio';
+
+// Instrumenta Web Audio y <audio> antes de que cargue la app: cuenta los
+// AudioContext creados (y su estado), las voces arrancadas y mide el nivel
+// RMS de los analizadores (el de la mesa y el del ranking).
+export const AUDIO_INIT = () => {
+  const Orig = window.AudioContext;
+  if (!Orig || window.__audioHooked) return;
+  window.__audioHooked = true;
+  window.__ctxs = [];
+  window.__starts = [];
+  window.__analysers = [];
+  window.__mediaPlays = [];
+  window.__autoplayCtx = [];
+  class Hooked extends Orig {
+    constructor(...args) {
+      super(...args);
+      window.__ctxs.push(this);
+      window.__autoplayCtx.push({ at: performance.now(), state: this.state, activation: navigator.userActivation?.hasBeenActive ?? null });
+    }
+  }
+  window.AudioContext = Hooked;
+  window.webkitAudioContext = Hooked;
+  const origAnalyser = BaseAudioContext.prototype.createAnalyser;
+  BaseAudioContext.prototype.createAnalyser = function (...a) {
+    const node = origAnalyser.apply(this, a);
+    window.__analysers.push({ ctx: this, node });
+    return node;
+  };
+  for (const Proto of [AudioScheduledSourceNode.prototype, AudioBufferSourceNode.prototype]) {
+    if (!Object.hasOwn(Proto, 'start')) continue;
+    const origStart = Proto.start;
+    Proto.start = function (when = 0, ...rest) {
+      window.__starts.push({ ctx: window.__ctxs.indexOf(this.context), when, kind: this.constructor.name, t: performance.now() });
+      return origStart.call(this, when, ...rest);
+    };
+  }
+  // Rampas exponenciales (frecuencias de las voces) y valores de AudioParam (niveles de bus).
+  window.__ramps = [];
+  window.__rampHist = {};
+  const origRamp = AudioParam.prototype.exponentialRampToValueAtTime;
+  AudioParam.prototype.exponentialRampToValueAtTime = function (v, t) {
+    const r = Math.round(v * 100) / 100;
+    window.__ramps.push(r);
+    window.__rampHist[r] = (window.__rampHist[r] || 0) + 1;
+    if (window.__ramps.length > 600) window.__ramps.splice(0, 200);
+    return origRamp.call(this, v, t);
+  };
+  window.__paramSets = [];
+  const desc = Object.getOwnPropertyDescriptor(AudioParam.prototype, 'value');
+  Object.defineProperty(AudioParam.prototype, 'value', {
+    get() { return desc.get.call(this); },
+    set(v) { window.__paramSets.push(Math.round(v * 1000) / 1000); if (window.__paramSets.length > 600) window.__paramSets.splice(0, 200); desc.set.call(this, v); },
+    configurable: true,
+  });
+  const origPlay = HTMLMediaElement.prototype.play;
+  HTMLMediaElement.prototype.play = function () {
+    window.__mediaPlays.push({ src: this.getAttribute('src'), t: performance.now() });
+    return origPlay.call(this);
+  };
+  // Medidor: máximo RMS por analizador desde el último reset.
+  window.__meterMax = [];
+  window.__meterReset = () => { window.__meterMax = window.__analysers.map(() => 0); };
+  setInterval(() => {
+    window.__analysers.forEach((a, i) => {
+      if (a.ctx.state !== 'running') return;
+      const buf = new Float32Array(a.node.fftSize);
+      a.node.getFloatTimeDomainData(buf);
+      let s = 0;
+      for (let k = 0; k < buf.length; k += 1) s += buf[k] * buf[k];
+      const rms = Math.sqrt(s / buf.length);
+      window.__meterMax[i] = Math.max(window.__meterMax[i] || 0, rms);
+    });
+  }, 4);
+};
+
+export async function audioState(page) {
+  return page.evaluate(() => ({
+    ctxs: (window.__ctxs || []).map((c) => ({ state: c.state, t: Number(c.currentTime.toFixed(2)) })),
+    starts: (window.__starts || []).length,
+    meter: (window.__meterMax || []).map((v) => Number(v.toFixed(4))),
+    mediaPlays: (window.__mediaPlays || []).map((m) => m.src),
+    autoplayCtx: window.__autoplayCtx || [],
+  }));
+}
+
+export async function meterReset(page) {
+  await page.evaluate(() => window.__meterReset && window.__meterReset());
+}
+
+// Abre una página con el arnés, bloquea todo lo que no sea localhost e
+// instala la instrumentación de audio.
+export async function open(browser, vp, origin, opts = {}) {
+  const res = await openPage(browser, vp, { origin, ...opts });
+  const blocked = [];
+  await res.context.route('**/*', (route) => {
+    const url = route.request().url();
+    let host = '';
+    try { host = new URL(url).hostname; } catch { /* data: */ }
+    if (url.startsWith('data:') || url.startsWith('blob:') || host === 'localhost' || host === '127.0.0.1') return route.continue();
+    blocked.push(url.slice(0, 120));
+    return route.abort('blockedbyclient');
+  });
+  if (opts.audio !== false) await res.context.addInitScript(AUDIO_INIT);
+  if (opts.initScripts) for (const s of opts.initScripts) await res.context.addInitScript(s);
+  return { ...res, blocked };
+}
+
+// Resumen de consola/red separando las peticiones externas que bloquea el arnés.
+export function sum(issues, blocked = []) {
+  const ext = (u) => !/^https?:\/\/(localhost|127\.0\.0\.1)[:/]/.test(u.split(' ')[1] || u);
+  const filtered = {
+    ...issues,
+    failed: issues.failed.filter((f) => !ext(f)),
+    console: issues.console.filter((c) => !/ERR_BLOCKED_BY_CLIENT/.test(c)),
+  };
+  let s = summarize(filtered);
+  if (blocked.length) s += ` ; externas bloqueadas por el arnés: ${[...new Set(blocked.map((u) => new URL(u).hostname))].join(', ')}`;
+  return s;
+}
+
+export const rec = (o) => record(AREA, o);
+export const snap = (page, name, opts) => shot(page, AREA, name, opts);
+
+export function appendTsv(file, cols) {
+  const dir = path.join(SCRATCH, 'resultados-e1');
+  fs.mkdirSync(dir, { recursive: true });
+  const clean = (s) => String(s).replace(/[\t\n\r]+/g, ' ').trim();
+  fs.appendFileSync(path.join(dir, file), cols.map(clean).join('\t') + '\n');
+}
+
+export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Va a /estudio y espera a que el trozo perezoso pinte la mesa y el ranking.
+export async function gotoStudio(page, origin, query = '') {
+  await page.goto(`${origin}/estudio${query}`);
+  await page.waitForSelector('.mesa-play', { timeout: 15000 });
+  await page.waitForFunction(() => !document.querySelector('#ranking-panel[aria-busy]'), null, { timeout: 10000 }).catch(() => {});
+}
+
+// Estado de la rejilla: matriz 8×16 de velocidades leída de las clases v1/v2/v3.
+export async function readGrid(page) {
+  return page.evaluate(() =>
+    [...document.querySelectorAll('.seq-fila')].map((f) =>
+      [...f.querySelectorAll('.celda')].map((c) => (c.classList.contains('v3') ? 3 : c.classList.contains('v2') ? 2 : c.classList.contains('v1') ? 1 : 0))
+    )
+  );
+}
+
+export const gridToRows = (g) => g.map((r) => r.map((v) => '.oxX'[v]).join('')).join('|');
+
+export async function mesaInfo(page) {
+  return page.evaluate(() => {
+    const lcd = [...document.querySelectorAll('.lcd-datos span')].map((s) => s.textContent.trim());
+    const presets = [...document.querySelectorAll('.mesa-presets .chip')].map((c) => ({ t: c.textContent.trim(), on: c.classList.contains('is-on'), ap: c.getAttribute('aria-pressed') }));
+    const ranges = [...document.querySelectorAll('.mesa-mando input')].map((i) => i.value);
+    const tono = document.querySelector('.pads-tono select')?.value;
+    return { lcd, presets: presets.filter((p) => p.on).map((p) => p.t), ranges, tono, url: location.href };
+  });
+}
+
+export function readSaved(page) {
+  return page.evaluate(() => {
+    try { return JSON.parse(localStorage.getItem('rocky-mesa-beats')); } catch { return 'ERR'; }
+  });
+}

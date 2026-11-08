@@ -1,0 +1,49 @@
+// Vuelca estudio-parts/*.json en resultados-e1/estudio.tsv (una línea por ficha y viewport).
+import fs from 'node:fs';
+import path from 'node:path';
+import { SCRATCH, record } from '../harness.mjs';
+
+const PARTS = path.join(SCRATCH, 'resultados-e1', 'estudio-parts');
+const TSV = path.join(SCRATCH, 'resultados-e1', 'estudio.tsv');
+if (fs.existsSync(TSV)) fs.unlinkSync(TSV);
+const NUEVOS = {
+  'NUEVO-paso16': 'NUEVO-1',
+  'NUEVO-remix-scroll': 'NUEVO-2',
+  'NUEVO-barra-reabre': 'NUEVO-3',
+  'NUEVO-titulo-tactil': 'NUEVO-5',
+};
+const map = (s) => Object.entries(NUEVOS).reduce((a, [k, v]) => a.split(k).join(v), s || '');
+const rows = [];
+for (const f of fs.readdirSync(PARTS)) {
+  for (const v of Object.values(JSON.parse(fs.readFileSync(path.join(PARTS, f), 'utf8')))) {
+    if (v.resultado === 'MULTI') {
+      for (const l of JSON.parse(v.evidencia)) rows.push({ id: l.id, viewport: 'escritorio', resultado: l.resultado, evidencia: `${l.evidencia}; ${v.hallazgos}`, hallazgos: l.hallazgos });
+    } else rows.push(v);
+  }
+}
+// Fichas que la propia ficha limita a escritorio
+for (const [id, why] of [
+  ['R-STU-06', 'la ficha es de escritorio con teclado físico'],
+  ['R-STU-13', 'la ficha es de escritorio con teclado físico'],
+  ['R-STU-21', 'la ficha es de escritorio (DevTools); los mensajes son los mismos en móvil'],
+  ['R-STU-30', 'la ficha es de escritorio (DevTools para poner la llave)'],
+]) rows.push({ id, viewport: 'movil', resultado: `NO EJECUTADO: ${why}`, evidencia: '', hallazgos: '' });
+// Añadidos a la TECLADO-ranking: foco tras remezclar
+for (const r of rows) {
+  if (r.id === 'TECLADO-ranking') r.hallazgos = [r.hallazgos, 'NUEVO-4'].filter(Boolean).join(', ');
+  if (r.id === 'R-STU-29') r.hallazgos = [r.hallazgos, 'NUEVO-4'].filter(Boolean).join(', ');
+  r.evidencia = r.evidencia.replace('R-STU-01-escritorio-secuenciador.png', 'R-STU-01-escritorio.png');
+  r.hallazgos = map(r.hallazgos);
+  r.evidencia = map(r.evidencia).replace(/\(NUEVO\)/g, '(NUEVO-1)');
+}
+const key = (r) => (r.id.startsWith('R-STU') ? `0${r.id}` : `1${r.id}`) + (r.viewport === 'escritorio' ? '0' : '1');
+rows.sort((a, b) => key(a).localeCompare(key(b)));
+for (const r of rows) record('estudio', r);
+const tally = {};
+for (const r of rows) {
+  const k = `${r.viewport}`;
+  tally[k] ??= { OK: 0, FALLO: 0, 'NO EJECUTADO': 0 };
+  tally[k][r.resultado.startsWith('NO EJECUTADO') ? 'NO EJECUTADO' : r.resultado] += 1;
+}
+console.log(rows.length, 'líneas', JSON.stringify(tally));
+console.log(rows.filter((r) => r.resultado === 'FALLO').map((r) => `${r.id}|${r.viewport} [${r.hallazgos}]`).join('\n'));

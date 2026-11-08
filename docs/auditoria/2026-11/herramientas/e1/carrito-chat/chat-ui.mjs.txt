@@ -1,0 +1,294 @@
+// Rocky IA en E1: R-CHAT-01, R-CHAT-02, R-CHAT-03 y R-CHAT-04, en escritorio y móvil.
+import { startInstance, launchBrowser, summarize, shot } from '../harness.mjs';
+import { guardedPage, save, focusInfo } from './common.mjs';
+
+const inst = await startInstance(3203, { CHAT_RATE_LIMIT_MAX: '50', SHOPIFY_RATE_LIMIT_MAX: '2000' });
+const W = inst.origin;
+const browser = await launchBrowser();
+const out = {};
+const ERR = 'Rocky IA se ha quedado sin señal un momento (el servidor no responde). Inténtalo en un rato.';
+
+function trackChat(page) {
+  const posts = [];
+  page.on('request', (r) => {
+    if (r.url().endsWith('/api/chat') && r.method() === 'POST') posts.push(r.postData());
+  });
+  const responses = [];
+  page.on('response', async (r) => {
+    if (r.url().endsWith('/api/chat')) {
+      responses.push({ status: r.status(), body: await r.text().catch(() => ''), setCookie: (await r.headerValue('set-cookie')) || null });
+    }
+  });
+  return { posts, responses };
+}
+
+async function delayChat(page, ms) {
+  await page.route('**/api/chat', async (route) => {
+    await new Promise((r) => setTimeout(r, ms));
+    await route.continue();
+  });
+}
+
+async function chat01(vp) {
+  const o = {};
+  // 1a. Directo, con el trozo y el estado retrasados
+  {
+    const { page, issues, context } = await guardedPage(browser, vp, { origin: W });
+    await page.route('**/assets/ChatComponent-*.js', async (r) => { await new Promise((x) => setTimeout(x, 1200)); await r.continue(); });
+    await page.route('**/api/shopify/status', async (r) => { await new Promise((x) => setTimeout(x, 2600)); await r.continue(); });
+    await page.goto(`${W}/rockyIA`, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(500);
+    o.loading = { count: await page.locator('.page-loading').count(), text: await page.locator('.page-loading').innerText().catch(() => ''), spinner: await page.locator('.page-loading-spinner').count() };
+    await page.waitForSelector('.chat-header-status', { timeout: 8000 });
+    o.statusEarly = await page.locator('.chat-header-status').innerText();
+    await page.waitForTimeout(2500);
+    o.statusLate = await page.locator('.chat-header-status').innerText();
+    o.issuesDirect = summarize(issues);
+    await context.close();
+  }
+  // 1b. Desde el menú
+  const { page, issues, context } = await guardedPage(browser, vp, { origin: W });
+  await page.goto(`${W}/`);
+  await page.waitForTimeout(1200);
+  if (vp === 'escritorio') {
+    await page.locator('.navbar-links a', { hasText: 'Rocky IA' }).click();
+  } else {
+    await page.getByRole('button', { name: 'Abrir el menú' }).tap();
+    await page.waitForTimeout(300);
+    await page.locator('.navbar-sheet a', { hasText: 'Rocky IA' }).tap();
+  }
+  await page.waitForSelector('.chat-welcome', { timeout: 8000 });
+  await page.waitForTimeout(500);
+  o.url = new URL(page.url()).pathname;
+  o.title = await page.title();
+  o.header = {
+    kicker: await page.locator('.chat-header-kicker').textContent(),
+    h1: await page.locator('.chat-header-title').textContent(),
+    status: await page.locator('.chat-header-status').textContent(),
+    player: await page.locator('.chat-header .chat-header-player').evaluate((e) => ({ children: e.children.length, html: e.innerHTML.slice(0, 120) })).catch(() => null),
+  };
+  o.notice = await page.locator('.commerce-notice').textContent();
+  o.welcome = {
+    tag: await page.locator('.chat-welcome-tag').textContent(),
+    h2: await page.locator('.chat-welcome h2').textContent(),
+    copy: (await page.locator('.chat-welcome-copy').textContent()).replace(/\s+/g, ' '),
+    buttons: await page.locator('.chat-quick-prompt').evaluateAll((bs) => bs.map((b) => b.textContent.trim())),
+    note: (await page.locator('.chat-demo-note').textContent().catch(() => '')).replace(/\s+/g, ' '),
+  };
+  o.footer = await page.locator('footer').count();
+  o.appClass = await page.locator('.app').getAttribute('class');
+  o.estrella = await page.locator('.chat-lean').evaluate((e) => ({ display: getComputedStyle(e).display, visible: e.getBoundingClientRect().width > 0 && getComputedStyle(e).visibility !== 'hidden' }));
+  o.layout = await page.evaluate(() => {
+    const qp = [...document.querySelectorAll('.chat-quick-prompt')].map((b) => { const r = b.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top), Math.round(r.width)]; });
+    const sendSpan = document.querySelector('.chat-send span');
+    const hint = document.querySelector('.chat-composer-hint');
+    return {
+      quickPrompts: qp,
+      stacked: qp.length > 1 && qp.every((p, i) => i === 0 || p[1] > qp[i - 1][1]),
+      sendTextDisplay: getComputedStyle(sendSpan).display,
+      sendTextVisible: sendSpan.getBoundingClientRect().width > 0,
+      hintDisplay: getComputedStyle(hint).display,
+      hintVisible: hint.getBoundingClientRect().height > 0,
+      scrollW: document.documentElement.scrollWidth,
+      innerW: innerWidth,
+    };
+  });
+  o.issues = summarize(issues);
+  o.external = issues.external;
+  await context.close();
+  return o;
+}
+
+async function chat02(vp) {
+  const o = {};
+  const { page, issues, context } = await guardedPage(browser, vp, { origin: W });
+  const t = trackChat(page);
+  await delayChat(page, 900);
+  await page.goto(`${W}/rockyIA`);
+  await page.waitForSelector('.chat-welcome');
+  const ta = page.getByRole('textbox', { name: 'Mensaje para Rocky IA' });
+  await ta.fill('hola');
+  await page.getByRole('button', { name: 'Enviar mensaje' }).click();
+  await page.waitForTimeout(150);
+  o.immediate = {
+    userBubble: await page.locator('.chat-message.user .chat-bubble').allTextContents(),
+    inputValue: await ta.inputValue(),
+    typing: await page.locator('.chat-typing').count(),
+    searching: await page.locator('.chat-searching').textContent().catch(() => null),
+    welcome: await page.locator('.chat-welcome').count(),
+    demoNote: await page.locator('.chat-demo-note').count(),
+  };
+  await page.waitForSelector('.chat-message.ai.error', { timeout: 8000 });
+  o.errorBubble = await page.locator('.chat-message.ai.error .chat-bubble').allTextContents();
+  // Paso 2: pregunta rápida (la bienvenida ya no está: se recarga)
+  o.quickPromptsAfterFirst = await page.locator('.chat-quick-prompt').count();
+  await page.reload();
+  await page.waitForSelector('.chat-welcome');
+  await page.locator('.chat-quick-prompt', { hasText: '¿Qué hay del DROP 4?' }).click();
+  await page.waitForSelector('.chat-message.ai.error', { timeout: 8000 });
+  o.quick = {
+    userBubble: await page.locator('.chat-message.user .chat-bubble').allTextContents(),
+    errorBubble: await page.locator('.chat-message.ai.error .chat-bubble').allTextContents(),
+  };
+  o.responses = t.responses;
+  o.posts = t.posts;
+  o.cookies = (await context.cookies()).map((c) => c.name);
+  o.consoleChatErrors = issues.console.filter((c) => c.includes('Error al hablar con Rocky IA')).length;
+  o.issues = summarize(issues);
+  await context.close();
+  return o;
+}
+
+async function chat03(vp) {
+  const o = {};
+  const { page, issues, context } = await guardedPage(browser, vp, { origin: W });
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: W });
+  const t = trackChat(page);
+  await page.goto(`${W}/rockyIA`);
+  await page.waitForSelector('.chat-welcome');
+  const ta = page.getByRole('textbox', { name: 'Mensaje para Rocky IA' });
+  const send = page.locator('.chat-send');
+  // 1. Tab hasta el campo
+  const seq = [];
+  for (let i = 0; i < 30; i += 1) {
+    await page.keyboard.press('Tab');
+    const f = await focusInfo(page);
+    seq.push(f.label || f.tag);
+    if (f.tag === 'TEXTAREA') { o.textareaFocus = f; break; }
+  }
+  o.tabsToTextarea = seq.length;
+  o.tabSeq = seq;
+  // 2. vacío + Enter
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(300);
+  o.emptyEnter = { posts: t.posts.length, sendDisabled: await send.isDisabled() };
+  // 3. espacios + Enter
+  await page.keyboard.type('    ');
+  o.spacesSendDisabled = await send.isDisabled();
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(300);
+  o.spacesEnter = { posts: t.posts.length, value: JSON.stringify(await ta.inputValue()) };
+  await ta.fill('');
+  // 4. línea, Shift+Enter, línea, Enter
+  await page.keyboard.type('primera línea');
+  await page.keyboard.press('Shift+Enter');
+  await page.keyboard.type('segunda línea  ');
+  o.multilineValue = JSON.stringify(await ta.inputValue());
+  await page.keyboard.press('Enter');
+  await page.waitForSelector('.chat-message.ai.error', { timeout: 8000 });
+  o.multiline = {
+    posts: t.posts.slice(-1),
+    bubble: JSON.stringify(await page.locator('.chat-message.user .chat-bubble').last().innerText()),
+    whiteSpace: await page.locator('.chat-message.user .chat-bubble').last().evaluate((e) => getComputedStyle(e).whiteSpace),
+    focusAfter: (await focusInfo(page)).tag,
+    valueAfter: await ta.inputValue(),
+  };
+  // 5. pegar 1.200 caracteres
+  const long = 'x'.repeat(1200);
+  await page.evaluate((s) => navigator.clipboard.writeText(s), long);
+  await ta.focus();
+  await page.keyboard.press('ControlOrMeta+V');
+  await page.waitForTimeout(200);
+  o.pasteLength = (await ta.inputValue()).length;
+  o.maxLength = await ta.getAttribute('maxlength');
+  await ta.fill('');
+  // 6. Enter durante composición IME (evento sintético con isComposing)
+  await ta.fill('こんにちは');
+  const before = t.posts.length;
+  await ta.evaluate((el) => el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 229, isComposing: true, bubbles: true, cancelable: true })));
+  await page.waitForTimeout(300);
+  o.imeEnter = { sent: t.posts.length - before, value: await ta.inputValue() };
+  await ta.fill('');
+  // 7. con el indicador visible, escribir y Enter
+  await delayChat(page, 2500);
+  await ta.fill('mensaje lento');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(300);
+  o.typingVisible = await page.locator('.chat-typing').count();
+  const beforeBusy = t.posts.length;
+  await page.keyboard.type('otro texto');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(300);
+  o.busyEnter = {
+    sentWhileBusy: t.posts.length - beforeBusy,
+    valueKept: await ta.inputValue(),
+    textareaEditable: await ta.isEditable(),
+    sendDisabled: await send.isDisabled(),
+  };
+  await page.waitForSelector('.chat-typing', { state: 'detached', timeout: 8000 });
+  await page.unroute('**/api/chat');
+  // 8. móvil: Enter sin Shift envía
+  await ta.fill('desde el teclado del móvil');
+  const b8 = t.posts.length;
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(500);
+  o.enterSends = t.posts.length - b8;
+  o.posts = t.posts.length;
+  o.issues = summarize(issues);
+  await context.close();
+  return o;
+}
+
+async function chat04(vp) {
+  const o = {};
+  const { page, issues, context } = await guardedPage(browser, vp, { origin: W });
+  await delayChat(page, 1200);
+  await page.goto(`${W}/rockyIA`);
+  await page.waitForSelector('.chat-welcome');
+  o.region = await page.locator('section.chat-card').evaluate((e) => ({ tag: e.tagName, label: e.getAttribute('aria-label') }));
+  o.headings = await page.locator('h1, h2').evaluateAll((hs) => hs.map((h) => `${h.tagName}:${h.textContent.trim()}`));
+  o.log = await page.locator('.chat-messages').evaluate((e) => ({ role: e.getAttribute('role'), live: e.getAttribute('aria-live'), busy: e.getAttribute('aria-busy') }));
+  o.sendName = await page.locator('.chat-send').getAttribute('aria-label');
+  o.ariaMain = await page.locator('section.chat-card').ariaSnapshot();
+  const ta = page.getByRole('textbox', { name: 'Mensaje para Rocky IA' });
+  await ta.fill('hola');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(300);
+  o.busyDuring = await page.locator('.chat-messages').getAttribute('aria-busy');
+  o.typing = await page.locator('.chat-typing').evaluate((e) => ({ tag: e.tagName, role: e.getAttribute('role'), label: e.getAttribute('aria-label') }));
+  o.searching = await page.locator('.chat-searching').textContent();
+  o.ariaLogDuring = await page.locator('.chat-messages').ariaSnapshot();
+  await page.waitForSelector('.chat-message.ai.error', { timeout: 8000 });
+  o.busyAfter = await page.locator('.chat-messages').getAttribute('aria-busy');
+  o.avatars = await page.locator('.chat-messages img.chat-avatar').evaluateAll((is) => is.map((i) => i.getAttribute('alt')));
+  o.hiddenSpeaker = await page.locator('.chat-messages .sr-only, .chat-messages .visually-hidden').count();
+  o.ariaLogAfter = await page.locator('.chat-messages').ariaSnapshot();
+  // 3. recargar, Tab a la pregunta rápida y Enter
+  await page.unroute('**/api/chat');
+  await page.reload();
+  await page.waitForSelector('.chat-welcome');
+  let reached = false;
+  for (let i = 0; i < 30; i += 1) {
+    await page.keyboard.press('Tab');
+    const f = await focusInfo(page);
+    if ((f.label || '').includes('Ver camisetas disponibles')) { reached = true; o.quickFocus = f; break; }
+  }
+  o.quickReached = reached;
+  await page.keyboard.press('Enter');
+  await page.waitForSelector('.chat-message.ai.error', { timeout: 8000 });
+  await page.waitForTimeout(300);
+  o.focusAfterQuick = await page.evaluate(() => ({ tag: document.activeElement?.tagName, isBody: document.activeElement === document.body }));
+  // ¿Adónde va el siguiente Tab?
+  await page.keyboard.press('Tab');
+  o.nextTabAfterQuick = await focusInfo(page);
+  o.issues = summarize(issues);
+  await context.close();
+  return o;
+}
+
+try {
+  for (const vp of ['escritorio', 'movil']) {
+    out[`chat01-${vp}`] = await chat01(vp);
+    out[`chat02-${vp}`] = await chat02(vp);
+    out[`chat03-${vp}`] = await chat03(vp);
+    out[`chat04-${vp}`] = await chat04(vp);
+  }
+} catch (e) {
+  out.error = String(e.stack || e);
+} finally {
+  await browser.close();
+  inst.stop();
+}
+out.serverLog = inst.log.join('').slice(-2000);
+save('chat-ui', out);
+console.log(JSON.stringify(out, null, 1).slice(0, 30000));

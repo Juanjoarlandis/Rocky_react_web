@@ -1,0 +1,89 @@
+// Utilidades de los recorridos transversales: peticiones HTTP crudas (como curl,
+// sin cabeceras añadidas) y un registro de observaciones en JSON para revisar
+// antes de pasar los resultados a record().
+import http from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
+import { SCRATCH } from '../harness.mjs';
+
+export const OUT_DIR = path.join(SCRATCH, 'e1', 'transversales', 'obs');
+fs.mkdirSync(OUT_DIR, { recursive: true });
+
+// Petición HTTP sin Origin ni Accept salvo que se pasen. Devuelve estado,
+// cabeceras (en minúsculas, set-cookie como array) y cuerpo en texto.
+export function raw(method, url, { headers = {}, body } = {}) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const payload = body === undefined ? undefined : Buffer.from(body);
+    const req = http.request(
+      {
+        method,
+        hostname: u.hostname.replace(/^\[|\]$/g, ''),
+        port: u.port,
+        path: u.pathname + u.search,
+        agent: false,
+        headers: {
+          ...(payload ? { 'Content-Length': String(payload.length) } : {}),
+          ...headers,
+        },
+      },
+      (res) => {
+        const chunks = [];
+        res.on('data', (c) => chunks.push(c));
+        res.on('end', () =>
+          resolve({
+            status: res.statusCode,
+            headers: res.headers,
+            body: Buffer.concat(chunks).toString('utf8'),
+            bytes: Buffer.concat(chunks).length,
+          })
+        );
+      }
+    );
+    req.on('error', reject);
+    if (payload) req.write(payload);
+    req.end();
+  });
+}
+
+// Resumen corto de una respuesta para la evidencia.
+export function brief(res, keys = ['content-type', 'cache-control', 'cloudflare-cdn-cache-control', 'x-robots-tag', 'vary', 'set-cookie', 'location', 'retry-after']) {
+  const h = keys
+    .filter((k) => res.headers[k] !== undefined)
+    .map((k) => `${k}: ${Array.isArray(res.headers[k]) ? res.headers[k].join(' || ') : res.headers[k]}`)
+    .join('; ');
+  const body = res.body.length > 120 ? `${res.body.slice(0, 120).replace(/\s+/g, ' ')}… (${res.bytes} B)` : res.body.replace(/\s+/g, ' ');
+  return `${res.status} [${h}] «${body}»`;
+}
+
+// Acumula comprobaciones de una ficha: cada una con etiqueta, si pasa y lo observado.
+export function card(id, viewport) {
+  const checks = [];
+  return {
+    id,
+    viewport,
+    checks,
+    check(label, ok, observed = '') {
+      checks.push({ label, ok: Boolean(ok), observed: String(observed) });
+      return Boolean(ok);
+    },
+    note(text) {
+      checks.push({ label: 'nota', ok: true, observed: String(text) });
+    },
+    get ok() {
+      return checks.every((c) => c.ok);
+    },
+  };
+}
+
+export function saveObs(name, cards) {
+  const file = path.join(OUT_DIR, `${name}.json`);
+  fs.writeFileSync(file, JSON.stringify(cards, null, 2));
+  for (const c of cards) {
+    const fails = c.checks.filter((x) => !x.ok);
+    console.log(`${c.id} [${c.viewport}] ${fails.length ? 'NO CUADRA' : 'cuadra'}${fails.length ? ': ' + fails.map((f) => `${f.label} → ${f.observed}`).join(' | ') : ''}`);
+  }
+  return file;
+}
+
+export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

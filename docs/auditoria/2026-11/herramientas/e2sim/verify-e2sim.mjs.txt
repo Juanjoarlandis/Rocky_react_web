@@ -1,0 +1,473 @@
+// Verificación de punta a punta del entorno E2 simulado.
+// Arranca sus propias instancias (puertos 3401-3410), ejecuta las comprobaciones
+// con fetch y con Playwright (Chrome del sistema) y deja el resultado en
+// verificacion.json. Para todas sus instancias al terminar.
+import { execFileSync } from 'node:child_process';
+import fs from 'node:fs';
+import { createRequire } from 'node:module';
+import path from 'node:path';
+import { encodePattern, emptyPattern } from '/RUTA/AL/REPO/shared/beat-codec.mjs';
+import { orderPaidFromCart, buildOrderPaidPayload, sendShopifyWebhook } from './send-webhook.mjs';
+import { E2SIM, NODE, PRELOAD, SCRATCH, launchE2Browser, openE2Page, startE2Instance } from './start-e2sim.mjs';
+import { findVariant } from './fixtures.mjs';
+
+const require = createRequire(path.join(SCRATCH, 'e1', 'package.json'));
+const { chromium } = require('playwright');
+
+const results = [];
+const instances = [];
+const OUT = path.join(E2SIM, 'verificacion.json');
+const SHOTS = path.join(E2SIM, 'capturas');
+fs.mkdirSync(SHOTS, { recursive: true });
+
+function record(id, check, ok, evidence, kind = ok ? 'OK' : 'FALLO') {
+  results.push({ id, check, result: kind, evidence: String(evidence).slice(0, 600) });
+  process.stdout.write(`${kind.padEnd(9)} ${id} ${check} — ${String(evidence).slice(0, 220)}\n`);
+}
+
+async function step(id, check, fn) {
+  try {
+    const out = await fn();
+    if (out && typeof out === 'object' && 'ok' in out) record(id, check, out.ok, out.evidence, out.kind);
+    else record(id, check, true, out ?? '');
+  } catch (error) {
+    record(id, check, false, `${error?.message || error}`.split('\n')[0]);
+  }
+}
+
+const EXTRA = { CHAT_RATE_LIMIT_MAX: '50', CHAT_TIMEOUT_MS: '2000', SHOPIFY_RATE_LIMIT_MAX: '2000' };
+const jsonPost = (origin, url, body) =>
+  fetch(url, { method: 'POST', headers: { 'content-type': 'application/json', origin }, body: JSON.stringify(body) });
+const variantId = (alias) => findVariant(alias).id;
+const opId = () => `e2sim-${Math.random().toString(36).slice(2, 12)}`;
+
+async function main() {
+  // ------------------------------------------------------------- doble aislado
+  await step('D1', 'El doble bloquea salidas no previstas (fetch y http.get)', () => {
+    const script = `
+      let a = 'no lanzó', b = 'no lanzó';
+      try { await fetch('https://example.com/'); } catch (e) { a = e.message; }
+      try { (await import('node:http')).get('http://example.com/'); } catch (e) { b = e.message; }
+      console.log(JSON.stringify({ a, b }));`;
+    const out = JSON.parse(
+      execFileSync(NODE, ['--import', PRELOAD, '--input-type=module', '-e', script], {
+        env: { PATH: process.env.PATH, HOME: process.env.HOME },
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      }).trim()
+    );
+    const ok = out.a.includes('e2sim: salida a internet bloqueada') && out.b.includes('e2sim: salida a internet bloqueada');
+    return { ok, evidence: `fetch → «${out.a}»; http.get → «${out.b}»` };
+  });
+
+  // Ejecuta código contra el doble en un proceso aislado (sin servidor).
+  const isolated = (script, env) =>
+    JSON.parse(
+      execFileSync(NODE, ['--import', PRELOAD, '--input-type=module', '-e', script], {
+        env: { PATH: process.env.PATH, HOME: process.env.HOME, ...env },
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      }).trim()
+    );
+  const { TEST_SECRETS } = await import('./fixtures.mjs');
+
+  await step('D2', 'Doble Admin: client credentials y orders (el servidor no lo usa en ejecución)', () => {
+    const out = isolated(
+      `const base = 'https://rocky-dev.myshopify.com';
+       const form = (o) => ({ method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(o) });
+       const bad = await fetch(base + '/admin/oauth/access_token', form({ grant_type: 'client_credentials', client_id: process.env.SHOPIFY_CLIENT_ID, client_secret: 'otro' }));
+       const tok = await (await fetch(base + '/admin/oauth/access_token', form({ grant_type: 'client_credentials', client_id: process.env.SHOPIFY_CLIENT_ID, client_secret: process.env.SHOPIFY_CLIENT_SECRET }))).json();
+       const q = await (await fetch(base + '/admin/api/2026-07/graphql.json', { method: 'POST', headers: { 'content-type': 'application/json', 'x-shopify-access-token': tok.access_token }, body: JSON.stringify({ query: 'query { orders(first: 5) { nodes { id name } } }' }) })).json();
+       console.log(JSON.stringify({ bad: bad.status, scope: tok.scope, orders: q.data.orders.nodes.map((o) => o.name) }));`,
+      { SHOPIFY_CLIENT_ID: TEST_SECRETS.SHOPIFY_CLIENT_ID, SHOPIFY_CLIENT_SECRET: TEST_SECRETS.SHOPIFY_CLIENT_SECRET }
+    );
+    return { ok: out.bad === 401 && out.scope.includes('read_orders') && out.orders[0] === '#E2-0901', evidence: JSON.stringify(out) };
+  });
+
+  await step('D3', 'Doble Customer Accounts: PKCE, código de un uso, Origin, refresh con rotación, GraphQL', () => {
+    const out = isolated(
+      `import crypto from 'node:crypto';
+       const { signAuthCode } = await import('${path.join(E2SIM, 'authz-code.mjs')}');
+       const key = process.env.E2SIM_AUTHZ_KEY, origin = process.env.PUBLIC_ORIGIN, cid = process.env.SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_ID;
+       const redirect = origin + '/api/shopify/account/callback';
+       const verifier = crypto.randomBytes(32).toString('base64url');
+       const challenge = crypto.createHash('sha256').update(verifier).digest('base64url');
+       const code = () => signAuthCode(key, { clientId: cid, redirectUri: redirect, codeChallenge: challenge, nonce: 'n-123', customer: 'nuria', scope: 'openid email' });
+       const url = 'https://shopify.com/authentication/90350035/oauth/token';
+       const post = (body, o = origin) => fetch(url, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded', origin: o }, body: new URLSearchParams({ client_id: cid, redirect_uri: redirect, ...body }) });
+       const badPkce = (await post({ grant_type: 'authorization_code', code: code(), code_verifier: 'otro-verifier' })).status;
+       const good = code();
+       const ok = await post({ grant_type: 'authorization_code', code: good, code_verifier: verifier });
+       const tokens = await ok.json();
+       const reused = (await post({ grant_type: 'authorization_code', code: good, code_verifier: verifier })).status;
+       const badOrigin = (await post({ grant_type: 'authorization_code', code: code(), code_verifier: verifier }, 'https://evil.example')).status;
+       const claims = JSON.parse(Buffer.from(tokens.id_token.split('.')[1], 'base64url').toString());
+       const refreshed = await (await post({ grant_type: 'refresh_token', refresh_token: tokens.refresh_token })).json();
+       const oldRefresh = (await post({ grant_type: 'refresh_token', refresh_token: tokens.refresh_token })).status;
+       const me = await (await fetch('https://shopify.com/90350035/account/customer/api/2026-07/graphql', { method: 'POST', headers: { 'content-type': 'application/json', authorization: refreshed.access_token }, body: JSON.stringify({ query: 'query RockyCustomer { customer { id displayName } }' }) })).json();
+       console.log(JSON.stringify({ badPkce, ok: ok.status, reused, badOrigin, nonce: claims.nonce, sub: claims.sub, rotated: refreshed.refresh_token !== tokens.refresh_token, oldRefresh, customer: me.data.customer.displayName }));`,
+      {
+        SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_ID: TEST_SECRETS.SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_ID,
+        PUBLIC_ORIGIN: 'https://localhost:3999',
+        E2SIM_AUTHZ_KEY: 'clave-de-prueba-solo-para-D3',
+      }
+    );
+    const ok = out.badPkce === 400 && out.ok === 200 && out.reused === 400 && out.badOrigin === 400 && out.nonce === 'n-123' && out.sub === 'gid://shopify/Customer/7035000003' && out.rotated && out.oldRefresh === 400 && out.customer === 'Nuria';
+    return { ok, evidence: JSON.stringify(out) };
+  });
+
+  // ------------------------------------------------------------- instancia HTTP
+  const A = await startE2Instance(3401, EXTRA);
+  instances.push(A);
+  const browser = await launchE2Browser(chromium);
+
+  await step('A1', 'GET /api/shopify/status (HTTP)', async () => {
+    const s = await (await fetch(`${A.origin}/api/shopify/status`)).json();
+    const c = s.capabilities;
+    const ok = s.mode === 'shopify' && c.catalog && c.cart && c.admin && c.webhooks && c.customerAccounts === false;
+    return { ok, evidence: `${JSON.stringify(s)} (customerAccounts=false es lo esperado sin PUBLIC_ORIGIN HTTPS)` };
+  });
+
+  await step('A2', 'Listado de productos (first=8 y first=50)', async () => {
+    const p8 = await (await fetch(`${A.origin}/api/shopify/products?first=8`)).json();
+    const p50 = await (await fetch(`${A.origin}/api/shopify/products?first=50`)).json();
+    const soldOut = p50.products.filter((p) => p.variants.every((v) => !v.availableForSale)).map((p) => p.handle);
+    const multi = p50.products.filter((p) => p.variants.length > 1).length;
+    const ok = p8.products.length === 8 && p8.pageInfo.hasNextPage && p50.products.length === 10 && soldOut.length >= 1;
+    return {
+      ok,
+      evidence: `first=8 → ${p8.products.length} (hasNextPage=${p8.pageInfo.hasNextPage}); first=50 → ${p50.products.length}; agotados: ${soldOut.join(', ')}; con varias tallas: ${multi}; precio ej. ${JSON.stringify(p8.products[0].variants[0].price)}`,
+    };
+  });
+
+  {
+    const { context, page, routes, issues } = await openE2Page(browser, A);
+    const cartMutation = (method) =>
+      page.waitForResponse((r) => r.url().endsWith('/api/shopify/cart/lines') && r.request().method() === method, { timeout: 15_000 });
+
+    await step('A3', 'Ficha → elegir talla M → «Añadir al carrito» (navegador)', async () => {
+      await page.goto(`${A.origin}/product/rocky-racing`);
+      await page.locator('.detail-variant select').selectOption({ label: 'M' });
+      const wait = cartMutation('POST');
+      await page.getByRole('button', { name: 'Añadir al carrito' }).click();
+      const res = await wait;
+      const body = await res.json();
+      const line = body.cart?.lines?.[0];
+      return {
+        ok: res.status() === 200 && line?.variant?.title === 'M' && line.quantity === 1,
+        evidence: `POST /cart/lines → ${res.status()}; línea ${line?.variant?.product?.title} ${line?.variant?.title} x${line?.quantity}; total ${body.cart?.cost?.totalAmount?.amount} EUR`,
+      };
+    });
+
+    await step('A4', 'Ficha agotada: botón deshabilitado «Agotado»', async () => {
+      await page.goto(`${A.origin}/product/smoker-edition`);
+      const button = page.locator('.detail-buy button.btn--primary');
+      await button.waitFor();
+      const label = (await button.textContent()).trim();
+      return { ok: (await button.isDisabled()) && label === 'Agotado', evidence: `botón «${label}», disabled=${await button.isDisabled()}` };
+    });
+
+    await step('A5', 'Stock limitado: XL de Rockydz boyz (1 ud.) dos veces → aviso de Shopify', async () => {
+      await page.goto(`${A.origin}/product/rockydz-boyz`);
+      await page.locator('.detail-variant select').selectOption({ label: 'XL' });
+      const add = page.locator('.detail-buy button.btn--primary');
+      let wait = cartMutation('POST');
+      await add.click();
+      await wait;
+      await page.waitForTimeout(1_400);
+      wait = cartMutation('POST');
+      await add.click();
+      const second = await (await wait).json();
+      const alert = page.locator('.commerce-inline-error');
+      await alert.waitFor({ timeout: 5_000 });
+      const notice = (await alert.textContent()).trim();
+      const ok = second.warnings?.[0]?.code === 'MERCHANDISE_NOT_ENOUGH_STOCK' && notice.length > 0;
+      return { ok, evidence: `aviso ${second.warnings?.[0]?.code}; la web muestra: «${notice}»` };
+    });
+
+    await step('A6', 'Carrito: +1, −1 y eliminar línea (navegador)', async () => {
+      await page.goto(`${A.origin}/cart`);
+      const group = page.getByRole('group', { name: 'Cantidad de RockyRacing' });
+      const qty = group.locator('.quantity-value');
+      await qty.waitFor();
+      const q0 = (await qty.textContent()).trim();
+      let wait = cartMutation('PATCH');
+      await group.getByRole('button', { name: 'Añadir una unidad' }).click();
+      await wait;
+      await page.waitForFunction(() => document.querySelector('[aria-label="Cantidad de RockyRacing"] .quantity-value')?.textContent.trim() === '2');
+      const q1 = (await qty.textContent()).trim();
+      wait = cartMutation('PATCH');
+      await group.getByRole('button', { name: 'Quitar una unidad' }).click();
+      await wait;
+      await page.waitForFunction(() => document.querySelector('[aria-label="Cantidad de RockyRacing"] .quantity-value')?.textContent.trim() === '1');
+      const q2 = (await qty.textContent()).trim();
+      wait = cartMutation('DELETE');
+      await page.getByRole('button', { name: 'Eliminar Rockydz boyz del carrito' }).click();
+      const del = await wait;
+      await page.getByRole('button', { name: 'Eliminar Rockydz boyz del carrito' }).waitFor({ state: 'detached' });
+      const titles = await page.locator('.cart-item-title').allTextContents();
+      await page.screenshot({ path: path.join(SHOTS, 'a6-carrito.png') });
+      const ok = q0 === '1' && q1 === '2' && q2 === '1' && del.status() === 200 && titles.length === 1;
+      return { ok, evidence: `cantidades ${q0}→${q1}→${q2}; DELETE → ${del.status()}; quedan: ${titles.join(', ')}` };
+    });
+
+    await step('A7', 'POST /api/shopify/checkout devuelve URL https://rocky-dev.myshopify.com/… permitida', async () => {
+      const res = await context.request.post(`${A.origin}/api/shopify/checkout`, { headers: { Origin: A.origin }, data: {} });
+      const body = await res.json();
+      const url = new URL(body.checkoutUrl);
+      return {
+        ok: res.status() === 200 && url.protocol === 'https:' && url.hostname === 'rocky-dev.myshopify.com' && url.pathname.startsWith('/cart/c/'),
+        evidence: `${res.status()} ${url.origin}${url.pathname.replace(/\/c\/.+/, '/c/<token>')}?key=<…>`,
+      };
+    });
+
+    await step('A8', '«Ir al pago seguro» navega al checkout simulado de Shopify', async () => {
+      await page.goto(`${A.origin}/cart`);
+      await page.getByRole('button', { name: 'Ir al pago seguro' }).click();
+      await page.waitForURL(/^https:\/\/rocky-dev\.myshopify\.com\/cart\/c\//, { timeout: 15_000 });
+      await page.locator('[data-e2sim="checkout"]').waitFor();
+      return { ok: routes.checkouts.length === 1, evidence: `navegó a ${new URL(page.url()).origin}/cart/c/<token>; checkouts registrados: ${routes.checkouts.length}` };
+    });
+
+    await step('A9', 'Rocky IA en el navegador: saludo, catálogo y fallo forzado', async () => {
+      await page.goto(`${A.origin}/rockyIA`);
+      const box = page.getByLabel('Mensaje para Rocky IA');
+      const send = async (text) => {
+        const wait = page.waitForResponse((r) => r.url().endsWith('/api/chat') && r.request().method() === 'POST', { timeout: 15_000 });
+        await box.fill(text);
+        await page.getByRole('button', { name: 'Enviar mensaje' }).click();
+        return wait;
+      };
+      const r1 = await send('hola');
+      await page.locator('.chat-message.ai .chat-bubble', { hasText: 'Qué pasa' }).waitFor();
+      const r2 = await send('¿Qué camisetas tenéis?');
+      await page.locator('.chat-products').first().waitFor();
+      const cards = await page.locator('.chat-products').first().locator('a, article, li').count();
+      const r3 = await send('#e2sim:fail cuéntame algo');
+      await page.locator('.chat-message.error').waitFor();
+      const errorText = (await page.locator('.chat-message.error .chat-bubble').textContent()).trim();
+      await page.screenshot({ path: path.join(SHOTS, 'a9-rocky-ia.png') });
+      const ok = r1.status() === 200 && r2.status() === 200 && r3.status() === 502 && cards > 0;
+      return { ok, evidence: `hola → ${r1.status()}; catálogo → ${r2.status()} con ${cards} elementos de tarjeta; #e2sim:fail → ${r3.status()} y la web muestra «${errorText}»` };
+    });
+
+    await step('A10', 'El navegador no sale a internet (rutas simuladas)', async () => ({
+      ok: true,
+      kind: routes.blocked.length ? 'OBSERVADO' : 'OK',
+      evidence: routes.blocked.length ? `bloqueadas: ${[...new Set(routes.blocked)].join(' | ')}` : 'ninguna petición externa fuera de las simuladas',
+    }));
+    record('A10b', 'Errores de consola/red en el recorrido', true, JSON.stringify(issues).slice(0, 500), 'OBSERVADO');
+    await context.close();
+  }
+
+  await step('A11', 'Rocky IA API: timeout (CHAT_TIMEOUT_MS=2000), todos caídos, rate limit y barra', async () => {
+    const chat = async (message) => {
+      const t0 = Date.now();
+      const res = await jsonPost(A.origin, `${A.origin}/api/chat`, { message });
+      return { status: res.status, ms: Date.now() - t0, body: await res.json() };
+    };
+    A.setControl({ openrouter: { mode: 'timeout' } });
+    const timeout = await chat('hola');
+    A.setControl({ openrouter: { mode: 'down' } });
+    const down = await chat('hola');
+    A.resetControl();
+    const limited = await chat('#e2sim:ratelimit hola');
+    const pattern = emptyPattern();
+    pattern[0][0] = 3;
+    pattern[0][8] = 2;
+    pattern[1][4] = 2;
+    pattern[1][12] = 2;
+    const barraRes = await jsonPost(A.origin, `${A.origin}/api/chat/barra`, { code: encodePattern(pattern), bpm: 92, swing: 0, tono: 'la' });
+    const barra = await barraRes.json();
+    const ok = timeout.status === 502 && timeout.ms >= 1_900 && timeout.ms < 6_000 && down.status === 502 && limited.status === 502 && barraRes.status === 200 && barra.versos?.length === 4;
+    return { ok, evidence: `timeout → ${timeout.status} en ${timeout.ms} ms; down → ${down.status} «${down.body.message}»; ratelimit → ${limited.status}; barra → ${barraRes.status} (${barra.versos?.length} versos)` };
+  });
+
+  await step('A12', 'Webhook orders/paid firmado: aceptado, duplicado, firma rota, otra tienda', async () => {
+    const payload = buildOrderPaidPayload({ customer: 'ana', lines: [{ variant: 'rocky-racing/M', quantity: 1 }] });
+    const first = await sendShopifyWebhook({ baseUrl: A.httpOrigin, payload, webhookId: 'e2sim-delivery-0001' });
+    const dup = await sendShopifyWebhook({ baseUrl: A.httpOrigin, payload, webhookId: 'e2sim-delivery-0001' });
+    const bad = await sendShopifyWebhook({ baseUrl: A.httpOrigin, payload, tamper: 'hmac' });
+    const shop = await sendShopifyWebhook({ baseUrl: A.httpOrigin, payload, shopDomain: 'otra-tienda.myshopify.com' });
+    const ok = first.status === 200 && first.body.accepted && !first.body.duplicate && dup.body.duplicate === true && bad.status === 401 && shop.status === 403;
+    return { ok, evidence: `1.º ${first.status} ${JSON.stringify(first.body)}; repetido ${dup.status} ${JSON.stringify(dup.body)}; HMAC roto ${bad.status}; otra tienda ${shop.status}` };
+  });
+
+  await step('A13', 'Cortacircuitos de coste: usage.cost > 0 pausa Rocky IA', async () => {
+    A.setControl({ openrouter: { mode: 'cost' } });
+    const first = await jsonPost(A.origin, `${A.origin}/api/chat`, { message: 'hola' });
+    A.resetControl();
+    const after = await jsonPost(A.origin, `${A.origin}/api/chat`, { message: 'hola' });
+    const b1 = await first.json();
+    const b2 = await after.json();
+    return { ok: first.status === 502 && after.status === 503, evidence: `con coste → ${first.status} «${b1.message}»; siguiente → ${after.status} «${b2.message}»` };
+  });
+
+  await step('A15', 'Control en caliente: stock a 0, fallo 500 puntual en cartLinesAdd e idempotencia', async () => {
+    A.setControl({ storefront: { inventory: { 'dwag/S': 0 }, failNext: [{ op: 'RockyCartLinesAdd', mode: 'http500', times: 1 }] } });
+    const list = await (await fetch(`${A.origin}/api/shopify/products?first=8`)).json();
+    const dwagS = list.products.find((p) => p.handle === 'dwag').variants.find((v) => v.title === 'S').availableForSale;
+    const add = (alias, operationId, cookie) =>
+      fetch(`${A.origin}/api/shopify/cart/lines`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin: A.origin, ...(cookie ? { cookie } : {}) },
+        body: JSON.stringify({ variantId: variantId(alias), quantity: 1, operationId }),
+      });
+    const r1 = await add('dwag/M', 'e2sim-op-0001');
+    const cookie = r1.headers.get('set-cookie').split(';')[0];
+    const r2 = await add('dwag/L', 'e2sim-op-0002', cookie);
+    const r3 = await add('dwag/L', 'e2sim-op-0002', cookie);
+    const r4 = await add('dwag/L', 'e2sim-op-0003', cookie);
+    const r5 = await add('dwag/S', 'e2sim-op-0004', cookie);
+    const b5 = await r5.json();
+    A.resetControl();
+    const ok = dwagS === false && r1.status === 200 && r2.status === 502 && r3.status === 409 && r4.status === 200 && b5.warnings?.[0]?.code === 'MERCHANDISE_OUT_OF_STOCK';
+    return { ok, evidence: `dwag S disponible=${dwagS}; crear ${r1.status}; añadir con 500 simulado → ${r2.status}; mismo operationId → ${r3.status}; nuevo operationId → ${r4.status}; S agotada → ${r5.status} ${b5.warnings?.[0]?.code}` };
+  });
+
+  await step('A14', 'Sin llamadas no previstas desde el servidor (registro del doble)', async () => {
+    const unexpected = A.unexpectedCalls();
+    const calls = A.calls();
+    const ops = [...new Set(calls.map((c) => `${c.service}:${c.op}`))];
+    const inv = calls.filter((c) => c.service === 'openrouter').every((c) => c.invariants.freeOnly && c.invariants.maxPriceZero && c.invariants.usageInclude);
+    return { ok: unexpected.length === 0 && inv, evidence: `${calls.length} llamadas; operaciones: ${ops.join(', ')}; no previstas: ${unexpected.length}; invariantes OpenRouter (free, max_price 0, usage.include): ${inv}` };
+  });
+  await A.stop();
+
+  // ----------------------------------------------- modelos por nombre (fallback)
+  await step('C1', 'OPENROUTER_MODELS con el primero caído: responde el siguiente', async () => {
+    const C = await startE2Instance(3405, { ...EXTRA, OPENROUTER_MODELS: 'e2sim/down-a:free,google/gemma-4-31b-it:free' });
+    instances.push(C);
+    const res = await jsonPost(C.origin, `${C.origin}/api/chat`, { message: 'hola' });
+    const used = C.calls((c) => c.service === 'openrouter').at(-1)?.usedModel;
+    await C.stop();
+    return { ok: res.status === 200 && used === 'google/gemma-4-31b-it:free', evidence: `${res.status}; modelo que respondió: ${used}` };
+  });
+  await step('C2', 'OPENROUTER_MODELS todos caídos (e2sim/down-*): 502', async () => {
+    const D = await startE2Instance(3407, { ...EXTRA, OPENROUTER_MODELS: 'e2sim/down-a:free,e2sim/down-b:free,e2sim/down-c:free' });
+    instances.push(D);
+    const res = await jsonPost(D.origin, `${D.origin}/api/chat`, { message: 'hola' });
+    const body = await res.json();
+    await D.stop();
+    return { ok: res.status === 502, evidence: `${res.status} «${body.message}»` };
+  });
+
+  // ------------------------------------------------------------ instancia HTTPS
+  const B = await startE2Instance(3403, EXTRA, { https: true, httpsPort: 3404 });
+  instances.push(B);
+  {
+    const { context, page, routes, issues } = await openE2Page(browser, B);
+    const api = context.request;
+
+    await step('B1', 'GET /api/shopify/status por HTTPS: las cinco capacidades a true', async () => {
+      const s = await (await api.get(`${B.origin}/api/shopify/status`)).json();
+      return { ok: Object.values(s.capabilities).every(Boolean) && s.mode === 'shopify', evidence: JSON.stringify(s) };
+    });
+
+    await step('B2', 'Login: /mi-crew → «Entrar en la Crew» → authorize (simulado) → callback → /mi-crew', async () => {
+      await page.goto(`${B.origin}/mi-crew`);
+      const callback = page.waitForResponse((r) => r.url().includes('/api/shopify/account/callback'), { timeout: 15_000 });
+      await page.getByRole('link', { name: 'Entrar en la Crew' }).click();
+      const cb = await callback;
+      await page.waitForURL(`${B.origin}/mi-crew`, { timeout: 15_000 });
+      await page.locator('h1.page-title', { hasText: 'Ana Prueba' }).waitFor({ timeout: 15_000 });
+      await page.screenshot({ path: path.join(SHOTS, 'b2-mi-crew.png') });
+      return { ok: cb.status() === 302 && routes.authorizations.length === 1, evidence: `callback → ${cb.status()} a ${cb.headers().location}; authorize simulados: ${routes.authorizations.length}; título «Ana Prueba» visible` };
+    });
+
+    await step('B3', 'GET /api/shopify/account → loggedIn: true', async () => {
+      const body = await (await api.get(`${B.origin}/api/shopify/account`)).json();
+      return { ok: body.loggedIn === true && body.customer?.id === 'gid://shopify/Customer/7035000001', evidence: JSON.stringify({ loggedIn: body.loggedIn, displayName: body.customer?.displayName, id: body.customer?.id }) };
+    });
+
+    await step('B4', 'Compra Crew: carrito → orders/paid firmado → XP y tickets acreditados', async () => {
+      const before = (await (await api.get(`${B.origin}/api/shopify/account/crew`)).json()).profile;
+      for (const [alias, quantity] of [['rocky-racing/M', 2], ['dwag/L', 1]]) {
+        const res = await api.post(`${B.origin}/api/shopify/cart/lines`, { headers: { Origin: B.origin }, data: { variantId: variantId(alias), quantity, operationId: opId() } });
+        if (res.status() !== 200) throw new Error(`añadir ${alias} → ${res.status()}`);
+      }
+      const cart = (await (await api.get(`${B.origin}/api/shopify/cart`)).json()).cart;
+      const payload = orderPaidFromCart(cart, { customer: 'ana' });
+      const hook = await sendShopifyWebhook({ baseUrl: B.httpOrigin, payload });
+      const after = (await (await api.get(`${B.origin}/api/shopify/account/crew`)).json()).profile;
+      const ok = hook.status === 200 && before.xp === 0 && after.xp === 110 && after.ticketBalance === 11 && after.level.name === 'Del Barrio';
+      return { ok, evidence: `carrito ${cart.cost.totalAmount.amount} EUR; webhook ${hook.status} ${JSON.stringify(hook.body)}; XP ${before.xp}→${after.xp}, tickets ${after.ticketBalance}, nivel «${after.level.name}», compras ${after.purchases.length}` };
+    });
+
+    await step('B5', 'Rocky IA con perfil Crew verificado (sesión iniciada)', async () => {
+      const res = await api.post(`${B.origin}/api/chat`, { headers: { Origin: B.origin }, data: { message: '¿Qué nivel tengo en la crew?' } });
+      const body = await res.json();
+      return { ok: res.status() === 200 && body.message.includes('Del Barrio') && body.message.includes('110 XP'), evidence: `${res.status()} «${body.message}»` };
+    });
+
+    await step('B6', 'Logout desde Mi Crew → end_session simulado → vuelta a la web → loggedIn: false', async () => {
+      await page.goto(`${B.origin}/mi-crew`);
+      await page.locator('.crew-logout').click();
+      await page.waitForURL(`${B.origin}/`, { timeout: 15_000 });
+      const body = await (await api.get(`${B.origin}/api/shopify/account`)).json();
+      const logout = routes.logouts[0];
+      return { ok: body.loggedIn === false && logout?.hasIdTokenHint === true, evidence: `end_session con id_token_hint=${logout?.hasIdTokenHint}, vuelta a ${logout?.back}; account → ${JSON.stringify(body)}` };
+    });
+    record('B6b', 'Rutas externas bloqueadas / errores en el recorrido HTTPS', true, `bloqueadas: ${[...new Set(routes.blocked)].join(' | ') || 'ninguna'}; ${JSON.stringify(issues).slice(0, 400)}`, 'OBSERVADO');
+    await context.close();
+  }
+
+  await step('B7', 'ID token con firma ajena: el callback lo rechaza (401) y no hay sesión', async () => {
+    B.setControl({ customerAccount: { idToken: 'badSignature' } });
+    const { context, page } = await openE2Page(browser, B);
+    const callback = page.waitForResponse((r) => r.url().includes('/api/shopify/account/callback'), { timeout: 15_000 });
+    await page.goto(`${B.origin}/api/shopify/account/login?returnPath=%2Fmi-crew`);
+    const cb = await callback;
+    const cbBody = await cb.text();
+    const account = await (await context.request.get(`${B.origin}/api/shopify/account`)).json();
+    B.resetControl();
+    await context.close();
+    return { ok: cb.status() === 401 && account.loggedIn === false, evidence: `callback → ${cb.status()} ${cbBody.slice(0, 120)}; account → ${JSON.stringify(account)}` };
+  });
+
+  await step('B8', 'El cliente cancela en Shopify (error=access_denied): respuesta del callback', async () => {
+    const { context, page } = await openE2Page(browser, B, { decision: 'deny' });
+    const callback = page.waitForResponse((r) => r.url().includes('/api/shopify/account/callback'), { timeout: 15_000 });
+    await page.goto(`${B.origin}/api/shopify/account/login?returnPath=%2Fmi-crew`);
+    const cb = await callback;
+    const text = await cb.text();
+    await context.close();
+    return { ok: true, kind: 'OBSERVADO', evidence: `callback → ${cb.status()} ${text.slice(0, 160)}` };
+  });
+
+  await step('B9', 'Sin llamadas no previstas en la instancia HTTPS', async () => {
+    const unexpected = B.unexpectedCalls();
+    const ops = [...new Set(B.calls().map((c) => `${c.service}:${c.op}`))];
+    return { ok: unexpected.length === 0, evidence: `operaciones: ${ops.join(', ')}; no previstas: ${unexpected.length}` };
+  });
+  await B.stop();
+
+  // ------------------------------------- HTTPS con NODE_ENV=production (opcional)
+  await step('E1', 'HTTPS con NODE_ENV=production y TRUST_PROXY_HOPS=1: login y cookie __Host-', async () => {
+    const P = await startE2Instance(3409, { ...EXTRA, NODE_ENV: 'production', TRUST_PROXY_HOPS: '1' }, { https: true, httpsPort: 3410 });
+    instances.push(P);
+    const { context, page } = await openE2Page(browser, P);
+    await page.goto(`${P.origin}/api/shopify/account/login?returnPath=%2Fmi-crew`);
+    await page.waitForURL(`${P.origin}/mi-crew`, { timeout: 15_000 });
+    const account = await (await context.request.get(`${P.origin}/api/shopify/account`)).json();
+    const cookies = (await context.cookies(P.origin)).map((c) => `${c.name}${c.secure ? ' (Secure)' : ''}`);
+    const hsts = (await context.request.get(`${P.origin}/api/health`)).headers()['strict-transport-security'];
+    await context.close();
+    await P.stop();
+    return { ok: account.loggedIn === true && cookies.some((c) => c.startsWith('__Host-rocky_session')), evidence: `loggedIn=${account.loggedIn}; cookies: ${cookies.join(', ')}; HSTS: ${hsts}` };
+  });
+
+  await browser.close();
+}
+
+try {
+  await main();
+} catch (error) {
+  record('X', 'Error no controlado en la verificación', false, error?.stack || error);
+} finally {
+  for (const instance of instances) await instance.stop().catch(() => {});
+  fs.writeFileSync(OUT, `${JSON.stringify({ at: new Date().toISOString(), results }, null, 2)}\n`);
+  const failed = results.filter((r) => r.result === 'FALLO').length;
+  process.stdout.write(`\n${results.length} comprobaciones, ${failed} fallos. Resultado en ${OUT}\n`);
+  process.exitCode = failed ? 1 : 0;
+}

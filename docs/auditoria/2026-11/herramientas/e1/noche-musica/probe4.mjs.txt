@@ -1,0 +1,19 @@
+import { startInstance, launchBrowser, openPage } from '../harness.mjs';
+import { PORT, nightOn, touchDrag, line } from './lib.mjs';
+const inst = await startInstance(PORT);
+const b = await launchBrowser();
+try {
+  const { page } = await openPage(b, 'movil', { origin: inst.origin });
+  await page.goto(inst.origin + '/crew'); await page.waitForTimeout(1500);
+  await nightOn(page, 'movil');
+  await page.locator('.spray-fab').tap();
+  await page.evaluate(() => { window.__ev = []; for (const t of ['pointerdown','pointerup','click','touchstart','touchend']) window.addEventListener(t, (e) => window.__ev.push(t + ':' + (e.target.className?.baseVal ?? e.target.className)), true); });
+  await touchDrag(page, line(12, 300, 20, 480, 14));
+  await page.locator('button.navbar-menu').tap();
+  await page.waitForTimeout(300);
+  console.log(await page.evaluate(() => ({ ev: window.__ev.slice(-8), exp: document.querySelector('button.navbar-menu').getAttribute('aria-expanded'), sheet: !!document.querySelector('.navbar-sheet') })));
+  await page.waitForTimeout(500);
+  await page.locator('button.navbar-menu').tap();
+  await page.waitForTimeout(300);
+  console.log(await page.evaluate(() => ({ ev: window.__ev.slice(-8), exp: document.querySelector('button.navbar-menu').getAttribute('aria-expanded'), sheet: !!document.querySelector('.navbar-sheet') })));
+} finally { await b.close(); inst.stop(); }

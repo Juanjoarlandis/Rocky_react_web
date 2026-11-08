@@ -1,0 +1,10 @@
+import { launchBrowser, open, ORIGIN, sleep, shot } from './common.mjs';
+const b = await launchBrowser();
+try {
+  const o = await open(b, 'escritorio');
+  await o.page.goto(ORIGIN + '/legal/cookies');
+  await o.page.waitForSelector('main article');
+  await o.page.locator('main article h2').first().scrollIntoViewIfNeeded();
+  await sleep(400);
+  console.log(await shot(o.page, 'estructura', 'R-LEGAL-06-escritorio'));
+} finally { await b.close(); }

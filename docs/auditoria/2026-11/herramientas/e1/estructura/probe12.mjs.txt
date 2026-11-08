@@ -1,0 +1,14 @@
+import { launchBrowser, open, ORIGIN, sleep, sum, shot } from './common.mjs';
+const b = await launchBrowser();
+try {
+  for (const w of [80, 90, 120]) {
+    const o = await open(b, 'escritorio');
+    await o.page.setViewportSize({ width: w, height: 600 });
+    await o.page.goto(ORIGIN + '/legal/cookies');
+    await sleep(11000);
+    const r = await o.page.evaluate(() => ({ root: document.getElementById('root').innerHTML.length, peeker: document.querySelectorAll('[data-testid="curious-peeker"]').length }));
+    console.log(w, r, sum(o).slice(0, 300));
+    if (w === 80 && r.root === 0) await shot(o.page, 'estructura', 'C-EST-21-80px');
+    await o.context.close();
+  }
+} finally { await b.close(); }

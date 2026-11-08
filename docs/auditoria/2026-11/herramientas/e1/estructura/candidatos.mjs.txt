@@ -1,0 +1,88 @@
+// Comprobaciones extra para candidatos sin ficha propia: C-EST-08, C-EST-20 (activar el reducido a mitad de ruta) y C-EST-21.
+import fs from 'node:fs';
+import path from 'node:path';
+import { launchBrowser, open, ORIGIN, sleep, OUT, sum } from './common.mjs';
+const res = {};
+const b1 = await launchBrowser();
+try {
+  // C-EST-08: foco y anuncios al cambiar de ruta
+  const o = await open(b1, 'escritorio');
+  const { page } = o;
+  await page.goto(ORIGIN + '/');
+  await sleep(900);
+  const live = await page.evaluate(() => [...document.querySelectorAll('[aria-live], [role="status"], [role="alert"]')].map((e) => `${e.tagName.toLowerCase()}.${String(e.className).split(' ')[0]} «${e.textContent.trim().slice(0, 40)}»`));
+  const seen = [];
+  await page.exposeFunction('__rec', (m) => seen.push(m));
+  await page.evaluate(() => {
+    new MutationObserver((muts) => {
+      for (const m of muts) {
+        const t = m.target.nodeType === 1 ? m.target : m.target.parentElement;
+        const lr = t?.closest?.('[aria-live], [role="status"], [role="alert"]');
+        if (lr) window.__rec(`${lr.className}: ${lr.textContent.trim().slice(0, 50)}`);
+      }
+    }).observe(document.body, { subtree: true, childList: true, characterData: true });
+  });
+  const steps = [];
+  for (const name of ['Drops', 'Crew', 'Estudio']) {
+    await page.locator('header nav').getByRole('link', { name, exact: true }).click();
+    await sleep(1200);
+    steps.push(await page.evaluate(() => {
+      const a = document.activeElement;
+      return `${location.pathname}: foco en ${a.tagName.toLowerCase()}«${(a.getAttribute('aria-label') || a.textContent).trim().slice(0, 30)}» (en barra=${Boolean(a.closest('header'))}), título «${document.title}»`;
+    }));
+  }
+  res['C-EST-08'] = { regiones_vivas: live, pasos: steps, anuncios_al_navegar: seen, issues: sum(o) };
+  await o.context.close();
+} finally {
+  await b1.close();
+}
+const b2 = await launchBrowser();
+try {
+  // C-EST-20: activar movimiento reducido a mitad de ruta (sin navegar)
+  const o = await open(b2, 'escritorio');
+  const { page } = o;
+  await page.goto(ORIGIN + '/');
+  await page.waitForSelector('[data-testid="curious-peeker"]', { timeout: 12000 }).catch(() => {});
+  await page.waitForSelector('[data-testid="curious-peeker"]', { state: 'detached', timeout: 8000 }).catch(() => {});
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.evaluate(() => {
+    window.__apps = 0;
+    let was = false;
+    setInterval(() => {
+      const now = Boolean(document.querySelector('[data-testid="curious-peeker"]'));
+      if (now && !was) window.__apps += 1;
+      was = now;
+    }, 100);
+  });
+  // Muro: ¿sigue la sesión de fotos? (el CSS oculta el destello, pero el JS sigue)
+  await page.evaluate(() => {
+    const ph = document.querySelector('.street-photographer');
+    const r = ph.getBoundingClientRect();
+    window.scrollBy(0, r.top + r.height / 2 - innerHeight / 2);
+    window.__fl = 0;
+    new MutationObserver(() => { if (document.querySelector('[data-testid="paparazzi-fogonazo"]')) window.__fl += 1; }).observe(document.body, { childList: true });
+  });
+  await sleep(26000);
+  const r20 = await page.evaluate(() => ({ curioso: window.__apps, fogonazos_montados: window.__fl, fogonazo_display: (() => { const s = document.createElement('span'); s.className = 'street-flash-blink'; document.body.appendChild(s); const d = getComputedStyle(s).display; s.remove(); return d; })(), cinta: getComputedStyle(document.querySelector('.ticker-track')).animationName }));
+  res['C-EST-20'] = r20;
+  await o.context.close();
+  // C-EST-21: ventana de 80 px de ancho
+  const n = await open(b2, 'escritorio');
+  await n.page.setViewportSize({ width: 80, height: 600 });
+  await n.page.goto(ORIGIN + '/legal/cookies');
+  await n.page.evaluate(() => {
+    window.__pk = [];
+    setInterval(() => {
+      const el = document.querySelector('[data-testid="curious-peeker"]');
+      if (el) window.__pk.push(`${el.dataset.spot}|${el.style.transform}|${el.style.width}x${el.style.height}`);
+    }, 200);
+  });
+  await sleep(12000);
+  const pk = await n.page.evaluate(() => [...new Set(window.__pk)]);
+  res['C-EST-21'] = { muestras: pk.slice(0, 6), issues: sum(n) };
+  await n.context.close();
+} finally {
+  await b2.close();
+}
+fs.writeFileSync(path.join(OUT, 'candidatos-extra.json'), JSON.stringify(res, null, 1));
+console.log(JSON.stringify(res, null, 1));

@@ -1,0 +1,16 @@
+import { startInstance, launchBrowser, openPage } from '../harness.mjs';
+const inst = await startInstance(3207, {});
+const b = await launchBrowser();
+try {
+  const { page, context } = await openPage(b, 'escritorio', {});
+  const cdp = await context.newCDPSession(page);
+  await cdp.send('Network.enable');
+  const seen = [];
+  cdp.on('Network.responseReceived', (e) => { if (e.type === 'Document') seen.push(`${e.response.status} fromDisk=${e.response.fromDiskCache}`); });
+  cdp.on('Network.requestWillBeSentExtraInfo', (e) => { const h = e.headers || {}; if (h['if-none-match'] || h['If-None-Match']) seen.push('cond:' + (h['if-none-match'] || h['If-None-Match'])); });
+  cdp.on('Network.responseReceivedExtraInfo', (e) => { if (e.statusCode === 304) seen.push('raw304'); });
+  await page.goto(inst.origin + '/crew', { waitUntil: 'networkidle' });
+  await page.reload({ waitUntil: 'networkidle' });
+  console.log(seen.join(' | '));
+  await context.close();
+} finally { await b.close(); inst.stop(); }

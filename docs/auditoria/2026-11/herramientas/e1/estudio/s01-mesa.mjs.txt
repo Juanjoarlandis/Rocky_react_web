@@ -1,0 +1,1102 @@
+// Recorridos de la mesa (sin servidor de por medio): R-STU-01…05, 07…12, 14…17.
+import { run, MESA, codeOf, presetCode, encodePattern, emptyPattern } from './runner.mjs';
+import {
+  open, sum, snap, sleep, gotoStudio, readGrid, gridToRows, mesaInfo, readSaved, audioState, meterReset,
+} from './common.mjs';
+
+const BOTH = ['escritorio', 'movil'];
+const press = (vp, loc) => (vp === 'movil' ? loc.tap() : loc.click());
+const lcdText = (page) => page.locator('.lcd-rec').textContent();
+const rowsOf = (id) => {
+  const p = MESA.PRESETS.find((x) => x.id === id);
+  return MESA.TRACK_IDS.map((t) => (p.rows[t] || '').replace(/-/g, '.')).join('|');
+};
+const cell = (page, track, step) => page.locator(`button.celda[aria-label="${track}, paso ${step}"]`);
+const verdict = (fails) => (fails.length ? 'FALLO' : 'OK');
+const NOAUDIO = () => {
+  delete window.AudioContext;
+  delete window.webkitAudioContext;
+};
+
+async function headSteps(page, ms = 1500) {
+  const seen = new Set();
+  const t0 = Date.now();
+  while (Date.now() - t0 < ms) {
+    const s = await page.evaluate(() => [...document.querySelectorAll('.lcd-pasos i')].findIndex((i) => i.classList.contains('is-on')));
+    seen.add(s);
+    await sleep(40);
+  }
+  return [...seen].sort((a, b) => a - b);
+}
+
+const cases = [];
+
+// ---------------- R-STU-01 ----------------
+cases.push({
+  id: 'R-STU-01',
+  vps: BOTH,
+  fn: async ({ browser, vp, origin }) => {
+    const { page, issues, blocked, context } = await open(browser, vp, origin);
+    const ev = [];
+    const fails = [];
+    // Retrasa la lista para ver «Afinando la lista…»
+    await page.route('**/api/beats?*', async (route) => { await sleep(900); await route.continue(); });
+    await page.goto(`${origin}/estudio`);
+    await page.waitForSelector('.mesa-play', { timeout: 15000 });
+    const loadingText = await page.locator('#ranking-panel').textContent();
+    const busy = await page.locator('#ranking-panel').getAttribute('aria-busy');
+    await page.waitForFunction(() => !document.querySelector('#ranking-panel[aria-busy]'));
+    const emptyText = (await page.locator('#ranking-panel').textContent()).trim();
+    const title = await page.title();
+    const saved = await readSaved(page);
+    const dom = await page.evaluate(() => {
+      const order = [...document.querySelectorAll('.studio h1, .studio h2, .studio .boombox')].map((e) => (e.classList.contains('boombox') ? '[radiocasete]' : e.textContent.trim()));
+      const iframe = document.querySelector('.listen-card iframe');
+      return {
+        order,
+        claim: document.querySelector('.studio-head .subtitle')?.textContent.trim(),
+        mesaSub: document.querySelector('.mesa-subtitle')?.textContent.trim(),
+        iframe: iframe ? { loading: iframe.getAttribute('loading'), src: iframe.getAttribute('src') } : null,
+        miniPlayerContent: Boolean(document.querySelector('.mini-player-slot--content')),
+        lcd: [...document.querySelectorAll('.lcd-datos span')].map((s) => s.textContent.trim()),
+        preset: [...document.querySelectorAll('.mesa-presets .chip.is-on')].map((c) => c.textContent.trim()),
+        overflowX: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        seq: (() => { const q = document.querySelector('.seq-scroll'); const last = [...document.querySelectorAll('.seq-fila')[0].querySelectorAll('.celda')].pop().getBoundingClientRect(); return { sw: q.scrollWidth, cw: q.clientWidth, cut: Math.round(last.right - q.getBoundingClientRect().right) }; })(),
+      };
+    });
+    const au = await audioState(page);
+    ev.push(`título «${title}»`, `orden: ${dom.order.join(' > ')}`, `claim «${dom.claim}»`, `subtítulo mesa «${dom.mesaSub}»`);
+    ev.push(`iframe Spotify loading=${dom.iframe?.loading}`, `LCD ${dom.lcd.join(' / ')}`, `preset activo ${dom.preset.join(',')}`);
+    ev.push(`AudioContext creados: ${au.ctxs.length}`, `ranking cargando: «${loadingText.trim()}» aria-busy=${busy}; luego «${emptyText}»`);
+    ev.push(`mini reproductor de contenido presente: ${dom.miniPlayerContent}`, `localStorage al montar: ${saved ? `code ${saved.code.slice(0, 10)}… bpm ${saved.bpm} swing ${saved.swing} tono ${saved.tono}` : 'vacío'}`);
+    ev.push(`desborde horizontal de la página: ${dom.overflowX}; secuenciador scrollWidth ${dom.seq.sw} / clientWidth ${dom.seq.cw} (la celda «paso 16» sobresale ${dom.seq.cut}px del área visible)`);
+    let seqShot = null;
+    if (vp === 'escritorio' && dom.seq.sw > dom.seq.cw) {
+      fails.push(`a 1440 px el secuenciador no cabe: el paso 16 queda fuera y hay que desplazarse en horizontal dentro de la mesa (NUEVO)`);
+      await page.locator('.mesa-seq').scrollIntoViewIfNeeded();
+      seqShot = await snap(page, `R-STU-01-${vp}-secuenciador`, { clip: await page.locator('.mesa-seq').boundingBox() });
+      ev.push(`captura ${seqShot}`);
+    }
+    const expectedOrder = ['La Colmena', '[radiocasete]', 'Setlist', 'La mesa de beats', 'El ranking de La Colmena', 'Escúchalo en serio', 'EPs'];
+    if (title !== 'La Colmena · ROCKY 035') fails.push('título');
+    if (JSON.stringify(dom.order) !== JSON.stringify(expectedOrder)) fails.push('orden de secciones');
+    if (dom.claim !== 'El estudio de ASAKO KACO: maquetas, EPs y humo.') fails.push('claim');
+    if (dom.mesaSub !== 'Ocho pistas, dieciséis pads y swing. Deja tu ritmo en La Colmena: El Freeze lo baila.') fails.push('subtítulo mesa');
+    if (dom.iframe?.loading !== 'lazy') fails.push('iframe lazy');
+    if (dom.lcd.join('|') !== '92 bpm|24% swing|Do m|■ STOP') fails.push('LCD inicial');
+    if (dom.preset.join() !== 'Boom bap') fails.push('preset');
+    if (au.ctxs.length !== 0) fails.push('AudioContext al montar');
+    if (!loadingText.includes('Afinando la lista…')) fails.push('texto de carga');
+    if (!emptyText.startsWith('Aún no hay beats.')) fails.push('estado vacío');
+    if (dom.miniPlayerContent) fails.push('mini reproductor en /estudio');
+    if (!saved || saved.bpm !== 92) fails.push('guardado al montar');
+    if (dom.overflowX) fails.push('desborde horizontal');
+    ev.push(sum(issues, blocked));
+    if (fails.length) await snap(page, `R-STU-01-${vp}`, { fullPage: true });
+    await context.close();
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; '), hallazgos: seqShot ? 'NUEVO-paso16' : '' };
+  },
+});
+
+// ---------------- R-STU-02 ----------------
+cases.push({
+  id: 'R-STU-02',
+  vps: BOTH,
+  fn: async ({ browser, vp, origin }) => {
+    const { page, issues, blocked, context } = await open(browser, vp, origin);
+    const ev = [];
+    const fails = [];
+    await gotoStudio(page, origin);
+    // La mesa sonando antes de pulsar el setlist
+    await press(vp, page.locator('.mesa-play'));
+    await sleep(400);
+    const mesaBefore = await lcdText(page);
+    const row = page.locator('button.setlist-row').first();
+    const rowText = (await row.textContent()).replace(/\s+/g, ' ').trim();
+    await press(vp, row);
+    await sleep(1800);
+    const st = await page.evaluate(() => {
+      const a = document.querySelector('audio');
+      const r = document.querySelector('button.setlist-row');
+      return {
+        src: a?.getAttribute('src'), paused: a?.paused, t: a?.currentTime,
+        active: r.classList.contains('is-active'), spinner: Boolean(r.querySelector('.setlist-spinner')), duration: r.querySelector('.setlist-duration')?.textContent,
+      };
+    });
+    const mesaAfter = await lcdText(page);
+    const mesaPlayingClass = await page.locator('.mesa-play').getAttribute('class');
+    const links = await page.evaluate(() => [...document.querySelectorAll('.listen-links a, .ep-links a')].map((a) => `${a.textContent.trim()}→${a.getAttribute('href').slice(0, 45)} target=${a.target} rel="${a.rel}"`));
+    const maquetas = await page.evaluate(() => {
+      const card = [...document.querySelectorAll('.ep-card')].find((c) => c.querySelector('.ep-title')?.textContent.includes('Maquetas'));
+      return card ? `${card.querySelector('.ep-year')?.textContent} / ${card.querySelector('.badge')?.textContent}` : null;
+    });
+    // Modo noche (C-STU-20): la bombilla de la barra enciende el descontrol y cambia la cinta
+    if (vp === 'movil') await page.locator('button[aria-controls]').filter({ visible: true }).first().click().catch(() => {});
+    await page.locator('button[aria-label="Activar el descontrol"]').filter({ visible: true }).first().click();
+    await sleep(1200);
+    const nightNow = await page.evaluate(() => ({ src: document.querySelector('audio')?.getAttribute('src'), paused: document.querySelector('audio')?.paused }));
+    if (vp === 'movil') await page.keyboard.press('Escape').catch(() => {});
+    await sleep(300);
+    const night = await page.evaluate(() => ({
+      rows: [...document.querySelectorAll('.setlist-row .setlist-title')].map((t) => t.firstChild.textContent),
+      active: document.querySelector('.setlist-row')?.classList.contains('is-active'),
+    }));
+    await press(vp, row);
+    await sleep(800);
+    const nightSrc = await page.evaluate(() => document.querySelector('audio')?.getAttribute('src'));
+    ev.push(`fila «${rowText}»: audio src=${st.src}, paused=${st.paused}, t=${st.t?.toFixed(2)}s, is-active=${st.active}, spinner=${st.spinner}, duración visible=${st.duration ?? 'no'}`);
+    ev.push(`mesa antes ${mesaBefore} → después ${mesaAfter} (clase «${mesaPlayingClass}»)`);
+    ev.push(`enlaces: ${links.join(' | ')}`, `Maquetas: ${maquetas}`);
+    ev.push(`modo noche (bombilla): suena ${nightNow.src} (paused=${nightNow.paused}); el setlist lista ${night.rows.join(',')} con la fila activa=${night.active}; al pulsar la fila suena ${nightSrc}`);
+    if (st.src !== '/music/barro.m4a' || st.paused || !(st.t > 0)) fails.push('la radio no suena barro.m4a');
+    if (!st.active || !st.spinner || st.duration) fails.push('fila activa/spinner');
+    if (mesaAfter.trim() !== '■ STOP' || /sonando/.test(mesaPlayingClass)) fails.push('la mesa no se calla');
+    if (links.length !== 4 || links.some((l) => !l.includes('target=_blank') || !l.includes('rel="noopener noreferrer"'))) fails.push('enlaces');
+    if (maquetas !== 'Próximamente / En el horno') fails.push('tarjeta Maquetas');
+    const c20 = night.rows.join() === 'BARRO' && nightSrc === '/music/modo-neon.m4a';
+    ev.push(`C-STU-20 ${c20 ? 'se reproduce' : 'no se reproduce'}`);
+    if (c20) fails.push('modo noche: el setlist muestra BARRO pero suena MODO NEÓN (C-STU-20)');
+    ev.push(sum(issues, blocked));
+    if (fails.length) await snap(page, `R-STU-02-${vp}`);
+    await context.close();
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; '), hallazgos: c20 ? 'C-STU-20' : '' };
+  },
+});
+
+// ---------------- R-STU-03 ----------------
+cases.push({
+  id: 'R-STU-03',
+  vps: BOTH,
+  fn: async ({ browser, vp, origin }) => {
+    const ev = [];
+    const fails = [];
+    const { page, issues, blocked, context } = await open(browser, vp, origin);
+    await gotoStudio(page, origin);
+    // Radio sonando antes (para ver que la mesa la pausa)
+    await press(vp, page.locator('button.setlist-row').first());
+    await sleep(800);
+    const radioBefore = await page.evaluate(() => !document.querySelector('audio').paused);
+    await press(vp, page.locator('.mesa-play'));
+    await sleep(250);
+    await meterReset(page);
+    const steps = await headSteps(page, 2700);
+    const playing = await page.evaluate(() => {
+      const d = document.querySelector('.mesa-dancer');
+      return {
+        lcd: document.querySelector('.lcd-rec').textContent,
+        cls: document.querySelector('.mesa-play').className,
+        label: document.querySelector('.mesa-play').getAttribute('aria-label'),
+        current: document.querySelectorAll('.celda.is-current').length,
+        vu: document.querySelector('.mesa-vu').style.getPropertyValue('--nivel'),
+        danceState: getComputedStyle(d).animationPlayState, danceDur: getComputedStyle(d).animationDuration, danceName: getComputedStyle(d).animationName,
+        radioPaused: document.querySelector('audio').paused,
+      };
+    });
+    const au1 = await audioState(page);
+    // REC encendido antes de parar
+    await press(vp, page.locator('.mesa-rec'));
+    await press(vp, page.locator('.mesa-play'));
+    await sleep(300);
+    const startsAtStop = (await audioState(page)).starts;
+    await sleep(800);
+    const stopped = await page.evaluate(() => ({
+      lcd: document.querySelector('.lcd-rec').textContent,
+      on: document.querySelectorAll('.lcd-pasos i.is-on').length,
+      current: document.querySelectorAll('.celda.is-current').length,
+      vu: document.querySelector('.mesa-vu').style.getPropertyValue('--nivel'),
+      rec: document.querySelector('.mesa-rec').getAttribute('aria-pressed'),
+      label: document.querySelector('.mesa-play').getAttribute('aria-label'),
+      danceState: getComputedStyle(document.querySelector('.mesa-dancer')).animationPlayState,
+    }));
+    const au2 = await audioState(page);
+    ev.push(`radio sonando antes=${radioBefore}, tras play pausada=${playing.radioPaused}`);
+    ev.push(`sonando: LCD «${playing.lcd}», botón «${playing.label}» clase «${playing.cls}», pilotos vistos ${steps.length} (${steps.join(',')}), celdas is-current=${playing.current}, vúmetro --nivel=${playing.vu}, bailarín ${playing.danceName} ${playing.danceState} ${playing.danceDur} (esperado ${((60 / 92) * 2).toFixed(3)}s)`);
+    ev.push(`AudioContext=${au1.ctxs.length} (${au1.ctxs.map((c) => c.state).join(',')}), voces arrancadas=${au1.starts}, RMS máx=${au1.meter.join(',')}`);
+    ev.push(`parado: LCD «${stopped.lcd}», botón «${stopped.label}», pilotos encendidos=${stopped.on}, is-current=${stopped.current}, vúmetro=${stopped.vu}, REC aria-pressed=${stopped.rec}, bailarín ${stopped.danceState}, voces tras parar ${startsAtStop}→${au2.starts}`);
+    if (!radioBefore || !playing.radioPaused) fails.push('no pausa la radio');
+    if (playing.lcd !== '▶ PLAY' || !/sonando/.test(playing.cls) || steps.filter((s) => s >= 0).length < 12) fails.push('estado sonando');
+    if (au1.ctxs.length !== 1 || au1.starts === 0 || !(au1.meter[0] > 0.01)) fails.push('audio');
+    if (!(Number(playing.vu) > 0) || playing.danceState !== 'running') fails.push('vúmetro/bailarín');
+    if (Math.abs(parseFloat(playing.danceDur) - (60 / 92) * 2) > 0.01) fails.push('duración del baile');
+    if (stopped.lcd !== '■ STOP' || stopped.on || stopped.current || stopped.vu !== '0' || stopped.rec !== 'false') fails.push('estado parado');
+    if (au2.starts !== startsAtStop) fails.push('siguen agendándose voces');
+    ev.push(sum(issues, blocked));
+    if (fails.length) await snap(page, `R-STU-03-${vp}`);
+    await context.close();
+
+    // Sin Web Audio
+    const na = await open(browser, vp, origin, { audio: false, initScripts: [NOAUDIO] });
+    await gotoStudio(na.page, origin);
+    await press(vp, na.page.locator('.mesa-play'));
+    await sleep(500);
+    const naLcd = await lcdText(na.page);
+    const naCls = await na.page.locator('.mesa-play').getAttribute('class');
+    const naMsg = await na.page.locator('.mesa').textContent();
+    ev.push(`sin Web Audio: LCD «${naLcd}», clase «${naCls}», sin mensaje nuevo=${!/audio/i.test(naMsg)}; ${sum(na.issues, na.blocked)}`);
+    if (naLcd.trim() !== '■ STOP' || na.issues.pageErrors.length) fails.push('sin Web Audio');
+    await na.context.close();
+
+    // Movimiento reducido (sólo escritorio)
+    if (vp === 'escritorio') {
+      const rm = await open(browser, vp, origin, { reducedMotion: 'reduce' });
+      await gotoStudio(rm.page, origin);
+      await rm.page.click('.mesa-play');
+      await sleep(400);
+      const an = await rm.page.evaluate(() => getComputedStyle(document.querySelector('.mesa-dancer')).animationName);
+      ev.push(`prefers-reduced-motion: animación del bailarín=${an}`);
+      if (an !== 'none') fails.push('bailarín animado con movimiento reducido');
+      await rm.context.close();
+    }
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; '), hallazgos: '' };
+  },
+});
+
+// ---------------- R-STU-04 ----------------
+const LINK_CODE = presetCode('trap');
+cases.push({
+  id: 'R-STU-04',
+  vps: BOTH,
+  fn: async ({ browser, vp, origin }) => {
+    const ev = [];
+    const fails = [];
+    const { page, issues, blocked, context } = await open(browser, vp, origin);
+    await gotoStudio(page, origin, `?beat=${LINK_CODE}&bpm=120&swing=0.1&tono=re`);
+    await sleep(5000);
+    const grid = gridToRows(await readGrid(page));
+    const info = await mesaInfo(page);
+    const au = await audioState(page);
+    const saved = await readSaved(page);
+    const playingNow = await lcdText(page);
+    const note = (await page.locator('.mesa-nota').textContent()).replace(/\s+/g, ' ').trim();
+    const autoplayWarn = issues.console.filter((c) => /AudioContext|autoplay|user gesture/i.test(c));
+    // Tocar una celda apagada (Palmas, paso 2)
+    await press(vp, cell(page, 'Palmas', 2));
+    await sleep(300);
+    const au2 = await audioState(page);
+    ev.push(`tras 5 s: rejilla = Trap del enlace: ${grid === rowsOf('trap')}; mandos ${info.ranges.join('/')} tono=${info.tono}; LCD ${info.lcd.join(' / ')}`);
+    ev.push(`AudioContext=${au.ctxs.length}, voces=${au.starts}, avisos de autoplay en consola=${autoplayWarn.length}`);
+    ev.push(`localStorage reescrito con el enlace: ${saved?.code === LINK_CODE && saved?.bpm === 120 && saved?.tono === 're'}`);
+    ev.push(`al tocar «Palmas, paso 2»: AudioContext=${au2.ctxs.length} (${au2.ctxs.map((c) => c.state)}), voces=${au2.starts}, RMS máx=${au2.meter.join(',')}`);
+    ev.push(`nota de la mesa: «${note}»; estado al cargar «${playingNow}»`);
+    if (grid !== rowsOf('trap') || info.ranges[0] !== '120' || info.ranges[1] !== '0.1' || info.tono !== 're') fails.push('el enlace no se carga');
+    if (au.ctxs.length || au.starts || autoplayWarn.length) fails.push('audio antes del gesto');
+    if (au2.ctxs.length !== 1 || au2.starts === 0) fails.push('la celda no suena');
+    const c05 = playingNow.trim() === '■ STOP' && /se\s+abre sonando/.test(note);
+    if (c05) fails.push('la nota promete «tu beat se abre sonando» y el enlace se abre parado (C-STU-05)');
+    ev.push(sum(issues, blocked));
+    if (fails.length) await snap(page, `R-STU-04-${vp}`);
+    await context.close();
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; '), hallazgos: c05 ? 'C-STU-05' : '' };
+  },
+});
+
+// ---------------- R-STU-05 ----------------
+cases.push({
+  id: 'R-STU-05',
+  vps: BOTH,
+  fn: async ({ browser, vp, origin }) => {
+    const ev = [];
+    const fails = [];
+    const { page, issues, blocked, context } = await open(browser, vp, origin);
+    await gotoStudio(page, origin);
+    await page.evaluate(() => document.addEventListener('contextmenu', (e) => { window.__ctxPrevented = e.defaultPrevented; }));
+    const c = cell(page, 'Palmas', 3);
+    const seq = [];
+    const starts = [];
+    let savedOn = null;
+    for (let i = 0; i < 4; i += 1) {
+      await press(vp, c);
+      if (i === 0) { await sleep(100); savedOn = await readSaved(page); }
+      await sleep(120);
+      seq.push(await c.evaluate((el) => (el.classList.contains('v3') ? 3 : el.classList.contains('v2') ? 2 : el.classList.contains('v1') ? 1 : 0)));
+      starts.push((await audioState(page)).starts);
+    }
+    const presetAfter = (await mesaInfo(page)).presets;
+    const saved = await readSaved(page);
+    const help = await page.locator('.seq-pista').textContent();
+    let rightClick = 'no aplica (táctil)';
+    if (vp === 'escritorio') {
+      const c2 = cell(page, 'Tom', 5);
+      await c2.click();
+      await c2.click({ button: 'right' });
+      await sleep(100);
+      const after = await c2.getAttribute('aria-pressed');
+      const prevented = await page.evaluate(() => window.__ctxPrevented);
+      rightClick = `encendida y clic derecho → aria-pressed=${after}, contextmenu.defaultPrevented=${prevented}`;
+      if (after !== 'false' || prevented !== true) fails.push('clic derecho');
+    }
+    // En caliente: solo de Tom (fila vacía en Boom bap) y encender una celda de Tom sonando
+    await press(vp, page.locator('button.pista-solo[aria-label="Solo de Tom"]'));
+    await press(vp, page.locator('.mesa-play'));
+    await sleep(1200);
+    const s0 = (await audioState(page)).starts;
+    await sleep(1500);
+    const s1 = (await audioState(page)).starts;
+    await press(vp, cell(page, 'Tom', 1));
+    await sleep(300);
+    const s2 = (await audioState(page)).starts;
+    await sleep(3000);
+    const s3 = (await audioState(page)).starts;
+    const scroll = await page.evaluate(() => { const s = document.querySelector('.seq-scroll'); return { sw: s.scrollWidth, cw: s.clientWidth, celda: document.querySelector('.celda').getBoundingClientRect().width }; });
+    ev.push(`rotación de «Palmas, paso 3»: ${seq.join('→')} (esperado 2→3→1→0); voces tras cada toque ${starts.join(',')}`);
+    ev.push(`preset activo tras editar: [${presetAfter.join(',')}]; localStorage tras el primer toque guarda la celda: ${savedOn?.code !== presetCode('boombap')}; tras volver a silencio: ${saved?.code === presetCode('boombap')}`);
+    ev.push(`ayuda «${help.trim()}»`, rightClick);
+    ev.push(`en caliente (solo Tom): voces en 1,5 s sin golpes de Tom ${s1 - s0}; tras encender «Tom, paso 1» ${s2 - s1} (toque) y en 3 s ${s3 - s2}`);
+    ev.push(`.seq-scroll scrollWidth ${scroll.sw} / clientWidth ${scroll.cw}, celda ${scroll.celda}px`);
+    if (seq.join() !== '2,3,1,0') fails.push('rotación');
+    if (!(starts[0] > 0 && starts[1] > starts[0] && starts[2] > starts[1] && starts[3] === starts[2])) fails.push('sonido al encender');
+    if (presetAfter.length) fails.push('no desmarca el preset');
+    if (help.trim() !== 'Pincha para encender · vuelve a pinchar para acento y fantasma · botón derecho borra') fails.push('texto de ayuda');
+    if (s1 - s0 !== 0 || s3 - s2 === 0) fails.push('la edición no entra en caliente');
+    if (vp === 'movil') {
+      ev.push(`móvil: el borrado depende de «botón derecho»/pulsación larga (no emulable aquí); la ayuda sigue diciendo «botón derecho borra» en táctil`);
+      if (!(scroll.sw > scroll.cw)) fails.push('sin desplazamiento horizontal');
+    }
+    ev.push(sum(issues, blocked));
+    if (fails.length) await snap(page, `R-STU-05-${vp}`);
+    await context.close();
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; '), hallazgos: vp === 'movil' ? 'C-STU-13' : '' };
+  },
+});
+
+// ---------------- R-STU-07 ----------------
+cases.push({
+  id: 'R-STU-07',
+  vps: BOTH,
+  fn: async ({ browser, vp, origin }) => {
+    const ev = [];
+    const fails = [];
+    const { page, issues, blocked, context } = await open(browser, vp, origin);
+    await gotoStudio(page, origin);
+    // Tono y un silencio para ver que el preset no los toca
+    await page.selectOption('.pads-tono select', 'fa');
+    await press(vp, page.locator('button.pista-nombre', { hasText: 'Caja' }));
+    const expected = { boombap: [92, 0.24], trap: [140, 0], drill: [142, 0.08], dembow: [96, 0], funk: [104, 0.16], house: [124, 0] };
+    const order = ['trap', 'boombap', 'drill', 'dembow', 'funk', 'house'];
+    const res = [];
+    for (const playing of [false, true]) {
+      if (playing) { await press(vp, page.locator('.mesa-play')); await sleep(300); }
+      for (const id of order) {
+        const label = MESA.PRESETS.find((p) => p.id === id).label;
+        await press(vp, page.locator('.mesa-presets .chip', { hasText: label }));
+        await sleep(150);
+        const info = await mesaInfo(page);
+        const grid = gridToRows(await readGrid(page));
+        const muted = await page.locator('button.pista-nombre', { hasText: 'Caja' }).getAttribute('aria-pressed');
+        const lcd = await lcdText(page);
+        const ok = grid === rowsOf(id) && Number(info.ranges[0]) === expected[id][0] && Number(info.ranges[1]) === expected[id][1] && info.presets.join() === label && info.tono === 'fa' && muted === 'true' && (!playing || lcd.trim() === '▶ PLAY');
+        res.push(`${playing ? 'sonando ' : ''}${label}:${info.ranges[0]}/${Math.round(Number(info.ranges[1]) * 100)}%${ok ? '' : '✗'}`);
+        if (!ok) fails.push(`preset ${label}${playing ? ' sonando' : ''}`);
+      }
+    }
+    await press(vp, page.locator('.mesa-play'));
+    // Qué desmarca el preset
+    const unmark = [];
+    const act = {
+      celda: () => press(vp, cell(page, 'Diana', 1)),
+      tempo: async () => { await page.locator('input[aria-label="Tempo en pulsos por minuto"]').focus(); await page.keyboard.press('ArrowRight'); },
+      swing: async () => { await page.locator('input[aria-label="Cantidad de swing"]').focus(); await page.keyboard.press('ArrowRight'); },
+      TAP: async () => { await press(vp, page.locator('.mesa-tap')); await sleep(400); await press(vp, page.locator('.mesa-tap')); },
+      Limpiar: () => press(vp, page.locator('button', { hasText: 'Limpiar' })),
+      'Sorpréndeme': () => press(vp, page.locator('button', { hasText: 'Sorpréndeme' })),
+    };
+    for (const [name, fn] of Object.entries(act)) {
+      await press(vp, page.locator('.mesa-presets .chip', { hasText: 'House' }));
+      await sleep(100);
+      await fn();
+      await sleep(150);
+      const p = (await mesaInfo(page)).presets;
+      unmark.push(`${name}→[${p.join(',')}]`);
+      if (p.length) fails.push(`${name} no desmarca`);
+    }
+    const ariaPressed = await page.locator('.mesa-presets .chip').first().getAttribute('aria-pressed');
+    // Al entrar con lo guardado (Trap) y con un enlace (Drill)
+    await press(vp, page.locator('.mesa-presets .chip', { hasText: 'Trap' }));
+    await sleep(150);
+    await page.reload();
+    await page.waitForSelector('.mesa-play');
+    const reloaded = await mesaInfo(page);
+    const reloadedGrid = gridToRows(await readGrid(page));
+    await gotoStudio(page, origin, `?beat=${presetCode('drill')}&bpm=142&swing=0.08&tono=do`);
+    const linked = await mesaInfo(page);
+    const linkedGrid = gridToRows(await readGrid(page));
+    ev.push(`presets: ${res.join(', ')} (tono fa y silencio de Caja intactos)`);
+    ev.push(`desmarcan: ${unmark.join(', ')}`, `aria-pressed en chips de ritmo: ${ariaPressed}`);
+    ev.push(`recarga con Trap guardado: rejilla Trap=${reloadedGrid === rowsOf('trap')}, chip marcado [${reloaded.presets.join(',')}]`);
+    ev.push(`enlace con Drill: rejilla Drill=${linkedGrid === rowsOf('drill')}, chip marcado [${linked.presets.join(',')}]`);
+    const c10 = reloaded.presets.join() === 'Boom bap' && reloadedGrid === rowsOf('trap') && linked.presets.join() === 'Boom bap';
+    if (c10) fails.push('al entrar, «Boom bap» sale marcado aunque suena otro patrón (C-STU-10)');
+    ev.push(sum(issues, blocked));
+    if (fails.length) await snap(page, `R-STU-07-${vp}`);
+    await context.close();
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; '), hallazgos: [c10 ? 'C-STU-10' : '', ariaPressed === null ? 'C-STU-14' : ''].filter(Boolean).join(', ') };
+  },
+});
+
+// ---------------- R-STU-08 ----------------
+cases.push({
+  id: 'R-STU-08',
+  vps: BOTH,
+  fn: async ({ browser, vp, origin }) => {
+    const ev = [];
+    const fails = [];
+    const { page, issues, blocked, context } = await open(browser, vp, origin);
+    await gotoStudio(page, origin);
+    await press(vp, page.locator('button', { hasText: 'Limpiar' }));
+    await sleep(150);
+    const pressed = await page.locator('button.celda[aria-pressed="true"]').count();
+    const pub = page.locator('button', { hasText: 'Publicar en el ranking' });
+    const barra = page.locator('button', { hasText: 'Rocky IA, rapéame' });
+    const pubState = `${await pub.isDisabled()} title «${await pub.getAttribute('title')}»`;
+    const barraState = `${await barra.isDisabled()} title «${await barra.getAttribute('title')}»`;
+    await press(vp, page.locator('.mesa-play'));
+    await sleep(300);
+    await meterReset(page);
+    const steps = await headSteps(page, 1600);
+    const au = await audioState(page);
+    await press(vp, page.locator('.mesa-play'));
+    // Formulario y barra abiertos y vuelta a limpiar
+    await press(vp, page.locator('.mesa-presets .chip', { hasText: 'Funk' }));
+    await press(vp, page.locator('button', { hasText: 'Publicar en el ranking' }));
+    await press(vp, page.locator('button', { hasText: 'Rocky IA, rapéame' }));
+    await page.waitForSelector('.mesa-barra .is-error, .mesa-barra-versos', { timeout: 8000 }).catch(() => {});
+    const barraMsg = await page.locator('.mesa-barra').textContent().catch(() => '');
+    await press(vp, page.locator('button', { hasText: 'Limpiar' }));
+    await sleep(150);
+    const submitDisabled = await page.locator('form.mesa-publicar button[type="submit"]').isDisabled();
+    const retry = page.locator('.mesa-barra-botones .btn--primary');
+    const retryState = `«${(await retry.textContent()).trim()}» disabled=${await retry.isDisabled()}`;
+    const undo = await page.getByText(/deshacer/i).count();
+    ev.push(`tras «Limpiar»: celdas con aria-pressed=true ${pressed}`);
+    ev.push(`«Publicar en el ranking» disabled=${pubState}; «Rocky IA, rapéame» disabled=${barraState}`);
+    ev.push(`play con rejilla vacía: pilotos vistos ${steps.filter((s) => s >= 0).length}, voces=${au.starts}, RMS máx=${au.meter.join(',')}`);
+    ev.push(`con formulario y barra abiertos (barra: «${barraMsg.replace(/\s+/g, ' ').trim().slice(0, 90)}») y otra vez «Limpiar»: «Publicar» disabled=${submitDisabled}, botón de la barra ${retryState}; controles de deshacer=${undo}`);
+    if (pressed) fails.push('celdas encendidas');
+    if (!pubState.startsWith('true title «Pon algún golpe antes de publicar»') || !barraState.startsWith('true title «Pon algún golpe antes»')) fails.push('botones deshabilitados/títulos');
+    if (steps.filter((s) => s >= 0).length < 8 || au.starts !== 0) fails.push('transporte con rejilla vacía');
+    if (!submitDisabled || !retryState.endsWith('disabled=true')) fails.push('botones del formulario/barra');
+    if (vp === 'movil') ev.push('en táctil el title del botón deshabilitado no se ve: nada explica por qué no se puede publicar');
+    ev.push(sum(issues, blocked));
+    if (fails.length) await snap(page, `R-STU-08-${vp}`);
+    await context.close();
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; '), hallazgos: vp === 'movil' ? 'NUEVO-titulo-tactil' : '' };
+  },
+});
+
+// ---------------- R-STU-09 ----------------
+function checkRandom(g) {
+  const errs = [];
+  const [bombo, caja, hat, diana, palmas, hatab, tom, sub] = g;
+  if (bombo[0] !== 3) errs.push('bombo1');
+  bombo.forEach((v, s) => { if (s && v && ![3, 6, 7, 10, 11, 14].includes(s)) errs.push(`bombo${s + 1}`); });
+  if (caja[4] !== 3 || caja[12] !== 3) errs.push('caja5/13');
+  caja.forEach((v, s) => { if (v && ![4, 12, 7, 14].includes(s)) errs.push(`caja${s + 1}`); if ((s === 7 || s === 14) && v && v !== 1) errs.push('caja fantasma'); });
+  const stride = hat[1] ? 1 : 2;
+  hat.forEach((v, s) => { const should = s % stride === 0; if (should !== Boolean(v) || (v && v > 2)) errs.push(`hat${s + 1}`); });
+  if (diana.some(Boolean)) errs.push('diana');
+  palmas.forEach((v, s) => { if (v && s !== 4) errs.push('palmas'); });
+  hatab.forEach((v, s) => { if (v && s !== 10) errs.push('hatab'); });
+  tom.forEach((v, s) => { if (v && s !== 15) errs.push('tom'); });
+  sub.forEach((v, s) => { if (v && ![0, 8, 10].includes(s)) errs.push('808'); });
+  return { errs, stride };
+}
+cases.push({
+  id: 'R-STU-09',
+  vps: BOTH,
+  fn: async ({ browser, vp, origin }) => {
+    const ev = [];
+    const fails = [];
+    const { page, issues, blocked, context } = await open(browser, vp, origin);
+    await gotoStudio(page, origin);
+    const before = await mesaInfo(page);
+    const seen = new Set();
+    const strides = new Set();
+    let bad = [];
+    for (let i = 0; i < 24; i += 1) {
+      if (i === 12) { await press(vp, page.locator('.mesa-play')); await sleep(200); }
+      await press(vp, page.locator('button', { hasText: 'Sorpréndeme' }));
+      await sleep(60);
+      const g = await readGrid(page);
+      seen.add(gridToRows(g));
+      const { errs, stride } = checkRandom(g);
+      strides.add(stride);
+      if (errs.length) bad.push(`#${i + 1}:${errs.join('/')}`);
+      if (g.every((r) => r.every((v) => !v))) bad.push(`#${i + 1}:vacío`);
+    }
+    const after = await mesaInfo(page);
+    const lcd = await lcdText(page);
+    ev.push(`24 patrones (12 parado, 12 sonando): ${seen.size} distintos, hats cada ${[...strides].join(' y ')} pasos, violaciones: ${bad.length ? bad.join(' ') : 'ninguna'}`);
+    ev.push(`mandos antes ${before.ranges.slice(0, 2).join('/')} tono ${before.tono} → después ${after.ranges.slice(0, 2).join('/')} tono ${after.tono}; preset [${after.presets.join(',')}]; LCD sonando «${lcd}»`);
+    if (bad.length) fails.push('reglas del patrón');
+    if (before.ranges[0] !== after.ranges[0] || before.ranges[1] !== after.ranges[1] || before.tono !== after.tono) fails.push('cambia tempo/swing/tono');
+    if (after.presets.length) fails.push('no desmarca');
+    if (lcd.trim() !== '▶ PLAY') fails.push('para el transporte');
+    ev.push(sum(issues, blocked));
+    if (fails.length) await snap(page, `R-STU-09-${vp}`);
+    await context.close();
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; '), hallazgos: '' };
+  },
+});
+
+// ---------------- R-STU-10 ----------------
+const HAT_ONLY = codeOf({ hat: 'xxxxxxxxxxxxxxxx' });
+async function intervals(page, ctx = 0, from = 0) {
+  return page.evaluate(({ ctx, from }) => {
+    const whens = [...new Set(window.__starts.slice(from).filter((s) => s.ctx === ctx).map((s) => s.when.toFixed(4)))].map(Number).sort((a, b) => a - b);
+    const d = [];
+    for (let i = 1; i < whens.length; i += 1) d.push(Math.round((whens[i] - whens[i - 1]) * 1000));
+    return d;
+  }, { ctx, from });
+}
+cases.push({
+  id: 'R-STU-10',
+  vps: BOTH,
+  fn: async ({ browser, vp, origin }) => {
+    const ev = [];
+    const fails = [];
+    const { page, issues, blocked, context } = await open(browser, vp, origin);
+    await gotoStudio(page, origin);
+    const tempo = page.locator('input[aria-label="Tempo en pulsos por minuto"]');
+    const swing = page.locator('input[aria-label="Cantidad de swing"]');
+    const vol = page.locator('input[aria-label="Volumen general"]');
+    const attrs = `${await tempo.getAttribute('min')}-${await tempo.getAttribute('max')} / swing ${await swing.getAttribute('min')}-${await swing.getAttribute('max')} paso ${await swing.getAttribute('step')}`;
+    await tempo.focus(); await page.keyboard.press('Home');
+    const tMin = (await mesaInfo(page)).lcd[0];
+    await page.keyboard.press('End');
+    const tMax = (await mesaInfo(page)).lcd[0];
+    await swing.focus(); await page.keyboard.press('Home'); await page.keyboard.press('ArrowRight');
+    const s1 = (await mesaInfo(page)).lcd[1];
+    await page.keyboard.press('End');
+    const sMax = (await mesaInfo(page)).lcd[1];
+    const mandoValor = await page.locator('.mando-valor').allTextContents();
+    // Volumen en caliente
+    await press(vp, page.locator('.mesa-play'));
+    await sleep(600);
+    await vol.focus(); await page.keyboard.press('Home');
+    await sleep(400); await meterReset(page); await sleep(1500);
+    const rmsMuted = (await audioState(page)).meter[0];
+    await page.keyboard.press('End');
+    await sleep(300); await meterReset(page); await sleep(1500);
+    const rmsFull = (await audioState(page)).meter[0];
+    await press(vp, page.locator('.mesa-play'));
+    // TAP ×4 a 500 ms → 120 BPM
+    await press(vp, page.locator('.mesa-presets .chip', { hasText: 'Funk' }));
+    // Los clics de Playwright meten 30-50 ms de latencia: los cuatro toques se dan dentro de la página cada 500 ms exactos
+    const tapGaps = await page.evaluate(async () => { const b = document.querySelector('.mesa-tap'); const t = []; for (let i = 0; i < 4; i += 1) { t.push(performance.now()); b.click(); if (i < 3) await new Promise((r) => setTimeout(r, 500)); } return t.slice(1).map((x, i) => Math.round(x - t[i])); });
+    const tapInfo = await mesaInfo(page);
+    await sleep(2600);
+    await press(vp, page.locator('.mesa-tap'));
+    const tapOnce = await mesaInfo(page);
+    // Swing: intervalos entre semicorcheas con sólo hi-hat a 120 BPM
+    const sw = {};
+    for (const s of [0, 0.7]) {
+      await gotoStudio(page, origin, `?beat=${HAT_ONLY}&bpm=120&swing=${s}`);
+      await press(vp, page.locator('.mesa-play'));
+      await sleep(400);
+      const from = await page.evaluate(() => window.__starts.length);
+      await sleep(1200);
+      await press(vp, page.locator('.mesa-play'));
+      sw[s] = (await intervals(page, 0, from)).slice(0, 6);
+    }
+    // Recarga: tempo/swing vuelven, volumen no
+    await gotoStudio(page, origin);
+    await tempo.focus(); await page.keyboard.press('Home');
+    await swing.focus(); await page.keyboard.press('End');
+    await vol.focus(); await page.keyboard.press('Home');
+    await page.reload(); await page.waitForSelector('.mesa-play');
+    const rl = await mesaInfo(page);
+    const width = await page.evaluate(() => { const m = document.querySelector('.mesa-mando').getBoundingClientRect().width; const t = document.querySelector('.mesa-transporte'); const cs = getComputedStyle(t); return `${Math.round(m)}px de ${Math.round(t.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight))}px`; });
+    ev.push(`rangos ${attrs}; tempo extremos LCD «${tMin}» y «${tMax}»; swing paso mínimo «${s1}», máximo «${sMax}»; valores en mandos ${mandoValor.join(' / ')}`);
+    ev.push(`volumen sonando: RMS con 0 = ${rmsMuted?.toFixed(4)}, con 100 = ${rmsFull?.toFixed(4)}`);
+    ev.push(`TAP ×4 (huecos ${tapGaps.join(',')} ms) → LCD «${tapInfo.lcd[0]}», preset [${tapInfo.presets.join(',')}]; TAP suelto tras 2,6 s → «${tapOnce.lcd[0]}»`);
+    ev.push(`swing (ms entre semicorcheas a 120 BPM): 0 % → ${sw[0].join(',')}; 70 % → ${sw[0.7].join(',')}`);
+    ev.push(`tras recargar: tempo ${rl.ranges[0]}, swing ${rl.ranges[1]}, volumen ${rl.ranges[2]}; ancho del mando ${width}`);
+    if (tMin !== '60 bpm' || tMax !== '180 bpm' || s1 !== '1% swing' || sMax !== '70% swing') fails.push('rangos');
+    if (!(rmsMuted < 0.005 && rmsFull > 0.02)) fails.push('volumen en caliente');
+    if (Math.abs(parseInt(tapInfo.lcd[0], 10) - 120) > 3 || tapInfo.presets.length) fails.push('TAP');
+    if (tapOnce.lcd[0] !== tapInfo.lcd[0]) fails.push('TAP suelto cambia el tempo');
+    if (!(sw[0].every((d) => Math.abs(d - 125) <= 2) && Math.abs(sw[0.7][0] - sw[0.7][1]) > 60)) fails.push('swing');
+    if (rl.ranges[0] !== '60' || rl.ranges[1] !== '0.7' || rl.ranges[2] !== '0.85') fails.push('persistencia');
+    ev.push(sum(issues, blocked));
+    if (fails.length) await snap(page, `R-STU-10-${vp}`);
+    await context.close();
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; '), hallazgos: '' };
+  },
+});
+
+// ---------------- R-STU-11 ----------------
+async function hits(page, ms = 5220) {
+  await page.evaluate(() => { window.__rampHist = {}; });
+  await sleep(ms);
+  return page.evaluate(() => ({ bombo: window.__rampHist['52'] || 0, caja: window.__rampHist['185'] || 0 }));
+}
+async function rate(page, ms = 2610) {
+  const a = (await audioState(page)).starts;
+  await sleep(ms);
+  return (await audioState(page)).starts - a;
+}
+cases.push({
+  id: 'R-STU-11',
+  vps: BOTH,
+  fn: async ({ browser, vp, origin }) => {
+    const ev = [];
+    const fails = [];
+    const hallazgos = [];
+    if (vp === 'movil') {
+      // C-STU-25: el volumen por pista está oculto ≤900 px; el guardado se aplica igual
+      const saved = JSON.stringify({ code: presetCode('boombap'), bpm: 92, swing: 0.24, tono: 'do', niveles: [0.2, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85], mudas: [false, false, false, false, false, false, false, false] });
+      const { page, issues, blocked, context } = await open(browser, vp, origin, { storage: { 'rocky-mesa-beats': saved } });
+      await gotoStudio(page, origin);
+      const hidden = await page.evaluate(() => [...document.querySelectorAll('.pista-nivel')].map((i) => getComputedStyle(i).display));
+      await page.locator('.mesa-play').tap();
+      await sleep(300);
+      const sets = await page.evaluate(() => window.__paramSets.slice());
+      const mute = page.locator('button.pista-nombre', { hasText: 'Bombo' });
+      await mute.tap();
+      const muteState = `${await mute.getAttribute('aria-pressed')} «${await mute.getAttribute('title')}» fila apagada=${await page.locator('.seq-fila').first().evaluate((f) => f.classList.contains('apagada'))}`;
+      await page.locator('button.pista-solo[aria-label="Solo de Caja"]').tap();
+      const soloRows = await page.evaluate(() => [...document.querySelectorAll('.seq-fila')].map((f) => (f.classList.contains('apagada') ? '·' : 'S')).join(''));
+      ev.push(`móvil 375 px: .pista-nivel display=${[...new Set(hidden)].join(',')} (×${hidden.length}); nivel guardado 0,2 del bombo aplicado al bus: ${sets.includes(0.2)}; silenciar Bombo → aria-pressed ${muteState}; solo de Caja → filas audibles ${soloRows}`);
+      const c25 = hidden.every((d) => d === 'none') && sets.includes(0.2);
+      if (c25) hallazgos.push('C-STU-25');
+      if (!muteState.startsWith('true') || soloRows !== '·S······') fails.push('silenciar/solo');
+      ev.push(sum(issues, blocked));
+      if (fails.length) await snap(page, `R-STU-11-${vp}`);
+      await context.close();
+      return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; ') + (c25 ? '; sin forma de cambiar el volumen por pista en móvil (C-STU-25)' : ''), hallazgos: hallazgos.join(', ') };
+    }
+    const { page, issues, blocked, context } = await open(browser, vp, origin);
+    await gotoStudio(page, origin);
+    await page.click('.mesa-play');
+    await sleep(500);
+    const rAll = await hits(page);
+    const bombo = page.locator('button.pista-nombre', { hasText: 'Bombo' });
+    await bombo.click();
+    const st = `${await bombo.getAttribute('aria-pressed')} clase «${await bombo.getAttribute('class')}» title «${await bombo.getAttribute('title')}» fila apagada=${await page.locator('.seq-fila').first().evaluate((f) => f.classList.contains('apagada'))}`;
+    const rNoKick = await hits(page);
+    await page.click('button.pista-solo[aria-label="Solo de Caja"]');
+    await page.click('button.pista-solo[aria-label="Solo de Hi-hat"]');
+    const soloRows = await page.evaluate(() => [...document.querySelectorAll('.seq-fila')].map((f) => (f.classList.contains('apagada') ? '·' : 'S')).join(''));
+    const rSolo = await hits(page);
+    await page.click('button.pista-solo[aria-label="Solo de Caja"]');
+    await page.click('button.pista-solo[aria-label="Solo de Hi-hat"]');
+    const setsBefore = await page.evaluate(() => window.__paramSets.length);
+    await page.locator('input[aria-label="Volumen de 808"]').focus();
+    await page.keyboard.press('Home');
+    await sleep(100);
+    const newSets = await page.evaluate((n) => window.__paramSets.slice(n), setsBefore);
+    const lvl = await page.locator('input[aria-label="Volumen de Hi-hat"]');
+    await lvl.focus(); await page.keyboard.press('ArrowLeft'); await page.keyboard.press('ArrowLeft');
+    await page.click('button.pista-solo[aria-label="Solo de Tom"]');
+    await page.reload(); await page.waitForSelector('.mesa-play');
+    const after = await page.evaluate(() => ({
+      mudas: [...document.querySelectorAll('button.pista-nombre')].map((b) => b.getAttribute('aria-pressed')).join(','),
+      solos: [...document.querySelectorAll('button.pista-solo')].map((b) => b.getAttribute('aria-pressed')).join(','),
+      niveles: [...document.querySelectorAll('.pista-nivel')].map((i) => i.value).join(','),
+    }));
+    ev.push(`golpes en 2 compases (bombo/caja): todo ${rAll.bombo}/${rAll.caja}, Bombo silenciado ${rNoKick.bombo}/${rNoKick.caja}, solo Caja+Hi-hat ${rSolo.bombo}/${rSolo.caja}; Bombo silenciado → aria-pressed ${st}; filas audibles con solos ${soloRows}`);
+    ev.push(`«Volumen de 808» a 0 → AudioParam fijados ${JSON.stringify(newSets)}`);
+    ev.push(`tras recargar: silencios ${after.mudas}; solos ${after.solos}; niveles ${after.niveles}`);
+    if (!st.startsWith('true clase «pista-nombre muda» title «Activar Bombo» fila apagada=true')) fails.push('estado de silencio');
+    if (!(rAll.bombo === 8 && rAll.caja === 4 && rNoKick.bombo === 0 && rNoKick.caja === 4 && rSolo.bombo === 0 && rSolo.caja === 4)) fails.push('silencio/solo no cambian lo agendado');
+    if (soloRows !== '·SS·····') fails.push('filas en solo');
+    if (!newSets.includes(0)) fails.push('volumen de pista no se aplica en caliente');
+    if (!after.mudas.startsWith('true,false') || after.solos.includes('true') || !after.niveles.startsWith('0.85,0.85,0.75') || !after.niveles.endsWith(',0')) fails.push('persistencia');
+    ev.push(sum(issues, blocked));
+    if (fails.length) await snap(page, `R-STU-11-${vp}`);
+    await context.close();
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; '), hallazgos: '' };
+  },
+});
+
+// ---------------- R-STU-12 ----------------
+cases.push({
+  id: 'R-STU-12',
+  vps: BOTH,
+  fn: async ({ browser, vp, origin }) => {
+    const ev = [];
+    const fails = [];
+    const hallazgos = [];
+    const { page, issues, blocked, context } = await open(browser, vp, origin);
+    await gotoStudio(page, origin);
+    const pad = (n) => page.locator(`button.pad[aria-label^="Pad ${n}:"]`);
+    await pad(1).scrollIntoViewIfNeeded();
+    const y0 = await page.evaluate(() => window.scrollY);
+    let downInfo;
+    if (vp === 'escritorio') {
+      const box = await pad(1).boundingBox();
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await page.mouse.down();
+      await sleep(40);
+      downInfo = await page.evaluate(() => ({ starts: window.__starts.length, golpe: document.querySelector('button.pad[aria-label^="Pad 1:"]').classList.contains('pad--golpe'), focus: document.activeElement?.getAttribute('aria-label'), y: window.scrollY }));
+      await page.mouse.up();
+    } else {
+      await pad(1).tap();
+      await sleep(20);
+      downInfo = await page.evaluate(() => ({ starts: window.__starts.length, golpe: document.querySelector('button.pad[aria-label^="Pad 1:"]').classList.contains('pad--golpe'), focus: document.activeElement?.getAttribute('aria-label'), y: window.scrollY }));
+    }
+    await sleep(200);
+    const golpeAfter = await pad(1).evaluate((b) => b.classList.contains('pad--golpe'));
+    const uniqueWhens = async (fn) => {
+      const from = await page.evaluate(() => window.__starts.length);
+      await fn();
+      await sleep(1200);
+      return page.evaluate((from) => { const w = [...new Set(window.__starts.slice(from).map((s) => s.when.toFixed(4)))].map(Number).sort((a, b) => a - b); return { n: w.length, span: w.length ? w[w.length - 1] - w[0] : 0 }; }, from);
+    };
+    const redoble = await uniqueWhens(() => press(vp, pad(15)));
+    const roll = await uniqueWhens(() => press(vp, pad(16)));
+    // Varios muy seguidos
+    const s0 = (await audioState(page)).starts;
+    for (const n of [1, 3, 6, 1, 3, 6]) await press(vp, pad(n));
+    const rapid = (await audioState(page)).starts - s0;
+    // Encima del secuenciador
+    await press(vp, page.locator('.mesa-play'));
+    await sleep(500);
+    const r0 = await rate(page, 1000);
+    const a = (await audioState(page)).starts;
+    for (let i = 0; i < 5; i += 1) await press(vp, pad(3));
+    const onTop = (await audioState(page)).starts - a;
+    await press(vp, page.locator('.mesa-play'));
+    // Bombo silenciado y pad 1 (C-STU-22): nivel en el maestro
+    await sleep(800);
+    await meterReset(page);
+    await press(vp, pad(1));
+    await sleep(500);
+    const rmsOn = (await audioState(page)).meter[0];
+    await press(vp, page.locator('button.pista-nombre', { hasText: 'Bombo' }));
+    await sleep(700);
+    await meterReset(page);
+    const sMuted0 = (await audioState(page)).starts;
+    await press(vp, pad(1));
+    await sleep(500);
+    const muted = await audioState(page);
+    // Pad sin pista (Rim) con el bombo silenciado: suena por el bus de pads
+    await meterReset(page);
+    await press(vp, pad(4));
+    await sleep(400);
+    const rmsRim = (await audioState(page)).meter[0];
+    // Clic sin puntero (Enter con el foco en el pad)
+    await pad(3).focus();
+    const k0 = (await audioState(page)).starts;
+    await page.keyboard.press('Enter');
+    await sleep(100);
+    const kbd = (await audioState(page)).starts - k0;
+    const layout = await page.evaluate(() => {
+      const g = getComputedStyle(document.querySelector('.pads-rejilla'));
+      const p = document.querySelector('.pad');
+      return { cols: g.gridTemplateColumns.split(' ').length, touch: getComputedStyle(p).touchAction, tecla: getComputedStyle(p.querySelector('.pad-tecla')).display };
+    });
+    ev.push(`pad 1 en ${vp === 'escritorio' ? 'pointerdown (antes de soltar)' : 'tap'}: voces=${downInfo.starts}, pad--golpe=${downInfo.golpe} y a los 200 ms=${golpeAfter}, foco «${downInfo.focus}», scroll ${y0}→${downInfo.y}`);
+    ev.push(`Redoble: ${redoble.n} golpes en ${redoble.span.toFixed(3)} s; Hat roll: ${roll.n} golpes en ${roll.span.toFixed(3)} s (1 pulso a 92 BPM = 0,652 s)`);
+    ev.push(`6 pads seguidos → ${rapid} voces; sonando: ${r0} voces/s del secuenciador y 5 toques de pad añaden ${onTop}`);
+    ev.push(`RMS pad 1 con bombo activo ${rmsOn?.toFixed(4)}; con Bombo silenciado ${muted.meter[0]?.toFixed(4)} (voces arrancadas ${muted.starts - sMuted0}); Rim (sin pista) con bombo silenciado ${rmsRim?.toFixed(4)}`);
+    ev.push(`Enter con foco en pad 3 → ${kbd} voces; rejilla ${layout.cols} columnas, touch-action=${layout.touch}, letra del teclado display=${layout.tecla}`);
+    if (!(downInfo.starts > 0) || !downInfo.golpe || golpeAfter || !downInfo.focus?.startsWith('Pad 1') || Math.abs(downInfo.y - y0) > 1) fails.push('pad 1');
+    if (redoble.n !== 8 || roll.n !== 12 || Math.abs(redoble.span - (60 / 92) * 7 / 8) > 0.02) fails.push('redobles');
+    if (!(rapid >= 6) || !(onTop >= 5)) fails.push('superposición');
+    if (!(rmsOn > 0.01) || !(rmsRim > 0.01) || kbd === 0) fails.push('pads');
+    if (layout.cols !== 4 || layout.touch !== 'manipulation') fails.push('rejilla');
+    const c22 = muted.meter[0] < 0.002 && muted.starts - sMuted0 > 0;
+    if (c22) hallazgos.push('C-STU-22');
+    if (vp === 'movil' && layout.tecla !== 'none') ev.push('en móvil se siguen pintando las letras del teclado');
+    ev.push(sum(issues, blocked));
+    if (fails.length) await snap(page, `R-STU-12-${vp}`);
+    await context.close();
+    // Sin Web Audio
+    const na = await open(browser, vp, origin, { audio: false, initScripts: [NOAUDIO] });
+    await gotoStudio(na.page, origin);
+    await press(vp, na.page.locator('button.pad[aria-label^="Pad 1:"]'));
+    await sleep(200);
+    ev.push(`sin Web Audio el pad no hace nada: errores de página=${na.issues.pageErrors.length}`);
+    if (na.issues.pageErrors.length) fails.push('sin Web Audio');
+    await na.context.close();
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; ') + (c22 ? '; el pad de una pista silenciada no suena (C-STU-22, comportamiento descrito en la ficha)' : ''), hallazgos: hallazgos.join(', ') };
+  },
+});
+
+// ---------------- R-STU-14 ----------------
+cases.push({
+  id: 'R-STU-14',
+  vps: BOTH,
+  fn: async ({ browser, vp, origin }) => {
+    const ev = [];
+    const fails = [];
+    const { page, issues, blocked, context } = await open(browser, vp, origin);
+    await gotoStudio(page, origin);
+    const labels = () => page.locator('button.pad .pad-label').allTextContents();
+    await press(vp, page.locator('.pads-bancos .chip', { hasText: 'Teclas' }));
+    const doM = await labels();
+    await page.selectOption('.pads-tono select', 'fa');
+    const faM = await labels();
+    await press(vp, page.locator('.pads-bancos .chip', { hasText: 'Efectos' }));
+    const fx = await labels();
+    const aria = await page.locator('.pads-bancos .chip').evaluateAll((b) => b.map((x) => `${x.textContent}:${x.getAttribute('aria-pressed')}`));
+    // 808 en caliente: Trap sonando, cambiar de Do m a Fa m
+    await page.selectOption('.pads-tono select', 'do');
+    await press(vp, page.locator('.mesa-presets .chip', { hasText: 'Trap' }));
+    await press(vp, page.locator('.mesa-play'));
+    await sleep(1800);
+    const rampsDo = await page.evaluate(() => window.__ramps.slice());
+    await page.selectOption('.pads-tono select', 'fa');
+    await page.evaluate(() => { window.__ramps.length = 0; });
+    await sleep(1800);
+    const rampsFa = await page.evaluate(() => window.__ramps.slice());
+    await press(vp, page.locator('.mesa-play'));
+    await press(vp, page.locator('.pads-bancos .chip', { hasText: 'Batería' }));
+    await page.selectOption('.pads-tono select', 'sol');
+    await press(vp, page.locator('.pads-bancos .chip', { hasText: 'Efectos' }));
+    await page.reload(); await page.waitForSelector('.mesa-play');
+    const rl = { tono: await page.locator('.pads-tono select').inputValue(), bank: await page.locator('.pads-bancos .chip.is-on').textContent() };
+    const has = (arr, v) => arr.some((x) => Math.abs(x - v) < 0.05);
+    ev.push(`Teclas en Do m: ${doM.slice(0, 4).join(',')}…${doM[15]} (${doM.length}); en Fa m: ${faM.slice(0, 4).join(',')}…${faM[15]}`);
+    ev.push(`Efectos: ${fx.join(',')}; aria-pressed de bancos ${aria.join(' ')}`);
+    ev.push(`808 sonando: con Do m aparece 65,41 Hz=${has(rampsDo, 65.41)}; tras cambiar a Fa m aparece 87,31 Hz=${has(rampsFa, 87.31)} y 65,41=${has(rampsFa, 65.41)}`);
+    ev.push(`tras recargar: tono=${rl.tono}, banco=${rl.bank}`);
+    if (doM[0] !== 'Do3' || faM[0] !== 'Fa3' || doM.length !== 16) fails.push('banco Teclas');
+    if (!fx.slice(0, 4).join().startsWith('Riser,Bajada,Impacto,Reversa')) fails.push('banco Efectos');
+    if (!aria.every((a) => /:(true|false)$/.test(a))) fails.push('aria-pressed bancos');
+    if (!has(rampsDo, 65.41) || !has(rampsFa, 87.31) || has(rampsFa, 65.41)) fails.push('tono en caliente del 808');
+    if (rl.tono !== 'sol' || rl.bank !== 'Batería') fails.push('persistencia');
+    ev.push(sum(issues, blocked));
+    if (fails.length) await snap(page, `R-STU-14-${vp}`);
+    await context.close();
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; '), hallazgos: '' };
+  },
+});
+
+// ---------------- R-STU-15 ----------------
+cases.push({
+  id: 'R-STU-15',
+  vps: BOTH,
+  fn: async ({ browser, vp, origin }) => {
+    const ev = [];
+    const fails = [];
+    const hallazgos = [];
+    const { page, issues, blocked, context } = await open(browser, vp, origin);
+    await gotoStudio(page, origin);
+    const pad = (n) => page.locator(`button.pad[aria-label^="Pad ${n}:"]`);
+    await press(vp, page.locator('.mesa-presets .chip', { hasText: 'House' }));
+    await press(vp, page.locator('.mesa-rec'));
+    await sleep(200);
+    const recBtn = await page.locator('.mesa-rec').evaluate((b) => ({ ap: b.getAttribute('aria-pressed'), cls: b.className, led: getComputedStyle(b.querySelector('.mesa-led')).animationName }));
+    const lcd = await page.locator('.lcd-rec').evaluate((el) => {
+      const cs = getComputedStyle(el);
+      // Lo que pintaría el CSS con la clase que espera (.is-on), para comparar
+      const probe = el.cloneNode(true);
+      probe.className = 'lcd-rec is-on';
+      el.parentNode.appendChild(probe);
+      const ps = getComputedStyle(probe);
+      const out = { text: el.textContent, cls: el.className, color: cs.color, anim: cs.animationName, expColor: ps.color, expAnim: ps.animationName };
+      probe.remove();
+      return out;
+    });
+    await page.locator('.mesa-lcd').scrollIntoViewIfNeeded();
+    const lcdShot = await snap(page, `R-STU-15-${vp}-lcd`, { clip: await page.locator('.mesa-cabecera').boundingBox() });
+    const g0 = gridToRows(await readGrid(page));
+    for (const n of [1, 6, 13]) await press(vp, pad(n));
+    const gStopped = gridToRows(await readGrid(page));
+    // Sonando: pads con pista
+    await press(vp, page.locator('.mesa-play'));
+    await sleep(700);
+    const recorded = [];
+    for (const n of [1, 6, 13]) {
+      const stepNow = await page.evaluate(() => [...document.querySelectorAll('.lcd-pasos i')].findIndex((i) => i.classList.contains('is-on')));
+      const before = await readGrid(page);
+      await press(vp, pad(n));
+      await sleep(150);
+      const after = await readGrid(page);
+      const diff = [];
+      after.forEach((r, t) => r.forEach((v, s) => { if (v !== before[t][s]) diff.push(`${MESA.TRACK_IDS[t]}@${s + 1}=${v}`); }));
+      recorded.push(`pad${n}(cabezal ${stepNow + 1})→${diff.join('+') || 'sin cambio (ya era acento o coincide)'}`);
+      await sleep(330);
+    }
+    const g1 = await readGrid(page);
+    for (const n of [4, 8, 12, 14, 15]) { await press(vp, pad(n)); await sleep(120); }
+    const gNoTrack = await readGrid(page);
+    await press(vp, page.locator('.pads-bancos .chip', { hasText: 'Teclas' }));
+    for (const n of [1, 2, 3]) { await press(vp, pad(n)); await sleep(120); }
+    await press(vp, page.locator('.pads-bancos .chip', { hasText: 'Efectos' }));
+    for (const n of [3, 5]) { await press(vp, pad(n)); await sleep(120); }
+    const gOther = await readGrid(page);
+    const lcdPlaying = await lcdText(page);
+    await press(vp, page.locator('.mesa-play'));
+    await sleep(200);
+    const recAfter = await page.locator('.mesa-rec').getAttribute('aria-pressed');
+    const indicator = await page.evaluate(() => /no se graba|no graba/i.test(document.querySelector('.mesa').textContent));
+    ev.push(`REC: aria-pressed=${recBtn.ap}, clase «${recBtn.cls}», LED animación=${recBtn.led}; LCD «${lcd.text}» clase «${lcd.cls}» color ${lcd.color} animación ${lcd.anim} (con .is-on sería ${lcd.expColor} y ${lcd.expAnim}); captura ${lcdShot}`);
+    ev.push(`parado con REC: rejilla sin cambios=${gStopped === g0}`);
+    ev.push(`sonando con REC (LCD «${lcdPlaying}»): ${recorded.join('; ')}`);
+    ev.push(`pads sin pista (Rim, Shaker, Crash, 808 caída, Redoble) sin cambios=${JSON.stringify(gNoTrack) === JSON.stringify(g1)}; Teclas/Efectos sin cambios=${JSON.stringify(gOther) === JSON.stringify(g1)}; algún aviso de que no se graba=${indicator}`);
+    ev.push(`al parar REC aria-pressed=${recAfter}`);
+    if (recBtn.ap !== 'true' || lcd.text !== '● REC') fails.push('REC no conmuta');
+    if (gStopped !== g0) fails.push('graba parado');
+    if (recorded.some((r) => r.includes('sin cambio') && !r.startsWith('pad13'))) fails.push('no graba sonando');
+    if (recAfter !== 'false') fails.push('parar no apaga REC');
+    const c04 = lcd.cls === 'lcd-rec on' && lcd.anim === 'none' && lcd.color !== lcd.expColor;
+    if (c04) { fails.push('el «● REC» del LCD no se pone rojo ni parpadea: el JSX usa la clase «on» y el CSS «.is-on» (C-STU-04)'); hallazgos.push('C-STU-04'); }
+    const c21 = JSON.stringify(gNoTrack) === JSON.stringify(g1) && JSON.stringify(gOther) === JSON.stringify(g1) && !indicator;
+    if (c21) hallazgos.push('C-STU-21');
+    ev.push(sum(issues, blocked));
+    if (fails.length) await snap(page, `R-STU-15-${vp}`);
+    await context.close();
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; '), hallazgos: hallazgos.join(', ') };
+  },
+});
+
+// ---------------- R-STU-16 ----------------
+const V1 = 'f0f00f0f33335555';
+cases.push({
+  id: 'R-STU-16',
+  vps: BOTH,
+  fn: async ({ browser, vp, origin }) => {
+    const ev = [];
+    const fails = [];
+    const hallazgos = [];
+    const { page, issues, blocked, context } = await open(browser, vp, origin);
+    await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin });
+    await gotoStudio(page, origin);
+    await press(vp, page.locator('.mesa-presets .chip', { hasText: 'Funk' }));
+    await page.selectOption('.pads-tono select', 'la');
+    await press(vp, page.locator('button.pista-nombre', { hasText: 'Hi-hat' }));
+    const shareBtn = page.locator('.mesa-acciones .btn--primary');
+    await press(vp, shareBtn);
+    await sleep(150);
+    const txt1 = await shareBtn.textContent();
+    const clip = await page.evaluate(() => navigator.clipboard.readText());
+    await sleep(2500);
+    const txt2 = await shareBtn.textContent();
+    const re = new RegExp(`^${origin}/estudio\\?beat=2[0-9a-f]{64}&bpm=104&swing=0\\.16&tono=la$`);
+    // Abrir el enlace en otro navegador
+    const other = await open(browser, vp, origin);
+    await gotoStudio(other.page, origin, clip.slice(origin.length + '/estudio'.length));
+    await sleep(1200);
+    const oInfo = await mesaInfo(other.page);
+    const oGrid = gridToRows(await readGrid(other.page));
+    const oMute = await other.page.locator('button.pista-nombre', { hasText: 'Hi-hat' }).getAttribute('aria-pressed');
+    const oAu = await audioState(other.page);
+    const oSearch = await other.page.evaluate(() => location.search);
+    await other.context.close();
+    // Portapapeles denegado
+    const den = await open(browser, vp, origin, { initScripts: [() => { Object.defineProperty(navigator.clipboard, 'writeText', { value: () => Promise.reject(new DOMException('denied', 'NotAllowedError')) }); }] });
+    let dialog = null;
+    den.page.on('dialog', async (d) => { dialog = { type: d.type(), msg: d.message(), def: d.defaultValue() }; await d.dismiss(); });
+    await gotoStudio(den.page, origin);
+    await press(vp, den.page.locator('.mesa-acciones .btn--primary'));
+    await sleep(400);
+    await den.context.close();
+    // Variantes a mano
+    const v = await open(browser, vp, origin);
+    const variants = {};
+    await gotoStudio(v.page, origin, `?beat=${V1}`);
+    variants.v1 = gridToRows(await readGrid(v.page));
+    await press(vp, v.page.locator('.mesa-presets .chip', { hasText: 'House' }));
+    await sleep(100);
+    await gotoStudio(v.page, origin, '?beat=zzz');
+    variants.zzz = gridToRows(await readGrid(v.page)) === rowsOf('house') ? 'vale lo guardado (House)' : 'otro';
+    await gotoStudio(v.page, origin, '?bpm=999&swing=5&tono=si');
+    variants.rest = await mesaInfo(v.page);
+    ev.push(`«Compartir beat» → «${txt1}» y a los 2,5 s «${txt2}»; portapapeles: ${clip.replace(origin, '<origen>')}`);
+    ev.push(`abierto en otro navegador: tempo ${oInfo.ranges[0]}, swing ${oInfo.ranges[1]}, tono ${oInfo.tono}, rejilla Funk=${oGrid === rowsOf('funk')}, Hi-hat silenciado viaja=${oMute}, AudioContext=${oAu.ctxs.length}, URL tras cargar «${oSearch.slice(0, 20)}…»`);
+    ev.push(`portapapeles denegado → ${dialog ? `${dialog.type} «${dialog.msg}» con ${dialog.def.replace(origin, '<origen>').slice(0, 40)}…` : 'sin diálogo'}`);
+    ev.push(`v1 ${V1}: ${variants.v1}; ?beat=zzz: ${variants.zzz}; ?bpm=999&swing=5&tono=si → ${variants.rest.lcd.slice(0, 3).join(' / ')}`);
+    if (txt1 !== '¡Copiado!' || txt2 !== 'Compartir beat' || !re.test(clip)) fails.push('copiar enlace');
+    if (oInfo.ranges[0] !== '104' || oInfo.ranges[1] !== '0.16' || oInfo.tono !== 'la' || oGrid !== rowsOf('funk') || oMute !== 'false' || oAu.ctxs.length) fails.push('abrir enlace');
+    if (!dialog || dialog.type !== 'prompt' || dialog.msg !== 'Copia el enlace de tu beat:' || !dialog.def.startsWith(`${origin}/estudio?beat=2`)) fails.push('prompt de respaldo');
+    const v1Expected = (() => { const p = emptyPattern(); for (let t = 0; t < 4; t += 1) { const bits = parseInt(V1.slice(t * 4, t * 4 + 4), 16); for (let s = 0; s < 16; s += 1) p[t][s] = (bits >> s) & 1 ? 2 : 0; } return p.map((r) => r.map((x) => '.oxX'[x]).join('')).join('|'); })();
+    if (variants.v1 !== v1Expected) fails.push('formato v1');
+    if (variants.zzz !== 'vale lo guardado (House)') fails.push('código corrupto');
+    if (variants.rest.lcd.slice(0, 3).join('|') !== '180 bpm|70% swing|Do m') fails.push('recortes');
+    if (oSearch.includes('beat=')) hallazgos.push('C-STU-02');
+    ev.push(`los parámetros se quedan en la URL tras cargar: ${oSearch.includes('beat=')} (C-STU-02; la consecuencia se mide en R-STU-17)`);
+    ev.push(sum(issues, blocked));
+    if (fails.length) await snap(v.page, `R-STU-16-${vp}`);
+    await v.context.close();
+    await context.close();
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; '), hallazgos: hallazgos.join(', ') };
+  },
+});
+
+// ---------------- R-STU-17 ----------------
+cases.push({
+  id: 'R-STU-17',
+  vps: BOTH,
+  fn: async ({ browser, vp, origin }) => {
+    const ev = [];
+    const fails = [];
+    const hallazgos = [];
+    const { page, issues, blocked, context } = await open(browser, vp, origin);
+    await gotoStudio(page, origin);
+    // 1. Editar todo
+    await press(vp, page.locator('.mesa-presets .chip', { hasText: 'Drill' }));
+    await press(vp, cell(page, 'Diana', 9));
+    await page.locator('input[aria-label="Tempo en pulsos por minuto"]').focus(); await page.keyboard.press('ArrowLeft');
+    await page.locator('input[aria-label="Cantidad de swing"]').focus(); await page.keyboard.press('ArrowRight');
+    await page.selectOption('.pads-tono select', 'mi');
+    await press(vp, page.locator('button.pista-nombre', { hasText: 'Caja' }));
+    if (vp === 'escritorio') { await page.locator('input[aria-label="Volumen de Tom"]').focus(); await page.keyboard.press('Home'); }
+    await press(vp, page.locator('button.pista-solo[aria-label="Solo de Hi-hat"]'));
+    await page.locator('input[aria-label="Volumen general"]').focus(); await page.keyboard.press('Home');
+    await press(vp, page.locator('.pads-bancos .chip', { hasText: 'Efectos' }));
+    await press(vp, page.locator('.mesa-rec'));
+    const snapState = async () => ({
+      grid: gridToRows(await readGrid(page)),
+      info: await mesaInfo(page),
+      mudas: await page.locator('button.pista-nombre').evaluateAll((b) => b.map((x) => x.getAttribute('aria-pressed')).join(',')),
+      solos: await page.locator('button.pista-solo').evaluateAll((b) => b.map((x) => x.getAttribute('aria-pressed')).join(',')),
+      niveles: await page.locator('.pista-nivel').evaluateAll((b) => b.map((x) => x.value).join(',')),
+      bank: await page.locator('.pads-bancos .chip.is-on').textContent(),
+      rec: await page.locator('.mesa-rec').getAttribute('aria-pressed'),
+    });
+    const edited = await snapState();
+    // 2. Otra ruta y volver (navegación de la SPA)
+    await press(vp, page.locator('a.navbar-brand'));
+    await page.waitForURL(`${origin}/`);
+    await sleep(300);
+    await page.evaluate(() => { history.pushState({}, '', '/estudio'); dispatchEvent(new PopStateEvent('popstate')); });
+    await page.waitForSelector('.mesa-play');
+    const back = await snapState();
+    await page.reload(); await page.waitForSelector('.mesa-play');
+    const reloaded = await snapState();
+    const same = (a) => a.grid === edited.grid && a.info.ranges[0] === edited.info.ranges[0] && a.info.ranges[1] === edited.info.ranges[1] && a.info.tono === 'mi' && a.mudas === edited.mudas && a.niveles === edited.niveles;
+    const notKept = (a) => !a.solos.includes('true') && a.info.ranges[2] === '0.85' && a.bank === 'Batería' && a.rec === 'false';
+    // 4. JSON corrupto
+    await page.evaluate(() => localStorage.setItem('rocky-mesa-beats', '{no es json'));
+    await page.reload(); await page.waitForSelector('.mesa-play');
+    const corrupt = await mesaInfo(page);
+    const corruptGrid = gridToRows(await readGrid(page));
+    const errsCorrupt = issues.pageErrors.length;
+    // 6. Enlace, editar y recargar (C-STU-02)
+    await gotoStudio(page, origin, `?beat=${presetCode('house')}&bpm=124&swing=0&tono=do`);
+    await press(vp, page.locator('button', { hasText: 'Sorpréndeme' }));
+    await page.locator('input[aria-label="Tempo en pulsos por minuto"]').focus(); await page.keyboard.press('Home');
+    const editedLink = { grid: gridToRows(await readGrid(page)), saved: await readSaved(page) };
+    await page.reload(); await page.waitForSelector('.mesa-play');
+    const afterLink = { grid: gridToRows(await readGrid(page)), info: await mesaInfo(page) };
+    ev.push(`editado: tempo ${edited.info.ranges[0]}, swing ${edited.info.ranges[1]}, tono ${edited.info.tono}, silencios ${edited.mudas}, niveles ${edited.niveles}`);
+    ev.push(`vuelta por la SPA: igual=${same(back)}, no vuelven solos/volumen/banco/REC=${notKept(back)}; tras recargar: igual=${same(reloaded)}, no vuelven=${notKept(reloaded)}`);
+    ev.push(`JSON corrupto → ${corrupt.lcd.slice(0, 3).join(' / ')}, rejilla Boom bap=${corruptGrid === rowsOf('boombap')}, errores de página ${errsCorrupt}`);
+    ev.push(`enlace + edición (guardado en localStorage bpm=${editedLink.saved?.bpm}) y recarga: la URL sigue con ?beat=… y la mesa vuelve a House 124 (rejilla House=${afterLink.grid === rowsOf('house')}, tempo ${afterLink.info.ranges[0]}); edición perdida=${afterLink.grid !== editedLink.grid}`);
+    if (!same(back) || !notKept(back) || !same(reloaded) || !notKept(reloaded)) fails.push('recuperación');
+    if (corrupt.lcd.slice(0, 3).join('|') !== '92 bpm|24% swing|Do m' || corruptGrid !== rowsOf('boombap') || errsCorrupt) fails.push('JSON corrupto');
+    const c02 = afterLink.grid === rowsOf('house') && afterLink.info.ranges[0] === '124' && editedLink.saved?.bpm === 60;
+    if (c02) { fails.push('tras abrir un enlace, recargar descarta lo editado porque ?beat=… sigue en la URL (C-STU-02)'); hallazgos.push('C-STU-02'); }
+    ev.push(sum(issues, blocked));
+    if (fails.length) await snap(page, `R-STU-17-${vp}`);
+    await context.close();
+    // 5. Almacenamiento bloqueado
+    const bl = await open(browser, vp, origin, { initScripts: [() => { Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('bloqueado', 'SecurityError'); } }); }] });
+    await gotoStudio(bl.page, origin);
+    await press(vp, bl.page.locator('.mesa-presets .chip', { hasText: 'Trap' }));
+    await press(vp, bl.page.locator('.mesa-play'));
+    await sleep(500);
+    const blLcd = await lcdText(bl.page);
+    await bl.page.reload(); await bl.page.waitForSelector('.mesa-play');
+    const blAfter = await mesaInfo(bl.page);
+    ev.push(`localStorage bloqueado: la mesa suena («${blLcd}»), tras recargar vuelve a ${blAfter.lcd[0]} (no guarda); ${sum(bl.issues, bl.blocked)}`);
+    if (blLcd.trim() !== '▶ PLAY' || blAfter.lcd[0] !== '92 bpm' || bl.issues.pageErrors.length) fails.push('almacenamiento bloqueado');
+    await bl.context.close();
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; '), hallazgos: hallazgos.join(', ') };
+  },
+});
+
+await run('s01-mesa', cases);

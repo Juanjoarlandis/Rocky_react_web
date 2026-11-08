@@ -1,0 +1,49 @@
+// Código de autorización simulado de Customer Accounts.
+// El navegador nunca llega al doble (vive dentro del proceso del servidor), así
+// que el paso «authorize» lo resuelve Playwright: lee la URL de autorización que
+// genera el servidor y emite un código firmado con E2SIM_AUTHZ_KEY que lleva
+// dentro lo que Shopify recordaría (client_id, redirect_uri, code_challenge,
+// nonce y cliente elegido). El endpoint de token del doble lo verifica, exige
+// PKCE S256 y lo acepta una sola vez.
+import crypto from 'node:crypto';
+
+const CODE_TTL_MS = 5 * 60 * 1_000;
+
+function sign(key, data) {
+  return crypto.createHmac('sha256', key).update(data).digest('base64url');
+}
+
+export function signAuthCode(key, { clientId, redirectUri, codeChallenge, nonce, customer, scope }) {
+  if (!key) throw new Error('Falta E2SIM_AUTHZ_KEY para firmar el código de autorización.');
+  const payload = Buffer.from(
+    JSON.stringify({
+      v: 1,
+      cid: clientId,
+      ru: redirectUri,
+      cc: codeChallenge,
+      n: nonce,
+      c: customer,
+      s: scope,
+      exp: Date.now() + CODE_TTL_MS,
+      jti: crypto.randomBytes(12).toString('base64url'),
+    })
+  ).toString('base64url');
+  return `${payload}.${sign(key, payload)}`;
+}
+
+export function verifyAuthCode(key, code) {
+  if (!key || typeof code !== 'string') return null;
+  const [payload, signature, extra] = code.split('.');
+  if (!payload || !signature || extra !== undefined) return null;
+  const expected = Buffer.from(sign(key, payload));
+  const provided = Buffer.from(signature);
+  if (expected.length !== provided.length || !crypto.timingSafeEqual(expected, provided)) {
+    return null;
+  }
+  try {
+    const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    return decoded?.v === 1 ? decoded : null;
+  } catch {
+    return null;
+  }
+}

@@ -1,0 +1,28 @@
+import { startInstance, launchBrowser, openPage } from '../harness.mjs';
+import { PORT, nightOn, spaGo } from './lib.mjs';
+const inst = await startInstance(PORT);
+const b = await launchBrowser();
+try {
+  for (const vp of ['movil', 'escritorio']) {
+    const { page, context } = await openPage(b, vp, { origin: inst.origin });
+    await page.goto(inst.origin + '/'); await page.waitForTimeout(1300);
+    await nightOn(page, vp);
+    for (const route of ['/', '/no-existe']) {
+      if (route !== '/') await spaGo(page, route);
+      for (const [x, y] of [[30, 300], [340, 600], [100, 200]]) {
+        await page.evaluate(() => document.activeElement?.blur());
+        await page.evaluate(() => { window.__pd = null; window.addEventListener('pointerdown', (e) => { window.__pd = [e.clientX, e.clientY, e.pointerType]; }, { once: true, capture: true }); });
+        if (vp === 'movil') await page.touchscreen.tap(x, y); else await page.mouse.click(x, y);
+        await page.waitForTimeout(150);
+        const r = await page.evaluate((sel) => {
+          const el = document.querySelector(sel);
+          const ae = document.activeElement;
+          const m = document.querySelector('main').getBoundingClientRect();
+          return { at: document.elementFromPoint(...window.__pd.slice(0, 2))?.className?.toString().slice(0, 30), pd: window.__pd, torch: `${el.style.getPropertyValue('--tx')},${el.style.getPropertyValue('--ty')}`, focus: `${ae.tagName}#${ae.id}`, mainCenter: `${Math.round(m.left + m.width / 2)},${Math.round(m.top + m.height / 2)}` };
+        }, route === '/' ? '.uv-oscuridad' : '.notfound-oscuridad');
+        console.log(vp, route, x, y, JSON.stringify(r));
+      }
+    }
+    await context.close();
+  }
+} finally { await b.close(); inst.stop(); }

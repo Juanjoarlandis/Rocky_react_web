@@ -1,0 +1,1022 @@
+// Fichas E2 de cuenta de cliente y Mi Crew (instancia HTTPS 3413/3414):
+// R-NAV-11, R-ACC-03 (HTTP 3413), R-ACC-04..10, R-CREW-09..17 y TECLADO-mi-crew.
+import fs from 'node:fs';
+import {
+  start, sim, hooks, chromium, openPage, createRunner, verdict, check, waitApi, waitStore, noticeText, noticeRole,
+  api, shotE2, sumIssues, sleep, saveJson, variantId, opId, focusDesc, tabs, fmtTabs, stopWait, persistentStore, inspectStore,
+} from './common.mjs';
+
+const R = createRunner('cuenta');
+const VPS = (process.env.E2_VPS || 'escritorio,movil').split(',');
+const ONLY = process.env.E2_ONLY ? new Set(process.env.E2_ONLY.split(',')) : null;
+const want = (id) => !ONLY || ONLY.has(id);
+const nb = (s) => String(s ?? '').replace(/ /g, ' ').replace(/\s+/g, ' ').trim();
+const extra = { unexpected: {} };
+let S;
+let browser;
+let storeEnv;
+
+const LOGIN = '/api/shopify/account/login?returnPath=%2Fmi-crew';
+
+async function startS(keep = false) {
+  S = await start(3413, { ...storeEnv }, { https: true, httpsPort: 3414, keepObs: keep });
+  return S;
+}
+
+async function seed(context, lines) {
+  for (const [alias, quantity] of lines) {
+    await context.request.post(`${S.origin}/api/shopify/cart/lines`, { headers: { Origin: S.origin }, data: { variantId: variantId(alias), quantity, operationId: opId() } });
+  }
+}
+
+async function loginDirect(page) {
+  const cbP = page.waitForResponse((r) => r.url().includes('/api/shopify/account/callback'), { timeout: 15_000 });
+  await page.goto(`${S.origin}${LOGIN}`);
+  const cb = await cbP;
+  await page.waitForURL(`${S.origin}/mi-crew`, { timeout: 15_000 });
+  await waitStore(page);
+  return cb;
+}
+
+async function account(context) {
+  const r = await context.request.get(`${S.origin}/api/shopify/account`);
+  return { status: r.status(), json: await r.json().catch(() => null) };
+}
+
+async function crewProfile(context) {
+  return (await (await context.request.get(`${S.origin}/api/shopify/account/crew`)).json()).profile;
+}
+
+const sessionCookie = async (context) => (await context.cookies()).find((c) => c.name === 'rocky_session')?.value || null;
+
+async function accountEntry(page, vp) {
+  if (vp === 'movil') {
+    if (!(await page.locator('.navbar-sheet').count())) await page.locator('.navbar-menu').click();
+    const el = page.locator('.navbar-sheet-account');
+    await el.waitFor();
+    return el;
+  }
+  return page.locator('.navbar-links .navbar-account');
+}
+
+async function entryInfo(page, vp) {
+  const el = await accountEntry(page, vp);
+  const info = await el.evaluate((a) => ({
+    tag: a.tagName,
+    href: a.getAttribute('href'),
+    cls: a.className,
+    aria: a.getAttribute('aria-label'),
+    title: a.getAttribute('title'),
+    text: a.textContent.trim(),
+    imgAlt: a.querySelector('img')?.getAttribute('alt') ?? null,
+    imgSrc: a.querySelector('img')?.getAttribute('src')?.split('/').pop() || null,
+    after: getComputedStyle(a, '::after').content,
+    html: a.outerHTML,
+  }));
+  if (vp === 'movil') await page.locator('.navbar-menu').click();
+  return info;
+}
+
+async function pageText(page) {
+  return nb(await page.locator('body').innerText());
+}
+
+async function pass(vp) {
+  storeEnv = persistentStore(`cuenta-${vp}`);
+  await startS();
+  const desk = vp === 'escritorio';
+  const passStart = Date.now();
+  const stash = {};
+
+  // ACC-05 paso 5 (sólo escritorio): estado OAuth que se dejará caducar
+  let late = null;
+  if (desk && want('R-ACC-05')) {
+    const c = await openPage(browser, S, { viewportName: vp });
+    const r = await c.context.request.get(`${S.origin}${LOGIN}`, { maxRedirects: 0 });
+    const loc = r.headers().location;
+    const cb = sim.authorizeRedirect(S, loc, { customer: 'ana' });
+    late = { ctx: c, callback: cb.location, at: Date.now() };
+  }
+
+  // Sesión que se usará para R-ACC-08 (sin tocarla hasta entonces) y R-ACC-10
+  const C2 = await openPage(browser, S, { viewportName: vp, customer: 'nuria' });
+  await loginDirect(C2.page);
+  const c2LastProfile = Date.now();
+
+  // ------------------------------------------------------------ R-NAV-11 (sin sesión) + R-CREW-09
+  let nav11 = {};
+  if (want('R-NAV-11')) {
+    const C0 = await openPage(browser, S, { viewportName: vp });
+    await C0.page.goto(`${S.origin}/`);
+    await waitStore(C0.page);
+    await sleep(300);
+    nav11.anon = await entryInfo(C0.page, vp);
+    const docs = [];
+    C0.page.on('request', (r) => { if (r.isNavigationRequest()) docs.push(new URL(r.url()).pathname + new URL(r.url()).search); });
+    const sheetBefore = vp === 'movil';
+    const el = await accountEntry(C0.page, vp);
+    await el.click();
+    await C0.page.waitForURL(`${S.origin}/mi-crew`, { timeout: 15_000 });
+    await waitStore(C0.page);
+    nav11.clickDocs = docs.slice(0, 3);
+    nav11.sheetBefore = sheetBefore;
+    // Con sesión (el clic ha completado el login simulado)
+    await C0.page.goto(`${S.origin}/`);
+    await waitStore(C0.page);
+    await sleep(300);
+    nav11.logged = await entryInfo(C0.page, vp);
+    const navDocs = [];
+    C0.page.on('framenavigated', (f) => { if (f === C0.page.mainFrame()) navDocs.push(f.url()); });
+    const docReqs = [];
+    C0.page.on('request', (r) => { if (r.isNavigationRequest()) docReqs.push(r.url()); });
+    const el2 = await accountEntry(C0.page, vp);
+    await el2.click();
+    await C0.page.waitForURL(`${S.origin}/mi-crew`);
+    await sleep(300);
+    nav11.loggedClick = { docReqs: docReqs.length, url: C0.page.url() };
+    // Con GET /api/shopify/account fallando
+    await C0.context.route('**/api/shopify/account', (route) => route.fulfill({ status: 502, contentType: 'application/json', body: '{"message":"No se ha podido conectar con Shopify.","code":"NETWORK_ERROR"}' }));
+    await C0.page.goto(`${S.origin}/`);
+    await waitStore(C0.page);
+    await sleep(300);
+    nav11.failing = await entryInfo(C0.page, vp);
+    nav11.issues = sumIssues(C0.issues, C0.routes);
+    await C0.context.close();
+    await R.run('R-NAV-11', vp, async () => {
+      const a = nav11.anon;
+      const l = nav11.logged;
+      const f = nav11.failing;
+      const pii = /Ana|Prueba|example\.test|7035000/i.test(l.html);
+      const checks = [
+        check(a.tag === 'A' && a.href === LOGIN && !/is-active/.test(a.cls), `sin sesión: <${a.tag.toLowerCase()} href="${a.href}"> «${a.text}»`),
+        check(nav11.clickDocs[0] === LOGIN, `al pulsar: navegación completa a ${nav11.clickDocs.join(' → ')}`),
+        check(l.tag === 'A' && l.href === '/mi-crew' && l.aria === 'Mi Crew' && l.title === 'Mi Crew' && l.imgAlt === '' && !pii, `con sesión: NavLink a ${l.href} aria-label «${l.aria}» title «${l.title}» avatar ${l.imgSrc} alt="${l.imgAlt}"; sin nombre ni email: ${!pii}`),
+        check(vp === 'movil' ? /Mi Crew/.test(l.after) && l.text === '' : true, vp === 'movil' ? `en la hoja el texto lo pone el CSS: ::after ${l.after}` : 'escritorio: sólo avatar'),
+        check(nav11.loggedClick.docReqs === 0 && nav11.loggedClick.url.endsWith('/mi-crew'), `pulsarlo con sesión → ${nav11.loggedClick.url} sin recargar (${nav11.loggedClick.docReqs} navegaciones de documento)`),
+        check(f.href === '/mi-crew' && f.text === 'Mi Crew' && !f.aria, `con GET /account fallando: enlace interno ${f.href} «${f.text}» (como en E1)`),
+      ];
+      return verdict(checks, { notes: [nav11.issues] });
+    });
+  }
+
+  if (want('R-CREW-09')) await R.run('R-CREW-09', vp, async () => {
+    const C = await openPage(browser, S, { viewportName: vp });
+    const crewReqs = [];
+    C.page.on('request', (r) => { if (r.url().includes('/api/shopify/account/crew')) crewReqs.push(r.url()); });
+    // La cuenta tarda un poco (como con Shopify real) para ver los primeros instantes
+    await C.context.route('**/api/shopify/account', async (route) => { await sleep(700); await route.continue(); });
+    await C.page.goto(`${S.origin}/mi-crew`, { waitUntil: 'commit' });
+    const states = [];
+    const t0 = Date.now();
+    while (Date.now() - t0 < 6000) {
+      const s = await C.page.evaluate(() => (document.querySelector('.crew-gate-button') ? 'botón «Entrar en la Crew»' : document.querySelector('.crew-gate-status') ? 'aviso de vista previa' : document.querySelector('.crew-profile-page') ? 'otra' : '(cargando)')).catch(() => '(navegando)');
+      if (states.at(-1) !== s) states.push(s);
+      if (s.startsWith('botón')) break;
+      await sleep(40);
+    }
+    const href = await C.page.locator('.crew-gate-button').getAttribute('href');
+    const menu = await entryInfo(C.page, vp);
+    const apiR = await C.context.request.get(`${S.origin}/api/shopify/account/crew`);
+    const apiText = await apiR.text();
+    const checks = [
+      check(states.at(-1) === 'botón «Entrar en la Crew»', `primeros instantes: ${states.join(' → ')}`),
+      check(href === LOGIN, `«Entrar en la Crew» → ${href}`),
+      check(menu.tag === 'A' && menu.href === LOGIN, `«Mi Crew» del menú: <a href="${menu.href}">`),
+      check(crewReqs.length === 0, `peticiones de perfil: ${crewReqs.length}`),
+      check(apiR.status() === 401 && apiText === '{"message":"Inicia sesión para entrar en tu perfil Crew.","code":"CREW_AUTH_REQUIRED"}', `GET /api/shopify/account/crew sin sesión → ${apiR.status()} ${apiText}`),
+    ];
+    const sawPreview = states.includes('aviso de vista previa');
+    const v = verdict(checks, { notes: [sumIssues(C.issues, C.routes)], hallazgos: sawPreview ? ['C-CHAT-18'] : [] });
+    if (sawPreview) stash.crew09Preview = states.join(' → ');
+    await C.context.close();
+    return v;
+  });
+
+  // ------------------------------------------------------------ R-ACC-04
+  const C1 = await openPage(browser, S, { viewportName: vp });
+  if (want('R-ACC-04')) await R.run('R-ACC-04', vp, async () => {
+    await seed(C1.context, [['rocky-racing/M', 1]]);
+    const v0 = await sessionCookie(C1.context);
+    const pre = await C1.context.request.get(`${S.origin}${LOGIN}`, { maxRedirects: 0 });
+    const loc = new URL(pre.headers().location);
+    const q = Object.fromEntries(loc.searchParams);
+    await C1.page.goto(`${S.origin}/`);
+    await waitStore(C1.page);
+    const entry = await entryInfo(C1.page, vp);
+    const cbP = C1.page.waitForResponse((r) => r.url().includes('/api/shopify/account/callback'), { timeout: 15_000 });
+    const loginReq = C1.page.waitForRequest((r) => r.url().includes('/api/shopify/account/login'));
+    await (await accountEntry(C1.page, vp)).click();
+    const lr = await loginReq;
+    const cb = await cbP;
+    stash.callbackUrl = cb.url();
+    const cbLoc = cb.headers().location;
+    const cbCookie = await cb.headerValue('set-cookie');
+    await C1.page.waitForURL(`${S.origin}/mi-crew`, { timeout: 15_000 });
+    await waitStore(C1.page);
+    await sleep(500);
+    const v1 = await sessionCookie(C1.context);
+    const acc = await account(C1.context);
+    const entry2 = await entryInfo(C1.page, vp);
+    const cart = await (await C1.context.request.get(`${S.origin}/api/shopify/cart`)).json();
+    const checks = [
+      check(entry.tag === 'A' && entry.href === LOGIN, `«Mi Crew» antes: <a href="${entry.href}"> (navegación completa: ${lr.isNavigationRequest()})`),
+      check(pre.status() === 302 && loc.origin === 'https://shopify.com' && q.client_id === S.customerClientId && q.redirect_uri === `${S.origin}/api/shopify/account/callback` && q.code_challenge_method === 'S256' && q.code_challenge && q.state && q.nonce && /openid/.test(q.scope) && q.response_type === 'code', `login → ${pre.status()} a ${loc.origin}${loc.pathname} con ${Object.keys(q).join(', ')} (scope «${q.scope}», S256)`),
+      check(cb.status() === 302 && cbLoc === '/mi-crew' && /rocky_session=/.test(cbCookie || '') && v1 && v1 !== v0, `callback → ${cb.status()} ${cbLoc}; cookie rotada: ${v0 && v1 && v1 !== v0}`),
+      check(acc.json?.loggedIn === true, `GET /account → loggedIn ${acc.json?.loggedIn}`),
+      check(entry2.aria === 'Mi Crew' && entry2.href === '/mi-crew' && entry2.imgSrc, `después: avatar ${entry2.imgSrc} enlazado a ${entry2.href} (aria-label «${entry2.aria}»)`),
+      check(cart.cart?.lines?.length === 1, `el carrito de antes sigue: ${cart.cart?.lines?.map((l) => `${l.variant.product.title} ${l.variant.title}`).join(', ')}`),
+    ];
+    return verdict(checks, { notes: [sumIssues(C1.issues, C1.routes)] });
+  });
+
+  // ------------------------------------------------------------ R-ACC-07
+  if (want('R-ACC-07')) await R.run('R-ACC-07', vp, async () => {
+    const before = S.calls((c) => c.service === 'customer-account' && String(c.op).startsWith('graphql')).length;
+    const rp = waitApi(C1.page, '/api/shopify/account');
+    await C1.page.goto(`${S.origin}/`);
+    const res = await rp;
+    const body = await res.json();
+    await waitStore(C1.page);
+    await C1.page.reload();
+    await waitStore(C1.page);
+    const after = S.calls((c) => c.service === 'customer-account' && String(c.op).startsWith('graphql')).length;
+    const entry = await entryInfo(C1.page, vp);
+    // Refresco del token: un cliente cuyo token vence en 31 s
+    S.setControl({ customerAccount: { tokenExpiresIn: 20 } });
+    const tokensBefore = S.calls((c) => c.service === 'customer-account' && c.op === 'token:refresh_token').length;
+    const Cr = await openPage(browser, S, { viewportName: vp, customer: 'leo' });
+    await loginDirect(Cr.page);
+    S.resetControl();
+    await sleep(1500);
+    // Con 20 s de vida, el primer perfil tras el login ya exige refrescar
+    const leoAcc = await account(Cr.context);
+    const tokenCalls = S.calls((c) => c.service === 'customer-account' && c.op === 'token:refresh_token').slice(tokensBefore);
+    stash.leoName = (await crewProfile(Cr.context))?.displayName;
+    await Cr.context.close();
+    const c = body.customer || {};
+    const checks = [
+      check(res.status() === 200 && body.loggedIn === true && /^gid:\/\/shopify\/Customer\//.test(c.id) && 'email' in c && 'displayName' in c && 'firstName' in c && 'lastName' in c, `GET /account → ${res.status()} {loggedIn, customer:{${Object.keys(c).join(', ')}}} con id GID y email (${c.email ? 'presente' : 'vacío'})`),
+      check(entry.aria === 'Mi Crew' && entry.title === 'Mi Crew' && entry.href === '/mi-crew', `barra (${vp}): avatar ${entry.imgSrc} → ${entry.href}, aria-label/title «${entry.aria}»`),
+      check(after - before <= 1, `dos cargas seguidas → ${after - before} consulta(s) GraphQL de perfil (caché de 60 s)`),
+      check(leoAcc.json?.loggedIn === true && tokenCalls.length >= 1, `token con < 30 s de vida → refresco antes del perfil: ${tokenCalls.length} llamada(s) al endpoint de token (${tokenCalls.map((t) => `${t.op} ${t.status ?? ''}`).join(', ')}); loggedIn ${leoAcc.json?.loggedIn}`),
+    ];
+    return verdict(checks, { notes: [`leo (displayName = email) se muestra como «${stash.leoName}»`], hallazgos: ['C-CART-07'] });
+  });
+
+  // ------------------------------------------------------------ R-CREW-10
+  if (want('R-CREW-10')) await R.run('R-CREW-10', vp, async () => {
+    const crewReqs = [];
+    const onReq = (r) => { if (r.url().endsWith('/api/shopify/account/crew')) crewReqs.push(Date.now()); };
+    C1.page.on('request', onReq);
+    await C1.context.route('**/api/shopify/account/crew', async (route) => { await sleep(900); await route.continue(); });
+    await C1.page.goto(`${S.origin}/mi-crew`, { waitUntil: 'commit' });
+    let loadingText = null;
+    let loadingLive = null;
+    const t0 = Date.now();
+    while (Date.now() - t0 < 8000) {
+      const s = await C1.page.evaluate(() => { const l = document.querySelector('.crew-profile-loading'); return l ? { t: (l.querySelector('p')?.textContent || '').trim(), live: l.getAttribute('aria-live') } : null; }).catch(() => null);
+      if (s && !loadingText) { loadingText = s.t; loadingLive = s.live; }
+      if (await C1.page.locator('.crew-profile-header').count()) break;
+      await sleep(40);
+    }
+    await C1.context.unroute('**/api/shopify/account/crew');
+    await sleep(300);
+    const reqs1 = crewReqs.length;
+    const t = await pageText(C1.page);
+    const card = await C1.page.evaluate(() => ({
+      kicker: document.querySelector('.crew-profile-header .crew-kicker')?.textContent.trim(),
+      name: document.querySelector('.crew-profile-header h1')?.textContent.trim(),
+      logout: document.querySelector('.crew-logout')?.textContent.trim(),
+      avatarAlt: document.querySelector('.crew-current-avatar img')?.getAttribute('alt'),
+      level: document.querySelector('.crew-id-card__level')?.textContent.trim(),
+      pieces: document.querySelector('.crew-id-card p')?.textContent.trim(),
+      xp: document.querySelector('.crew-progress-copy strong')?.textContent.trim(),
+      bar: document.querySelector('[role=progressbar]')?.getAttribute('aria-valuenow'),
+      next: document.querySelector('.crew-progress-panel > p')?.textContent.trim(),
+      stats: [...document.querySelectorAll('.crew-stat strong')].map((s) => s.textContent.trim()),
+      avatars: [...document.querySelectorAll('.crew-section:not(.crew-ticket-shop) .crew-reward-card')].map((c) => `${c.querySelector('h3').textContent.trim()}: ${(c.querySelector('.crew-reward-state, button')?.textContent || '').trim()}`),
+      shopBalance: document.querySelector('.crew-ticket-shop .crew-section-heading p')?.textContent.trim(),
+      shop: [...document.querySelectorAll('.crew-ticket-shop .crew-reward-card')].map((c) => `${c.querySelector('h3').textContent.trim()}: ${(c.querySelector('.crew-reward-state, button')?.textContent || '').trim()}`),
+      history: document.querySelector('.crew-empty-history')?.textContent.trim(),
+    }));
+    const navEntry = await entryInfo(C1.page, vp);
+    // Recarga: otra vez una sola petición
+    const before = crewReqs.length;
+    const mt0 = fs.statSync(storeEnv.STATE_STORE_PATH).mtimeMs;
+    await C1.page.reload();
+    await C1.page.locator('.crew-profile-header').waitFor({ timeout: 15_000 });
+    await sleep(500);
+    const reqs2 = crewReqs.length - before;
+    const mt1 = fs.statSync(storeEnv.STATE_STORE_PATH).mtimeMs;
+    C1.page.off('request', onReq);
+    stash.crew10 = card;
+    const lockedAvatars = card.avatars.filter((a) => /Se abre con \d+ XP/.test(a)).length;
+    const lockedShop = card.shop.filter((a) => /Se abre con \d+ XP/.test(a)).length;
+    const checks = [
+      check(reqs1 === 1 && reqs2 === 1, `peticiones de perfil por carga: ${reqs1} y tras recargar ${reqs2}`),
+      check(loadingText === 'Abriendo tu taquilla de la Crew…' && loadingLive === 'polite', `mientras carga: «${loadingText}» (aria-live=${loadingLive})`),
+      check(card.kicker === 'CARNET OFICIAL · ROCKY 035' && card.name === 'Ana Prueba' && card.logout === 'Salir de la cuenta' && !/example\.test/.test(t), `cabecera «${card.kicker}», «${card.name}», «${card.logout}», sin email en la página`),
+      check(card.avatarAlt === 'Avatar Skater 035' && card.level === 'Recién Llegado' && card.pieces === '1 piezas en la taquilla', `carnet: ${card.avatarAlt}, «${card.level}», «${card.pieces}»`),
+      check(card.xp === '0 / 100 XP' && card.bar === '0' && card.next === 'Siguiente parada: Del Barrio. Te faltan 100 XP.', `escalón «${card.xp}», barra ${card.bar} %, «${card.next}»`),
+      check(card.stats.join('|') === '0 Crew Tickets|0|1', `resumen: ${card.stats.join(' | ')}`),
+      check(card.avatars[0] === 'Skater 035: En uso' && lockedAvatars === 5, `Personajes: ${card.avatars.join('; ')}`),
+      check(card.shopBalance === 'Saldo actual: 0 tickets' && lockedShop === 5, `${card.shopBalance}; tienda: ${card.shop.join('; ')}`),
+      check(card.history === 'Tu primer pedido abrirá esta libreta.', `compras: «${card.history}»`),
+      check(navEntry.aria === 'Mi Crew' && navEntry.imgSrc, `menú: avatar ${navEntry.imgSrc} como enlace «${navEntry.aria}»`),
+    ];
+    const notes = [`C-CHAT-21: el fichero cifrado se reescribe al recargar (mtime ${mt1 > mt0 ? 'cambia' : 'no cambia'})`];
+    if (desk && stash.leoName) notes.push(`cliente sin nombre (leo, displayName = email): «${stash.leoName}»`);
+    stash.mtimeChanged = mt1 > mt0;
+    return verdict(checks, { notes, hallazgos: ['C-CHAT-27', ...(mt1 > mt0 ? ['C-CHAT-21'] : [])] });
+  });
+
+  // ------------------------------------------------------------ R-CREW-15
+  const anaOrder = hooks.buildOrderPaidPayload({ customer: 'ana', lines: [{ variant: 'rocky-racing/M', quantity: 3 }] });
+  if (want('R-CREW-15')) await R.run('R-CREW-15', vp, async () => {
+    const before = await crewProfile(C1.context);
+    const w1 = await hooks.sendShopifyWebhook({ baseUrl: S.httpOrigin, payload: anaOrder, webhookId: `e2-${vp}-orden-1` });
+    await C1.page.goto(`${S.origin}/mi-crew`);
+    await C1.page.locator('.crew-profile-header').waitFor({ timeout: 15_000 });
+    await sleep(300);
+    const p = await C1.page.evaluate(() => ({
+      purchases: [...document.querySelectorAll('.crew-purchase-list article')].map((a) => a.innerText.replace(/\s+/g, ' ').trim()),
+      level: document.querySelector('.crew-id-card__level')?.textContent.trim(),
+      xp: document.querySelector('.crew-progress-copy strong')?.textContent.trim(),
+      bar: document.querySelector('[role=progressbar]')?.getAttribute('aria-valuenow'),
+      tickets: document.querySelector('.crew-stat--tickets strong')?.textContent.trim(),
+      dormido: [...document.querySelectorAll('.crew-reward-card')].find((c) => c.querySelector('h3')?.textContent.trim() === 'El Dormido')?.querySelector('button, .crew-reward-state')?.textContent.trim(),
+    }));
+    const dup = await hooks.sendShopifyWebhook({ baseUrl: S.httpOrigin, payload: anaOrder, webhookId: `e2-${vp}-orden-1` });
+    const dupOrder = await hooks.sendShopifyWebhook({ baseUrl: S.httpOrigin, payload: anaOrder, webhookId: `e2-${vp}-orden-1-bis` });
+    const guest = await hooks.sendShopifyWebhook({ baseUrl: S.httpOrigin, payload: hooks.buildOrderPaidPayload({ customer: null, lines: [{ variant: 'dwag/M', quantity: 2 }] }) });
+    const usd = await hooks.sendShopifyWebhook({ baseUrl: S.httpOrigin, payload: hooks.buildOrderPaidPayload({ customer: 'ana', currency: 'USD', lines: [{ variant: 'dwag/M', quantity: 2 }] }) });
+    const after = await crewProfile(C1.context);
+    const skipped = (S.logText().match(/Shopify order skipped for Crew rewards[^\n]*/g) || []).map((l) => (l.match(/"reason":"([a-z_]+)"/) || [])[1]);
+    const today = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date());
+    let limit = null;
+    if (desk && stash.leoName !== undefined) {
+      // Límite de 12 compras visibles (cliente leo, 13 pedidos de 1 €)
+      for (let i = 0; i < 13; i += 1) {
+        await hooks.sendShopifyWebhook({ baseUrl: S.httpOrigin, payload: hooks.buildOrderPaidPayload({ customer: 'leo', lines: [{ variant: '35-red/Default Title', quantity: 1 }], totalOverride: '1.00', orderNumber: 7000 + i }) });
+      }
+      const Cl = await openPage(browser, S, { viewportName: vp, customer: 'leo' });
+      await loginDirect(Cl.page);
+      await Cl.page.locator('.crew-profile-header').waitFor({ timeout: 15_000 });
+      limit = { shown: await Cl.page.locator('.crew-purchase-list article').count(), xp: (await crewProfile(Cl.context)).xp, name: nb(await Cl.page.locator('.crew-profile-header h1').textContent()) };
+      stash.leoName = limit.name;
+      await Cl.context.close();
+    }
+    const purchase = p.purchases[0] || '';
+    const checks = [
+      check(w1.status === 200 && w1.body.accepted && !w1.body.duplicate, `orders/paid 117 € → ${w1.status} ${JSON.stringify(w1.body)}`),
+      check(after.xp - before.xp === 117 && after.ticketBalance - before.ticketBalance === 11.7, `XP ${before.xp}→${after.xp}, tickets ${before.ticketBalance}→${after.ticketBalance}`),
+      check(purchase.includes(anaOrder.name) && purchase.includes(today) && purchase.includes('RockyRacing') && purchase.includes('+117 XP') && purchase.includes('+11.7 tickets'), `compra: «${purchase}» (fecha esperada «${today}»)`),
+      check(p.level === 'Del Barrio' && p.xp === '117 / 300 XP' && p.dormido === 'Equipar', `escalón «${p.level}» ${p.xp} (barra ${p.bar} %), El Dormido «${p.dormido}»`),
+      check(dup.body.duplicate === true && dupOrder.status === 200 && after.purchases.length === 1, `reenvío mismo webhook → ${JSON.stringify(dup.body)}; otro id del mismo pedido → ${dupOrder.status} sin acreditar (compras ${after.purchases.length})`),
+      check(guest.status === 200 && usd.status === 200 && skipped.includes('missing_customer') && skipped.includes('unsupported_currency') && skipped.includes('duplicate_order'), `invitado → ${guest.status}, USD → ${usd.status}: no se acreditan; log «Shopify order skipped…» con ${skipped.join(', ')}`),
+      check(limit ? limit.shown === 12 && limit.xp === 13 : null, limit ? `13 pedidos (leo) → ${limit.shown} compras visibles, XP ${limit.xp}` : 'límite de 12 compras: comprobado en escritorio'),
+    ];
+    return verdict(checks, { notes: [`tickets con punto decimal en la página: «${p.tickets}»`], hallazgos: ['C-CHAT-20'] });
+  });
+
+  // ------------------------------------------------------------ R-CREW-12
+  if (want('R-CREW-12')) await R.run('R-CREW-12', vp, async () => {
+    await C1.page.goto(`${S.origin}/mi-crew`);
+    await C1.page.locator('.crew-profile-header').waitFor({ timeout: 15_000 });
+    const before = await crewProfile(C1.context);
+    const card = C1.page.locator('.crew-ticket-shop .crew-reward-card', { has: C1.page.locator('h3', { hasText: 'Marco Trazo Rojo' }) });
+    const btn = card.locator('button');
+    const label0 = nb(await btn.textContent());
+    await C1.context.route('**/api/shopify/account/crew/redeem', async (route) => { await sleep(600); await route.continue(); });
+    const reqP = C1.page.waitForRequest((r) => r.url().endsWith('/crew/redeem'));
+    const resP = waitApi(C1.page, '/api/shopify/account/crew/redeem', 'POST');
+    await btn.click();
+    const during = nb(await btn.textContent());
+    const body = (await reqP).postDataJSON();
+    const res = await resP;
+    await C1.context.unroute('**/api/shopify/account/crew/redeem');
+    await sleep(300);
+    const state = await C1.page.evaluate(() => {
+      const c = [...document.querySelectorAll('.crew-ticket-shop .crew-reward-card')].find((x) => x.querySelector('h3')?.textContent.trim() === 'Marco Trazo Rojo');
+      return {
+        stamp: c?.querySelector('.crew-owned-stamp')?.textContent.trim(),
+        action: c?.querySelector('.crew-reward-state, button')?.textContent.trim(),
+        tickets: document.querySelector('.crew-stat--tickets strong')?.textContent.trim(),
+        balance: document.querySelector('.crew-ticket-shop .crew-section-heading p')?.textContent.trim(),
+        frame: document.querySelector('.crew-current-avatar')?.className,
+        collection: [...document.querySelectorAll('.crew-stat strong')][2]?.textContent.trim(),
+        level: document.querySelector('.crew-id-card__level')?.textContent.trim(),
+        xp: [...document.querySelectorAll('.crew-stat strong')][1]?.textContent.trim(),
+      };
+    });
+    await C1.page.reload();
+    await C1.page.locator('.crew-profile-header').waitFor({ timeout: 15_000 });
+    const afterReload = await crewProfile(C1.context);
+    // Avatar canjeado: tras otro pedido, Ollie (12 tickets) aparece en «Personajes»
+    await hooks.sendShopifyWebhook({ baseUrl: S.httpOrigin, payload: hooks.buildOrderPaidPayload({ customer: 'ana', lines: [{ variant: 'flora-blue/M', quantity: 6 }] }), webhookId: `e2-${vp}-orden-2` });
+    await C1.page.reload();
+    await C1.page.locator('.crew-profile-header').waitFor({ timeout: 15_000 });
+    const ollieShop = C1.page.locator('.crew-ticket-shop .crew-reward-card', { has: C1.page.locator('h3', { hasText: 'Ollie de la Crew' }) }).locator('button');
+    const ollieWait = waitApi(C1.page, '/api/shopify/account/crew/redeem', 'POST');
+    await ollieShop.click();
+    await ollieWait;
+    await sleep(300);
+    const inPersonajes = await C1.page.evaluate(() => [...document.querySelectorAll('.crew-section:not(.crew-ticket-shop) .crew-reward-card h3')].map((h) => h.textContent.trim()));
+    stash.afterCrew12 = await crewProfile(C1.context);
+    const checks = [
+      check(label0 === '5 tickets', `botón «${label0}»`),
+      check(during === 'Canjeando…' && res.status() === 200 && /^[0-9a-f-]{36}$/.test(body.operationId) && body.rewardId === 'frame-red-squiggle', `al pulsar «${during}»; POST {rewardId: ${body.rewardId}, operationId: UUID} → ${res.status()}`),
+      check(Math.round((before.ticketBalance - afterReload.ticketBalance) * 10) === 50 && state.tickets === `${afterReload.ticketBalance} Crew Tickets` && state.balance === `Saldo actual: ${afterReload.ticketBalance} tickets`, `saldo ${before.ticketBalance} → ${afterReload.ticketBalance} («${state.tickets}», «${state.balance}»)`),
+      check(state.stamp === 'TUYO' && state.action === 'En uso' && /frame-red-squiggle/.test(state.frame), `tarjeta «${state.stamp}» y «${state.action}»; carnet ${state.frame}`),
+      check(Number(state.collection) === before.collectionCount + 1 && afterReload.xp === before.xp && afterReload.level.name === before.level.name, `colección ${before.collectionCount}→${state.collection}; XP ${before.xp}→${afterReload.xp} y nivel «${afterReload.level.name}» sin cambios`),
+      check(afterReload.equippedFrameId === 'frame-red-squiggle', `tras recargar sigue: marco ${afterReload.equippedFrameId}`),
+      check(inPersonajes.includes('Ollie de la Crew'), `avatar canjeado (Ollie) aparece en «Personajes»: ${inPersonajes.join(', ')}`),
+    ];
+    return verdict(checks, { notes: ['la actividad «Canjeaste …» no se muestra en la página (por código)'] });
+  });
+
+  // ------------------------------------------------------------ R-CREW-11
+  if (want('R-CREW-11')) await R.run('R-CREW-11', vp, async () => {
+    await C1.page.goto(`${S.origin}/mi-crew`);
+    await C1.page.locator('.crew-profile-header').waitFor({ timeout: 15_000 });
+    const navBefore = (await entryInfo(C1.page, vp)).imgSrc;
+    const dormBtn = C1.page.locator('.crew-section:not(.crew-ticket-shop) .crew-reward-card', { has: C1.page.locator('h3', { hasText: 'El Dormido' }) }).locator('button');
+    await C1.context.route('**/api/shopify/account/crew/avatar', async (route) => { await sleep(600); await route.continue(); });
+    const w = waitApi(C1.page, '/api/shopify/account/crew/avatar', 'PATCH');
+    await dormBtn.click();
+    const during = { t: nb(await dormBtn.textContent()), d: await dormBtn.isDisabled() };
+    await w;
+    await C1.context.unroute('**/api/shopify/account/crew/avatar');
+    await sleep(300);
+    const dormState = nb(await C1.page.locator('.crew-section:not(.crew-ticket-shop) .crew-reward-card', { has: C1.page.locator('h3', { hasText: 'El Dormido' }) }).locator('.crew-reward-state, button').textContent());
+    const carnet = await C1.page.locator('.crew-current-avatar img').getAttribute('alt');
+    const navAfter = (await entryInfo(C1.page, vp)).imgSrc;
+    await C1.page.reload();
+    await C1.page.locator('.crew-profile-header').waitFor({ timeout: 15_000 });
+    const carnetReload = await C1.page.locator('.crew-current-avatar img').getAttribute('alt');
+    // Marcos: canjear Tinta Azul (necesita 300 XP y 9 tickets) y alternar
+    const prof = await crewProfile(C1.context);
+    let blue = null;
+    if (prof.xp >= 300 && prof.ticketBalance >= 9) {
+      const bb = C1.page.locator('.crew-ticket-shop .crew-reward-card', { has: C1.page.locator('h3', { hasText: 'Marco Tinta Azul' }) }).locator('button');
+      const wb = waitApi(C1.page, '/api/shopify/account/crew/redeem', 'POST');
+      await bb.click();
+      await wb;
+      await sleep(300);
+      const style = () => C1.page.locator('.crew-current-avatar').evaluate((e) => { const s = getComputedStyle(e); return { cls: e.className.replace('crew-current-avatar', '').trim(), border: `${s.borderTopStyle} ${s.borderTopWidth} ${s.borderTopColor}`, outline: `${s.outlineStyle} ${s.outlineWidth}`, shadow: s.boxShadow.slice(0, 80) }; });
+      const blueStyle = await style();
+      const baseStyle = await C1.page.locator('.crew-current-avatar').evaluate((e) => { const d = document.createElement('div'); d.className = 'crew-current-avatar'; e.parentElement.appendChild(d); const s = getComputedStyle(d); const out = { border: `${s.borderTopStyle} ${s.borderTopWidth} ${s.borderTopColor}`, outline: `${s.outlineStyle} ${s.outlineWidth}`, shadow: s.boxShadow.slice(0, 80) }; d.remove(); return out; });
+      const redBtn = C1.page.locator('.crew-ticket-shop .crew-reward-card', { has: C1.page.locator('h3', { hasText: 'Marco Trazo Rojo' }) }).locator('button');
+      const wr = waitApi(C1.page, '/api/shopify/account/crew/avatar', 'PATCH');
+      await redBtn.click();
+      await wr;
+      await sleep(300);
+      const redStyle = await style();
+      const unequip = await C1.page.locator('button', { hasText: /Quitar|Sin marco/i }).count();
+      blue = { blueStyle, redStyle, baseStyle, unequip, sample: await C1.page.locator('.crew-frame-sample--frame-blue-ink').evaluate((e) => getComputedStyle(e).borderTopStyle + ' ' + getComputedStyle(e).borderTopColor).catch(() => null) };
+    }
+    // Error del servidor al equipar
+    await C1.context.route('**/api/shopify/account/crew/avatar', (route) => route.fulfill({ status: 409, contentType: 'application/json', body: '{"message":"Primero tienes que desbloquear esta pieza.","code":"REWARD_NOT_OWNED"}' }));
+    const anyEquip = C1.page.locator('button[aria-label^="Equipar"]').first();
+    let errShown = null;
+    if (await anyEquip.count()) {
+      await anyEquip.click();
+      await C1.page.locator('.crew-profile-error').waitFor({ timeout: 5000 });
+      errShown = { t: nb(await C1.page.locator('.crew-profile-error').textContent()), role: await C1.page.locator('.crew-profile-error').getAttribute('role') };
+    }
+    await C1.context.unroute('**/api/shopify/account/crew/avatar');
+    const sameBlueAsNone = blue && blue.blueStyle.border === blue.baseStyle.border && blue.blueStyle.shadow === blue.baseStyle.shadow && blue.blueStyle.outline === blue.baseStyle.outline;
+    const checks = [
+      check(during.t === 'Guardando…' && during.d, `«Equipar» El Dormido → «${during.t}» deshabilitado=${during.d}`),
+      check(dormState === 'En uso' && carnet === 'Avatar El Dormido' && navAfter !== navBefore, `tarjeta «${dormState}», carnet «${carnet}», menú ${navBefore} → ${navAfter} sin recargar`),
+      check(carnetReload === 'Avatar El Dormido', `tras recargar: «${carnetReload}»`),
+      check(blue ? /double/.test(blue.redStyle.border) || /double/.test(blue.redStyle.outline) || blue.redStyle.shadow !== 'none' : null, blue ? `Marco Trazo Rojo: ${JSON.stringify(blue.redStyle)}` : 'marcos: sin XP/tickets suficientes'),
+      check(null, blue ? `Marco Tinta Azul equipado: ${JSON.stringify(blue.blueStyle)} = carnet sin marco ${JSON.stringify(blue.baseStyle)}: ${sameBlueAsNone}; muestra de la tienda ${blue.sample}` : ''),
+      check(blue ? blue.unequip === 0 : null, blue ? `no hay forma de quitar el marco (botones «Quitar/Sin marco»: ${blue.unequip})` : ''),
+      check(errShown?.role === 'alert' && errShown.t === 'Primero tienes que desbloquear esta pieza.', `error del servidor (409 inyectado en el navegador) → aviso role=${errShown?.role} «${errShown?.t}»`),
+    ];
+    return verdict(checks, { hallazgos: ['C-CHAT-16', 'C-CHAT-23'] });
+  });
+
+  // ------------------------------------------------------------ R-CREW-13 (escritorio)
+  if (desk && want('R-CREW-13')) await R.run('R-CREW-13', vp, async () => {
+    await C1.page.goto(`${S.origin}/mi-crew`);
+    await C1.page.locator('.crew-profile-header').waitFor({ timeout: 15_000 });
+    const info = (page, name) => page.evaluate((n) => {
+      const c = [...document.querySelectorAll('.crew-ticket-shop .crew-reward-card')].find((x) => x.querySelector('h3')?.textContent.trim() === n);
+      const b = c?.querySelector('button');
+      return { text: (c?.querySelector('button, .crew-reward-state')?.textContent || '').trim(), disabled: b?.disabled ?? null, aria: b?.getAttribute('aria-label') ?? null };
+    }, name);
+    let prof = await crewProfile(C1.context);
+    // 1. Sin saldo y bloqueada por nivel
+    const poor = prof.rewards.find((r) => r.unlockMode === 'tickets' && !r.owned && !r.locked && r.ticketCost > prof.ticketBalance);
+    const poorUi = poor ? await info(C1.page, poor.name) : null;
+    const freeze = await info(C1.page, 'Freeze 035');
+    // 3 (parte 1). API: sin saldo, bloqueada, de nivel e inexistente
+    const post = (data, headers = { Origin: S.origin }) => C1.context.request.post(`${S.origin}/api/shopify/account/crew/redeem`, { headers, data });
+    const s = async (r) => (r ? `${r.status()} ${await r.text()}` : 'n/a');
+    const bal0 = prof.ticketBalance;
+    const res = {};
+    res.insuff = poor ? await s(await post({ rewardId: poor.id, operationId: opId() })) : 'n/a';
+    res.locked = await s(await post({ rewardId: 'breakdance-freeze', operationId: opId() }));
+    res.lvl = await s(await post({ rewardId: 'skater-head', operationId: opId() }));
+    res.none = await s(await post({ rewardId: 'no-existe', operationId: opId() }));
+    const bal1 = (await crewProfile(C1.context)).ticketBalance;
+    // 2. Dos pestañas (antes, un pedido para tener saldo)
+    await hooks.sendShopifyWebhook({ baseUrl: S.httpOrigin, payload: hooks.buildOrderPaidPayload({ customer: 'ana', lines: [{ variant: 'dwag/L', quantity: 6 }, { variant: 'flora-blue/S', quantity: 1 }] }), webhookId: `e2-${vp}-orden-3` });
+    prof = await crewProfile(C1.context);
+    const target = prof.rewards.find((r) => r.unlockMode === 'tickets' && !r.owned && !r.locked && r.ticketCost <= prof.ticketBalance);
+    await C1.page.reload();
+    await C1.page.locator('.crew-profile-header').waitFor({ timeout: 15_000 });
+    const tab2 = await C1.context.newPage();
+    await tab2.goto(`${S.origin}/mi-crew`);
+    await tab2.locator('.crew-profile-header').waitFor({ timeout: 15_000 });
+    let twoTabs = null;
+    let usedOp = null;
+    let balAfterRedeem = null;
+    if (target) {
+      const b1 = C1.page.locator('.crew-ticket-shop .crew-reward-card', { has: C1.page.locator('h3', { hasText: target.name }) }).locator('button');
+      const rq = C1.page.waitForRequest((r) => r.url().endsWith('/crew/redeem'));
+      const w1 = waitApi(C1.page, '/api/shopify/account/crew/redeem', 'POST');
+      await b1.click();
+      usedOp = (await rq).postDataJSON().operationId;
+      await w1;
+      balAfterRedeem = (await crewProfile(C1.context)).ticketBalance;
+      const staleBefore = nb(await tab2.locator('.crew-stat--tickets strong').textContent());
+      const b2 = tab2.locator('.crew-ticket-shop .crew-reward-card', { has: tab2.locator('h3', { hasText: target.name }) }).locator('button');
+      const w2 = waitApi(tab2, '/api/shopify/account/crew/redeem', 'POST');
+      await b2.click();
+      const r2 = await w2;
+      await tab2.locator('.crew-profile-error').waitFor({ timeout: 5000 });
+      twoTabs = { status: r2.status(), body: await r2.text(), alert: nb(await tab2.locator('.crew-profile-error').textContent()), role: await tab2.locator('.crew-profile-error').getAttribute('role'), stale: nb(await tab2.locator('.crew-stat--tickets strong').textContent()), staleBefore };
+    }
+    await tab2.close();
+    // 3 (parte 2). Mismo operationId
+    res.same = await s(await post({ rewardId: target?.id, operationId: usedOp }));
+    res.other = await s(await post({ rewardId: 'frame-blue-ink', operationId: usedOp }));
+    const bal2 = (await crewProfile(C1.context)).ticketBalance;
+    const checks = [
+      check(poorUi && poorUi.disabled && /^Faltan \d+\.\d$/.test(poorUi.text) && poorUi.aria === `Canjear ${poor.name}`, `sin saldo: ${poor?.name} «${poorUi?.text}» deshabilitado=${poorUi?.disabled}, el lector oye «${poorUi?.aria}»`),
+      check(/^Se abre con 750 XP$/.test(freeze.text) && freeze.disabled === null, `bloqueada por nivel: Freeze 035 «${freeze.text}» sin botón`),
+      check(twoTabs && twoTabs.status === 409 && twoTabs.alert === 'Esta recompensa ya pertenece a tu colección.' && twoTabs.role === 'alert' && twoTabs.stale === twoTabs.staleBefore, `segunda pestaña (${target?.name}) → ${twoTabs?.status} ${twoTabs?.body}; aviso role=${twoTabs?.role} «${twoTabs?.alert}»; su saldo sigue «${twoTabs?.stale}» hasta recargar`),
+      check(res.same.startsWith('200') && bal2 === balAfterRedeem, `mismo operationId y recompensa → ${res.same.slice(0, 16)}… sin cobrar otra vez (saldo ${balAfterRedeem} → ${bal2})`),
+      check(res.other.startsWith('409') && res.other.includes('OPERATION_CONFLICT') && res.other.includes('La operación ya se usó para otro canje.'), `mismo operationId con otra recompensa → ${res.other}`),
+      check(res.lvl.startsWith('404') && res.lvl.includes('REWARD_NOT_FOUND') && res.lvl.includes('La recompensa no se puede canjear.') && res.none.startsWith('404') && res.none.includes('REWARD_NOT_FOUND'), `skater-head → ${res.lvl}; no-existe → ${res.none}`),
+      check(res.locked.startsWith('409') && res.locked.includes('REWARD_LOCKED') && res.locked.includes('Esta recompensa aún está bloqueada.'), `falta XP (Freeze 035) → ${res.locked}`),
+      check(res.insuff.startsWith('409') && res.insuff.includes('INSUFFICIENT_TICKETS'), `sin saldo (${poor?.name}) → ${res.insuff}`),
+      check(bal0 === bal1, `saldo sin cambios en los rechazos: ${bal0} → ${bal1}`),
+    ];
+    return verdict(checks, { hallazgos: ['C-CHAT-19', 'C-CHAT-20'] });
+  });
+
+  // ------------------------------------------------------------ TECLADO-mi-crew (escritorio)
+  if (desk && want('TECLADO')) await R.run('TECLADO-mi-crew', vp, async () => {
+    await C1.page.goto(`${S.origin}/mi-crew`);
+    await C1.page.locator('.crew-profile-header').waitFor({ timeout: 15_000 });
+    await C1.page.locator('.crew-logout').focus();
+    const first = await focusDesc(C1.page);
+    const seq = await tabs(C1.page, 14);
+    const equip = C1.page.locator('button[aria-label^="Equipar"]').first();
+    let afterEquip = null;
+    if (await equip.count()) {
+      await equip.focus();
+      const w = waitApi(C1.page, '/api/shopify/account/crew/avatar', 'PATCH');
+      await C1.page.keyboard.press('Enter');
+      await w;
+      await sleep(300);
+      afterEquip = await focusDesc(C1.page);
+    }
+    const all = [first, ...seq];
+    const invisible = all.filter((f) => !f.visible && f.d !== '<body>');
+    const checks = [
+      check(first.d === 'button«Salir de la cuenta»' && first.visible, `«Salir de la cuenta» con foco visible (${first.outline || first.shadow})`),
+      check(invisible.length === 0, `orden: ${fmtTabs(seq)}`),
+      check(null, `tras «Equipar» con Enter el foco queda en: ${afterEquip?.d}`),
+    ];
+    const lost = afterEquip?.d === '<body>';
+    if (lost) await shotE2(C1.page, 'TECLADO-mi-crew-escritorio');
+    return verdict(checks, { notes: lost ? ['al equipar con teclado la tarjeta pasa a «En uso» y el botón desaparece: el foco cae al body'] : [], hallazgos: ['C-CHAT-19', ...(lost ? ['NUEVO-crew-foco'] : [])] });
+  });
+
+  // ------------------------------------------------------------ R-CREW-14 (API, una vez)
+  if (desk && want('R-CREW-14')) await R.run('R-CREW-14', 'api', async () => {
+    const patch = (data, headers = { Origin: S.origin }) => C1.context.request.patch(`${S.origin}/api/shopify/account/crew/avatar`, { headers, data });
+    const before = await crewProfile(C1.context);
+    const s = async (r) => `${r.status()} ${await r.text()}`;
+    const r1 = await s(await patch({ rewardId: 'dormido-head' }, {}));
+    const r2a = await s(await patch({ rewardId: '' }));
+    const r2b = await s(await patch({ rewardId: 'x'.repeat(101) }));
+    const r2c = await s(await patch({ rewardId: 123 }));
+    const r3 = await s(await patch({ rewardId: 'no-existe' }));
+    const r4 = await s(await patch({ rewardId: 'diana-jefe' }));
+    const anon = await openPage(browser, S, { viewportName: 'escritorio' });
+    const r5 = await s(await anon.context.request.patch(`${S.origin}/api/shopify/account/crew/avatar`, { headers: { Origin: S.origin }, data: { rewardId: 'dormido-head' } }));
+    await anon.context.close();
+    const after = await crewProfile(C1.context);
+    const checks = [
+      check(r1.startsWith('403'), `sin Origin → ${r1}`),
+      check([r2a, r2b, r2c].every((x) => x.startsWith('400') && x.includes('INVALID_REWARD_ID') && x.includes('La recompensa no es válida.')), `"" → ${r2a}; 101 car. → ${r2b.slice(0, 80)}; 123 → ${r2c}`),
+      check(r3.startsWith('404') && r3.includes('REWARD_NOT_FOUND') && r3.includes('La pieza de perfil no existe.'), `no-existe → ${r3}`),
+      check(r4.startsWith('409') && r4.includes('REWARD_NOT_OWNED') && r4.includes('Primero tienes que desbloquear esta pieza.'), `diana-jefe con ${before.xp} XP → ${r4}`),
+      check(r5.startsWith('401') && r5.includes('CREW_AUTH_REQUIRED'), `sin cookie → ${r5}`),
+      check(after.equippedAvatarId === before.equippedAvatarId && after.equippedFrameId === before.equippedFrameId, `perfil sin cambios (avatar ${after.equippedAvatarId}, marco ${after.equippedFrameId})`),
+    ];
+    return verdict(checks);
+  });
+
+  // ------------------------------------------------------------ R-CREW-16
+  if (want('R-CREW-16')) await R.run('R-CREW-16', vp, async () => {
+    await C1.context.route('**/api/shopify/account/crew', (route) => route.abort('blockedbyclient'));
+    await C1.page.goto(`${S.origin}/mi-crew`);
+    await C1.page.locator('.crew-profile-loading').waitFor({ timeout: 15_000 });
+    await sleep(500);
+    const read = async () => C1.page.evaluate(() => ({
+      mark: document.querySelector('.crew-loading-mark')?.textContent.trim(),
+      text: document.querySelector('.crew-profile-loading p')?.textContent.trim(),
+      buttons: [...document.querySelectorAll('.crew-profile-page button, .crew-profile-page a')].map((b) => b.textContent.trim()),
+    }));
+    const s1 = await read();
+    const navAvatar = (await entryInfo(C1.page, vp)).imgSrc;
+    await C1.context.unroute('**/api/shopify/account/crew');
+    await sleep(2500);
+    const s2 = await read();
+    // Navegar por la SPA a otra ruta y volver
+    if (vp === 'movil') { await C1.page.locator('.navbar-menu').click(); await C1.page.locator('.navbar-sheet a', { hasText: 'Tienda' }).click(); }
+    else await C1.page.locator('.navbar-links a', { hasText: 'Tienda' }).click();
+    await C1.page.waitForURL(`${S.origin}/`);
+    await C1.page.locator('.product-card').first().waitFor({ timeout: 10_000 }).catch(() => {});
+    const storeOk = await C1.page.locator('.product-card').count();
+    await (await accountEntry(C1.page, vp)).click();
+    await C1.page.waitForURL(`${S.origin}/mi-crew`);
+    await sleep(800);
+    const s3 = await read();
+    const checks = [
+      check(s1.mark === '035' && s1.text === 'No se ha podido conectar con la tienda.' && s1.buttons.length === 0, `pantalla de carga «${s1.mark}» con «${s1.text}»; botones o enlaces: ${s1.buttons.length}`),
+      check(s2.text === s1.text && s3.text === s1.text, `al desbloquear (${s2.text === s1.text ? 'igual' : s2.text}) y al ir a la tienda y volver (${s3.text === s1.text ? 'igual' : s3.text}): no se recupera`),
+      check(storeOk > 0, `el resto de la tienda funciona (${storeOk} tarjetas)`),
+      check(null, `avatar del menú mientras falla: ${navAvatar} (por defecto si no hay perfil)`),
+    ];
+    const v = verdict(checks, { hallazgos: ['C-CHAT-17'] });
+    await shotE2(C1.page, `R-CREW-16-${vp}`);
+    await C1.page.reload();
+    return v;
+  });
+
+  // ------------------------------------------------------------ R-ACC-08 (pasos 1 y 2)
+  if (want('R-ACC-08')) {
+    const wait = 62_000 - (Date.now() - c2LastProfile);
+    if (wait > 0) await sleep(wait);
+    S.setControl({ customerAccount: { mode: 'network' } });
+    const rp = waitApi(C2.page, '/api/shopify/account');
+    await C2.page.goto(`${S.origin}/`);
+    const r = await rp;
+    await waitStore(C2.page);
+    await sleep(300);
+    const notice = await noticeText(C2.page);
+    const entry = await entryInfo(C2.page, vp);
+    await C2.page.goto(`${S.origin}/mi-crew`);
+    await waitStore(C2.page);
+    const gate = (await C2.page.locator('.crew-gate-status').count()) ? nb(await C2.page.locator('.crew-gate-status').textContent()) : '';
+    // C-CART-12: una operación de carrito borra el aviso de la cuenta
+    await C2.page.goto(`${S.origin}/product/dwag`);
+    await C2.page.locator('.detail-buy .add-to-cart-control button').waitFor();
+    const noticeBefore = await noticeText(C2.page);
+    const wa = waitApi(C2.page, '/api/shopify/cart/lines', 'POST');
+    await C2.page.locator('.detail-buy .add-to-cart-control button').click();
+    await wa;
+    await sleep(300);
+    const noticeAfter = await noticeText(C2.page);
+    S.resetControl();
+    await C2.page.goto(`${S.origin}/`);
+    await waitStore(C2.page);
+    await sleep(300);
+    const entry2 = await entryInfo(C2.page, vp);
+    stash.acc08 = { status: r.status(), body: await r.text().catch(() => ''), notice, entry, gate, noticeBefore, noticeAfter, entry2 };
+  }
+
+  // ------------------------------------------------------------ R-CREW-17 paso 2 y R-ACC-10 (pasos 1-3) con C2
+  if (want('R-CREW-17') || want('R-ACC-10')) {
+    await C2.page.goto(`${S.origin}/mi-crew`);
+    await C2.page.locator('.crew-profile-header').waitFor({ timeout: 15_000 });
+    await C2.context.route('**/api/shopify/account/logout', (route) => route.abort('connectionrefused'));
+    await C2.page.locator('.crew-logout').click();
+    await C2.page.locator('.crew-profile-error').waitFor({ timeout: 5000 });
+    stash.crew17net = { t: nb(await C2.page.locator('.crew-profile-error').textContent()), role: await C2.page.locator('.crew-profile-error').getAttribute('role'), still: await C2.page.locator('.crew-profile-header').count(), acc: (await account(C2.context)).json?.loggedIn };
+    await C2.context.unroute('**/api/shopify/account/logout');
+    // ACC-10 paso 1: sin Origin
+    const noOrigin = await C2.context.request.post(`${S.origin}/api/shopify/account/logout`, { data: {} });
+    stash.acc10p1 = { s: `${noOrigin.status()} ${await noOrigin.text()}`, still: (await account(C2.context)).json?.loggedIn };
+    // ACC-10 paso 2 (parte de interfaz): el 502 del servidor llega a /mi-crew
+    await C2.page.reload();
+    await C2.page.locator('.crew-profile-header').waitFor({ timeout: 15_000 });
+    await C2.context.route('**/api/shopify/account/logout', (route) => route.fulfill({ status: 502, contentType: 'application/json', body: '{"message":"No se ha podido conectar con Shopify.","code":"NETWORK_ERROR"}' }));
+    await C2.page.locator('.crew-logout').click();
+    await C2.page.locator('.crew-profile-error').waitFor({ timeout: 5000 });
+    stash.acc10ui = { t: nb(await C2.page.locator('.crew-profile-error').textContent()), role: await C2.page.locator('.crew-profile-error').getAttribute('role') };
+    await C2.context.unroute('**/api/shopify/account/logout');
+    // ACC-10 paso 3: «Salir de la cuenta» dos veces seguidas
+    await C2.page.reload();
+    await C2.page.locator('.crew-profile-header').waitFor({ timeout: 15_000 });
+    const posts = [];
+    C2.page.on('response', async (r) => { if (r.url().endsWith('/api/shopify/account/logout')) posts.push(`${r.status()} ${await r.text().catch(() => '')}`.replace(/id_token_hint=[^&"]+/, 'id_token_hint=…')); });
+    const logoutsBefore = C2.routes.logouts.length;
+    await C2.page.locator('.crew-logout').dblclick();
+    await C2.page.waitForURL(`${S.origin}/`, { timeout: 15_000 }).catch(() => {});
+    await sleep(800);
+    stash.acc10p3 = { posts: posts.slice(), logouts: C2.routes.logouts.length - logoutsBefore, url: C2.page.url(), acc: (await account(C2.context)).json?.loggedIn };
+  }
+
+  // ------------------------------------------------------------ R-ACC-09 + R-CREW-17 (paso 1) con C1
+  if (want('R-ACC-09') || want('R-CREW-17')) {
+    await seed(C1.context, [['dwag/L', 1]]);
+    await C1.page.goto(`${S.origin}/mi-crew`);
+    await C1.page.locator('.crew-profile-header').waitFor({ timeout: 15_000 });
+    const cntBefore = (await C1.page.locator('.cart-counter').count()) ? nb(await C1.page.locator('.cart-counter').textContent()) : '';
+    let captured = null;
+    await C1.page.route('**/api/shopify/account/logout', async (route) => {
+      const r = await route.fetch();
+      captured = { status: r.status(), text: await r.text(), sc: r.headers()['set-cookie'] || null };
+      await route.fulfill({ response: r, body: captured.text });
+    });
+    const reqP = C1.page.waitForRequest((r) => r.url().endsWith('/api/shopify/account/logout'));
+    const resP = waitApi(C1.page, '/api/shopify/account/logout', 'POST');
+    const logoutsBefore = C1.routes.logouts.length;
+    await C1.page.locator('.crew-logout').click();
+    const req = await reqP;
+    const res = await resP;
+    await C1.page.waitForURL(`${S.origin}/`, { timeout: 15_000 });
+    await C1.page.unroute('**/api/shopify/account/logout');
+    await waitStore(C1.page);
+    await sleep(400);
+    const body = JSON.parse(captured?.text || '{}');
+    const sc = captured?.sc;
+    const lu = body.logoutUrl ? new URL(body.logoutUrl) : null;
+    const entry = await entryInfo(C1.page, vp);
+    const cnt = (await C1.page.locator('.cart-counter').count()) ? nb(await C1.page.locator('.cart-counter').textContent()) : '';
+    const cart = await (await C1.context.request.get(`${S.origin}/api/shopify/cart`)).json();
+    await C1.page.goto(`${S.origin}/mi-crew`);
+    await waitStore(C1.page);
+    const gateBtn = await C1.page.locator('.crew-gate-button').count();
+    stash.acc09 = {
+      origin: (await req.allHeaders()).origin,
+      status: res.status(),
+      loggedIn: body.loggedIn,
+      lu: lu ? `${lu.origin}${lu.pathname} id_token_hint=${lu.searchParams.has('id_token_hint')} post_logout_redirect_uri=${lu.searchParams.get('post_logout_redirect_uri')}` : null,
+      sc,
+      logouts: C1.routes.logouts.slice(logoutsBefore),
+      entry,
+      cntBefore,
+      cnt,
+      cart: JSON.stringify(cart),
+      gateBtn,
+    };
+  }
+
+  if (want('R-ACC-09')) await R.run('R-ACC-09', vp, async () => {
+    const a = stash.acc09;
+    const checks = [
+      check(a.origin === S.origin && a.status === 200 && a.loggedIn === false, `POST /account/logout con Origin ${a.origin} → ${a.status} loggedIn=${a.loggedIn}`),
+      check(a.lu && a.lu.includes('id_token_hint=true') && a.lu.includes(`post_logout_redirect_uri=${S.origin}`), `logoutUrl: ${a.lu}`),
+      check(/rocky_session=; Max-Age=0/.test(a.sc || ''), `cookie borrada: ${a.sc}`),
+      check(a.logouts.length === 1 && a.logouts[0].hasIdTokenHint && a.logouts[0].back.replace(/\/$/, '') === S.origin, `navega al cierre de Shopify (simulado) y vuelve a ${a.logouts[0]?.back}`),
+      check(a.entry.href === LOGIN, `«Mi Crew» vuelve a ser el enlace de login (${a.entry.href})`),
+      check(a.cntBefore !== '' && a.cnt === '' && a.cart === '{"cart":null,"warnings":[]}', `carrito: contador «${a.cntBefore}» → «${a.cnt}»; GET /cart → ${a.cart}`),
+    ];
+    return verdict(checks, { notes: ['logoutUrl null (sin end_session_endpoint) y puerta privada: no ejecutados (el doble siempre publica end_session_endpoint; la puerta ya se vio en E1, C-TRANS-05)'], hallazgos: ['C-CART-03'] });
+  });
+
+  if (want('R-CREW-17')) await R.run('R-CREW-17', vp, async () => {
+    const a = stash.acc09;
+    const n = stash.crew17net;
+    const checks = [
+      check(a.status === 200 && a.logouts.length === 1 && a.gateBtn === 1, `«Salir de la cuenta» → cuenta anónima, navegación al cierre de Shopify y vuelta; /mi-crew enseña «Entrar en la Crew» (${a.gateBtn})`),
+      check(n.role === 'alert' && n.t === 'No se ha podido conectar con la tienda.' && n.still === 1 && n.acc === true, `con fallo de red: aviso role=${n.role} «${n.t}»; la cuenta sigue iniciada (carnet visible ${n.still}, loggedIn ${n.acc})`),
+    ];
+    return verdict(checks, { notes: ['paso 2: «servidor parado» simulado abortando la petición en el navegador'] });
+  });
+
+  // ------------------------------------------------------------ R-ACC-05
+  if (want('R-ACC-05')) await R.run('R-ACC-05', vp, async () => {
+    const C3 = await openPage(browser, S, { viewportName: vp });
+    let cbUrl = null;
+    C3.page.on('request', (r) => { if (r.url().includes('/account/callback')) cbUrl = r.url(); });
+    await loginDirect(C3.page);
+    const show = async (page, url) => {
+      const res = await page.goto(url);
+      return { status: res.status(), body: nb(await page.locator('body').innerText()), links: await page.locator('a').count() };
+    };
+    const s1 = await show(C3.page, cbUrl);
+    const s2 = await show(C3.page, `${S.origin}/api/shopify/account/callback?state=inventado&code=x`);
+    const fresh = await openPage(browser, S, { viewportName: vp });
+    const s3 = await show(fresh.page, `${S.origin}/api/shopify/account/callback?state=inventado&code=x`);
+    const s4 = await show(fresh.page, `${S.origin}/api/shopify/account/callback?state=x`);
+    const freshAcc = (await account(fresh.context)).json?.loggedIn;
+    await fresh.context.close();
+    const deny = await openPage(browser, S, { viewportName: vp, decision: 'deny' });
+    const dcb = deny.page.waitForResponse((r) => r.url().includes('/account/callback'));
+    await deny.page.goto(`${S.origin}${LOGIN}`);
+    const d = await dcb;
+    const s4b = { status: d.status(), body: nb(await deny.page.locator('body').innerText()) };
+    const denyAcc = (await account(deny.context)).json?.loggedIn;
+    await deny.context.close();
+    // Paso 6: callback de un navegador abierto en otro con su propia sesión
+    const ca = await openPage(browser, S, { viewportName: vp });
+    const r6 = await ca.context.request.get(`${S.origin}${LOGIN}`, { maxRedirects: 0 });
+    const cb6 = sim.authorizeRedirect(S, r6.headers().location, { customer: 'ana' }).location;
+    await ca.context.close();
+    const cbB = await openPage(browser, S, { viewportName: vp });
+    await seed(cbB.context, [['35-red/Default Title', 1]]);
+    const s6 = await show(cbB.page, cb6);
+    const bAcc = (await account(cbB.context)).json?.loggedIn;
+    await cbB.context.close();
+    // Paso 5 (escritorio): estado de más de 10 minutos
+    let s5 = null;
+    if (late) {
+      const left = 10 * 60_000 + 5_000 - (Date.now() - late.at);
+      if (left > 0) await sleep(left);
+      s5 = await show(late.ctx.page, late.callback);
+      s5.minutes = ((Date.now() - late.at) / 60_000).toFixed(1);
+      s5.acc = (await account(late.ctx.context)).json?.loggedIn;
+      await late.ctx.context.close();
+    }
+    await C3.context.close();
+    const ST = '{"message":"Estado OAuth inválido o reutilizado.","code":"INVALID_STATE"}';
+    const checks = [
+      check(s1.status === 400 && s1.body === ST, `paso 1 (recargar el callback) → ${s1.status} ${s1.body}`),
+      check(s2.status === 400 && s2.body === ST, `paso 2 (state inventado con cookie) → ${s2.status} ${s2.body}`),
+      check(s3.status === 401 && s3.body === '{"message":"La sesión OAuth ha caducado.","code":"OAUTH_SESSION_EXPIRED"}', `paso 3 (sin cookie) → ${s3.status} ${s3.body}`),
+      check(s4.status === 400 && s4.body === '{"message":"Callback OAuth incompleto.","code":"INVALID_CALLBACK"}' && s4b.status === 400 && s4b.body === s4.body, `paso 4 (sin code) → ${s4.status} ${s4.body}; cancelación en Shopify (error=access_denied) → ${s4b.status} ${s4b.body}`),
+      check(s5 ? s5.status === 400 && s5.body === ST : null, s5 ? `paso 5 (callback a los ${s5.minutes} min) → ${s5.status} ${s5.body}` : 'paso 5: en escritorio'),
+      check(s6.status === 400 && s6.body === ST, `paso 6 (callback abierto en otro navegador con su sesión) → ${s6.status} ${s6.body}`),
+      check([s1, s2, s3, s4, s6].every((x) => x.links === 0) && freshAcc === false && denyAcc === false && bAcc === false && (!s5 || s5.acc === false), `JSON crudo, sin enlaces de vuelta; sin sesión de cliente en los navegadores rechazados`),
+    ];
+    return verdict(checks, { hallazgos: ['C-CART-06'] });
+  });
+
+  // ------------------------------------------------------------ R-ACC-06 (escritorio)
+  if (desk && want('R-ACC-06')) await R.run('R-ACC-06', vp, async () => {
+    const out = {};
+    for (const [k, rp] of [['1', '%2F%2Fevil.example'], ['2', 'https%3A%2F%2Fevil.example'], ['3', '%2F%5Cevil.example'], ['4', 'mi-crew'], ['5', `%2F${'a'.repeat(510)}`]]) {
+      const C = await openPage(browser, S, { viewportName: vp });
+      const res = await C.page.goto(`${S.origin}/api/shopify/account/login?returnPath=${rp}`);
+      out[k] = { status: res.status(), body: nb(await C.page.locator('body').innerText()), cookie: Boolean(await res.headerValue('set-cookie')), cookies: (await C.context.cookies()).length };
+      await C.context.close();
+    }
+    const C6 = await openPage(browser, S, { viewportName: vp });
+    await C6.page.goto(`${S.origin}/api/shopify/account/login?returnPath=%2Fcart%3Fx%3D1%23y`);
+    await C6.page.waitForURL(/\/cart/, { timeout: 15_000 });
+    out['6'] = C6.page.url().replace(S.origin, '');
+    await C6.context.close();
+    const local = await api(S, 'GET', '/api/shopify/account/login?returnPath=%2Fmi-crew', { origin: null });
+    const ERR = '{"message":"Ruta de retorno no permitida.","code":"INVALID_RETURN_PATH"}';
+    const checks = [
+      check(['1', '2', '3', '4'].every((k) => out[k].status === 400 && out[k].body === ERR && out[k].cookies === 1), `pasos 1-4 → ${['1', '2', '3', '4'].map((k) => `${out[k].status}${out[k].cookies ? ' + cookie rocky_session en el navegador' : ' sin cookie'}`).join(', ')} ${out['1'].body}`),
+      check(out['5'].status === 400 && out['5'].body === ERR && out['5'].cookies === 0, `paso 5 (> 500 car.) → ${out['5'].status} y ${out['5'].cookies} cookies`),
+      check(out['6'] === '/cart?x=1#y', `paso 6 → vuelve a ${out['6']}`),
+      check(local.status === 302 && local.headers.get('location') === `${S.origin}/api/shopify/account/login?returnPath=%2Fmi-crew` && !local.setCookie, `paso 7 (host local http://localhost:3413) → ${local.status} a ${local.headers.get('location')} sin cookie`),
+    ];
+    return verdict(checks, { hallazgos: ['C-CART-06', 'C-CART-26'] });
+  });
+
+  // ------------------------------------------------------------ C-CART-25: dos logins seguidos
+  if (desk) {
+    const C9 = await openPage(browser, S, { viewportName: vp });
+    await loginDirect(C9.page);
+    const st0 = await inspectStore(storeEnv.STATE_STORE_PATH, storeEnv.APP_ENCRYPTION_KEY);
+    await loginDirect(C9.page);
+    const st1 = await inspectStore(storeEnv.STATE_STORE_PATH, storeEnv.APP_ENCRYPTION_KEY);
+    extra[`relogin-${vp}`] = { tokensBefore: st0.counts.customerTokens, tokensAfter: st1.counts.customerTokens, sessionsWithCustomer: [st0.sessionsWithCustomer, st1.sessionsWithCustomer] };
+    await C9.context.close();
+  }
+
+  // ------------------------------------------------------------ Reinicio conservando el almacén
+  const C8 = await openPage(browser, S, { viewportName: vp, customer: 'nuria' });
+  await seed(C8.context, [['flora-blue/S', 1]]);
+  await loginDirect(C8.page);
+  const cartBefore = (await (await C8.context.request.get(`${S.origin}/api/shopify/cart`)).json()).cart?.lines?.length;
+  extra.unexpected[`${vp}-1`] = S.unexpectedCalls();
+  await stopWait(S);
+  await startS(true);
+  // R-ACC-08 paso 3: el doble ha olvidado los tokens (equivale a una sesión revocada en Shopify)
+  const loads = [];
+  for (let i = 0; i < 2; i += 1) {
+    const rp = waitApi(C8.page, '/api/shopify/account');
+    await C8.page.goto(`${S.origin}/`);
+    const r = await rp;
+    await waitStore(C8.page);
+    await sleep(300);
+    loads.push({ status: r.status(), body: await r.text(), notice: await noticeText(C8.page) });
+  }
+  await C8.page.goto(`${S.origin}/mi-crew`);
+  await waitStore(C8.page);
+  const gate3 = { status: (await C8.page.locator('.crew-gate-status').count()) ? nb(await C8.page.locator('.crew-gate-status').textContent()) : '', login: await C8.page.locator('.crew-gate-button').count(), logout: await C8.page.locator('.crew-logout').count() };
+  const entry3 = await entryInfo(C8.page, vp);
+  // C-CART-01: el carrito del doble ya no existe y la sesión conserva su cartId
+  const deadCart = await (await C8.context.request.get(`${S.origin}/api/shopify/cart`)).text();
+  await C8.page.goto(`${S.origin}/product/rocky-racing`);
+  await C8.page.locator('.detail-buy .add-to-cart-control button').waitFor();
+  const adds = [];
+  for (let i = 0; i < 2; i += 1) {
+    const w = waitApi(C8.page, '/api/shopify/cart/lines', 'POST');
+    await C8.page.locator('.detail-buy .add-to-cart-control button').click();
+    const r = await w;
+    adds.push(`${r.status()} ${await r.text()}`);
+    await sleep(1300);
+  }
+  const inlineDead = (await C8.page.locator('.commerce-inline-error').count()) ? nb(await C8.page.locator('.commerce-inline-error').textContent()) : '';
+  // R-ACC-10 paso 2 por API: cierre con el descubrimiento OpenID sin red (no está en caché tras el reinicio)
+  S.setControl({ customerAccount: { ops: { openid: 'network' } } });
+  const lo1 = await C8.context.request.post(`${S.origin}/api/shopify/account/logout`, { headers: { Origin: S.origin }, data: {} });
+  const lo1t = `${lo1.status()} ${await lo1.text()}`;
+  const stMid = await inspectStore(storeEnv.STATE_STORE_PATH, storeEnv.APP_ENCRYPTION_KEY);
+  S.resetControl();
+  const lo2 = await C8.context.request.post(`${S.origin}/api/shopify/account/logout`, { headers: { Origin: S.origin }, data: {} });
+  const lo2j = await lo2.json();
+  const stEnd = await inspectStore(storeEnv.STATE_STORE_PATH, storeEnv.APP_ENCRYPTION_KEY);
+  await C8.context.close();
+  stash.restart = { cartBefore, loads, gate3, entry3, deadCart, adds, inlineDead, lo1t, lo2: `${lo2.status()} logoutUrl=${lo2j.logoutUrl ? 'sí' : 'null'}`, midTokens: stMid.counts.customerTokens, midCustomerSessions: stMid.sessionsWithCustomer, endTokens: stEnd.counts.customerTokens };
+
+  if (want('R-ACC-08')) await R.run('R-ACC-08', vp, async () => {
+    const a = stash.acc08;
+    const rs = stash.restart;
+    const NOTICE = 'El catálogo está disponible, pero no se pudieron cargar la cuenta. Esas funciones siguen desactivadas.';
+    const checks = [
+      check(a.status === 502 && a.notice === NOTICE, `paso 1 (sin red a Shopify, caché de perfil caducada) → GET /account ${a.status} ${a.body}; aviso «${a.notice}»`),
+      check(a.entry.href === '/mi-crew' && a.entry.text === 'Mi Crew' && a.gate.startsWith('Esto es una vista previa: aún no guardamos progreso'), `«Mi Crew» → ${a.entry.href} (vista previa); /mi-crew «${a.gate.slice(0, 60)}…»`),
+      check(a.entry2.aria === 'Mi Crew' && a.entry2.href === '/mi-crew' && a.entry2.imgSrc, `paso 2 (red restaurada) → se recupera: avatar ${a.entry2.imgSrc}`),
+      check(rs.loads.every((l) => l.status === 401 && l.notice === NOTICE), `paso 3 (tokens desconocidos tras reiniciar; equivale a sesión revocada) → ${rs.loads.map((l) => `${l.status} ${l.body}`).join(' | ')} en cada carga`),
+      check(rs.gate3.login === 0 && rs.gate3.logout === 0 && rs.entry3.href === '/mi-crew', `la web no ofrece volver a entrar ni salir: /mi-crew sin «Entrar en la Crew» (${rs.gate3.login}) ni «Salir» (${rs.gate3.logout}); «Mi Crew» → ${rs.entry3.href}`),
+    ];
+    const notes = [`C-CART-12: el aviso de la cuenta («${a.noticeBefore.slice(0, 40)}…») desaparece tras añadir al carrito: «${a.noticeAfter}»`, 'paso 1 adaptado: sin reiniciar Express (el doble perdería los tokens); se esperó a que caducara la caché de perfil (60 s)'];
+    return verdict(checks, { notes, hallazgos: ['C-CART-05', 'C-CART-09', ...(a.noticeBefore && !a.noticeAfter ? ['C-CART-12'] : [])] });
+  });
+
+  if (want('R-ACC-10')) await R.run('R-ACC-10', vp, async () => {
+    const rs = stash.restart;
+    const checks = [
+      check(stash.acc10p1.s.startsWith('403') && stash.acc10p1.s.includes('Petición de origen no confiable.') && stash.acc10p1.still === true, `paso 1 (sin Origin) → ${stash.acc10p1.s}; la sesión sigue (${stash.acc10p1.still})`),
+      check(rs.lo1t === '502 {"message":"No se ha podido conectar con Shopify.","code":"NETWORK_ERROR"}' && rs.midTokens >= 1 && rs.midCustomerSessions >= 1, `paso 2 (reinicio + descubrimiento OpenID sin red, por API) → ${rs.lo1t}; tras el fallo siguen ${rs.midTokens} token(s) y ${rs.midCustomerSessions} sesión(es) de cliente en el almacén: no hay cierre local`),
+      check(rs.lo2.startsWith('200 logoutUrl=sí'), `con red: el mismo cierre → ${rs.lo2} (el token seguía ahí)`),
+      check(stash.acc10ui.role === 'alert' && stash.acc10ui.t === 'No se ha podido conectar con Shopify.', `ese 502 en /mi-crew (respuesta inyectada en el navegador): aviso role=${stash.acc10ui.role} «${stash.acc10ui.t}»`),
+      check(null, `paso 3 (doble clic en «Salir de la cuenta») → ${stash.acc10p3.posts.length} POST: ${stash.acc10p3.posts.map((p) => p.slice(0, 70)).join(' | ')}; cierres en Shopify ${stash.acc10p3.logouts}; acaba en ${stash.acc10p3.url.replace(S.origin, '')} con loggedIn ${stash.acc10p3.acc}`),
+    ];
+    return verdict(checks, { notes: ['la parte de interfaz del paso 2 tras reiniciar no es reproducible con el doble (al reiniciar olvida los tokens y la cuenta queda apagada antes de poder pulsar «Salir»)'], hallazgos: ['C-CART-02'] });
+  });
+
+  extra[`restart-${vp}`] = stash.restart;
+  extra[`stash-${vp}`] = { crew09Preview: stash.crew09Preview, acc08: stash.acc08, acc10p3: stash.acc10p3, mtimeChanged: stash.mtimeChanged, leoName: stash.leoName };
+  extra.unexpected[`${vp}-2`] = S.unexpectedCalls();
+  await C1.context.close().catch(() => {});
+  await C2.context.close().catch(() => {});
+  await stopWait(S);
+  S = null;
+  void passStart;
+}
+
+async function main() {
+  browser = await sim.launchE2Browser(chromium);
+  // R-ACC-03: instancia HTTP (PUBLIC_ORIGIN http://localhost:3413)
+  if (want('R-ACC-03')) {
+    const H = await start(3413);
+    for (const vp of VPS) {
+      await R.run('R-ACC-03', vp, async () => {
+        const status = await api(H, 'GET', '/api/shopify/status');
+        const { context, page, issues, routes } = await openPage(browser, H, { viewportName: vp });
+        await page.goto(`${H.origin}/`);
+        await waitStore(page);
+        let entry;
+        if (vp === 'movil') {
+          await page.locator('.navbar-menu').click();
+          entry = await page.locator('.navbar-sheet-account').evaluate((a) => ({ tag: a.tagName, href: a.getAttribute('href'), text: a.textContent.trim() }));
+        } else entry = await page.locator('.navbar-links .navbar-account').evaluate((a) => ({ tag: a.tagName, href: a.getAttribute('href'), text: a.textContent.trim() }));
+        const login = await api(H, 'GET', LOGIN, { origin: null });
+        await context.close();
+        const checks = [
+          check(status.json.capabilities.customerAccounts === false && status.json.capabilities.cart === true, `status: ${status.text} (PUBLIC_ORIGIN ${H.origin}, client ID y almacén presentes)`),
+          check(entry.href === '/mi-crew' && entry.text === 'Mi Crew', `«Mi Crew» → ${entry.href}`),
+          check(login.status === 503 && login.text === '{"message":"Las cuentas de cliente no están configuradas."}' && !login.setCookie, `login → ${login.status} ${login.text}`),
+        ];
+        return verdict(checks, { notes: [sumIssues(issues, routes)] });
+      });
+    }
+    extra.unexpected.acc03 = H.unexpectedCalls();
+    await stopWait(H);
+  }
+  for (const vp of VPS) await pass(vp);
+  await browser.close();
+}
+
+try {
+  await main();
+} catch (error) {
+  process.stdout.write(`ERROR ${error?.stack || error}\n`);
+} finally {
+  if (S) {
+    extra.unexpected.final = S.unexpectedCalls();
+    await S.stop().catch(() => {});
+  }
+  if (browser) await browser.close().catch(() => {});
+  saveJson('cuenta-extra', extra);
+  R.save();
+  process.stdout.write(`unexpected: ${JSON.stringify(Object.fromEntries(Object.entries(extra.unexpected).map(([k, v]) => [k, v.length])))}\n`);
+}

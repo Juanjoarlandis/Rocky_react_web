@@ -1,0 +1,22 @@
+import { startInstance, launchBrowser, openPage } from '../harness.mjs';
+const inst = await startInstance(3309, {});
+const b = await launchBrowser();
+try {
+  const { page, context } = await openPage(b, 'escritorio', {});
+  await page.goto('http://localhost:3309/', { waitUntil: 'networkidle' });
+  const ae = () => page.evaluate(() => { const a = document.activeElement; return `${a.tagName}#${a.id} «${(a.getAttribute('aria-label')||a.textContent||'').trim().slice(0,30)}» hash=${location.hash}`; });
+  await page.keyboard.press('Tab'); console.log('1', await ae());
+  await page.keyboard.press('Enter'); await page.waitForTimeout(400); console.log('after Enter', await ae());
+  await page.keyboard.press('Tab'); console.log('next Tab', await ae());
+  // aviso: Enter en el email con permiso marcado
+  await page.goto('http://localhost:3309/product/rockyracing', { waitUntil: 'networkidle' });
+  const f = page.locator('[data-testid="drop-aviso"]');
+  await f.locator('input[type=email]').fill('prueba@example.com');
+  await f.locator('input[type=checkbox]').check();
+  await f.locator('input[type=email]').focus();
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(800);
+  console.log('aviso after submit', await ae(), 'estado:', await f.count() ? 'form' : 'listo', await page.locator('[data-testid="drop-aviso-listo"]').count());
+  await page.keyboard.press('Tab'); console.log('aviso next Tab', await ae());
+  await context.close();
+} finally { await b.close(); inst.stop(); }

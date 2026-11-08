@@ -1,0 +1,341 @@
+// Fichas E2 de catálogo y errores de tienda: R-CAT-13..16, R-CART-06, R-ERR-10.
+// Puertos: 3417 (instancia principal, HTTP) y 3418 (instancias especiales).
+import {
+  start, sim, chromium, openPage, createRunner, verdict, check, waitApi, waitStore, noticeText, noticeRole,
+  api, shotE2, sumIssues, sleep, saveJson, fixtures, stopWait,
+} from './common.mjs';
+
+const R = createRunner('catalogo');
+const VPS = ['escritorio', 'movil'];
+const nb = (s) => String(s ?? '').replace(/ /g, ' ').replace(/\s+/g, ' ').trim();
+const extra = {};
+const instances = [];
+
+async function homeCards(page) {
+  return page.evaluate(() =>
+    [...document.querySelectorAll('.product-card:not(.product-card--locked)')].map((c) => {
+      const btn = c.querySelector('.add-to-cart-control button');
+      const link = c.querySelector('.product-actions a.btn--primary');
+      return {
+        title: c.querySelector('.product-title')?.textContent.trim(),
+        price: (c.querySelector('.product-price')?.textContent || '').replace(/ /g, ' ').trim(),
+        action: (btn?.textContent || link?.textContent || '').trim(),
+        disabled: btn ? btn.disabled : null,
+      };
+    })
+  );
+}
+
+async function main() {
+  const A = await start(3417);
+  instances.push(A);
+  const browser = await sim.launchE2Browser(chromium);
+
+  // ---------------------------------------------------------------- R-CAT-13
+  for (const vp of VPS) {
+    await R.run('R-CAT-13', vp, async () => {
+      const { context, page, issues, routes } = await openPage(browser, A, { viewportName: vp });
+      const productRequests = [];
+      page.on('request', (r) => { if (r.url().includes('/api/shopify/products')) productRequests.push(new URL(r.url()).search); });
+      const resP = waitApi(page, '/api/shopify/products');
+      await page.goto(`${A.origin}/`);
+      const res = await resP;
+      const body = await res.json();
+      await waitStore(page);
+      await sleep(400);
+      const firstLoadRequests = [...productRequests];
+      const notice = await noticeText(page);
+      const count = nb(await page.locator('.product-page-hero-count .product-count').textContent());
+      const cards = await homeCards(page);
+      const locked = page.locator('[data-testid="locked-designs"]');
+      const lockedText = (await locked.count()) ? nb(await locked.innerText()) : '';
+      const titles = [...cards.map((c) => c.title), ...((await locked.count()) ? (await page.locator('.product-locked-names').textContent()).split(' · ') : [])].map(nb);
+      const rr = cards.find((c) => /rockyracing/i.test(c.title));
+      const smoker = cards.find((c) => /smoker/i.test(c.title));
+      const rockydz = cards.find((c) => /rockydz/i.test(c.title));
+      // Paso 4: categoría real (colección)
+      await page.goto(`${A.origin}/products/rocky-drop-4`);
+      await waitStore(page);
+      const catH1 = nb(await page.locator('h1.page-title').first().textContent());
+      const catCount = nb(await page.locator('.product-count').first().textContent());
+      const checks = [
+        check(!notice, `sin aviso de modo demo ni de error: «${notice}»`),
+        check(firstLoadRequests.length === 1 && firstLoadRequests[0] === '?first=8', `una sola petición de productos al cargar: ${firstLoadRequests.join(', ')}`),
+        check(body.pageInfo?.hasNextPage === true, `pageInfo.hasNextPage=${body.pageInfo?.hasNextPage} con ${body.products.length} productos y no se pide la página siguiente`),
+        check(count === '8 diseños', `contador «${count}»`),
+        check(titles.length === 8 && !titles.some((t) => /level orange|mugshot/i.test(t)), `8 más recientes: ${titles.join(' | ')} (sin LEVEL ORANGE ni Mugshot)`),
+        check(rr?.price === '39,00 €' && rockydz?.price === '35,00 €', `precios es-ES: ${cards.map((c) => `${c.title}=${c.price}`).join(', ')}`),
+        check(rr?.action === 'Añadir al carrito' && rr.disabled === false, `RockyRacing «${rr?.action}» habilitado=${rr && !rr.disabled}`),
+        check(smoker?.action === 'Agotado' && smoker.disabled === true, `Smoker Edition «${smoker?.action}» deshabilitado=${smoker?.disabled}`),
+        check(/ROCKY DROP 4 · SIN REVELAR/i.test(lockedText) && /5 diseños bajo llave/i.test(lockedText), `los 5 productos sin foto (con precio y stock) van al bloque «${lockedText.slice(0, 90)}…», sin botón de compra`),
+        check(catH1 === 'ROCKY DROP 4' && catCount === '8 diseños', `/products/rocky-drop-4 → h1 «${catH1}», «${catCount}»`),
+      ];
+      const v = verdict(checks, { notes: [sumIssues(issues, routes)], hallazgos: ['C-CAT-01', 'NUEVO-1'] });
+      if (v.resultado.startsWith('FALLO')) await shotE2(page, `R-CAT-13-${vp}`);
+      await context.close();
+      return v;
+    });
+  }
+
+  // ---------------------------------------------------------------- R-CAT-14
+  for (const vp of VPS) {
+    await R.run('R-CAT-14', vp, async () => {
+      const { context, page, issues, routes } = await openPage(browser, A, { viewportName: vp });
+      await page.goto(`${A.origin}/product/35-white`);
+      await page.locator('.detail-variant select').waitFor({ timeout: 15_000 });
+      const opts = await page.locator('.detail-variant select option').evaluateAll((o) => o.map((x) => ({ t: x.textContent.trim(), d: x.disabled })));
+      const selected = await page.locator('.detail-variant select').evaluate((s) => s.selectedOptions[0]?.textContent.trim());
+      await page.goto(`${A.origin}/product/rocky-racing`);
+      await page.locator('.detail-variant select').waitFor();
+      const rrOpts = await page.locator('.detail-variant select option').evaluateAll((o) => o.map((x) => x.textContent.trim()));
+      const p0 = nb(await page.locator('.detail-price').textContent());
+      await page.locator('.detail-variant select').selectOption({ label: 'M' });
+      const p1 = nb(await page.locator('.detail-price').textContent());
+      await context.close();
+      // Paso 2 con precio distinto por variante (respuesta de productos modificada en el navegador:
+      // el doble pone el mismo precio a todas las tallas)
+      const ctx2 = await openPage(browser, A, { viewportName: vp });
+      await ctx2.context.route('**/api/shopify/products?first=8', async (route) => {
+        const response = await route.fetch();
+        const json = await response.json();
+        const rr = json.products.find((p) => p.handle === 'rocky-racing');
+        rr.variants.find((v) => v.title === 'M').price = { amount: '42.5', currencyCode: 'EUR' };
+        await route.fulfill({ response, json });
+      });
+      await ctx2.page.goto(`${A.origin}/product/rocky-racing`);
+      await ctx2.page.locator('.detail-variant select').waitFor();
+      const q0 = nb(await ctx2.page.locator('.detail-price').textContent());
+      await ctx2.page.locator('.detail-variant select').selectOption({ label: 'M' });
+      const q1 = nb(await ctx2.page.locator('.detail-price').textContent());
+      await ctx2.page.goto(`${A.origin}/product/smoker-edition`);
+      const btn = ctx2.page.locator('.detail-buy button.btn--primary');
+      await btn.waitFor();
+      const soldLabel = (await btn.textContent()).trim();
+      const soldDisabled = await btn.isDisabled();
+      await ctx2.page.goto(`${A.origin}/product/level-orange`);
+      await ctx2.page.locator('h1.page-title').waitFor();
+      const lo = nb(await ctx2.page.locator('h1.page-title').textContent());
+      const checks = [
+        check(opts.length === 4 && opts[0].t === 'S — agotada' && opts[0].d && opts[3].t === 'XL — agotada' && opts[3].d && !opts[1].d, `35 WHITE «Variante»: ${opts.map((o) => `${o.t}${o.d ? '(deshab.)' : ''}`).join(', ')}; seleccionada «${selected}»`),
+        check(rrOpts.join(',') === 'S,M,L,XL', `RockyRacing opciones ${rrOpts.join(', ')} (selectedOptions unidas)`),
+        check(null, `con el doble (mismo precio por talla) el precio queda ${p0} → ${p1}`),
+        check(q0 === '39,00 €' && q1 === '42,50 €', `con M a 42,50 € (respuesta modificada en el navegador): ${q0} → ${q1}`),
+        check(soldLabel === 'Agotado' && soldDisabled, `Smoker Edition: «${soldLabel}» deshabilitado=${soldDisabled}`),
+        check(lo === 'Producto no encontrado', `/product/level-orange (fuera de los 8): «${lo}»`),
+      ];
+      const v = verdict(checks, { notes: [sumIssues(issues, routes)], hallazgos: ['C-CAT-01'] });
+      if (v.resultado.startsWith('FALLO')) await shotE2(ctx2.page, `R-CAT-14-${vp}`);
+      await ctx2.context.close();
+      return v;
+    });
+  }
+
+  // ---------------------------------------------------------------- R-CAT-15
+  for (const vp of VPS) {
+    await R.run('R-CAT-15', vp, async () => {
+      const { context, page, issues, routes } = await openPage(browser, A, { viewportName: vp });
+      const cartReqs = [];
+      page.on('request', (r) => { if (/\/api\/shopify\/(cart|account)/.test(r.url())) cartReqs.push(new URL(r.url()).pathname); });
+      await context.route('**/api/shopify/products**', (route) => route.abort('blockedbyclient'));
+      await page.goto(`${A.origin}/`);
+      await page.locator('.commerce-notice').waitFor({ timeout: 15_000 });
+      await sleep(300);
+      const notice = await noticeText(page);
+      const role = await noticeRole(page);
+      const count = nb(await page.locator('.product-page-hero-count .product-count').textContent());
+      const cards = await page.locator('.product-card').count();
+      const counter = await page.locator('.cart-counter').count();
+      await page.goto(`${A.origin}/product/rocky-racing`);
+      await page.locator('h1.page-title').waitFor({ timeout: 15_000 });
+      const h1 = nb(await page.locator('h1.page-title').textContent());
+      const alertP = (await page.locator('.product-empty p[role="alert"]').count()) ? nb(await page.locator('.product-empty p[role="alert"]').textContent()) : '';
+      const expected = 'No se ha podido conectar con la tienda. No se pudo verificar el catálogo vivo y el pago sigue desactivado.';
+      const checks = [
+        check(notice === expected && role === 'alert', `aviso role=${role}: «${notice}»`),
+        check(count === '0 diseños' && cards === 0, `portada «${count}» y ${cards} tarjetas`),
+        check(h1 === 'Producto no disponible' && alertP === expected, `ficha: «${h1}» con «${alertP}»`),
+        check(cartReqs.length === 0 && counter === 0, `sin peticiones de carrito ni cuenta (${cartReqs.length}) y sin contador`),
+      ];
+      const v = verdict(checks, { notes: [sumIssues(issues, routes)], hallazgos: ['C-CAT-05'] });
+      if (v.resultado.startsWith('FALLO')) await shotE2(page, `R-CAT-15-${vp}`);
+      await context.close();
+      return v;
+    });
+  }
+
+  // ---------------------------------------------------------------- R-CAT-16 (API)
+  await R.run('R-CAT-16', 'api', async () => {
+    const before = A.obs('storefront').length;
+    const status = await api(A, 'GET', '/api/shopify/status');
+    const p50 = await api(A, 'GET', '/api/shopify/products?first=50');
+    const after50 = await api(A, 'GET', `/api/shopify/products?first=2&after=${encodeURIComponent(p50.json.pageInfo.endCursor)}`);
+    const p8 = await api(A, 'GET', '/api/shopify/products?first=8');
+    const next = await api(A, 'GET', `/api/shopify/products?first=2&after=${encodeURIComponent(p8.json.pageInfo.endCursor)}`);
+    const none = await api(A, 'GET', '/api/shopify/products');
+    const obs = A.obs('storefront').slice(before).map((e) => e.variables);
+    const prod = p50.json.products[0];
+    const keys = Object.keys(prod).sort().join(',');
+    const vkeys = Object.keys(prod.variants[0]).sort().join(',');
+    const checks = [
+      check(status.json.mode === 'shopify' && status.json.capabilities.catalog === true, `status: ${status.text}`),
+      check(p50.status === 200 && p50.json.products.length === 10 && 'hasNextPage' in p50.json.pageInfo && 'endCursor' in p50.json.pageInfo, `first=50 → ${p50.status}, ${p50.json.products.length} productos, pageInfo ${JSON.stringify(p50.json.pageInfo).slice(0, 80)}`),
+      check(['handle', 'title', 'image', 'drop', 'variants'].every((k) => k in prod) && prod.variants[0].price?.amount && prod.variants[0].price?.currencyCode, `campos de producto: ${keys}; variante: ${vkeys}; precio ${JSON.stringify(prod.variants[0].price)}; drop ${JSON.stringify(prod.drop)}`),
+      check(!('quantityAvailable' in prod.variants[0]) || prod.variants[0].quantityAvailable === null, `quantityAvailable con SHOPIFY_EXPOSE_QUANTITY=false: ${JSON.stringify(prod.variants[0].quantityAvailable)}`),
+      check(after50.status === 200 && after50.json.products.length === 0, `first=2&after=<fin de first=50> → ${after50.status}, ${after50.json.products.length} productos (no hay más)`),
+      check(next.status === 200 && next.json.products.map((p) => p.handle).join(',') === 'level-orange,mugshot', `first=2&after=<fin de first=8> → ${next.json.products.map((p) => p.handle).join(', ')}`),
+      check(none.status === 200 && obs.at(-1)?.first === 20, `sin parámetros → ${none.status}, ${none.json.products.length} productos; variables enviadas a Storefront: ${obs.map((o) => `first=${o.first}${o.after ? '+after' : ''}`).join(', ')}`),
+    ];
+    return verdict(checks);
+  });
+
+  // ---------------------------------------------------------------- R-ERR-10
+  for (const vp of VPS) {
+    await R.run('R-ERR-10', vp, async () => {
+      const notes = [];
+      const out = {};
+      // Variantes por API (control del doble en caliente)
+      for (const mode of ['network', 'throttled', 'graphqlError', 'unauthorized', 'forbidden']) {
+        A.setControl({ storefront: { ops: { RockyProducts: mode } } });
+        const r = await api(A, 'GET', '/api/shopify/products?first=8');
+        out[mode] = `${r.status} ${r.text}`;
+      }
+      A.resetControl();
+      // Portada recargada con la red a Shopify cortada
+      const { context, page, issues, routes } = await openPage(browser, A, { viewportName: vp });
+      A.setControl({ storefront: { mode: 'network' } });
+      await page.goto(`${A.origin}/`);
+      await page.locator('.commerce-notice').waitFor({ timeout: 15_000 });
+      const homeNotice = await noticeText(page);
+      const homeCount = nb(await page.locator('.product-page-hero-count .product-count').textContent());
+      A.resetControl();
+      // Portada cargada antes del corte; añadir desde una ficha
+      await page.goto(`${A.origin}/product/rocky-racing`);
+      await page.locator('.detail-buy button.btn--primary', { hasText: 'Añadir al carrito' }).waitFor({ timeout: 15_000 });
+      A.setControl({ storefront: { mode: 'network' } });
+      const wait = waitApi(page, '/api/shopify/cart/lines', 'POST');
+      await page.locator('.detail-buy button.btn--primary').click();
+      const addRes = await wait;
+      const addBody = await addRes.json();
+      await page.locator('.commerce-inline-error').waitFor({ timeout: 5_000 });
+      const inline = nb(await page.locator('.commerce-inline-error').textContent());
+      const notice2 = await noticeText(page);
+      A.resetControl();
+      await context.close();
+      // Token de Storefront rechazado: el doble toma como token válido el que
+      // tenga el entorno del servidor (un token «inválido» en el entorno se
+      // aceptaría), así que el rechazo se simula con storefront.mode=unauthorized.
+      A.setControl({ storefront: { mode: 'unauthorized' } });
+      const bStatus = await api(A, 'GET', '/api/shopify/status');
+      const bProducts = await api(A, 'GET', '/api/shopify/products?first=8');
+      const pb = await openPage(browser, A, { viewportName: vp });
+      await pb.page.goto(`${A.origin}/`);
+      await pb.page.locator('.commerce-notice').waitFor({ timeout: 15_000 });
+      const bNotice = await noticeText(pb.page);
+      await pb.context.close();
+      A.resetControl();
+      const net = 'No se ha podido conectar con Shopify. No se pudo verificar el catálogo vivo y el pago sigue desactivado.';
+      const checks = [
+        check(out.network.startsWith('502') && out.network.includes('"code":"NETWORK_ERROR"') && out.network.includes('No se ha podido conectar con Shopify.'), `sin red → ${out.network}`),
+        check(out.unauthorized.startsWith('401') && out.unauthorized.includes('UNAUTHENTICATED') && out.forbidden.startsWith('403') && out.forbidden.includes('ACCESS_DENIED'), `401 → ${out.unauthorized}; 403 → ${out.forbidden}`),
+        check(out.throttled.startsWith('429') && out.throttled.includes('THROTTLED'), `429 → ${out.throttled}`),
+        check(out.graphqlError.startsWith('502') && out.graphqlError.includes('Shopify ha devuelto un error GraphQL.'), `error GraphQL → ${out.graphqlError}`),
+        check(homeNotice === net && homeCount === '0 diseños', `portada sin red: «${homeNotice}», «${homeCount}»`),
+        check(addRes.status() === 502 && addBody.code === 'NETWORK_ERROR' && inline === 'No se ha podido conectar con Shopify.' && notice2 === 'No se ha podido conectar con Shopify.', `añadir sin red: ${addRes.status()} ${JSON.stringify(addBody)}; bajo el botón «${inline}»; aviso «${notice2}»`),
+        check(bStatus.json.capabilities.catalog === true && bProducts.status === 401 && bProducts.json?.code === 'UNAUTHENTICATED' && bNotice.startsWith(bProducts.json?.message), `token rechazado (401 simulado): status catalog=${bStatus.json.capabilities.catalog}; productos → ${bProducts.status} ${bProducts.text}; portada «${bNotice}»`),
+      ];
+      notes.push('cliente: el NETWORK_ERROR del servidor se reescribe a 503 STOREFRONT_UNAVAILABLE (src/api/shopify.js:19-20, por código; el texto que se ve es el mismo)');
+      notes.push(sumIssues(issues, routes));
+      return verdict(checks, { notes, hallazgos: ['C-TRANS-17', 'C-TRANS-18'] });
+    });
+  }
+  // Timeout de Storefront por API (una vez: 15 s)
+  {
+    A.setControl({ storefront: { ops: { RockyProducts: 'timeout' } } });
+    const t0 = Date.now();
+    const r = await api(A, 'GET', '/api/shopify/products?first=8');
+    extra.timeout = `${r.status} en ${Date.now() - t0} ms: ${r.text}`;
+    A.resetControl();
+    process.stdout.write(`timeout Storefront: ${extra.timeout}\n`);
+  }
+
+  // ---------------------------------------------------------------- R-CART-06 (sin almacén cifrado)
+  {
+    const B = await start(3418, { APP_ENCRYPTION_KEY: '' });
+    instances.push(B);
+    for (const vp of VPS) {
+      await R.run('R-CART-06', vp, async () => {
+        const status = await api(B, 'GET', '/api/shopify/status');
+        const { context, page, issues, routes } = await openPage(browser, B, { viewportName: vp });
+        const cartReqs = [];
+        page.on('request', (r) => { if (r.url().includes('/api/shopify/cart')) cartReqs.push(r.method() + ' ' + new URL(r.url()).pathname); });
+        await page.goto(`${B.origin}/`);
+        await waitStore(page);
+        await sleep(500);
+        const notice = await noticeText(page);
+        const cards = await homeCards(page);
+        const rr = cards.find((c) => /rockyracing/i.test(c.title));
+        await page.goto(`${B.origin}/product/rockydz-boyz`);
+        const btn = page.locator('.detail-buy button.btn--primary');
+        await btn.waitFor({ timeout: 15_000 });
+        const dLabel = (await btn.textContent()).trim();
+        const dDis = await btn.isDisabled();
+        await page.goto(`${B.origin}/cart`);
+        await page.locator('h1.page-title').waitFor();
+        const cartH1 = nb(await page.locator('h1.page-title').textContent());
+        const c = status.json.capabilities;
+        const checks = [
+          check(c.catalog === true && c.cart === false && c.customerAccounts === false, `status: ${status.text}`),
+          check(!notice, `sin aviso de demo ni de error: «${notice}»`),
+          check(rr?.action === 'Carrito no disponible' && rr.disabled === true, `tarjeta RockyRacing «${rr?.action}» deshabilitado=${rr?.disabled}; resto: ${cards.map((x) => `${x.title}=${x.action}`).join(', ')}`),
+          check(dLabel === 'Carrito no disponible' && dDis, `ficha Rockydz boyz «${dLabel}» deshabilitado=${dDis}`),
+          check(cartH1 === 'Tu carrito está vacío', `/cart «${cartH1}»`),
+          check(cartReqs.length === 0, `peticiones a /api/shopify/cart: ${cartReqs.length}`),
+        ];
+        const v = verdict(checks, { notes: [sumIssues(issues, routes)] });
+        if (v.resultado.startsWith('FALLO')) await shotE2(page, `R-CART-06-${vp}`);
+        await context.close();
+        return v;
+      });
+    }
+    extra.unexpectedCart06 = B.unexpectedCalls().length;
+    await stopWait(B);
+    instances.splice(instances.indexOf(B), 1);
+  }
+
+  // ---------------------------------------------------------------- Extra: C-CAT-15 con stock a 0
+  {
+    const inventory = {};
+    for (const p of ['rocky-racing', 'rockydz-boyz', '35-red', '35-white', 'dwag', 'danger', 'flora-blue']) {
+      for (const v of fixtures.PRODUCTS.find((x) => x.handle === p).variants) inventory[v.id] = 0;
+    }
+    A.setControl({ storefront: { inventory } });
+    const { context, page } = await openPage(browser, A, { viewportName: 'escritorio' });
+    await page.goto(`${A.origin}/menudrop`);
+    await waitStore(page);
+    await sleep(500);
+    extra.menudropTodoAgotado = nb(await page.locator('main').innerText()).slice(0, 600);
+    await page.goto(`${A.origin}/`);
+    await waitStore(page);
+    extra.homeTodoAgotado = await homeCards(page);
+    await context.close();
+    A.resetControl();
+  }
+
+  extra.unexpectedA = A.unexpectedCalls();
+  extra.callsA = A.calls().length;
+  await browser.close();
+}
+
+try {
+  await main();
+} catch (error) {
+  process.stdout.write(`ERROR ${error?.stack || error}\n`);
+} finally {
+  for (const i of instances) {
+    extra[`unexpectedFinal-${i.port}`] = i.unexpectedCalls().length;
+    await i.stop().catch(() => {});
+  }
+  saveJson('catalogo-extra', extra);
+  R.save();
+  process.stdout.write(`unexpected: ${JSON.stringify({ A: extra.unexpectedA?.length, B: extra.unexpectedB, c06: extra.unexpectedCart06 })}\n`);
+}

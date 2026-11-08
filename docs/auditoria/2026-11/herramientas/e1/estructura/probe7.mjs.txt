@@ -1,0 +1,22 @@
+import { launchBrowser, open, ORIGIN, sleep } from './common.mjs';
+const b = await launchBrowser();
+const res = { teclado: [], programatico: [] };
+try {
+  for (const mode of ['teclado', 'programatico']) for (let rep = 0; rep < 5; rep++) {
+    const o = await open(b, 'escritorio');
+    const { page } = o;
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto(ORIGIN + '/');
+    await sleep(700);
+    await page.locator('header .navbar-menu').click();
+    await sleep(250);
+    if (mode === 'teclado') { await page.keyboard.press('Tab'); await page.keyboard.press('Tab'); }
+    else await page.locator('.navbar-sheet nav a').nth(2).focus();
+    await sleep(100 + rep * 50);
+    await page.setViewportSize({ width: 641 + rep * 50, height: 812 });
+    await sleep(400);
+    res[mode].push(await page.evaluate(() => document.activeElement.getAttribute('aria-label') || document.activeElement.tagName));
+    await o.context.close();
+  }
+  console.log(res);
+} finally { await b.close(); }

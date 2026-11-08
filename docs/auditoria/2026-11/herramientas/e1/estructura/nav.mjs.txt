@@ -1,0 +1,660 @@
+// R-NAV-05..10, 12..15 y pasadas de teclado de barra, menú móvil, portada y pie.
+import { launchBrowser, open, sum, clean, shot, ORIGIN, sleep, results, focusInfo, fmtFocus } from './common.mjs';
+import { swipe } from './touch.mjs';
+
+const R = results('nav');
+const b = await launchBrowser();
+const only = process.argv[2] ? process.argv[2].split(',') : null;
+const want = (id) => !only || only.includes(id);
+
+const mainNav = (page) => page.locator('header nav[aria-label="Navegación principal"]');
+
+async function navState(page) {
+  return page.evaluate(() => {
+    const links = [...document.querySelectorAll('header nav[aria-label="Navegación principal"] a')];
+    const cart = document.querySelector('.navbar-cart');
+    return {
+      path: location.pathname,
+      title: document.title,
+      current: [...links, cart].filter((a) => a.getAttribute('aria-current') === 'page').map((a) => a.getAttribute('aria-label') || a.textContent.trim()),
+      active: links.filter((a) => a.classList.contains('is-active')).map((a) => a.textContent.trim()),
+      footer: Boolean(document.querySelector('footer.footer')),
+      radio: Boolean(document.querySelector('.mini-player-slot--content')),
+      marker: window.__noReload === true,
+    };
+  });
+}
+
+try {
+  // ---------- R-NAV-05 (escritorio) ----------
+  if (want('R-NAV-05')) {
+    const o = await open(b, 'escritorio');
+    const { page } = o;
+    await page.goto(ORIGIN + '/');
+    await sleep(800);
+    await page.evaluate(() => { window.__noReload = true; });
+    const expect = [
+      ['Tienda', '/', 'ROCKY 035', true, true],
+      ['Drops', '/menudrop', 'Drops · ROCKY 035', true, true],
+      ['Estudio', '/estudio', 'La Colmena · ROCKY 035', true, false],
+      ['Crew', '/crew', 'La Crew · ROCKY 035', true, true],
+      ['Rocky IA', '/rockyIA', 'Rocky IA · ROCKY 035', false, false],
+      ['Mi Crew', '/mi-crew', 'Mi Crew · ROCKY 035', true, true],
+    ];
+    const parts = [];
+    let ok = true;
+    // Empezar desde otra ruta para que «Tienda» también navegue
+    await mainNav(page).getByRole('link', { name: 'Drops' }).click();
+    await page.waitForFunction(() => location.pathname === '/menudrop');
+    for (const [label, path, title, footer, radio] of expect) {
+      await mainNav(page).getByRole('link', { name: label, exact: true }).click();
+      await page.waitForFunction((p) => location.pathname === p, path, { timeout: 5000 });
+      await page.waitForFunction((t) => document.title === t, title, { timeout: 6000 }).catch(() => {});
+      await sleep(250);
+      const s = await navState(page);
+      let accountStyle = '';
+      if (label === 'Mi Crew') {
+        accountStyle = await page.evaluate(() => {
+          const a = document.querySelector('header .navbar-account');
+          const cs = getComputedStyle(a);
+          return `color ${cs.color}, borde ${cs.borderBottomStyle} ${cs.borderBottomColor}`;
+        });
+      }
+      const good = s.path === path && s.title === title && s.current.includes(label) && (label === 'Mi Crew' ? s.active.length === 0 : s.active.join() === label) && s.footer === footer && s.radio === radio && s.marker;
+      ok = ok && good;
+      parts.push(`${label}→${s.path} «${s.title}» aria-current=[${s.current}] is-active=[${s.active}] pie=${s.footer} radio=${s.radio}${accountStyle ? ` (${accountStyle})` : ''}${good ? '' : ' ✗'}`);
+    }
+    await page.locator('header .navbar-cart').click();
+    await page.waitForFunction(() => location.pathname === '/cart');
+    await page.waitForFunction(() => document.title === 'Carrito · ROCKY 035', null, { timeout: 6000 }).catch(() => {});
+    const sc = await navState(page);
+    const cartOk = sc.title === 'Carrito · ROCKY 035' && sc.current.includes('Carrito, vacío') && sc.marker;
+    parts.push(`carrito→${sc.path} «${sc.title}» aria-current=[${sc.current}]${cartOk ? '' : ' ✗'}`);
+    await page.getByRole('link', { name: 'Inicio' }).click();
+    await page.waitForFunction(() => location.pathname === '/');
+    await sleep(300);
+    const sl = await navState(page);
+    const logoOk = sl.path === '/' && sl.title === 'ROCKY 035' && sl.marker;
+    parts.push(`logo→${sl.path} «${sl.title}»`);
+    // Tienda no se marca en /products/...
+    await page.evaluate(() => window.history.pushState({}, '', '/products/asphalt-afterdark'));
+    await page.goto(ORIGIN + '/products/asphalt-afterdark');
+    await sleep(600);
+    const sp = await navState(page);
+    const prodOk = !sp.active.includes('Tienda');
+    parts.push(`/products/asphalt-afterdark: is-active=[${sp.active}] aria-current=[${sp.current}]`);
+    // Barra fija al hacer scroll
+    await page.goto(ORIGIN + '/');
+    await sleep(600);
+    await page.mouse.move(700, 500);
+    await page.mouse.wheel(0, 1600);
+    await sleep(500);
+    const sticky = await page.evaluate(() => ({ y: Math.round(scrollY), top: Math.round(document.querySelector('header.navbar').getBoundingClientRect().top), pos: getComputedStyle(document.querySelector('header.navbar')).position }));
+    const stickyOk = sticky.y > 1000 && sticky.top === 0 && sticky.pos === 'sticky';
+    parts.push(`scroll ${sticky.y}px: barra top=${sticky.top} (${sticky.pos})`);
+    ok = ok && cartOk && logoOk && prodOk && stickyOk && clean(o);
+    R.add({ id: 'R-NAV-05', viewport: 'escritorio', resultado: ok ? 'OK' : 'FALLO', evidencia: `sin recarga (marcador de window conservado): ${parts.join('; ')}; ${sum(o)}` });
+    if (!ok) await shot(page, 'estructura', 'R-NAV-05-escritorio');
+    await o.context.close();
+  }
+
+  // ---------- R-NAV-06 ----------
+  if (want('R-NAV-06')) {
+    for (const vp of ['escritorio', 'movil']) {
+      const o = await open(b, vp);
+      const { page } = o;
+      await page.goto(ORIGIN + '/');
+      await sleep(900);
+      const cartInfo = () => page.evaluate(() => {
+        const a = document.querySelector('header .navbar-cart');
+        const c = a.querySelector('.cart-counter');
+        const img = a.querySelector('img');
+        return { name: a.getAttribute('aria-label'), counter: c ? c.textContent : null, counterHidden: c ? c.getAttribute('aria-hidden') : null, icon: Math.round(img.getBoundingClientRect().width) };
+      });
+      const c0 = await cartInfo();
+      const add = page.getByRole('button', { name: 'Añadir al carrito' }).first();
+      const addCount = await page.getByRole('button', { name: 'Añadir al carrito' }).count();
+      let c1 = null;
+      let c2 = null;
+      if (addCount) {
+        await add.scrollIntoViewIfNeeded();
+        await add.click();
+        await page.waitForFunction(() => document.querySelector('header .navbar-cart').getAttribute('aria-label') !== 'Carrito, vacío', null, { timeout: 4000 }).catch(() => {});
+        c1 = await cartInfo();
+        await sleep(1500);
+        await page.getByRole('button', { name: /Añadir al carrito|Añadido/ }).first().click();
+        await page.waitForFunction(() => /2 artículos/.test(document.querySelector('header .navbar-cart').getAttribute('aria-label')), null, { timeout: 4000 }).catch(() => {});
+        c2 = await cartInfo();
+      }
+      await page.reload();
+      await sleep(900);
+      const c3 = await cartInfo();
+      const ok = c0.name === 'Carrito, vacío' && c0.counter === null && c1?.name === 'Carrito, 1 artículo' && c1?.counter === '1' && c1?.counterHidden === 'true' && c2?.name === 'Carrito, 2 artículos' && c3.name === 'Carrito, vacío' && c0.icon === (vp === 'movil' ? 30 : 36) && clean(o);
+      R.add({
+        id: 'R-NAV-06',
+        viewport: vp,
+        resultado: addCount ? (ok ? 'OK' : 'FALLO') : 'NO EJECUTADO: en E1 ningún producto ofrece «Añadir al carrito» (precio «??» sin variantes); pasos 2-5 necesitan E2. Sólo se comprobó el estado vacío',
+        evidencia: addCount ? `vacío: «${c0.name}» globo=${c0.counter} icono ${c0.icon}px; tras 1: «${c1?.name}» globo=${c1?.counter} aria-hidden=${c1?.counterHidden}; tras 2: «${c2?.name}» globo=${c2?.counter}; tras recargar: «${c3.name}»; ${sum(o)}` : `estado vacío correcto: nombre «${c0.name}», sin globo (${c0.counter}), icono ${c0.icon}px (${vp === 'movil' ? '30 px en ≤ 640' : '36 px'}); 0 botones «Añadir al carrito» en / (sólo «Avísame»/«Detalles»); tras recargar «${c3.name}»; ${sum(o)}`,
+      });
+      if (addCount && !ok) await shot(page, 'estructura', `R-NAV-06-${vp}`);
+      await o.context.close();
+    }
+  }
+
+  // ---------- R-NAV-07 + TECLADO-menu-movil ----------
+  if (want('R-NAV-07')) {
+    const o = await open(b, 'movil');
+    const { page } = o;
+    await page.goto(ORIGIN + '/');
+    await sleep(900);
+    const bar = await page.evaluate(() => ({
+      links: getComputedStyle(document.querySelector('header .navbar-links')).display,
+      theme: getComputedStyle(document.querySelector('header .navbar-tools > .navbar-theme')).display,
+      menu: getComputedStyle(document.querySelector('header .navbar-menu')).display,
+      menuName: document.querySelector('header .navbar-menu').getAttribute('aria-label'),
+    }));
+    const btn = page.locator('header .navbar-menu');
+    await btn.click();
+    await sleep(300);
+    const opened = await page.evaluate(() => {
+      const s = document.querySelector('.navbar-sheet');
+      const b2 = document.querySelector('header .navbar-menu');
+      return {
+        exists: Boolean(s),
+        role: s?.getAttribute('role'),
+        modal: s?.getAttribute('aria-modal'),
+        label: s?.getAttribute('aria-label'),
+        links: s ? [...s.querySelectorAll('nav a')].map((a) => a.textContent.trim()) : [],
+        themeText: s?.querySelector('.navbar-theme--sheet span')?.textContent,
+        expanded: b2.getAttribute('aria-expanded'),
+        btnName: b2.getAttribute('aria-label'),
+        iconOpen: b2.querySelector('.navbar-menu-icon').classList.contains('is-open'),
+        focus: document.activeElement?.textContent?.trim(),
+        overflow: document.body.style.overflow,
+      };
+    });
+    // 3. Intentar mover el fondo con el dedo (sobre la hoja y sobre la barra)
+    await swipe(page, 350, 200, 600);
+    await sleep(600);
+    const afterSwipe = await page.evaluate(() => ({ y: Math.round(scrollY), navTop: Math.round(document.querySelector('header.navbar').getBoundingClientRect().top), sheetTop: Math.round(document.querySelector('.navbar-sheet')?.getBoundingClientRect().top ?? -1) }));
+    if (afterSwipe.y > 0) await shot(page, 'estructura', 'R-NAV-07-movil');
+    await page.evaluate(() => scrollTo(0, 0));
+    // 4. Drops
+    await page.getByRole('dialog', { name: 'Menú' }).getByRole('link', { name: 'Drops' }).click();
+    await sleep(500);
+    const s4 = await page.evaluate(() => ({ path: location.pathname, sheet: Boolean(document.querySelector('.navbar-sheet')), focus: document.activeElement?.getAttribute('aria-label'), overflow: document.body.style.overflow }));
+    // 5. Reabrir y pulsar el destino actual
+    await btn.click();
+    await sleep(250);
+    await page.getByRole('dialog', { name: 'Menú' }).getByRole('link', { name: 'Drops' }).click();
+    await sleep(300);
+    const s5 = await page.evaluate(() => ({ sheet: Boolean(document.querySelector('.navbar-sheet')), focus: document.activeElement?.getAttribute('aria-label'), overflow: document.body.style.overflow }));
+    // 6. Reabrir y cerrar con el mismo botón
+    await btn.click();
+    await sleep(250);
+    const name6 = await btn.getAttribute('aria-label');
+    await btn.click();
+    await sleep(250);
+    const s6 = await page.evaluate(() => ({ sheet: Boolean(document.querySelector('.navbar-sheet')), overflow: document.body.style.overflow }));
+    // 7. Teclado
+    await btn.focus();
+    await page.keyboard.press('Enter');
+    await sleep(250);
+    const tabSeq = [fmtFocus(await focusInfo(page))];
+    for (let i = 0; i < 8; i += 1) {
+      await page.keyboard.press('Tab');
+      tabSeq.push(fmtFocus(await focusInfo(page)));
+    }
+    const shiftSeq = [];
+    await page.locator('.navbar-sheet nav a').first().focus();
+    for (let i = 0; i < 2; i += 1) {
+      await page.keyboard.press('Shift+Tab');
+      shiftSeq.push(fmtFocus(await focusInfo(page)));
+    }
+    const leftSheet = tabSeq.concat(shiftSeq).some((s) => s.includes('Cerrar el menú'));
+    await page.keyboard.press('Escape');
+    await sleep(250);
+    const s7 = await page.evaluate(() => ({ sheet: Boolean(document.querySelector('.navbar-sheet')), focus: document.activeElement?.getAttribute('aria-label'), overflow: document.body.style.overflow }));
+    // 3b. Abrir la hoja después de bajar por la página (clic real en el botón, sin auto-scroll)
+    await page.evaluate(() => scrollTo(0, 1500));
+    await sleep(400);
+    const bb = await btn.boundingBox();
+    await page.mouse.click(bb.x + bb.width / 2, bb.y + bb.height / 2);
+    await sleep(400);
+    const s3b = await page.evaluate(() => {
+      const r = document.querySelector('header .navbar-menu').getBoundingClientRect();
+      const hit = document.elementFromPoint(20, 28);
+      return { y: Math.round(scrollY), btnTop: Math.round(r.top), navTop: Math.round(document.querySelector('header.navbar').getBoundingClientRect().top), strip: `${hit.tagName.toLowerCase()}.${String(hit.className).split(' ')[0]}` };
+    });
+    await shot(page, 'estructura', 'R-NAV-07-movil-hoja-tras-scroll');
+    await page.keyboard.press('Escape');
+    await sleep(400);
+    const yEsc = await page.evaluate(() => Math.round(scrollY));
+    const ok3b = s3b.navTop === 0 && yEsc === s3b.y;
+    const ok1 = bar.links === 'none' && bar.theme === 'none' && bar.menu === 'flex' && bar.menuName === 'Abrir el menú';
+    const ok2 = opened.exists && opened.role === 'dialog' && opened.modal === 'true' && opened.label === 'Menú' && opened.links.join() === 'Tienda,Drops,Estudio,Crew,Rocky IA,Mi Crew' && opened.themeText === 'Activar el descontrol' && opened.expanded === 'true' && opened.btnName === 'Cerrar el menú' && opened.iconOpen && opened.focus === 'Tienda' && opened.overflow === 'hidden';
+    const ok3 = afterSwipe.y === 0;
+    const ok4 = s4.path === '/menudrop' && !s4.sheet && s4.focus === 'Abrir el menú' && s4.overflow === '';
+    const ok5 = !s5.sheet && s5.focus === 'Abrir el menú';
+    const ok6 = name6 === 'Cerrar el menú' && !s6.sheet && s6.overflow === '';
+    const ok7 = !leftSheet && !s7.sheet && s7.focus === 'Abrir el menú' && s7.overflow === '';
+    const ok = ok1 && ok2 && ok3 && ok3b && ok4 && ok5 && ok6 && ok7 && clean(o);
+    R.add({
+      id: 'R-NAV-07',
+      viewport: 'movil',
+      resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `(1) enlaces display=${bar.links}, bombilla=${bar.theme}, menú=${bar.menu} «${bar.menuName}»; (2) hoja role=${opened.role} aria-modal=${opened.modal} «${opened.label}» enlaces [${opened.links}] botón «${opened.themeText}»; botón aria-expanded=${opened.expanded} «${opened.btnName}» aspa=${opened.iconOpen}; foco en «${opened.focus}»; body overflow=«${opened.overflow}»; (3) deslizamiento táctil con la hoja abierta: scrollY=${afterSwipe.y}, barra top=${afterSwipe.navTop}, hoja top=${afterSwipe.sheetTop}${ok3 ? '' : ' → el fondo SÍ se mueve (y la barra sticky se va de pantalla mientras la hoja sigue fija)'}; (4) Drops → ${s4.path}, hoja=${s4.sheet}, foco «${s4.focus}», overflow «${s4.overflow}»; (5) destino actual → hoja=${s5.sheet}, foco «${s5.focus}»; (6) botón «${name6}» cierra: hoja=${s6.sheet}; (7) Tab: ${tabSeq.join(' → ')}; Mayús+Tab desde el primero: ${shiftSeq.join(' → ')}; Escape → hoja=${s7.sheet}, foco «${s7.focus}», overflow «${s7.overflow}»; (3b) abrir la hoja tras bajar a y=${s3b.y}: barra top=${s3b.navTop} y botón «Cerrar el menú» top=${s3b.btnTop} (fuera de pantalla), en la franja de arriba asoma ${s3b.strip}; Escape → y=${yEsc}${yEsc === 0 ? ' (la página salta arriba del todo)' : ''}; ${sum(o)}`,
+      hallazgos: [ok3 ? '' : 'NUEVO-1', ok3b ? '' : 'NUEVO-3', 'C-EST-06'].filter(Boolean).join(', '),
+    });
+    R.add({
+      id: 'TECLADO-menu-movil',
+      viewport: 'movil',
+      resultado: ok7 ? 'OK' : 'FALLO',
+      evidencia: `(viewport móvil: la hoja sólo existe ≤ 640 px) Enter abre y el foco va a «Tienda»; Tab da vueltas dentro: ${tabSeq.join(' → ')}; Mayús+Tab: ${shiftSeq.join(' → ')}; el botón «Cerrar el menú» queda fuera de la trampa (sólo cierran Escape o un destino); Escape cierra y devuelve el foco a «${s7.focus}». Todos con anillo visible.`,
+      hallazgos: 'C-EST-06',
+    });
+    await o.context.close();
+  }
+
+  // ---------- R-NAV-08 ----------
+  if (want('R-NAV-08')) {
+    // Pasos 1-2 repetidos 5 veces con foco de teclado (el resultado varía entre intentos)
+    const tries = [];
+    let s2;
+    let f0;
+    for (let rep = 0; rep < 5; rep += 1) {
+      const t = await open(b, 'escritorio');
+      await t.page.setViewportSize({ width: 375, height: 812 });
+      await t.page.goto(ORIGIN + '/');
+      await sleep(800);
+      await t.page.locator('header .navbar-menu').click();
+      await sleep(250);
+      await t.page.keyboard.press('Tab');
+      await t.page.keyboard.press('Tab');
+      f0 = await t.page.evaluate(() => document.activeElement.textContent.trim());
+      await sleep(100 + rep * 40);
+      await t.page.setViewportSize({ width: 641 + rep * 60, height: 812 });
+      await sleep(400);
+      s2 = await t.page.evaluate(() => ({ sheet: Boolean(document.querySelector('.navbar-sheet')), overflow: document.body.style.overflow, focus: document.activeElement?.getAttribute('aria-label') || document.activeElement?.tagName }));
+      tries.push(`${641 + rep * 60}px: hoja=${s2.sheet} overflow «${s2.overflow}» foco «${s2.focus}»`);
+      if (s2.focus !== 'Inicio' && !tries.shotTaken) {
+        await shot(t.page, 'estructura', 'R-NAV-08-movil');
+        tries.shotTaken = true;
+      }
+      await t.context.close();
+    }
+    const lost = tries.filter((x) => !/foco «Inicio»/.test(x)).length;
+    const o = await open(b, 'escritorio');
+    const { page } = o;
+    await page.goto(ORIGIN + '/');
+    await sleep(800);
+    const rows = [];
+    let rowOk = true;
+    for (const w of [641, 700, 800, 900]) {
+      await page.setViewportSize({ width: w, height: 812 });
+      await sleep(250);
+      const r = await page.evaluate(() => {
+        const logo = document.querySelector('.navbar-logo');
+        const items = [...document.querySelectorAll('header .navbar-inner > *, header .navbar-links > *, header .navbar-tools > *')].filter((e) => getComputedStyle(e).display !== 'none');
+        const tops = new Set(items.map((e) => Math.round(e.getBoundingClientRect().top + e.getBoundingClientRect().height / 2)));
+        const acc = document.querySelector('header .navbar-account');
+        const cs = getComputedStyle(acc);
+        const right = Math.max(...items.map((e) => e.getBoundingClientRect().right));
+        return {
+          logoH: Math.round(logo.getBoundingClientRect().height),
+          centres: [...tops],
+          accW: Math.round(acc.getBoundingClientRect().width),
+          accMax: cs.maxWidth,
+          ellipsis: cs.textOverflow,
+          truncated: acc.scrollWidth > acc.clientWidth,
+          hscroll: document.documentElement.scrollWidth > innerWidth,
+          overflowRight: Math.round(right - innerWidth),
+          menu: getComputedStyle(document.querySelector('header .navbar-menu')).display,
+        };
+      });
+      const spread = Math.max(...r.centres) - Math.min(...r.centres);
+      const good = r.logoH === 24 && spread <= 6 && r.accMax === '90px' && !r.hscroll && r.overflowRight <= 0 && r.menu === 'none';
+      rowOk = rowOk && good;
+      rows.push(`${w}px: logo ${r.logoH}px, centros ${spread}px de diferencia, Mi Crew ${r.accW}px (max ${r.accMax}, ${r.ellipsis}, recortado=${r.truncated}), scroll-x=${r.hscroll}, desborde dcha=${r.overflowRight}px${good ? '' : ' ✗'}`);
+    }
+    await page.setViewportSize({ width: 640, height: 812 });
+    await sleep(250);
+    const s4 = await page.evaluate(() => ({ links: getComputedStyle(document.querySelector('header .navbar-links')).display, theme: getComputedStyle(document.querySelector('header .navbar-tools > .navbar-theme')).display, menu: getComputedStyle(document.querySelector('header .navbar-menu')).display }));
+    const okM = lost === 0 && tries.every((x) => /hoja=false overflow «»/.test(x)) && s4.links === 'none' && s4.theme === 'none' && s4.menu === 'flex' && clean(o);
+    R.add({ id: 'R-NAV-08', viewport: 'movil', resultado: okM ? 'OK' : 'FALLO', evidencia: `375 px con la hoja abierta y foco de teclado en «${f0}», ensanchar (5 intentos): ${tries.join('; ')} → la hoja se cierra y el scroll se libera siempre, pero el foco acaba en <body> en ${lost} de 5 (carrera entre el CSS que oculta .navbar-sheet a ≥ 641 px y el listener de matchMedia); a 640 px: enlaces=${s4.links}, bombilla=${s4.theme}, botón menú=${s4.menu}; ${sum(o)}`, hallazgos: lost ? 'NUEVO-2' : '' });
+    R.add({ id: 'R-NAV-08', viewport: 'escritorio', resultado: rowOk && clean(o) ? 'OK' : 'FALLO', evidencia: `barra entre 641 y 900 px: ${rows.join('; ')}; ${sum(o)}` });
+    if (!rowOk) await shot(page, 'estructura', 'R-NAV-08-escritorio');
+    await o.context.close();
+  }
+
+  // ---------- R-NAV-09 ----------
+  if (want('R-NAV-09')) {
+    for (const vp of ['escritorio', 'movil']) {
+      const o = await open(b, vp);
+      const { page } = o;
+      await page.goto(ORIGIN + '/');
+      await sleep(900);
+      const state = () => page.evaluate(() => {
+        const btn = document.querySelector(window.innerWidth > 640 ? 'header .navbar-tools > .navbar-theme' : '.navbar-sheet .navbar-theme--sheet');
+        const audio = [...document.querySelectorAll('audio')];
+        return {
+          theme: document.documentElement.dataset.theme || '(sin data-theme)',
+          meta: document.querySelector('meta[name="theme-color"]').content,
+          pressed: btn?.getAttribute('aria-pressed'),
+          label: btn?.getAttribute('aria-label'),
+          title: btn?.getAttribute('title'),
+          text: btn?.querySelector('span')?.textContent || '',
+          color: btn ? getComputedStyle(btn).color : '',
+          rays: btn ? getComputedStyle(btn.querySelector('.navbar-theme-rays')).opacity : '',
+          ticker: document.querySelector('.ticker-track span')?.textContent.slice(0, 40),
+          audio: audio.map((a) => `${(a.currentSrc || a.src).split('/').pop()}:${a.paused ? 'pausa' : 'suena'}`).join(','),
+        };
+      });
+      if (vp === 'movil') {
+        await page.locator('header .navbar-menu').click();
+        await sleep(250);
+      }
+      const btnSel = vp === 'escritorio' ? 'header .navbar-tools > .navbar-theme' : '.navbar-sheet .navbar-theme--sheet';
+      const s0 = await state();
+      await page.locator(btnSel).click();
+      await sleep(600);
+      const s1 = await state();
+      await page.locator(btnSel).click();
+      await sleep(600);
+      const s2 = await state();
+      // Enter y Espacio
+      await page.locator(btnSel).focus();
+      await page.keyboard.press('Enter');
+      await sleep(300);
+      const sE = await state();
+      await page.keyboard.press(' ');
+      await sleep(300);
+      const sS = await state();
+      const ok =
+        s0.theme === '(sin data-theme)' && s0.pressed === 'false' && s0.label === 'Activar el descontrol' && s0.meta === '#1a1a1a' &&
+        s1.theme === 'neon' && s1.meta === '#0c0917' && s1.pressed === 'true' && s1.label === 'Apagar el descontrol' && s1.title === 'Apagar el descontrol' && s1.rays === '1' &&
+        s2.theme === '(sin data-theme)' && s2.meta === '#1a1a1a' && sE.theme === 'neon' && sS.theme === '(sin data-theme)' &&
+        (vp === 'escritorio' || (s0.text === 'Activar el descontrol' && s1.text === 'Apagar el descontrol')) && clean(o);
+      const f = (s) => `data-theme=${s.theme}, theme-color ${s.meta}, aria-pressed=${s.pressed}, «${s.label}»/title «${s.title}»${s.text ? ` texto «${s.text}»` : ''}, color ${s.color}, rayos ${s.rays}, cinta «${s.ticker}», audio [${s.audio}]`;
+      R.add({ id: 'R-NAV-09', viewport: vp, resultado: ok ? 'OK' : 'FALLO', evidencia: `${vp === 'movil' ? 'desde la hoja del menú. ' : ''}inicio: ${f(s0)}; encendido: ${f(s1)}; apagado: ${f(s2)}; Enter → ${sE.theme}; Espacio → ${sS.theme}; ${sum(o)}` });
+      if (!ok) await shot(page, 'estructura', `R-NAV-09-${vp}`);
+      await o.context.close();
+    }
+  }
+
+  // ---------- R-NAV-10 ----------
+  if (want('R-NAV-10')) {
+    for (const vp of ['escritorio', 'movil']) {
+      const o = await open(b, vp, { storage: { 'rocky-theme': 'neon' } });
+      const { page } = o;
+      await page.goto(ORIGIN + '/');
+      await sleep(800);
+      const st = () => page.evaluate(() => ({ theme: document.documentElement.dataset.theme || '-', meta: document.querySelector('meta[name="theme-color"]').content, pressed: document.querySelector('.navbar-theme').getAttribute('aria-pressed'), ls: localStorage.getItem('rocky-theme') }));
+      const s0 = await st();
+      if (vp === 'movil') {
+        await page.locator('header .navbar-menu').click();
+        await page.locator('.navbar-sheet .navbar-theme--sheet').click();
+      } else await page.locator('header .navbar-tools > .navbar-theme').click();
+      await sleep(300);
+      const sOn = await st();
+      await page.reload();
+      await sleep(800);
+      const s1 = await st();
+      await page.goto(ORIGIN + '/legal/cookies');
+      await sleep(800);
+      const s2 = await st();
+      const ok = s0.ls === null && sOn.theme === 'neon' && [s1, s2].every((s) => s.theme === '-' && s.meta === '#1a1a1a' && s.pressed === 'false' && s.ls === null) && clean(o);
+      R.add({ id: 'R-NAV-10', viewport: vp, resultado: ok ? 'OK' : 'FALLO', evidencia: `localStorage rocky-theme=neon sembrado antes de cada carga → tras cargar ${s0.ls === null ? 'borrado' : s0.ls}; encendido: ${sOn.theme}; recarga: data-theme ${s1.theme}, theme-color ${s1.meta}, aria-pressed ${s1.pressed}, rocky-theme ${s1.ls}; URL directa /legal/cookies: ${s2.theme}, ${s2.meta}, ${s2.pressed}; ${sum(o)}` });
+      await o.context.close();
+    }
+  }
+
+  // ---------- R-NAV-11 (E2) ----------
+  if (want('R-NAV-11')) {
+    for (const vp of ['escritorio', 'movil']) R.add({ id: 'R-NAV-11', viewport: vp, resultado: 'NO EJECUTADO: requiere E2 (customerAccounts activo con la Customer Account API)', evidencia: 'En E1 /api/shopify/status devuelve customerAccounts=false y «Mi Crew» es el NavLink a /mi-crew de R-NAV-05.' });
+  }
+
+  // ---------- R-NAV-12 (skip link) ----------
+  if (want('R-NAV-12')) {
+    for (const vp of ['escritorio', 'movil']) {
+      const o = await open(b, vp);
+      const { page } = o;
+      await page.goto(ORIGIN + '/');
+      await sleep(900);
+      await page.keyboard.press('Tab');
+      await sleep(250);
+      const f = await focusInfo(page);
+      const vis = await page.evaluate(() => {
+        const a = document.activeElement;
+        const r = a.getBoundingClientRect();
+        const pts = [[r.left + 4, r.top + 4], [r.left + r.width / 2, r.top + r.height / 2], [r.right - 4, r.bottom - 4]].map(([x, y]) => {
+          const h = document.elementFromPoint(x, y);
+          return h === a || a.contains(h) ? 'enlace' : `${h.tagName.toLowerCase()}.${String(h.className).split(' ')[0]}`;
+        });
+        const nav = document.querySelector('header.navbar');
+        return { top: Math.round(r.top), left: Math.round(r.left), h: Math.round(r.height), z: getComputedStyle(a).zIndex, navZ: getComputedStyle(nav).zIndex, navH: Math.round(nav.getBoundingClientRect().height), navBg: getComputedStyle(nav).backgroundColor, pts };
+      });
+      if (f.covered) await shot(page, 'estructura', `R-NAV-12-${vp}`);
+      await page.keyboard.press('Enter');
+      await sleep(300);
+      const after = await page.evaluate(() => ({ hash: location.hash, active: document.activeElement?.id || document.activeElement?.tagName }));
+      await page.keyboard.press('Tab');
+      await sleep(200);
+      const next = await page.evaluate(() => {
+        const a = document.activeElement;
+        return { inMain: Boolean(a.closest('main')), inHeader: Boolean(a.closest('header')), name: (a.getAttribute('aria-label') || a.textContent || '').trim().slice(0, 40) };
+      });
+      // La ficha describe el CSS y pide anotar: el enlace funciona, pero ¿se ve?
+      const ok = f.name === 'Saltar al contenido' && vis.top === 8 && vis.left === 8 && vis.pts.every((p) => p === 'enlace') && after.hash === '#main-content' && after.active === 'main-content' && next.inMain && !next.inHeader && clean(o);
+      R.add({
+        id: 'R-NAV-12',
+        viewport: vp,
+        resultado: ok ? 'OK' : 'FALLO',
+        evidencia: `Tab 1 → «${f.name}» en top=${vis.top} left=${vis.left} (alto ${vis.h}px), z-index ${vis.z} = barra ${vis.navZ} (barra ${vis.navH}px, fondo ${vis.navBg}); elementFromPoint en esquina/centro/esquina: [${vis.pts}] → ${vis.pts.every((p) => p === 'enlace') ? 'se ve entero' : 'la barra lo tapa (no se ve)'}; anillo=${f.ring}; Enter → hash ${after.hash}, foco en #${after.active}; Tab siguiente → «${next.name}» (main=${next.inMain}, barra=${next.inHeader}); ${sum(o)}`,
+        hallazgos: vis.pts.every((p) => p === 'enlace') ? '' : 'C-EST-01',
+      });
+      await o.context.close();
+    }
+  }
+
+  // ---------- R-NAV-13 + TECLADO-navbar/portada/pie ----------
+  if (want('R-NAV-13')) {
+    const o = await open(b, 'escritorio');
+    const { page } = o;
+    const tabWalk = async (n) => {
+      const seq = [];
+      for (let i = 0; i < n; i += 1) {
+        await page.keyboard.press('Tab');
+        const f = await focusInfo(page);
+        seq.push(f);
+      }
+      return seq;
+    };
+    const footerWalk = async () => {
+      // Foco en el último elemento enfocable antes del pie y Tab hasta salir del documento
+      await page.evaluate(() => {
+        const all = [...document.querySelectorAll('a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])')].filter((e) => e.offsetParent !== null || getComputedStyle(e).position === 'fixed');
+        const ticker = document.querySelector('.ticker');
+        const before = all.filter((e) => ticker.compareDocumentPosition(e) & Node.DOCUMENT_POSITION_PRECEDING);
+        before[before.length - 1]?.focus();
+        window.scrollTo(0, document.documentElement.scrollHeight);
+      });
+      const seq = [];
+      for (let i = 0; i < 8; i += 1) {
+        await page.keyboard.press('Tab');
+        const f = await page.evaluate(() => Boolean(document.activeElement.closest('footer, .ticker')));
+        if (!f) break;
+        seq.push(await focusInfo(page));
+      }
+      return seq;
+    };
+    const run = async (night) => {
+      await page.goto(ORIGIN + '/');
+      await sleep(900);
+      if (night) {
+        await page.locator('header .navbar-tools > .navbar-theme').click();
+        await sleep(400);
+        await page.evaluate(() => { document.activeElement.blur(); });
+        await page.goto(ORIGIN + '/'); // recargar apaga: volver a encender sin recargar
+      }
+      return null;
+    };
+    // Día
+    await page.goto(ORIGIN + '/');
+    await sleep(900);
+    const day = await tabWalk(12);
+    // Activar: Enter en «Drops» y Espacio en la bombilla
+    await page.goto(ORIGIN + '/');
+    await sleep(600);
+    for (let i = 0; i < 4; i += 1) await page.keyboard.press('Tab');
+    const onDrops = await page.evaluate(() => document.activeElement.textContent.trim());
+    await page.keyboard.press('Enter');
+    await sleep(500);
+    const enterPath = await page.evaluate(() => location.pathname);
+    await page.goto(ORIGIN + '/');
+    await sleep(600);
+    for (let i = 0; i < 10; i += 1) await page.keyboard.press('Tab');
+    const onBulb = await page.evaluate(() => document.activeElement.getAttribute('aria-label'));
+    await page.keyboard.press(' ');
+    await sleep(300);
+    const bulbTheme = await page.evaluate(() => document.documentElement.dataset.theme || '-');
+    // Noche: con el neón ya puesto, recorrer barra
+    await page.evaluate(() => document.activeElement.blur());
+    await page.evaluate(() => window.scrollTo(0, 0));
+    // Empezar desde el principio del documento sin recargar: foco al <body> por script
+    await page.evaluate(() => { document.body.setAttribute('tabindex', '-1'); document.body.focus(); document.body.removeAttribute('tabindex'); });
+    const night = await tabWalk(11);
+    const footerNight = await footerWalk();
+    // Pie de día en / y en /legal/cookies
+    await page.goto(ORIGIN + '/');
+    await sleep(900);
+    const footerDay = await footerWalk();
+    await page.goto(ORIGIN + '/legal/cookies');
+    await sleep(1200);
+    const footerLegal = await footerWalk();
+    const names = (seq) => seq.map(fmtFocus).join(' → ');
+    const expected = ['Saltar al contenido', 'Inicio', 'Tienda', 'Drops', 'Estudio', 'Crew', 'Rocky IA', 'Mi Crew', 'Carrito, vacío', 'Activar el descontrol'];
+    const dayNames = day.slice(0, 10).map((f) => f.name);
+    const orderOk = expected.every((e, i) => dayNames[i] === e);
+    const menuFocused = day.some((f) => /menú/.test(f.name));
+    const footerNames = (s) => s.map((f) => f.name);
+    const footerExpected = ['Instagram de ROCKY 035', 'Aviso legal', 'Privacidad', 'Cookies', 'Compras y devoluciones'];
+    const footOk = (s) => footerExpected.every((e, i) => footerNames(s)[i] === e) && s.length === 5;
+    const ringsOk = [...day, ...night, ...footerDay, ...footerNight, ...footerLegal].every((f) => f.ring && f.focusVisible);
+    const skipCovered = day[0]?.covered || night[0]?.covered;
+    const ok = !skipCovered && orderOk && !menuFocused && onDrops === 'Drops' && enterPath === '/menudrop' && onBulb === 'Activar el descontrol' && bulbTheme === 'neon' && footOk(footerDay) && footOk(footerNight) && footOk(footerLegal) && ringsOk && clean(o);
+    R.add({
+      id: 'R-NAV-13',
+      viewport: 'escritorio',
+      resultado: ok ? 'OK' : 'FALLO',
+      hallazgos: skipCovered ? 'C-EST-01' : '',
+      evidencia: `${skipCovered ? 'Único fallo: «Saltar al contenido» recibe foco pero queda bajo la barra, así que su foco no se ve (mismo defecto que R-NAV-12). ' : ''}día, desde el principio: ${names(day)}; Enter en «${onDrops}» → ${enterPath}; Espacio en «${onBulb}» → data-theme=${bulbTheme}; noche: ${names(night)}; pie de día en /: ${names(footerDay)}; pie de noche: ${names(footerNight)}; pie en /legal/cookies: ${names(footerLegal)}; anillo (outline) en todos=${ringsOk} (día ${day[2]?.outline}, noche ${night[2]?.outline}); botón de menú enfocado=${menuFocused}; ${sum(o)}`,
+    });
+    R.add({ id: 'TECLADO-navbar', viewport: 'escritorio', resultado: orderOk && !menuFocused && ringsOk && !skipCovered ? 'OK' : 'FALLO', evidencia: `Orden: ${names(day.slice(0, 10))}; todos con :focus-visible y outline (${day[2]?.outline}); el botón de menú (display:none) no recibe foco; de noche igual (${night[2]?.outline}). Tapados: ${day.slice(0, 10).filter((f) => f.covered).map(fmtFocus).join(', ') || 'ninguno'} → «Saltar al contenido» recibe foco pero no se ve (R-NAV-12).`, hallazgos: skipCovered ? 'C-EST-01' : '' });
+    R.add({ id: 'TECLADO-pie', viewport: 'escritorio', resultado: footOk(footerDay) && footOk(footerLegal) && footOk(footerNight) && ringsOk ? 'OK' : 'FALLO', evidencia: `/: ${names(footerDay)}; /legal/cookies: ${names(footerLegal)}; de noche: ${names(footerNight)}; la cinta y la lata (aria-hidden) no reciben foco.` });
+    await o.context.close();
+  }
+
+  // ---------- TECLADO-portada ----------
+  if (want('TECLADO-portada')) {
+    const o = await open(b, 'escritorio');
+    const { page } = o;
+    await page.goto(ORIGIN + '/');
+    await sleep(1000);
+    const seq = [];
+    for (let i = 0; i < 70; i += 1) {
+      await page.keyboard.press('Tab');
+      const f = await focusInfo(page);
+      const where = await page.evaluate(() => (document.activeElement.closest('footer') ? 'pie' : document.activeElement.closest('header') ? 'barra' : document.activeElement.closest('main') ? 'main' : 'otro'));
+      seq.push({ ...f, where });
+      if (where === 'pie') break;
+    }
+    const inMain = seq.filter((f) => f.where === 'main');
+    const noRing = inMain.filter((f) => !f.ring || !f.focusVisible);
+    const coveredL = inMain.filter((f) => f.covered);
+    const ok = noRing.length === 0 && coveredL.length === 0 && clean(o);
+    R.add({
+      id: 'TECLADO-portada',
+      viewport: 'escritorio',
+      resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `${inMain.length} paradas en <main> entre la barra y el pie (el enlace de salto va en TECLADO-navbar): ${inMain.map(fmtFocus).join(' → ').slice(0, 1800)}; sin anillo: ${noRing.map(fmtFocus).join(', ') || 'ninguno'}; tapados: ${coveredL.map(fmtFocus).join(', ') || 'ninguno'}; ${sum(o)}`,
+    });
+    if (!ok) await shot(page, 'estructura', 'TECLADO-portada-escritorio');
+    await o.context.close();
+  }
+
+  // ---------- R-NAV-14 ----------
+  if (want('R-NAV-14')) {
+    for (const vp of ['escritorio', 'movil']) {
+      const o = await open(b, vp);
+      const { page } = o;
+      // Primera carga con /api/shopify/status retrasado para ver que no sale mientras carga
+      let delayFirst = true;
+      await page.route('**/api/shopify/status', async (route) => {
+        if (delayFirst) {
+          delayFirst = false;
+          await sleep(1500);
+        }
+        return route.continue();
+      });
+      await page.goto(ORIGIN + '/');
+      await sleep(500);
+      const during = await page.locator('.commerce-notice').count();
+      await sleep(1600);
+      const parts = [`durante la carga (estado retrasado 1,5 s): aviso=${during}`];
+      let ok = during === 0;
+      for (const r of ['/', '/menudrop', '/legal/cookies', '/loquesea', '/rockyIA', '/estudio']) {
+        if (r !== '/') {
+          await page.goto(ORIGIN + r);
+          await page.waitForSelector('.commerce-notice', { timeout: 4000 }).catch(() => {});
+          await sleep(300);
+        }
+        const n = await page.evaluate(() => {
+          const el = document.querySelector('.commerce-notice');
+          if (!el) return null;
+          const main = document.querySelector('main');
+          return { text: el.textContent, role: el.getAttribute('role'), inMain: main.contains(el), first: main.firstElementChild === el, visible: el.getBoundingClientRect().height > 0 };
+        });
+        const good = n && n.text === 'Modo demo · catálogo de muestra, sin stock ni pagos.' && n.role === 'status' && n.inMain && n.first && n.visible;
+        ok = ok && Boolean(good);
+        parts.push(`${r}: ${n ? `«${n.text}» role=${n.role} primero en main=${n.first}` : 'sin aviso'}`);
+      }
+      ok = ok && clean(o);
+      R.add({ id: 'R-NAV-14', viewport: vp, resultado: ok ? 'OK' : 'FALLO', evidencia: `${parts.join('; ')}; ${sum(o)}` });
+      await o.context.close();
+    }
+  }
+
+  // ---------- R-NAV-15 ----------
+  if (want('R-NAV-15')) {
+    for (const vp of ['escritorio', 'movil']) {
+      const parts = [];
+      let ok = true;
+      for (const variant of ['abort', '502-texto']) {
+        const o = await open(b, vp);
+        const { page } = o;
+        await page.route('**/api/shopify/status', (route) => (variant === 'abort' ? route.abort() : route.fulfill({ status: 502, contentType: 'text/html', body: '<html>Bad Gateway</html>' })));
+        for (const r of ['/', '/legal/privacidad', '/loquesea']) {
+          await page.goto(ORIGIN + r);
+          await page.waitForSelector('.commerce-notice', { timeout: 4000 }).catch(() => {});
+          await sleep(500);
+          const n = await page.evaluate(() => {
+            const el = document.querySelector('.commerce-notice');
+            return el ? { text: el.textContent, role: el.getAttribute('role'), cls: el.className, h1: document.querySelector('main h1')?.textContent } : null;
+          });
+          const expectText = variant === 'abort' ? 'No se ha podido conectar con la tienda. No se pudo determinar el modo de la tienda y el pago sigue desactivado.' : 'La tienda no ha podido completar la operación. No se pudo determinar el modo de la tienda y el pago sigue desactivado.';
+          const good = n && n.text === expectText && n.role === 'alert' && /commerce-notice-error/.test(n.cls);
+          ok = ok && Boolean(good);
+          parts.push(`${variant} ${r}: ${n ? `role=${n.role} «${n.text}» (h1 «${n.h1}»)` : 'sin aviso'}${good ? '' : ' ✗'}`);
+        }
+        const errs = o.issues.pageErrors.length;
+        ok = ok && errs === 0;
+        parts.push(`[${variant}] ${sum(o)}`);
+        await o.context.close();
+      }
+      R.add({ id: 'R-NAV-15', viewport: vp, resultado: ok ? 'OK' : 'FALLO', evidencia: `petición bloqueada (route.abort) y respuesta 502 sin JSON (simula el proxy de Vite sin Express): ${parts.join('; ')} (los fallos de red/502 listados son los provocados a propósito)` });
+    }
+  }
+} finally {
+  await b.close();
+}

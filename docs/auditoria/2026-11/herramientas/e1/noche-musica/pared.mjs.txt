@@ -1,0 +1,536 @@
+// R-NIGHT-06..11 y R-NIGHT-23 (pared, linterna, dibujos, cromos, 404, Rocky IA, contraste).
+import fs from 'node:fs';
+import path from 'node:path';
+import { startInstance, launchBrowser, openPage } from '../harness.mjs';
+import {
+  OUT, PORT, collector, snap, themeState, toggleNight, nightOn, spaGo, navTo, audioState,
+  touchDrag, line, touchScroll, sprayStorage, mouseStroke, emptySpot, sum, parseRgb, ratio, over, r2,
+} from './lib.mjs';
+
+const C = collector('pared');
+const only = process.argv.slice(2);
+const want = (id) => !only.length || only.some((o) => id.includes(o));
+
+const tagsOf = (page) =>
+  page.evaluate(() => [...document.querySelectorAll('.uv-tag')].map((t) => ({
+    kind: [...t.classList].find((c) => /uv-tag--(pinta|nota|diana|cuenta)/.test(c))?.slice(8),
+    side: t.classList.contains('uv-tag--left') ? 'L' : 'R',
+    v: t.classList.contains('uv-tag--vertical'),
+    text: t.textContent,
+    top: t.style.top,
+    x: t.style.left || t.style.right,
+  })));
+const torch = (page, sel = '.uv-wall') =>
+  page.evaluate((s) => {
+    const el = document.querySelector(s);
+    return el ? { tx: el.style.getPropertyValue('--tx'), ty: el.style.getPropertyValue('--ty'), depth: el.style.getPropertyValue('--depth') } : null;
+  }, sel);
+const imgNames = (page) =>
+  page.evaluate(() => [...new Set([...document.images].map((i) => (i.getAttribute('src') || '').split('/').pop().replace(/-[A-Za-z0-9_-]{8}\.(webp|png|jpe?g|svg|gif)$/, '.$1')))]);
+
+const inst = await startInstance(PORT);
+const browser = await launchBrowser();
+try {
+  // ---------------- R-NIGHT-06 ----------------
+  for (const vp of ['escritorio', 'movil']) {
+    if (!want('R-NIGHT-06')) break;
+    const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin });
+    await page.goto(`${inst.origin}/`);
+    await page.waitForTimeout(1500);
+    await nightOn(page, vp);
+    const tags = await tagsOf(page);
+    const css = await page.evaluate(() => {
+      const w = document.querySelector('.uv-wall');
+      const win = document.querySelector('.uv-ink-window');
+      return { torchR: getComputedStyle(w).getPropertyValue('--torch-r').trim(), mask: getComputedStyle(win).maskImage.slice(0, 60), ariaHidden: w.getAttribute('aria-hidden'), darkHidden: document.querySelector('.uv-oscuridad').getAttribute('aria-hidden') };
+    });
+    const kinds = tags.reduce((a, t) => ({ ...a, [t.kind]: (a[t.kind] || 0) + 1 }), {});
+    const alternate = tags.every((t, i) => t.side === (i % 2 === 0 ? 'L' : 'R'));
+    const texts = [...new Set(tags.filter((t) => t.text).map((t) => t.text))];
+    let move = {};
+    let rate = {};
+    let focusTorch = {};
+    let touch = {};
+    if (vp === 'escritorio') {
+      await page.mouse.move(100, 420);
+      await page.waitForTimeout(100);
+      move = await torch(page);
+      // Ritmo: muchos pointermove seguidos frente a las escrituras de --tx.
+      rate = await page.evaluate(async () => {
+        const w = document.querySelector('.uv-wall');
+        let writes = 0;
+        const mo = new MutationObserver(() => { writes += 1; });
+        mo.observe(w, { attributes: true, attributeFilter: ['style'] });
+        let frames = 0;
+        let moves = 0;
+        const t0 = performance.now();
+        await new Promise((res) => {
+          const tick = () => {
+            frames += 1;
+            for (let i = 0; i < 6; i += 1) {
+              moves += 1;
+              window.dispatchEvent(new PointerEvent('pointermove', { clientX: 200 + moves, clientY: 300 + (moves % 50) }));
+            }
+            if (performance.now() - t0 < 500) requestAnimationFrame(tick); else res();
+          };
+          requestAnimationFrame(tick);
+        });
+        await new Promise((r) => requestAnimationFrame(() => r()));
+        mo.disconnect();
+        return { pointermoves: moves, frames, styleWrites: writes };
+      });
+      // Teclado: Tab y la linterna apunta al foco.
+      await page.keyboard.press('Tab');
+      await page.keyboard.press('Tab');
+      await page.keyboard.press('Tab');
+      await page.waitForTimeout(100);
+      focusTorch = await page.evaluate(() => {
+        const el = document.activeElement;
+        const r = el.getBoundingClientRect();
+        const w = document.querySelector('.uv-wall');
+        return { focus: el.getAttribute('aria-label') || el.textContent.trim().slice(0, 30), center: `${Math.round(r.left + r.width / 2)}px,${Math.round(r.top + r.height / 2)}px`, torch: `${w.style.getPropertyValue('--tx')},${w.style.getPropertyValue('--ty')}` };
+      });
+    } else {
+      const spot = await emptySpot(page, [[8, 420], [366, 420], [8, 520], [366, 600]]);
+      await page.touchscreen.tap(spot[0], spot[1]);
+      await page.waitForTimeout(150);
+      const afterTap = await torch(page);
+      if (afterTap.tx !== `${spot[0]}px` || afterTap.ty !== `${spot[1]}px`) await snap(page, `R-NIGHT-06-${vp}`);
+      const tapFocus = await page.evaluate(() => { const a = document.activeElement; const m = a.getBoundingClientRect(); return `${a.tagName.toLowerCase()}#${a.id} (centro ${Math.round(m.left + m.width / 2)},${Math.round(m.top + m.height / 2)})`; });
+      // Arrastre (scroll) desde otro punto: la linterna se queda donde empezó el dedo.
+      const y0 = await page.evaluate(() => scrollY);
+      await touchDrag(page, line(300, 650, 300, 250, 20));
+      await page.waitForTimeout(300);
+      const afterDrag = await torch(page);
+      const y1 = await page.evaluate(() => scrollY);
+      touch = { tap: `${spot}`, afterTap: `${afterTap.tx},${afterTap.ty}`, focoTrasToque: tapFocus, dragFrom: '300,650→300,250', afterDrag: `${afterDrag.tx},${afterDrag.ty}`, scrolled: y1 - y0 };
+    }
+    // Misma ruta tras recargar, distinta en otra ruta.
+    await page.reload();
+    await page.waitForTimeout(1500);
+    await nightOn(page, vp);
+    const tagsReload = await tagsOf(page);
+    await spaGo(page, '/crew');
+    await page.waitForTimeout(500);
+    const tagsCrew = await tagsOf(page);
+    const same = JSON.stringify(tags) === JSON.stringify(tagsReload);
+    const differs = JSON.stringify(tags.slice(0, 5)) !== JSON.stringify(tagsCrew.slice(0, 5));
+    const torchOk = vp === 'escritorio' ? move.tx === '100px' && move.ty === '420px' && rate.styleWrites <= rate.frames + 2 && focusTorch.center === focusTorch.torch : touch.afterTap === `${touch.tap.split(',')[0]}px,${touch.tap.split(',')[1]}px`;
+    const ok = tags.length > 0 && tags.length <= 48 && alternate && same && differs && torchOk && css.ariaHidden === 'true' &&
+      css.torchR === (vp === 'escritorio' ? '300px' : '190px');
+    C.add({
+      id: 'R-NIGHT-06', viewport: vp, resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `pintadas en '/': ${tags.length} (${JSON.stringify(kinds)}), alternan izquierda/derecha=${alternate}, verticales=${tags.filter((t) => t.v).length}, márgenes x=${[...new Set(tags.map((t) => t.x))].slice(0, 6).join('/')}…; textos: ${texts.slice(0, 8).join(' | ')}…; css ${JSON.stringify(css)}; ${vp === 'escritorio' ? `ratón a 100,420 → --tx/--ty ${move.tx},${move.ty}; ritmo ${JSON.stringify(rate)} (≤ 1 escritura por fotograma); foco ${JSON.stringify(focusTorch)}` : `táctil ${JSON.stringify(touch)}`}; tras recargar y reactivar, idénticas=${same}; en /crew (${tagsCrew.length}) distintas=${differs}; ${sum(issues)}`,
+      hallazgos: vp === 'movil' && !torchOk ? 'NUEVO-4, C-NOCHE-10' : 'C-NOCHE-10',
+    });
+    if (!ok && vp === 'escritorio') await snap(page, `R-NIGHT-06-${vp}`);
+    await context.close();
+  }
+
+  // ---------------- R-NIGHT-07 ----------------
+  for (const vp of ['escritorio', 'movil']) {
+    if (!want('R-NIGHT-07')) break;
+    const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin });
+    await page.goto(`${inst.origin}/`);
+    await page.waitForTimeout(1500);
+    await nightOn(page, vp);
+    const vw = vp === 'escritorio' ? 1440 : 375;
+    if (vp === 'escritorio') await page.mouse.move(720, 450);
+    const room = await page.evaluate(() => document.documentElement.scrollHeight - innerHeight);
+    const steps = [];
+    for (let i = 0; i < 40; i += 1) {
+      if (vp === 'escritorio') await page.mouse.wheel(0, Math.ceil(room / 10));
+      else await touchScroll(page, 330, 620, Math.ceil(room / 10));
+      await page.waitForTimeout(120);
+      const s = await page.evaluate(() => {
+        const d = document.querySelector('.uv-oscuridad');
+        const f = document.querySelector('.footer-illustration');
+        return {
+          y: Math.round(scrollY), depth: d.style.getPropertyValue('--depth'), fondo: document.body.classList.contains('uv-fondo'),
+          bg: getComputedStyle(d).backgroundImage.match(/rgba\([^)]*\)\s*100%/)?.[0] ?? getComputedStyle(d).backgroundImage.slice(-60),
+          filter: f ? getComputedStyle(f).filter.slice(0, 40) : null, trans: f ? getComputedStyle(f).transition.slice(0, 40) : null,
+          inkY: document.querySelector('.uv-ink')?.style.transform,
+        };
+      });
+      steps.push(s);
+      if (Number(s.depth) >= 0.999) break;
+    }
+    const bottom = steps[steps.length - 1];
+    const firstFondo = steps.find((s) => s.fondo);
+    // Volver arriba.
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForTimeout(300);
+    const top = await page.evaluate(() => ({ depth: document.querySelector('.uv-oscuridad').style.getPropertyValue('--depth'), fondo: document.body.classList.contains('uv-fondo') }));
+    // /rockyIA
+    await spaGo(page, '/rockyIA');
+    await page.waitForTimeout(500);
+    if (vp === 'escritorio') await page.mouse.wheel(0, 800);
+    else await touchScroll(page, 200, 500, 300);
+    await page.waitForTimeout(300);
+    const chat = await page.evaluate(() => ({ room: document.documentElement.scrollHeight - innerHeight, depth: document.querySelector('.uv-oscuridad')?.style.getPropertyValue('--depth'), fondo: document.body.classList.contains('uv-fondo') }));
+    const ok = Number(bottom.depth) >= 0.99 && bottom.fondo && firstFondo && Number(firstFondo.depth) >= 0.9 && top.depth === '0.000' && !top.fondo && chat.depth === '0.000' && !chat.fondo;
+    C.add({
+      id: 'R-NIGHT-07', viewport: vp, resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `recorrido ${room}px; muestra: ${steps.filter((_, i) => i % 3 === 0).map((s) => `y${s.y}:d${s.depth}`).join(' ')}; arriba oscuridad final ${steps[0].bg}; abajo ${bottom.bg}; uv-fondo desde depth=${firstFondo?.depth}; footer abajo filter=${bottom.filter}… transición=${bottom.trans}; la tinta sube con la página (${bottom.inkY}); al volver arriba depth=${top.depth} uv-fondo=${top.fondo}; /rockyIA: recorrido ${chat.room}px, depth=${chat.depth}, uv-fondo=${chat.fondo}; ${sum(issues)}`,
+      hallazgos: 'C-NOCHE-08, C-NOCHE-10',
+    });
+    if (!ok) await snap(page, `R-NIGHT-07-${vp}`);
+    await context.close();
+  }
+
+  // ---------------- R-NIGHT-08 ----------------
+  const ROUTES = ['/', '/products/no-hay-nada', '/product/rocky-night-runner', '/menudrop', '/cart', '/rockyIA', '/estudio', '/crew', '/mi-crew', '/legal/aviso-legal', '/no-existe'];
+  for (const vp of ['escritorio', 'movil']) {
+    if (!want('R-NIGHT-08')) break;
+    const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin });
+    const day = {};
+    for (const r of ROUTES) {
+      await page.goto(`${inst.origin}${r}`);
+      await page.waitForTimeout(1300);
+      day[r] = await imgNames(page);
+    }
+    const dayTicker = await page.evaluate(() => document.querySelector('.footer-ticker, [class*="ticker"]')?.textContent.slice(0, 60));
+    await page.goto(`${inst.origin}/`);
+    await page.waitForTimeout(1300);
+    await nightOn(page, vp);
+    const night = {};
+    const diffs = [];
+    for (const r of ROUTES) {
+      await spaGo(page, r);
+      await page.waitForTimeout(700);
+      night[r] = await imgNames(page);
+      const added = night[r].filter((n) => !day[r].includes(n));
+      const gone = day[r].filter((n) => !night[r].includes(n));
+      diffs.push(`${r}: +[${added.join(', ')}] −${gone.length}`);
+    }
+    const ticker = await page.evaluate(() => [...document.querySelectorAll('[class*="ticker"]')].map((e) => e.textContent).join(' ').slice(0, 80));
+    const neonFilter = await page.evaluate(() => {
+      const el = [...document.querySelectorAll('img.neon-art')].find((i) => !/-(800|420|350|316|400|860|460|224)\b/.test(i.src));
+      return el ? `${el.src.split('/').pop()} → ${getComputedStyle(el).filter.slice(0, 50)}` : 'ninguno';
+    });
+    // Apagar en /cart y comprobar que vuelven los de día.
+    await spaGo(page, '/cart');
+    await toggleNight(page, vp);
+    await page.waitForTimeout(400);
+    const cartDay = await imgNames(page);
+    const backToDay = JSON.stringify([...cartDay].sort()) === JSON.stringify([...day['/cart']].sort());
+    const all = Object.values(night).flat();
+    const expected = ['tachon', 'sin-frenos', 'no-entrega', 'flash-negro', 'diana-rota', 'vigia-insomne', 'no-se-levanta', 'no-aterriza', 'miron', 'fundido', 'portero-infierno', 'estrellao', 'productor-poseido', 'congelao', 'sabueso-negro', 'los-del-banco', 'toxico-paseo'];
+    const missing = expected.filter((e) => !all.some((n) => n.startsWith(e)));
+    const ok = missing.length === 0 && /DESCONTROL ACTIVADO/.test(ticker) && backToDay;
+    C.add({
+      id: 'R-NIGHT-08', viewport: vp, resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `diferencias noche/día por ruta: ${diffs.join(' ; ')}; personajes de noche esperados no vistos: ${missing.join(', ') || 'ninguno'}; ticker día «${dayTicker}…» / noche «${ticker}…»; filtro neón en un muñeco sin pareja: ${neonFilter}; al apagar en /cart vuelven los de día sin recargar=${backToDay}; ${sum(issues)}`,
+      hallazgos: '',
+    });
+    if (!ok) await snap(page, `R-NIGHT-08-${vp}`);
+    await context.close();
+  }
+
+  // ---------------- R-NIGHT-09 ----------------
+  for (const vp of ['escritorio', 'movil']) {
+    if (!want('R-NIGHT-09')) break;
+    const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin });
+    await page.goto(`${inst.origin}/crew`);
+    await page.waitForTimeout(1500);
+    const cards = () => page.evaluate(() => [...document.querySelectorAll('article[aria-label^="Cromo de"]')].map((a) => ({ id: a.id, label: a.getAttribute('aria-label'), text: a.querySelector('.crew-card-front')?.textContent.replace(/\s+/g, ' ').trim().slice(0, 160), img: a.querySelector('img')?.getAttribute('src')?.split('/').pop() })));
+    const day = await cards();
+    await nightOn(page, vp);
+    await page.waitForTimeout(300);
+    const night = await cards();
+    const changed = night.filter((n, i) => n.label !== day[i]?.label);
+    const imgChanged = night.filter((n, i) => n.img !== day[i]?.img);
+    const lata = night.find((n) => n.id === 'cromo-lata');
+    const sprayCard = night.find((n) => n.id === 'cromo-spray');
+    const unchanged = night.filter((n, i) => n.label === day[i]?.label).map((n) => n.id.replace('cromo-', ''));
+    // Girar el cromo de El Tóxico (botón expediente).
+    const card = page.locator('#cromo-lata');
+    await card.scrollIntoViewIfNeeded();
+    const btn = card.locator('button').first();
+    const btnLabel = await btn.textContent();
+    if (vp === 'escritorio') await btn.click(); else await btn.tap();
+    await page.waitForTimeout(700);
+    const back = await page.evaluate(() => { const a = document.querySelector('#cromo-lata'); return { cls: a.className, back: a.querySelector('.crew-card-back')?.textContent.replace(/\s+/g, ' ').trim().slice(0, 140) }; });
+    await toggleNight(page, vp);
+    await page.waitForTimeout(300);
+    const dayAgain = await cards();
+    const restored = JSON.stringify(dayAgain.map((c) => c.label)) === JSON.stringify(day.map((c) => c.label));
+    const ok = changed.length === 17 && imgChanged.length >= 17 && lata?.label === 'Cromo de El Tóxico' && /Pinta la marquesina con lo que no se borra/.test(lata.text) && /Si le oyes sisear, ya es tarde/.test(back.back) && sprayCard?.label === 'Cromo de El Tachón' && restored;
+    C.add({
+      id: 'R-NIGHT-09', viewport: vp, resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `${day.length} cromos; de noche cambian de nombre ${changed.length} y de dibujo ${imgChanged.length}; sin cambio: ${unchanged.join(', ')}; El Lata → ${lata?.label} «${lata?.text}»; El Spray → ${sprayCard?.label}; girar (${btnLabel?.trim()}) → clase "${back.cls}", reverso «${back.back}»; al apagar vuelven los nombres de día=${restored}; ${sum(issues)}`,
+      hallazgos: '',
+    });
+    if (!ok) await snap(page, `R-NIGHT-09-${vp}`);
+    await context.close();
+  }
+
+  // ---------------- R-NIGHT-10 ----------------
+  for (const vp of ['escritorio', 'movil']) {
+    if (!want('R-NIGHT-10')) break;
+    const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin });
+    await page.goto(`${inst.origin}/`);
+    await page.waitForTimeout(1300);
+    await nightOn(page, vp);
+    await spaGo(page, '/no-existe');
+    const info = () => page.evaluate(() => {
+      const o = document.querySelector('.notfound-oscuridad');
+      const l = [...document.querySelectorAll('a')].find((a) => /Salir de aquí|Volver a la tienda/.test(a.textContent));
+      const p = document.querySelector('.notfound-pista');
+      const nav = document.querySelector('header.navbar');
+      const r = l?.getBoundingClientRect();
+      const pr = p?.getBoundingClientRect();
+      const fab = document.querySelector('.spray-fab')?.getBoundingClientRect();
+      return {
+        h1: document.querySelector('h1')?.textContent, text: document.querySelector('.notfound-text')?.textContent,
+        mask: o ? getComputedStyle(o).maskImage.match(/(\d+px) at/)?.[1] : null, bg: o ? getComputedStyle(o).backgroundColor : null, oz: o ? getComputedStyle(o).zIndex : null,
+        link: l ? { text: l.textContent, href: l.getAttribute('href'), sx: l.style.getPropertyValue('--sx'), sy: l.style.getPropertyValue('--sy'), left: Math.round(r.left), right: Math.round(r.right), top: Math.round(r.top), bottom: Math.round(r.bottom), width: Math.round(r.width) } : null,
+        hint: p ? { text: p.textContent, bottom: Math.round(innerHeight - pr.bottom), z: getComputedStyle(p).zIndex } : null,
+        navZ: getComputedStyle(nav).zIndex, fabTop: fab ? Math.round(fab.top) : null, vw: innerWidth,
+        torch: o ? `${o.style.getPropertyValue('--tx')},${o.style.getPropertyValue('--ty')}` : null,
+      };
+    });
+    const a = await info();
+    let tapPoint = '300px,500px';
+    const tapsMoved = [];
+    if (vp === 'escritorio') await page.mouse.move(300, 500);
+    else {
+      for (const [x, y] of [[30, 300], [340, 640], [60, 560]]) {
+        await page.touchscreen.tap(x, y);
+        await page.waitForTimeout(150);
+        tapsMoved.push(`${x},${y}→${(await info()).torch}`);
+      }
+      tapPoint = '60px,560px';
+    }
+    await page.waitForTimeout(150);
+    const moved = (await info()).torch;
+    // Apagar y encender sin recargar.
+    await toggleNight(page, vp);
+    await page.waitForTimeout(300);
+    const dayView = await info();
+    await toggleNight(page, vp);
+    await page.waitForTimeout(1600);
+    const b = await info();
+    // Tab hasta el enlace.
+    let tabbed = null;
+    if (vp === 'escritorio') {
+      await page.evaluate(() => document.activeElement?.blur());
+      for (let i = 0; i < 40; i += 1) {
+        await page.keyboard.press('Tab');
+        const t = await page.evaluate(() => document.activeElement?.textContent?.trim());
+        if (t === 'Salir de aquí') {
+          await page.waitForTimeout(100);
+          tabbed = await page.evaluate(() => {
+            const l = document.activeElement.getBoundingClientRect();
+            const o = document.querySelector('.notfound-oscuridad');
+            return { tabs: 0, center: `${Math.round(l.left + l.width / 2)}px,${Math.round(l.top + l.height / 2)}px`, torch: `${o.style.getPropertyValue('--tx')},${o.style.getPropertyValue('--ty')}` };
+          });
+          tabbed.tabs = i + 1;
+          break;
+        }
+      }
+    }
+    // Recargar → posición nueva (varias muestras).
+    const positions = [`${b.link.sx}/${b.link.sy}`];
+    const overflows = b.link.right > b.vw || b.link.left < 0 ? [`${b.link.sx} (primer montaje): ${b.link.left}-${b.link.right}px de ${b.vw}`] : [];
+    for (let i = 0; i < 6; i += 1) {
+      await page.goto(`${inst.origin}/`);
+      await page.waitForTimeout(900);
+      await nightOn(page, vp);
+      await spaGo(page, '/no-existe');
+      const c = await info();
+      positions.push(`${c.link.sx}/${c.link.sy}`);
+      if (c.link.right > c.vw || c.link.left < 0) {
+        if (!overflows.length) { await page.locator('a', { hasText: 'Salir de aquí' }).focus(); await page.waitForTimeout(200); await snap(page, `R-NIGHT-10-${vp}`); }
+        overflows.push(`${c.link.sx}: ${c.link.left}-${c.link.right}px de ${c.vw}`);
+      }
+    }
+    // Pulsar «Salir de aquí» con la linterna encima.
+    const l = page.locator('a', { hasText: 'Salir de aquí' });
+    const box = await l.boundingBox();
+    const clickable = box && box.x + box.width / 2 < (vp === 'escritorio' ? 1440 : 375);
+    if (clickable) {
+      if (vp === 'escritorio') { await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await l.click(); } else await l.tap({ position: { x: Math.min(10, box.width / 2), y: box.height / 2 } });
+      await page.waitForTimeout(500);
+    }
+    const after = page.url().replace(inst.origin, '');
+    // Fracción de posiciones x (10–76 %) en las que el enlace se sale por la derecha.
+    const w = a.link.width;
+    const maxSx = ((a.vw - w) / a.vw) * 100;
+    const outFrac = Math.max(0, Math.min(1, (76 - maxSx) / 66));
+    const ok = a.h1 === 'No deberías estar aquí' && a.text === 'Se ha ido la luz. Busca la salida.' && a.mask === (vp === 'escritorio' ? '170px' : '130px') &&
+      a.hint?.text === 'Mueve el ratón o toca la pantalla para alumbrar.' && a.link?.text === 'Salir de aquí' && a.link.href === '/' && b.link.sx === a.link.sx && b.link.sy === a.link.sy &&
+      new Set(positions).size > 1 && (vp === 'movil' || tabbed?.center === tabbed?.torch) && after === '/' && overflows.length === 0 && outFrac === 0 && moved === tapPoint &&
+      (vp === 'escritorio' || tapsMoved[0] === '30,300→30px,300px');
+    C.add({
+      id: 'R-NIGHT-10', viewport: vp, resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `404 de noche ${JSON.stringify(a)}; linterna tras ${vp === 'escritorio' ? 'mover el ratón a 300,500' : `tocar ${tapsMoved.join(' ; ')} (el primer toque da el foco a main#main-content, tabIndex -1, y la linterna salta a su centro; los siguientes, con main ya enfocado, sí la mueven)`}: ${moved}; de día sin recargar: «${dayView.h1}» enlace «${dayView.link?.text}»; al reencender misma posición=${b.link.sx === a.link.sx && b.link.sy === a.link.sy}; ${vp === 'escritorio' ? `Tab: ${JSON.stringify(tabbed)}; ` : ''}posiciones en 7 montajes: ${positions.join(' ')}; enlace fuera de la pantalla en ${overflows.length} de 7 montajes (${overflows.join('; ')}); ancho del enlace ${w}px → se sale si --sx > ${r2(maxSx)} % (≈ ${Math.round(outFrac * 100)} % de las posiciones posibles); «Salir de aquí» → ${after}; ${sum(issues)}`,
+      hallazgos: [overflows.length || outFrac > 0 ? 'NUEVO-3' : '', vp === 'movil' && tapsMoved[0] !== '30,300→30px,300px' ? 'NUEVO-4' : ''].filter(Boolean).join(', '),
+    });
+    if (!ok && !overflows.length) await snap(page, `R-NIGHT-10-${vp}`);
+    await context.close();
+  }
+
+  // ---------------- R-NIGHT-11 ----------------
+  for (const vp of ['escritorio', 'movil']) {
+    if (!want('R-NIGHT-11')) break;
+    const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin });
+    await page.goto(`${inst.origin}/`);
+    await page.waitForTimeout(1300);
+    await nightOn(page, vp);
+    if (vp === 'escritorio') {
+      await page.locator('.spray-fab').click();
+      const spot = await emptySpot(page, [[40, 300], [60, 400], [1400, 300]]);
+      await mouseStroke(page, [spot, [spot[0] + 10, spot[1] + 60]]);
+    } else {
+      await page.locator('.spray-fab').tap();
+      const spot = await emptySpot(page, [[6, 300], [10, 400], [366, 300]]);
+      await touchDrag(page, line(spot[0], spot[1], spot[0] + 4, spot[1] + 60, 10));
+      await page.waitForTimeout(650);
+    }
+    await navTo(page, vp, 'Rocky IA');
+    await page.waitForTimeout(500);
+    const chat = await page.evaluate(() => ({
+      path: location.pathname, fab: !!document.querySelector('.spray-fab'), tools: !!document.querySelector('.spray-tools'), canvas: !!document.querySelector('canvas.spray-wall'),
+      spraying: document.documentElement.classList.contains('is-spraying'), wall: !!document.querySelector('.uv-wall'), dark: !!document.querySelector('.uv-oscuridad'),
+      depth: document.querySelector('.uv-oscuridad')?.style.getPropertyValue('--depth'), pill: !!document.querySelector('.mini-player--chat'), pillContent: !!document.querySelector('.mini-player--content'),
+    }));
+    const store = await sprayStorage(page);
+    if (vp === 'escritorio') await page.mouse.move(400, 400);
+    await navTo(page, vp, 'Tienda');
+    await page.waitForTimeout(500);
+    const back = await themeState(page);
+    const ok = chat.path === '/rockyIA' && !chat.fab && !chat.tools && !chat.canvas && !chat.spraying && chat.wall && chat.dark && chat.depth === '0.000' && chat.pill && back.fab && !back.tools && (store?.pages?.['/']?.strokes?.length ?? 0) >= 1;
+    C.add({
+      id: 'R-NIGHT-11', viewport: vp, resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `en /rockyIA con el spray cogido antes: ${JSON.stringify(chat)}; rocky-spray['/'] trazos=${store?.pages?.['/']?.strokes?.length ?? 0} (guardado al salir); al volver a Tienda: bote=${back.fab} caja=${back.tools} (spray suelto); la pared y la oscuridad sí se montan en el chat aunque el comentario de Descontrol.jsx:165 diga «ahí no hay pared»; ${sum(issues)}`,
+      hallazgos: 'C-NOCHE-07',
+    });
+    if (!ok) await snap(page, `R-NIGHT-11-${vp}`);
+    await context.close();
+  }
+
+  // ---------------- R-NIGHT-23 (contraste) ----------------
+  const contrastData = {};
+  for (const vp of ['escritorio', 'movil']) {
+    if (!want('R-NIGHT-23')) break;
+    const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin });
+    await page.goto(`${inst.origin}/`);
+    await page.waitForTimeout(1300);
+    await nightOn(page, vp);
+    const tok = await page.evaluate(() => {
+      const cs = getComputedStyle(document.documentElement);
+      const g = (n) => cs.getPropertyValue(n).trim();
+      return { ink: g('--ink'), muted: g('--muted'), paper: g('--paper'), card: g('--card'), lime: g('--uv-lime'), violetSoft: g('--uv-violet-soft'), danger: g('--danger'), night: g('--neon-night'), dark: getComputedStyle(document.querySelector('.uv-oscuridad')).backgroundImage };
+    });
+    const black = { r: 0, g: 0, b: 0 };
+    const dark = (c, alpha) => over({ ...black, a: alpha }, c);
+    const P = (s) => parseRgb(s);
+    const alphaAt = (d) => 0.08 + 0.34 * d;
+    const pair = (fg, bg, d) => r2(ratio(dark(P(fg), alphaAt(d)), dark(P(bg), alphaAt(d))));
+    let crossCard = null;
+    let crossPaper = null;
+    for (let d = 0; d <= 1.0001; d += 0.01) {
+      if (crossCard === null && ratio(dark(P(tok.muted), alphaAt(d)), dark(P(tok.card), alphaAt(d))) < 4.5) crossCard = r2(d);
+      if (crossPaper === null && ratio(dark(P(tok.muted), alphaAt(d)), dark(P(tok.paper), alphaAt(d))) < 4.5) crossPaper = r2(d);
+    }
+    const table = {
+      'muted/card sin oscuridad': r2(ratio(P(tok.muted), P(tok.card))),
+      'muted/paper sin oscuridad': r2(ratio(P(tok.muted), P(tok.paper))),
+      'muted/card d=0 (α 0,08)': pair(tok.muted, tok.card, 0),
+      'muted/card d=0,5 (α 0,25)': pair(tok.muted, tok.card, 0.5),
+      'muted/card d=1 (α 0,42)': pair(tok.muted, tok.card, 1),
+      'muted/paper d=1 (α 0,42)': pair(tok.muted, tok.paper, 1),
+      'ink/card d=0': pair(tok.ink, tok.card, 0),
+      'ink/card d=1 (α 0,42)': pair(tok.ink, tok.card, 1),
+      'ink/paper d=1': pair(tok.ink, tok.paper, 1),
+      'muted cae de 4,5 sobre card en depth': crossCard,
+      'muted cae de 4,5 sobre paper en depth': crossPaper,
+    };
+    // Elementos reales con texto en --muted y su fondo opaco más cercano.
+    const realMuted = async () => page.evaluate((mutedHex) => {
+      const hex = mutedHex.replace('#', '');
+      const target = `rgb(${parseInt(hex.slice(0, 2), 16)}, ${parseInt(hex.slice(2, 4), 16)}, ${parseInt(hex.slice(4, 6), 16)})`;
+      const out = [];
+      for (const el of document.querySelectorAll('main *, footer *')) {
+        const cs = getComputedStyle(el);
+        if (cs.color !== target || !el.childNodes.length || ![...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) continue;
+        if (!(el.offsetWidth || el.offsetHeight)) continue;
+        let p = el;
+        let bg = null;
+        while (p && p !== document.documentElement) {
+          const b = getComputedStyle(p).backgroundColor;
+          if (b && b !== 'rgba(0, 0, 0, 0)' && b !== 'transparent') { bg = b; break; }
+          p = p.parentElement;
+        }
+        out.push({ sel: `${el.tagName.toLowerCase()}.${[...el.classList].slice(0, 2).join('.')}`, text: el.textContent.trim().slice(0, 30), fs: cs.fontSize, fw: cs.fontWeight, bg: bg ?? 'body' });
+        if (out.length > 60) break;
+      }
+      return out;
+    }, tok.muted);
+    const samples = {};
+    for (const r of ['/', '/crew', '/estudio', '/no-existe']) {
+      if (r !== '/') await spaGo(page, r);
+      await page.waitForTimeout(500);
+      const list = await realMuted();
+      const bodyBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+      const uniq = {};
+      for (const e of list) {
+        const key = `${e.sel}|${e.bg}`;
+        if (uniq[key]) continue;
+        const bgc = P(e.bg === 'body' ? bodyBg : e.bg);
+        const bgOpaque = bgc.a < 1 ? over(bgc, P(tok.paper)) : bgc;
+        uniq[key] = `${e.sel} «${e.text}» ${e.fs}/${e.fw} sobre ${e.bg === 'body' ? `body ${bodyBg}` : e.bg}: d0 ${r2(ratio(dark(P(tok.muted), 0.08), dark(bgOpaque, 0.08)))} · d1 ${r2(ratio(dark(P(tok.muted), 0.42), dark(bgOpaque, 0.42)))}`;
+      }
+      samples[r] = { count: list.length, ejemplos: Object.values(uniq).slice(0, 6) };
+    }
+    // Profundidad y alfa real abajo del todo en '/'.
+    await spaGo(page, '/');
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await page.waitForTimeout(400);
+    const bottomDark = await page.evaluate(() => ({ depth: document.querySelector('.uv-oscuridad').style.getPropertyValue('--depth'), bg: getComputedStyle(document.querySelector('.uv-oscuridad')).backgroundImage.match(/rgba\([^)]*\)\s*100%/)?.[0], torchNow: getComputedStyle(document.querySelector('.uv-oscuridad')).getPropertyValue('--torch-now').trim(), vw: innerWidth, vh: innerHeight, tx: document.querySelector('.uv-oscuridad').style.getPropertyValue('--tx'), ty: document.querySelector('.uv-oscuridad').style.getPropertyValue('--ty') }));
+    // Fracción del viewport a oscuridad máxima (fuera de 1,8 × haz) con la linterna donde está.
+    const torchR = (vp === 'escritorio' ? 300 : 190) * (1 - 0.35 * Number(bottomDark.depth)) * 1.8;
+    const tx = parseFloat(bottomDark.tx);
+    const ty = parseFloat(bottomDark.ty);
+    let outside = 0;
+    let total = 0;
+    for (let x = 0; x < bottomDark.vw; x += 5) for (let y = 0; y < bottomDark.vh; y += 5) { total += 1; if (Math.hypot(x - tx, y - ty) >= torchR) outside += 1; }
+    // Caja del spray, píldora, pista del 404 y rótulo del apagón.
+    const tb = P(tok.paper);
+    const toolsBg = over({ ...P(tok.paper), a: 0.92 }, dark(P(tok.paper), 0.42));
+    const pill = await page.evaluate(() => {
+      window.scrollTo(0, 0);
+      const t = document.querySelector('.mini-player-title');
+      const p = document.querySelector('.mini-player');
+      return t ? { color: getComputedStyle(t).color, bg: getComputedStyle(p).backgroundColor, btnColor: getComputedStyle(document.querySelector('.mini-player-btn')).color, btnBg: getComputedStyle(document.querySelector('.mini-player-btn')).backgroundColor } : null;
+    });
+    const extra = {
+      'estado spray muted/caja': r2(ratio(P(tok.muted), toolsBg)),
+      'Foto neon-night/lima': r2(ratio(P(tok.night), P(tok.lime))),
+      '¿Borrar todo? danger/caja': r2(ratio(P(tok.danger), toolsBg)),
+      'pista 404 violet-soft/negro .97': r2(ratio(P(tok.violetSoft), over({ ...black, a: 0.97 }, tb))),
+      'apagón lima/negro .97': r2(ratio(P(tok.lime), over({ ...black, a: 0.97 }, tb))),
+      'píldora título': pill ? `${pill.color} sobre ${pill.bg}: d0 ${r2(ratio(dark(P(pill.color), 0.08), dark(P(pill.bg).a < 1 ? over(P(pill.bg), tb) : P(pill.bg), 0.08)))}` : 'sin píldora',
+    };
+    contrastData[vp] = { tok, table, samples, bottomDark, fraccionOscuridadMax: r2(outside / total), extra };
+    const worstMuted = table['muted/card d=1 (α 0,42)'];
+    // El CSS promete > 4,5:1 abajo del todo: con --muted no se cumple.
+    const ok = worstMuted >= 4.5;
+    C.add({
+      id: 'R-NIGHT-23', viewport: vp, resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `tokens ${JSON.stringify({ ink: tok.ink, muted: tok.muted, paper: tok.paper, card: tok.card })}; relaciones WCAG (texto y fondo oscurecidos por negro α=0,08+0,34·depth fuera del haz): ${JSON.stringify(table)}; abajo del todo en '/': ${JSON.stringify(bottomDark)}, ${Math.round((outside / total) * 100)} % del viewport a oscuridad máxima con la linterna en ${bottomDark.tx},${bottomDark.ty}; textos reales en --muted: ${Object.entries(samples).map(([r, s]) => `${r} (${s.count}): ${s.ejemplos.slice(0, 3).join(' / ')}`).join(' ; ')}; por encima de la oscuridad: ${JSON.stringify(extra)}; ${sum(issues)}`,
+      hallazgos: 'C-NOCHE-08',
+    });
+    if (!ok) {
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      await page.waitForTimeout(400);
+      await snap(page, `R-NIGHT-23-${vp}`);
+    }
+    await context.close();
+  }
+  if (Object.keys(contrastData).length) fs.writeFileSync(path.join(OUT, 'contraste.json'), JSON.stringify(contrastData, null, 2));
+} finally {
+  await browser.close();
+  inst.stop();
+}

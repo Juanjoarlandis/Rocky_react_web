@@ -1,0 +1,204 @@
+// Fichas de interfaz de carrito, checkout y cuenta en E1:
+// R-CART-01, R-CART-02, R-CHK-01 (paso 1) y R-ACC-01, en escritorio y móvil.
+import { startInstance, launchBrowser, summarize, shot } from '../harness.mjs';
+import { guardedPage, save, focusInfo } from './common.mjs';
+
+const inst = await startInstance(3203, { CHAT_RATE_LIMIT_MAX: '50', SHOPIFY_RATE_LIMIT_MAX: '2000' });
+const W = inst.origin;
+const browser = await launchBrowser();
+const out = {};
+
+function trackApi(page) {
+  const reqs = [];
+  page.on('request', (r) => {
+    if (r.url().includes('/api/')) reqs.push(`${r.method()} ${new URL(r.url()).pathname}`);
+  });
+  return reqs;
+}
+
+async function cart01(vp) {
+  const o = {};
+  const { page, issues, context } = await guardedPage(browser, vp, { origin: W, skipIntro: false });
+  const reqs = trackApi(page);
+  await page.goto(`${W}/`);
+  await page.waitForTimeout(3600); // intro de 3 s
+  o.splashGone = (await page.locator('.splash-intro, [class*="splash"]').count()) === 0;
+  const notice = page.locator('.commerce-notice');
+  o.notice = { text: await notice.innerText(), role: await notice.getAttribute('role') };
+  o.cards = await page.$$eval('article.product-card', (arts) =>
+    arts.map((a) => {
+      const title = a.querySelector('.product-title')?.textContent.trim();
+      const badge = a.querySelector('.badge')?.textContent.trim() || '';
+      const price = a.querySelector('.product-price')?.textContent.trim() || '';
+      const btns = [...a.querySelectorAll('.product-actions a, .product-actions button')].map(
+        (b) => `${b.tagName}:${b.textContent.trim()}${b.disabled ? '(disabled)' : ''}${b.getAttribute('href') ? `→${b.getAttribute('href')}` : ''}`
+      );
+      return { title, badge, price, btns };
+    })
+  );
+  o.locked = await page.$$eval('.product-grid h2.product-title', (hs) =>
+    hs.map((h) => h.textContent.trim()).filter((t) => /bajo llave/.test(t))
+  );
+  o.lockedForm = await page.locator('.product-grid input[type="email"]').count();
+  o.cartLabel = await page.locator('.navbar-cart').getAttribute('aria-label');
+  o.cartCounter = await page.locator('.cart-counter').count();
+
+  o.fichas = {};
+  for (const handle of ['smoker-edition', '35-red', 'rocky-night-runner']) {
+    await page.goto(`${W}/product/${handle}`);
+    await page.waitForSelector('.detail-buy', { timeout: 8000 });
+    const buy = page.locator('.detail-buy');
+    const f = {
+      badge: await buy.locator('.badge').allInnerTexts(),
+      price: await buy.locator('.detail-price').allInnerTexts(),
+      buttons: await buy.locator('> button, .add-to-cart-control button').evaluateAll((bs) =>
+        bs.map((b) => `${b.textContent.trim()}${b.disabled ? '(disabled)' : ''}`)
+      ),
+    };
+    const avisame = buy.locator('> button', { hasText: 'Avísame' });
+    if (await avisame.count()) {
+      await avisame.click();
+      await page.waitForTimeout(400);
+      f.focusAfterAvisame = await page.evaluate(() => {
+        const el = document.activeElement;
+        return `${el.tagName} type=${el.getAttribute('type')} id=${el.id} name=${el.getAttribute('name')}`;
+      });
+    }
+    o.fichas[handle] = f;
+  }
+  o.cartRequests = reqs.filter((r) => r.includes('/api/shopify/cart'));
+  o.apiRequests = [...new Set(reqs)];
+  o.issues = summarize(issues);
+  o.external = issues.external;
+  await context.close();
+  return o;
+}
+
+async function cart02(vp) {
+  const o = {};
+  const { page, issues, context } = await guardedPage(browser, vp, { origin: W });
+  const reqs = trackApi(page);
+  // Retrasa el trozo perezoso del carrito para ver el «Cargando...»
+  await page.route('**/assets/Cart-*.js', async (route) => {
+    await new Promise((r) => setTimeout(r, 1500));
+    await route.continue();
+  });
+  await page.goto(`${W}/`);
+  await page.waitForTimeout(1200);
+  const homeCartStyle = await page.locator('.navbar-cart').evaluate((el) => {
+    const cs = getComputedStyle(el);
+    const af = getComputedStyle(el, '::after');
+    return { color: cs.color, bg: cs.backgroundColor, border: cs.border, transform: cs.transform, outline: cs.outline, after: af.content, shadow: cs.boxShadow, filter: cs.filter, opacity: cs.opacity };
+  });
+  if (vp === 'escritorio') {
+    // Tab hasta el icono del carrito
+    let found = false;
+    for (let i = 0; i < 25; i += 1) {
+      await page.keyboard.press('Tab');
+      const cls = await page.evaluate(() => document.activeElement?.className || '');
+      if (String(cls).includes('navbar-cart')) { found = true; break; }
+    }
+    o.tabsReachedCart = found;
+    o.cartFocus = await focusInfo(page);
+    await page.keyboard.press('Enter');
+  } else {
+    await page.locator('.navbar-cart').tap();
+  }
+  await page.waitForTimeout(250);
+  o.loadingText = (await page.locator('.page-loading').count())
+    ? await page.locator('.page-loading').innerText()
+    : '(no visto)';
+  await page.waitForSelector('.cart-empty', { timeout: 8000 });
+  await page.waitForTimeout(300);
+  o.url = page.url();
+  o.title = await page.title();
+  o.notice = await page.locator('.commerce-notice').innerText().catch(() => null);
+  o.imgs = await page.$$eval('.cart-empty img', (is) => is.map((i) => `alt="${i.getAttribute('alt')}"`));
+  o.h1 = await page.locator('.cart-empty h1').innerText();
+  o.p = await page.locator('.cart-empty p').allInnerTexts();
+  o.link = await page.locator('.cart-empty a').evaluateAll((as) => as.map((a) => `${a.textContent.trim()}→${a.getAttribute('href')} class=${a.className}`));
+  o.ariaCurrent = await page.locator('.navbar-cart').getAttribute('aria-current');
+  o.cartClass = await page.locator('.navbar-cart').getAttribute('class');
+  o.cartActiveStyle = await page.locator('.navbar-cart').evaluate((el) => {
+    const cs = getComputedStyle(el);
+    const af = getComputedStyle(el, '::after');
+    return { color: cs.color, bg: cs.backgroundColor, border: cs.border, transform: cs.transform, outline: cs.outline, after: af.content, shadow: cs.boxShadow, filter: cs.filter, opacity: cs.opacity };
+  });
+  o.homeCartStyle = homeCartStyle;
+  o.focusAfter = await focusInfo(page);
+  o.summary = await page.locator('.cart-summary, .cart-checkout').count();
+  o.texts = {
+    pagoDesactivado: await page.getByText('Pago desactivado en modo demo').count(),
+    vistaPrevia: await page.getByText('Vista previa local').count(),
+  };
+  o.storage = await page.evaluate(() => ({ local: { ...localStorage }, session: { ...sessionStorage } }));
+  // Reload
+  await page.reload();
+  await page.waitForSelector('.cart-empty', { timeout: 8000 });
+  o.afterReload = { h1: await page.locator('.cart-empty h1').innerText(), title: await page.title() };
+  // Ver la tienda
+  await page.locator('.cart-empty a', { hasText: 'Ver la tienda' }).click();
+  await page.waitForTimeout(600);
+  o.afterVerTienda = new URL(page.url()).pathname;
+  // Escribir /cart en la barra (navegación completa)
+  await page.goto(`${W}/cart`);
+  await page.waitForSelector('.cart-empty', { timeout: 8000 });
+  o.directCart = await page.locator('.cart-empty h1').innerText();
+  o.cartRequests = reqs.filter((r) => r.includes('/api/shopify/cart'));
+  o.apiRequests = [...new Set(reqs)];
+  o.issues = summarize(issues);
+  await context.close();
+  return o;
+}
+
+async function acc01(vp) {
+  const o = {};
+  const { page, issues, context } = await guardedPage(browser, vp, { origin: W });
+  const reqs = trackApi(page);
+  await page.goto(`${W}/`);
+  await page.waitForTimeout(1200);
+  if (vp === 'escritorio') {
+    const link = page.locator('.navbar-links .navbar-account');
+    o.entry = { text: await link.innerText(), href: await link.getAttribute('href'), tag: await link.evaluate((e) => e.tagName) };
+    await page.evaluate(() => { window.__spaMarker = 1; });
+    await link.click();
+  } else {
+    o.desktopNavVisible = await page.locator('.navbar-links').isVisible();
+    await page.getByRole('button', { name: 'Abrir el menú' }).tap();
+    await page.waitForTimeout(300);
+    const link = page.locator('.navbar-sheet .navbar-sheet-account');
+    o.entry = { text: await link.innerText(), href: await link.getAttribute('href'), tag: await link.evaluate((e) => e.tagName) };
+    await page.evaluate(() => { window.__spaMarker = 1; });
+    await link.tap();
+  }
+  await page.waitForTimeout(800);
+  o.url = new URL(page.url()).pathname;
+  o.spaNavigation = await page.evaluate(() => window.__spaMarker === 1);
+  o.sheetOpen = await page.locator('.navbar-sheet').count();
+  o.title = await page.title();
+  o.accountRequests = reqs.filter((r) => r.includes('/api/shopify/account'));
+  // Pasos 5 y 6 en el navegador
+  const resLogin = await page.goto(`${W}/api/shopify/account/login?returnPath=%2Fmi-crew`);
+  o.login = { status: resLogin.status(), body: (await page.locator('body').innerText()).slice(0, 200) };
+  const resCb = await page.goto(`${W}/api/shopify/account/callback?state=x&code=y`);
+  o.callback = { status: resCb.status(), body: (await page.locator('body').innerText()).slice(0, 200) };
+  o.cookies = (await context.cookies()).map((c) => c.name);
+  o.issues = summarize(issues);
+  await context.close();
+  return o;
+}
+
+try {
+  for (const vp of ['escritorio', 'movil']) {
+    out[`cart01-${vp}`] = await cart01(vp);
+    out[`cart02-${vp}`] = await cart02(vp);
+    out[`acc01-${vp}`] = await acc01(vp);
+  }
+} catch (e) {
+  out.error = String(e.stack || e);
+} finally {
+  await browser.close();
+  inst.stop();
+}
+save('carrito-ui', out);
+console.log(JSON.stringify(out, null, 1).slice(0, 20000));

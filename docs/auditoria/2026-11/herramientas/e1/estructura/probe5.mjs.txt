@@ -1,0 +1,16 @@
+import { launchBrowser, open, ORIGIN, sleep } from './common.mjs';
+const b = await launchBrowser();
+try {
+  const o = await open(b, 'escritorio');
+  const { page } = o;
+  await page.goto(ORIGIN + '/');
+  await sleep(1000);
+  console.log(await page.evaluate(() => [...document.querySelectorAll('main input')].map((i) => ({ type: i.type, name: i.name, id: i.id, label: i.labels?.[0]?.textContent?.trim().slice(0, 80), cls: i.className, aria: i.getAttribute('aria-label'), hidden: i.closest('[aria-hidden]')?.tagName, rect: JSON.stringify(i.getBoundingClientRect()) }))));
+  for (const r of ['/menudrop', '/products/asphalt-afterdark', '/product/1']) {
+    await page.goto(ORIGIN + r);
+    await sleep(1200);
+    console.log(r, await page.evaluate(() => [...document.querySelectorAll('main button, main a')].map((e) => (e.getAttribute('aria-label') || e.textContent).trim().slice(0, 30)).slice(0, 25)));
+  }
+  const links = await page.evaluate(() => [...document.querySelectorAll('a[href^="/product/"]')].map((a) => a.getAttribute('href')).slice(0, 40));
+  console.log(links);
+} finally { await b.close(); }

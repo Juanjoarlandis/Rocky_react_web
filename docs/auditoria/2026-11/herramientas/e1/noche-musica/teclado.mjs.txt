@@ -1,0 +1,241 @@
+// Pasada de teclado (tarea 3.3): R-NIGHT-20, R-MUS-10 y TECLADO-<bloque> (escritorio).
+import { startInstance, launchBrowser, openPage } from '../harness.mjs';
+import { PORT, collector, snap, sum, audioState, sleep } from './lib.mjs';
+
+const C = collector('teclado');
+const vp = 'escritorio';
+
+const focusInfo = (page) =>
+  page.evaluate(() => {
+    const el = document.activeElement;
+    if (!el || el === document.body) return { name: 'body', tag: 'body' };
+    const cs = getComputedStyle(el);
+    const r = el.getBoundingClientRect();
+    const torchEl = document.querySelector('.uv-wall');
+    return {
+      name: el.getAttribute('aria-label') || el.textContent.trim().replace(/\s+/g, ' ').slice(0, 30) || el.tagName.toLowerCase(),
+      tag: el.tagName.toLowerCase(), role: el.getAttribute('role'),
+      fv: el.matches(':focus-visible'), outline: `${cs.outlineStyle} ${cs.outlineWidth} ${cs.outlineColor}`, offset: cs.outlineOffset, boxShadow: cs.boxShadow.slice(0, 40),
+      center: `${Math.round(r.left + r.width / 2)}px,${Math.round(r.top + r.height / 2)}px`,
+      torch: torchEl ? `${torchEl.style.getPropertyValue('--tx')},${torchEl.style.getPropertyValue('--ty')}` : null,
+    };
+  });
+const visible = (f) => f.fv && !f.outline.startsWith('none') && !f.outline.includes(' 0px ');
+
+const inst = await startInstance(PORT);
+const browser = await launchBrowser();
+try {
+  // ---------- Bombilla, linterna y spray (R-NIGHT-20) ----------
+  {
+    const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin });
+    await page.goto(`${inst.origin}/`);
+    await page.waitForTimeout(1500);
+    const order = [];
+    let bulbAt = -1;
+    for (let i = 0; i < 20; i += 1) {
+      await page.keyboard.press('Tab');
+      const f = await focusInfo(page);
+      order.push(f.name);
+      if (f.name === 'Activar el descontrol') { bulbAt = i + 1; break; }
+    }
+    const bulb = page.locator('header button.navbar-theme');
+    const snapDay = await bulb.ariaSnapshot();
+    const fDay = await focusInfo(page);
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(1600);
+    const snapNight = await bulb.ariaSnapshot();
+    const fNight = await focusInfo(page);
+    const theme = await page.evaluate(() => document.documentElement.dataset.theme);
+    // Seguir con Tab: orden, foco visible y linterna.
+    const after = [];
+    for (let i = 0; i < 6; i += 1) {
+      await page.keyboard.press('Tab');
+      await page.waitForTimeout(60);
+      after.push(await focusInfo(page));
+    }
+    const fabIdx = after.findIndex((f) => f.name === 'Coge el spray');
+    const torchFollows = after.filter((f) => f.torch === f.center).length;
+    // El enlace «Saltar al contenido» salta el bote.
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.locator('.skip-link').focus();
+    const skip = await focusInfo(page);
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(200);
+    await page.keyboard.press('Tab');
+    const afterSkip = await focusInfo(page);
+    // Coger el spray con el teclado.
+    await page.locator('.spray-fab').focus();
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(200);
+    const afterOpen = await focusInfo(page);
+    if (afterOpen.name === 'body') { await snap(page, 'R-NIGHT-20-escritorio'); await snap(page, 'TECLADO-spray-escritorio'); }
+    await page.keyboard.press('Tab');
+    const firstTabAfterOpen = await focusInfo(page);
+    // Llegar a la caja con Tab desde el principio.
+    await page.evaluate(() => document.activeElement?.blur());
+    let toRadio = 0;
+    let f = null;
+    for (let i = 0; i < 40; i += 1) {
+      await page.keyboard.press('Tab');
+      f = await focusInfo(page);
+      if (f.role === 'radio') { toRadio = i + 1; break; }
+    }
+    const inside = [f];
+    for (let i = 0; i < 4; i += 1) {
+      await page.keyboard.press('Tab');
+      inside.push(await focusInfo(page));
+    }
+    // Flechas en el grupo de radios.
+    await page.getByRole('radio', { name: 'Lima' }).focus();
+    await page.keyboard.press('ArrowRight');
+    await page.waitForTimeout(100);
+    const arrow = { focus: (await focusInfo(page)).name, checked: await page.evaluate(() => [...document.querySelectorAll('[role="radio"]')].map((r) => `${r.getAttribute('aria-label')}:${r.getAttribute('aria-checked')}`).join(',')) };
+    await page.getByRole('radio', { name: 'Violeta' }).focus();
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(100);
+    const space = await page.evaluate(() => [...document.querySelectorAll('[role="radio"]')].map((r) => `${r.getAttribute('aria-label')}:${r.getAttribute('aria-checked')}`).join(','));
+    const radioFocus = await focusInfo(page);
+    const closeBtn = page.getByRole('button', { name: 'Soltar el spray' });
+    await closeBtn.focus();
+    // `focus()` por script no activa :focus-visible si el último gesto no fue de teclado: se llega con Shift+Tab/Tab.
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Tab');
+    const closeFocus = await focusInfo(page);
+    const toolsSnap = await page.locator('.spray-tools').ariaSnapshot();
+    // Escape desde la caja y desde el contenido.
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(150);
+    const afterEsc = { focus: (await focusInfo(page)).name, fab: await page.locator('.spray-fab').count(), status: await page.locator('[role="status"]').allTextContents() };
+    await page.locator('.spray-fab').focus();
+    await page.keyboard.press('Enter');
+    await page.locator('main a').first().focus();
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(150);
+    const escFromMain = await page.locator('.spray-fab').count();
+    const fabFocus = await (async () => { await page.locator('.spray-fab').focus(); await page.keyboard.press('Shift+Tab'); await page.keyboard.press('Tab'); return focusInfo(page); })();
+
+    const okBulb = bulbAt > 0 && /pressed/.test(snapNight) && theme === 'neon' && visible(fNight) && fNight.name === 'Apagar el descontrol';
+    const okSpray = fabIdx >= 0 && afterOpen.name === 'body' ? false : true; // el foco se pierde al abrir (C-NOCHE-21)
+    const ok20 = okBulb && fabIdx >= 0 && torchFollows === after.length && afterEsc.fab === 1 && escFromMain === 1 && okSpray;
+    C.add({
+      id: 'R-NIGHT-20', viewport: vp, resultado: ok20 ? 'OK' : 'FALLO',
+      evidencia: `orden hasta la bombilla (${bulbAt} Tab): ${order.join(' → ')}; de día ${snapDay.replace(/\n/g, ' ')} / de noche ${snapNight.replace(/\n/g, ' ')}; foco visible de noche ${fNight.outline} offset ${fNight.offset} (:focus-visible=${fNight.fv}); siguientes Tab: ${after.map((x) => x.name).join(' → ')}; linterna en el centro del foco ${torchFollows}/${after.length}; «${skip.name}» + Intro → siguiente Tab «${afterSkip.name}» (salta el bote); Intro en «Coge el spray» → foco en «${afterOpen.name}», siguiente Tab «${firstTabAfterOpen.name}»; dentro: ${inside.map((x) => `${x.name}${x.fv ? '' : '(sin :focus-visible)'}`).join(' → ')} (los deshabilitados no reciben foco); flecha derecha en Lima → foco «${arrow.focus}», ${arrow.checked} (las flechas no hacen nada); Espacio en Violeta → ${space}; foco visible radio ${radioFocus.outline}, ✕ ${closeFocus.outline}; árbol de la caja: ${toolsSnap.replace(/\n/g, ' ')}; Escape → foco en «${afterEsc.focus}», bote=${afterEsc.fab}, status=${JSON.stringify(afterEsc.status)}; Escape con el foco en el contenido suelta el spray=${escFromMain === 1}; bote con foco ${fabFocus.outline}; ${sum(issues)}`,
+      hallazgos: 'C-NOCHE-21, C-NOCHE-23',
+    });
+
+    C.add({
+      id: 'TECLADO-bombilla', viewport: vp, resultado: okBulb ? 'OK' : 'FALLO',
+      evidencia: `${bulbAt}.ª parada de Tab (${order.join(' → ')}); Intro alterna; árbol de día «${snapDay.replace(/\n/g, ' ')}», de noche «${snapNight.replace(/\n/g, ' ')}» (nombre y estado cambian a la vez); foco visible de día ${fDay.outline}, de noche ${fNight.outline} (:focus-visible=${fNight.fv}); Escape no aplica`,
+      hallazgos: 'C-NOCHE-23',
+    });
+    C.add({
+      id: 'TECLADO-descontrol', viewport: vp, resultado: torchFollows === after.length ? 'OK' : 'FALLO',
+      evidencia: `la linterna apunta al centro del elemento enfocado en ${torchFollows}/${after.length} pasos de Tab (${after.map((x) => `${x.name}: ${x.center} vs ${x.torch}`).join(' ; ')}); el apagón y la pared son aria-hidden y no reciben foco; no hay atajo de teclado propio ni Escape para el descontrol (se apaga con la bombilla); orden: bombilla → píldora → «Coge el spray» → contenido; «Saltar al contenido» salta el bote`,
+      hallazgos: '',
+    });
+    const okTools = inside.slice(0, 3).every((x) => x.role === 'radio') && afterEsc.fab === 1 && visible(radioFocus) && visible(closeFocus) && afterOpen.name !== 'body';
+    C.add({
+      id: 'TECLADO-spray', viewport: vp, resultado: okTools ? 'OK' : 'FALLO',
+      evidencia: `Intro en «Coge el spray» → el botón desaparece y el foco queda en «${afterOpen.name}»; el siguiente Tab va a «${firstTabAfterOpen.name}» (Chrome conserva el punto de partida de la navegación secuencial donde estaba el bote; el lector de pantalla no anuncia nada al abrir); dentro cada color es una parada de Tab (${inside.map((x) => x.name).join(' → ')}), las flechas no mueven la selección (${arrow.checked}); Espacio elige color; foco visible en radios ${radioFocus.outline} y ✕ ${closeFocus.outline}; Escape suelta el spray desde la caja y desde el contenido y el foco queda en «${afterEsc.focus}» (el bote reaparece, pero sin foco); ${sum(issues)}`,
+      hallazgos: 'C-NOCHE-21',
+    });
+    await context.close();
+  }
+
+  // ---------- MiniPlayer y radiocasete (R-MUS-10) ----------
+  {
+    const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin });
+    await page.goto(`${inst.origin}/`);
+    await page.waitForTimeout(1500);
+    const order = [];
+    for (let i = 0; i < 20; i += 1) {
+      await page.keyboard.press('Tab');
+      const f = await focusInfo(page);
+      order.push(f);
+      if (f.name?.startsWith('Reproducir BARRO')) break;
+    }
+    const link = order.find((f) => f.name?.startsWith('Ir a La Colmena'));
+    const btn = order[order.length - 1];
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(1200);
+    const afterEnter = await audioState(page);
+    const btnPlaying = await focusInfo(page);
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(400);
+    const afterSpace = await audioState(page);
+    // De noche, foco visible en la píldora.
+    await page.locator('header button.navbar-theme').click();
+    await page.waitForTimeout(1600);
+    await page.locator('.mini-player button').focus();
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Tab');
+    const nightBtn = await focusInfo(page);
+    const pillSnap = await page.locator('.mini-player').ariaSnapshot();
+    await page.locator('header button.navbar-theme').click();
+    await page.waitForTimeout(400);
+    const okPill = link && visible(link) && btn.name === 'Reproducir BARRO' && visible(btn) && afterEnter.paused === false && btnPlaying.name === 'Pausar BARRO' && afterSpace.paused === true && visible(nightBtn);
+    C.add({
+      id: 'TECLADO-miniplayer', viewport: vp, resultado: okPill ? 'OK' : 'FALLO',
+      evidencia: `orden: ${order.map((f) => f.name).join(' → ')}; enlace «${link?.name}» foco ${link?.outline}; botón «${btn.name}» foco ${btn.outline}; Intro → paused=${afterEnter.paused}, botón «${btnPlaying.name}»; Espacio → paused=${afterSpace.paused}; de noche foco ${nightBtn.outline} (:focus-visible=${nightBtn.fv}); árbol ${pillSnap.replace(/\n/g, ' ')}; sin Escape; ${sum(issues)}`,
+      hallazgos: '',
+    });
+
+    // Radiocasete
+    await page.goto(`${inst.origin}/estudio`);
+    await page.waitForTimeout(1800);
+    const boomSnap = await page.locator('.boombox').ariaSnapshot();
+    await page.getByRole('slider', { name: 'Progreso del tema' }).focus();
+    await page.keyboard.press('Shift+Tab');
+    const seq = [];
+    for (let i = 0; i < 5; i += 1) {
+      await page.keyboard.press('Tab');
+      seq.push(await focusInfo(page));
+    }
+    const play = page.locator('.bb-controls .player-btn-main');
+    await play.focus();
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(1500);
+    const playing = await audioState(page);
+    const live = await page.locator('.bb-now').getAttribute('aria-live');
+    const slider = page.getByRole('slider', { name: 'Progreso del tema' });
+    await slider.focus();
+    const sliderAttrs = await slider.evaluate((s) => ({ min: s.min, max: s.max, step: s.step, valuetext: s.getAttribute('aria-valuetext'), value: s.value }));
+    const t0 = (await audioState(page)).t;
+    await page.waitForTimeout(50);
+    const v0 = Number(await slider.inputValue());
+    for (let i = 0; i < 10; i += 1) await page.keyboard.press('ArrowRight');
+    await page.waitForTimeout(100);
+    const v1 = Number(await slider.inputValue());
+    const t1 = (await audioState(page)).t;
+    await page.keyboard.press('PageUp');
+    await page.waitForTimeout(100);
+    const v2 = Number(await slider.inputValue());
+    await page.keyboard.press('Home');
+    await page.waitForTimeout(200);
+    const home = (await audioState(page)).t;
+    await page.evaluate(() => { window.__ended = 0; document.querySelector('audio').addEventListener('ended', () => { window.__ended += 1; }); });
+    await page.keyboard.press('End');
+    await page.waitForTimeout(800);
+    const end = await audioState(page);
+    const ended = await page.evaluate(() => window.__ended);
+    const sliderSnap = await slider.ariaSnapshot();
+    const sliderFocus = await focusInfo(page);
+    await page.keyboard.press('Escape');
+    const okBoom = /img "Radiocasete de ROCKY SOUND"/.test(boomSnap) && seq.some((x) => x.name === 'Tema anterior') && seq.every((x) => visible(x) || x.tag === 'a') && playing.paused === false && live === 'polite' && home < 1;
+    C.add({
+      id: 'TECLADO-radio', viewport: vp, resultado: okBoom ? 'OK' : 'FALLO',
+      evidencia: `árbol ${boomSnap.replace(/\n/g, ' ')}; orden ${seq.map((x) => `${x.name} (${x.outline}${x.fv ? '' : ', sin :focus-visible'})`).join(' → ')}; Intro en Reproducir → paused=${playing.paused} «${playing.bbNow}» (aria-live=${live}); barra ${JSON.stringify(sliderAttrs)}; 10 × → : valor ${v0}→${v1} (t ${t0}→${t1} s, ≈${Math.round(((t1 - t0) / 10) * 100) / 100} s por pulsación con el tema avanzando); Re Pág → ${v2}; Inicio → t=${home}; Fin → ended=${ended}, t=${end.t}, paused=${end.paused} (vuelve a empezar: bucle); el lector anuncia ${sliderSnap.replace(/\n/g, ' ')} sin tiempo; foco en la barra ${sliderFocus.outline}; Escape no hace nada; ${sum(issues)}`,
+      hallazgos: 'C-NOCHE-05',
+    });
+    const ok10 = okPill && okBoom;
+    C.add({
+      id: 'R-MUS-10', viewport: vp, resultado: ok10 ? 'OK' : 'FALLO',
+      evidencia: `píldora: enlace «${link?.name}» y botón «${btn.name}»/«${btnPlaying.name}», foco visible (${btn.outline}); Intro y Espacio alternan; radiocasete: imagen «Radiocasete de ROCKY SOUND», «${playing.bbNow}» con aria-live=${live}; barra 0–100 paso ${sliderAttrs.step}, aria-valuetext=${sliderAttrs.valuetext}; 10 flechas → ${Math.round((v1 - v0) * 100) / 100} puntos; Re Pág → +${Math.round((v2 - v1) * 100) / 100}; Inicio → 0:00; Fin → final del tema y vuelve a 0 (bucle); ${sum(issues)}`,
+      hallazgos: 'C-NOCHE-05',
+    });
+    await context.close();
+  }
+} finally {
+  await browser.close();
+  inst.stop();
+}

@@ -1,0 +1,321 @@
+// Límites, moderación y barra sin IA: R-STU-21, R-STU-30, R-STU-31 (no ejecutable en E1) y R-STU-32.
+import crypto from 'node:crypto';
+import { run, seed, api, start, presetCode } from './runner.mjs';
+import { open, sum, snap, sleep, gotoStudio, audioState } from './common.mjs';
+
+const press = (vp, loc) => (vp === 'movil' ? loc.tap() : loc.click());
+const verdict = (f) => (f.length ? 'FALLO' : 'OK');
+const inPage = (page, method, p, body, headers = {}) => page.evaluate(async ({ method, p, body, headers }) => {
+  const r = await fetch(p, { method, headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...headers }, body: body ? JSON.stringify(body) : undefined, credentials: 'same-origin' });
+  let data = null; try { data = await r.json(); } catch { /* sin cuerpo */ }
+  return { status: r.status, data, retry: r.headers.get('retry-after') };
+}, { method, p, body, headers });
+const row = (page, name) => page.locator('.ranking-beat', { has: page.locator('.ranking-name', { hasText: new RegExp(`^${name}$`) }) });
+const ranNote = async (page) => (await page.locator('.ranking-note').textContent()).trim();
+const pubNote = (page) => page.locator('.mesa-publicar-nota').evaluate((e) => ({ text: e.textContent.trim(), error: e.classList.contains('is-error'), color: getComputedStyle(e).color }));
+const beatBody = (bpm, extra = {}) => ({ code: presetCode('funk'), bpm, swing: 0.16, tono: 'do', name: `Ritmo ${bpm}`, alias: 'limites', ...extra });
+
+async function uiPublish(page, vp, name = 'Desde la web', alias = 'limites') {
+  if (!(await page.locator('form.mesa-publicar').count())) await press(vp, page.locator('button', { hasText: 'Publicar en el ranking' }));
+  await page.locator('input[name="nombre"]').fill(name);
+  await page.locator('input[name="apodo"]').fill(alias);
+  const rp = page.waitForResponse((r) => r.url().endsWith('/api/beats') && r.request().method() === 'POST');
+  await press(vp, page.locator('form.mesa-publicar button[type="submit"]'));
+  const r = await rp;
+  await sleep(300);
+  return { status: r.status(), body: await r.json().catch(() => null), retry: r.headers()['retry-after'], note: await pubNote(page) };
+}
+
+const cases = [];
+
+// ---------------- R-STU-21 ----------------
+cases.push({
+  id: 'R-STU-21',
+  vps: ['escritorio'],
+  fn: async ({ browser, vp, origin }) => {
+    const ev = [];
+    const fails = [];
+    const hallazgos = [];
+    // 1. 6 por IP cada 600 s (instancia con valores por defecto)
+    const def = await start(3305, {});
+    try {
+      const P = await open(browser, vp, def.origin);
+      await gotoStudio(P.page, def.origin);
+      const st = [];
+      for (let i = 0; i < 3; i += 1) st.push((await inPage(P.page, 'POST', '/api/beats', beatBody(100 + i))).status);
+      for (let i = 0; i < 3; i += 1) st.push((await inPage(P.page, 'POST', '/api/beats', beatBody(100, { code: 'zz' }))).status);
+      const r7 = await uiPublish(P.page, vp);
+      ev.push(`1) 3 válidas + 3 inválidas → ${st.join(',')}; la 7.ª desde la web → ${r7.status} Retry-After=${r7.retry}; nota «${r7.note.text}» (is-error=${r7.note.error}, ${r7.note.color})`);
+      if (st.join() !== '201,201,201,400,400,400' || r7.status !== 429 || r7.note.text !== 'Demasiadas peticiones. Inténtalo más tarde.' || !r7.note.error || !r7.retry) fails.push('1');
+      await P.context.close();
+      // 4. Origen
+      const evil = await api(def.origin, 'POST', '/api/beats', beatBody(150), { originHeader: 'http://evil.example' });
+      const none = await api(def.origin, 'POST', '/api/beats', beatBody(150), { originHeader: null });
+      ev.push(`4) Origin desconocido → ${evil.status} «${evil.data?.message}»; sin Origin → ${none.status} «${none.data?.message}»`);
+      if (evil.status !== 403 || evil.data?.message !== 'Origen no permitido.' || none.status !== 403 || none.data?.message !== 'Petición de origen no confiable.') fails.push('4');
+    } finally { await def.stop(); }
+    // 2. 10 por sesión y día (instancia con el límite por IP alto)
+    const Q = await open(browser, vp, origin);
+    await gotoStudio(Q.page, origin);
+    const day = [];
+    for (let i = 0; i < 10; i += 1) day.push((await inPage(Q.page, 'POST', '/api/beats', beatBody(110 + i))).status);
+    const r11 = await uiPublish(Q.page, vp);
+    const dup = await inPage(Q.page, 'POST', '/api/beats', beatBody(110));
+    await Q.context.clearCookies();
+    await Q.page.reload(); await Q.page.waitForSelector('.mesa-play');
+    const r12 = await uiPublish(Q.page, vp, 'Sesión nueva');
+    ev.push(`2) 10 beats distintos con la misma sesión → ${[...new Set(day)].join(',')}; el 11.º desde la web → ${r11.status} «${r11.note.text}» (is-error=${r11.note.error}); un duplicado tras el tope → ${dup.status} duplicate=${dup.data?.duplicate} (no cuenta); borrar la cookie y publicar → ${r12.status}`);
+    if (day.some((s) => s !== 201) || r11.status !== 429 || r11.note.text !== 'Por hoy ya has publicado bastante: vuelve mañana.' || !r11.note.error || dup.status !== 200 || r12.status !== 201) fails.push('2');
+    await Q.context.close();
+    // 3. Campo trampa
+    const H = await open(browser, vp, origin);
+    await gotoStudio(H.page, origin);
+    const before = (await api(origin, 'GET', '/api/beats?orden=nuevos', undefined, { originHeader: null })).data.beats.length;
+    await press(vp, H.page.locator('button', { hasText: 'Publicar en el ranking' }));
+    await H.page.locator('input[name="web"]').evaluate((e) => { e.value = 'https://spam.example'; });
+    await press(vp, H.page.locator('.mesa-presets .chip', { hasText: 'House' }));
+    const rh = await uiPublish(H.page, vp, 'Trampa', 'bot');
+    const after = (await api(origin, 'GET', '/api/beats?orden=nuevos', undefined, { originHeader: null })).data.beats.length;
+    const tabSel = await H.page.locator('#ranking-tab-nuevos').getAttribute('aria-selected');
+    const trap = await H.page.locator('input[name="web"]').evaluate((e) => ({ tab: e.tabIndex, ac: e.autocomplete, hidden: e.getAttribute('aria-hidden'), w: e.getBoundingClientRect().width, pos: getComputedStyle(e).position, left: e.getBoundingClientRect().left }));
+    ev.push(`3) campo «web» relleno → ${rh.status} ${JSON.stringify(rh.body)}; nota «${rh.note.text}»; beats en el servidor ${before}→${after}; el ranking no cambia (pestaña Nuevos=${tabSel}); el campo: tabIndex ${trap.tab}, autocomplete=${trap.ac}, aria-hidden=${trap.hidden}, ${trap.pos} en x=${Math.round(trap.left)}`);
+    if (rh.status !== 201 || rh.body?.beat !== null || rh.note.text !== 'Publicado. Ya suena en «Nuevos».' || after !== before) fails.push('3');
+    else hallazgos.push('C-STU-23');
+    await H.context.close();
+    // 5. Producción sin almacén persistente
+    let prod;
+    try {
+      const pi = await start(3308, { NODE_ENV: 'production', PUBLIC_ORIGIN: 'https://rocky.test', API_ALLOWED_ORIGINS: 'https://rocky.test', TRUST_PROXY_HOPS: '1' });
+      try {
+        const r = await api(pi.origin, 'POST', '/api/beats', beatBody(120), { originHeader: 'https://rocky.test' });
+        const g = await api(pi.origin, 'GET', '/api/beats', undefined, { originHeader: null });
+        prod = `NODE_ENV=production sin APP_ENCRYPTION_KEY (local, HTTPS simulado en PUBLIC_ORIGIN): POST → ${r.status} «${r.data?.message}»; GET → ${g.status}`;
+        if (r.status !== 503 || r.data?.message !== 'El ranking no está disponible ahora mismo.') fails.push('5');
+      } finally { await pi.stop(); }
+    } catch (e) {
+      prod = `no se pudo arrancar en modo producción en local: ${String(e.message).split('\n').slice(-3).join(' ').slice(0, 160)}`;
+    }
+    ev.push(`5) ${prod}`);
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; '), hallazgos: hallazgos.join(', ') };
+  },
+});
+
+// ---------------- R-STU-30 ----------------
+cases.push({
+  id: 'R-STU-30',
+  vps: ['escritorio'],
+  fn: async ({ browser, vp, origin }) => {
+    const ev = [];
+    const fails = [];
+    const hallazgos = [];
+    // 1. Sin BEATS_ADMIN_TOKEN
+    await seed(origin, { preset: 'trap', name: 'Moderable', alias: 'diez' });
+    const A = await open(browser, vp, origin, { storage: { 'rocky-beats-admin': 'cualquier-cosa' } });
+    await gotoStudio(A.page, origin);
+    const quitar = row(A.page, 'Moderable').locator('.ranking-link--danger');
+    const shown = await quitar.count();
+    await quitar.click();
+    const ask = await quitar.textContent();
+    const rp = A.page.waitForResponse((r) => r.request().method() === 'DELETE');
+    await quitar.click();
+    const r1 = await rp;
+    await sleep(300);
+    ev.push(`1) sin token en el servidor y «cualquier-cosa» en localStorage: «Quitar» visible=${shown}, «${ask}», DELETE → ${r1.status()} nota «${await ranNote(A.page)}»`);
+    if (!shown || ask !== '¿Quitar?' || r1.status() !== 404 || (await ranNote(A.page)) !== 'Ruta no encontrada.') fails.push('1');
+    await A.context.close();
+    // Token corto: el servidor no arranca
+    let shortTok;
+    try { const s = await start(3308, { BEATS_ADMIN_TOKEN: 'corto' }); await s.stop(); shortTok = 'arranca (inesperado)'; fails.push('token corto'); } catch (e) { shortTok = /al menos 24/.test(e.message) ? 'no arranca: «BEATS_ADMIN_TOKEN debe tener al menos 24 caracteres.»' : `no arranca: ${e.message.slice(-120)}`; }
+    ev.push(`token de 5 caracteres → ${shortTok}`);
+    // 2–5 con un token de prueba (sólo en el entorno de ese proceso)
+    const token = crypto.randomBytes(24).toString('base64url');
+    const T = await start(3309, { BEATS_ADMIN_TOKEN: token });
+    try {
+      const x = await seed(T.origin, { preset: 'house', name: 'Para quitar', alias: 'once' });
+      await seed(T.origin, { preset: 'funk', name: 'Se queda', alias: 'doce' });
+      const B = await open(browser, vp, T.origin, { storage: { 'rocky-beats-admin': 'otro-valor-que-no-es-el-token' } });
+      await gotoStudio(B.page, T.origin);
+      const q2 = row(B.page, 'Para quitar').locator('.ranking-link--danger');
+      await q2.click();
+      const rp2 = B.page.waitForResponse((r) => r.request().method() === 'DELETE');
+      await q2.click();
+      const r2 = await rp2;
+      await sleep(300);
+      const n2 = await ranNote(B.page);
+      await B.context.close();
+      const C = await open(browser, vp, T.origin, { storage: { 'rocky-beats-admin': token } });
+      await gotoStudio(C.page, T.origin);
+      const stored = await C.page.evaluate(() => localStorage.getItem('rocky-beats-admin')?.length);
+      // Con el beat sonando (C-STU-03 por «Quitar»)
+      await row(C.page, 'Para quitar').locator('.ranking-play').click();
+      await sleep(500);
+      const q3 = row(C.page, 'Para quitar').locator('.ranking-link--danger');
+      await q3.click();
+      const rp3 = C.page.waitForResponse((r) => r.request().method() === 'DELETE');
+      await q3.click();
+      const r3 = await rp3;
+      await sleep(400);
+      const gone = await row(C.page, 'Para quitar').count();
+      const s0 = (await audioState(C.page)).starts;
+      await sleep(2000);
+      const s1 = (await audioState(C.page)).starts;
+      const stopBtn = await C.page.locator('.ranking-play[aria-pressed="true"]').count();
+      const list = (await api(T.origin, 'GET', '/api/beats?orden=nuevos', undefined, { originHeader: null })).data.beats.map((b) => b.name);
+      const rep = await api(T.origin, 'POST', `/api/beats/${x.id}/report`);
+      const r4 = await inPage(C.page, 'DELETE', '/api/beats/AAAAAAAAAAA', null, { Authorization: `Bearer ${token}` });
+      const r5 = await api(T.origin, 'DELETE', '/api/beats/AAAAAAAAAAA', undefined, { originHeader: null, headers: { Authorization: `Bearer ${token}` } });
+      // C-STU-28: el DELETE comparte el límite de 60 por 10 minutos con «me mola» y reportar
+      const keep = (await api(T.origin, 'GET', '/api/beats', undefined, { originHeader: null })).data.beats[0];
+      let likes = 0;
+      let last = 200;
+      while (last !== 429 && likes < 70) { last = (await inPage(C.page, 'POST', `/api/beats/${keep.id}/like`)).status; likes += 1; }
+      const r6 = await inPage(C.page, 'DELETE', `/api/beats/${keep.id}`, null, { Authorization: `Bearer ${token}` });
+      ev.push(`2) token de prueba de ${token.length} caracteres en el entorno de la instancia; otro valor en el navegador → ${r2.status()} nota «${n2}»`);
+      ev.push(`3) el mismo valor (guardado en claro en localStorage, ${stored} caracteres) → ${r3.status()} ${JSON.stringify(await r3.json())}; fila presente=${gone}; lista del servidor [${list.join(',')}]; reportarlo después → ${rep.status} (borrado, no oculto)`);
+      ev.push(`   con el beat sonando al quitarlo: voces en 2 s después ${s1 - s0}, botones de parar ${stopBtn}`);
+      ev.push(`4) id inexistente → ${r4.status} «${r4.data?.message}»; 5) sin Origin → ${r5.status} «${r5.data?.message}»`);
+      ev.push(`límite compartido: tras ${likes} «me mola» desde la misma IP (el último ${last}), DELETE → ${r6.status} «${r6.data?.message}»`);
+      if (r2.status() !== 401 || n2 !== 'No autorizado.') fails.push('2');
+      if (r3.status() !== 200 || gone || list.includes('Para quitar') || rep.status !== 404) fails.push('3');
+      if (r4.status !== 404 || r4.data?.message !== 'Ese beat no existe.') fails.push('4');
+      if (r5.status !== 403 || r5.data?.message !== 'Petición de origen no confiable.') fails.push('5');
+      if (s1 - s0 > 0 && stopBtn === 0) { fails.push('al quitar un beat que suena, sigue sonando sin botón para pararlo (C-STU-03)'); hallazgos.push('C-STU-03'); }
+      if (r6.status === 429) hallazgos.push('C-STU-28');
+      if (fails.length) await snap(C.page, `R-STU-30-${vp}`);
+      await C.context.close();
+    } finally { await T.stop(); }
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; '), hallazgos: hallazgos.join(', ') };
+  },
+});
+
+// ---------------- R-STU-31 (E2) ----------------
+cases.push({
+  id: 'R-STU-31',
+  vps: ['escritorio', 'movil'],
+  instance: false,
+  fn: async () => ({ resultado: 'NO EJECUTADO: falta entorno E2 (OPENROUTER_API_KEY y modelos :free)', evidencia: 'la ficha pide E2; en E1 sólo se comprueban los errores (R-STU-32)', hallazgos: '' }),
+});
+
+// ---------------- R-STU-32 ----------------
+cases.push({
+  id: 'R-STU-32',
+  vps: ['escritorio', 'movil'],
+  fn: async ({ browser, vp, origin }) => {
+    const ev = [];
+    const fails = [];
+    const hallazgos = [];
+    // 1. Sin OPENROUTER_API_KEY
+    const { page, issues, blocked, context } = await open(browser, vp, origin);
+    await gotoStudio(page, origin);
+    await page.route('**/api/chat/barra', async (r) => { await sleep(700); await r.continue(); });
+    await press(vp, page.locator('button', { hasText: 'Rocky IA, rapéame' }));
+    await sleep(200);
+    const loading = (await page.locator('.mesa-barra').textContent()).trim();
+    await page.waitForSelector('.mesa-barra .is-error');
+    const err = await page.locator('.mesa-barra').evaluate((b) => ({ live: b.getAttribute('aria-live'), status: Boolean(b.querySelector('[role="status"]')), msg: b.querySelector('.is-error')?.textContent, color: getComputedStyle(b.querySelector('.is-error')).color, btns: [...b.querySelectorAll('button')].map((x) => x.textContent).join('/') }));
+    ev.push(`1) «Rocky IA, rapéame» → «${loading}» y luego «${err.msg}» (is-error, ${err.color}), botones ${err.btns}; región aria-live=${err.live} con role=status dentro=${err.status}`);
+    if (!loading.includes('Rocky IA rapea tu beat') || !loading.includes('Rocky IA está escribiendo…') || err.msg !== 'Rocky IA no está configurado.' || !err.btns.startsWith('Probar otra vez')) fails.push('1');
+    if (err.live === 'polite' && err.status) hallazgos.push('C-STU-16');
+    // Cerrar mientras escribe: la petición no se aborta y el panel vuelve a abrirse (C-STU-26)
+    await press(vp, page.locator('.mesa-barra button', { hasText: 'Cerrar' }));
+    await page.unroute('**/api/chat/barra');
+    await page.route('**/api/chat/barra', async (r) => { await sleep(1500); await r.continue(); });
+    let aborted = 0;
+    page.on('requestfailed', (r) => { if (r.url().includes('/api/chat/barra')) aborted += 1; });
+    await press(vp, page.locator('button', { hasText: 'Rocky IA, rapéame' }));
+    await sleep(300);
+    await press(vp, page.locator('.mesa-barra button', { hasText: 'Cerrar' }));
+    await sleep(150);
+    const closedNow = await page.locator('.mesa-barra').count();
+    await sleep(2000);
+    const reopened = await page.locator('.mesa-barra').count();
+    const reopenedMsg = reopened ? (await page.locator('.mesa-barra').textContent()).trim() : '';
+    ev.push(`«Cerrar» mientras escribe: panel cerrado=${closedNow === 0}, petición abortada=${aborted > 0}; al llegar la respuesta el panel ${reopened ? `vuelve a abrirse solo con «${reopenedMsg.slice(0, 60)}»` : 'sigue cerrado'}`);
+    if (aborted === 0) hallazgos.push('C-STU-26');
+    if (reopened) { fails.push('comprobación añadida (pasos 1–4 de la ficha correctos): «Cerrar» mientras Rocky IA escribe no aborta la petición y el panel reaparece solo al llegar la respuesta'); hallazgos.push('NUEVO-barra-reabre'); await snap(page, `R-STU-32-${vp}`); }
+    await page.unroute('**/api/chat/barra');
+    // 3b. 500 sin cuerpo (como el proxy de Vite) y 403 de origen
+    await page.route('**/api/chat/barra', (r) => r.fulfill({ status: 500, body: '' }));
+    if (!(await page.locator('.mesa-barra').count())) await press(vp, page.locator('button', { hasText: 'Rocky IA, rapéame' }));
+    else await press(vp, page.locator('.mesa-barra .btn--primary'));
+    await sleep(400);
+    const msg500 = (await page.locator('.mesa-barra .is-error').textContent()).trim();
+    await page.unroute('**/api/chat/barra');
+    ev.push(`500 sin cuerpo → «${msg500}»`);
+    await context.close();
+    // 403 de origen: se simula la respuesta exacta del servidor cuando falta el Origin
+    const ip = await open(browser, vp, origin);
+    await gotoStudio(ip.page, origin);
+    await ip.page.route('**/api/chat/barra', (r) => r.fulfill({ status: 403, contentType: 'application/json', body: JSON.stringify({ message: 'Petición de origen no confiable.' }) }));
+    await press(vp, ip.page.locator('button', { hasText: 'Rocky IA, rapéame' }));
+    await ip.page.waitForSelector('.mesa-barra .is-error');
+    const msg403 = (await ip.page.locator('.mesa-barra .is-error').textContent()).trim();
+    await ip.context.close();
+    ev.push(`403 de origen (respuesta simulada con el cuerpo real del servidor) → «${msg403}»`);
+    // 3. Con Express parado
+    const down = await start(3308, {});
+    let msgDown;
+    try {
+      const D = await open(browser, vp, down.origin);
+      await gotoStudio(D.page, down.origin);
+      await press(vp, D.page.locator('button', { hasText: 'Rocky IA, rapéame' }));
+      await D.page.waitForSelector('.mesa-barra .is-error');
+      // parada en seco: con SIGTERM el cierre ordenado deja viva la conexión keep-alive del navegador
+      down.child.kill('SIGKILL');
+      await new Promise((r) => (down.child.exitCode !== null || down.child.signalCode ? r() : down.child.once('exit', r)));
+      await press(vp, D.page.locator('.mesa-barra .btn--primary'));
+      await sleep(800);
+      msgDown = (await D.page.locator('.mesa-barra .is-error').textContent()).trim();
+      await D.context.close();
+    } finally { await down.stop(); }
+    ev.push(`3) Express parado y «Probar otra vez» → «${msgDown}»`);
+    const c17 = msgDown === 'No se ha podido conectar con la tienda.' && msg500 === 'La tienda no ha podido completar la operación.' && /^(Origen no permitido\.|Petición de origen no confiable\.)$/.test(msg403);
+    if (c17) hallazgos.push('C-STU-17');
+    if (!msgDown || !msg500) fails.push('3');
+    // 2. 5 por IP cada 600 s (instancia por defecto)
+    const lim = await start(3307, {});
+    try {
+      const L = await open(browser, vp, lim.origin);
+      await gotoStudio(L.page, lim.origin);
+      const seen = [];
+      await press(vp, L.page.locator('button', { hasText: 'Rocky IA, rapéame' }));
+      for (let i = 0; i < 6; i += 1) {
+        const r = L.page.waitForResponse((x) => x.url().endsWith('/api/chat/barra'));
+        if (i > 0) await press(vp, L.page.locator('.mesa-barra .btn--primary'));
+        const resp = await r;
+        await sleep(250);
+        seen.push(`${resp.status()}`);
+        if (i === 5) seen.push(`«${(await L.page.locator('.mesa-barra .is-error').textContent()).trim()}»`);
+      }
+      await L.context.close();
+      ev.push(`2) instancia por defecto: rapéame + 5 «Probar otra vez» → ${seen.join(', ')}`);
+      if (seen.slice(0, 5).some((s) => s !== '503') || seen[5] !== '429' || seen[6] !== '«Demasiadas peticiones. Inténtalo más tarde.»') fails.push('2');
+    } finally { await lim.stop(); }
+    // 4. Cuerpos manipulados (una vez, por API)
+    if (vp === 'escritorio') {
+      const ok = { code: presetCode('funk'), bpm: 100, swing: 0.1, tono: 'do' };
+      const bodies = {
+        'código no hexadecimal': { ...ok, code: 'z'.repeat(65) },
+        'bpm 300': { ...ok, bpm: 300 },
+        'tono «si»': { ...ok, tono: 'si' },
+        'tono «xyz1»': { ...ok, tono: 'xyz1' },
+        'swing en texto': { ...ok, swing: 'mucho' },
+        'código vacío (todo ceros)': { ...ok, code: `2${'0'.repeat(64)}` },
+        'cuerpo válido': ok,
+      };
+      const out = [];
+      for (const [k, b] of Object.entries(bodies)) {
+        const r = await api(origin, 'POST', '/api/chat/barra', b);
+        out.push(`${k} → ${r.status} «${r.data?.message}»`);
+        bodies[k] = r;
+      }
+      ev.push(`4) ${out.join('; ')}`);
+      if (bodies['código no hexadecimal'].status !== 400 || bodies['bpm 300'].status !== 400 || bodies['tono «xyz1»'].data?.message !== 'Esa tonalidad no está en la mesa.') fails.push('4');
+      ev.push('5) E2: no ejecutado (falta OPENROUTER_API_KEY)');
+    }
+    ev.push(sum(issues, blocked));
+    return { resultado: verdict(fails), evidencia: (fails.length ? `falla: ${fails.join(', ')}. ` : '') + ev.join('; '), hallazgos: hallazgos.join(', ') };
+  },
+});
+
+await run('s04-limites', cases);

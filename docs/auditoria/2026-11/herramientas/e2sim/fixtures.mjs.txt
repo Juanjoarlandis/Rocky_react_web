@@ -1,0 +1,198 @@
+// Datos de prueba del entorno E2 simulado (auditoría 2026-11).
+// Todo lo que hay aquí es ficticio y se generó para esta auditoría: no son
+// credenciales de ninguna tienda ni de ninguna cuenta de OpenRouter.
+// Lo importan el módulo de precarga (proceso del servidor), el arranque y el
+// emisor de webhooks (proceso de las pruebas), para que los tres compartan
+// catálogo, clientes y secretos.
+
+export const STORE_DOMAIN = 'rocky-dev.myshopify.com';
+export const API_VERSION = '2026-07';
+// Id numérico de la tienda en las URLs de Customer Accounts (shopify.com/authentication/<id>).
+export const SHOP_ID = '90350035';
+
+export const TEST_SECRETS = Object.freeze({
+  SHOPIFY_STOREFRONT_ACCESS_TOKEN: 'e2sim-storefront-private-f7f0047f0c0ce88f9f41b050d1a7ccb8',
+  SHOPIFY_CLIENT_ID: 'e2sim-client-id-f75c6a3f5ee9921e',
+  SHOPIFY_CLIENT_SECRET: 'e2sim-client-secret-3a6fc0ba16ebe0941fa8002e31f47332',
+  SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_ID: 'e2sim-customer-b54830ae-1d27-46ea-aaea-5fbb14b6bd99',
+  OPENROUTER_API_KEY: 'e2sim-openrouter-8b6c4e34decb6d221d9cbe4d4f2f1e98',
+  SITE_ACCESS_PASSWORD: 'e2sim-puerta-75bf095dc408f12c',
+});
+
+// Las imágenes del catálogo apuntan al CDN de Shopify (lo único que admite la
+// CSP); en Playwright, installE2Routes las sirve desde dist/products/.
+export const CDN_PREFIX = 'https://cdn.shopify.com/s/files/1/0903/5003/5035/files/';
+const cdn = (file) => `${CDN_PREFIX}${file}?v=1730000000`;
+
+const DROP_4 = { handle: 'rocky-drop-4', title: 'ROCKY DROP 4' };
+const DROP_3 = { handle: 'rocky-drop-3', title: 'ROCKY DROP 3' };
+
+const pad = (n) => String(n).padStart(2, '0');
+const productGid = (n) => `gid://shopify/Product/80350000${pad(n)}`;
+const variantGid = (n, k) => `gid://shopify/ProductVariant/90350${pad(n)}${pad(k)}`;
+
+// stock: unidades por talla. 0 = agotada. Las variantes no tienen imagen propia
+// (como en la tienda real cuando no se asigna), así que la ficha usa la del producto.
+function product(n, { handle, title, description, price, image = null, drop = DROP_4, stock }) {
+  const sizes = Object.keys(stock);
+  const isDefault = sizes.length === 1 && sizes[0] === 'Default Title';
+  return {
+    n,
+    id: productGid(n),
+    handle,
+    title,
+    description,
+    image: image ? { url: cdn(image), altText: title } : null,
+    collections: drop ? [drop] : [],
+    variants: sizes.map((size, index) => ({
+      id: variantGid(n, index + 1),
+      alias: `${handle}/${size}`,
+      title: size,
+      selectedOptions: [{ name: isDefault ? 'Title' : 'Talla', value: size }],
+      price,
+      inventory: stock[size],
+    })),
+  };
+}
+
+// Orden = orden de creación descendente (la consulta pide CREATED_AT reverse).
+// La web pide first=8: los dos últimos sólo los ven Rocky IA (first=50) y la API.
+export const PRODUCTS = Object.freeze([
+  product(1, {
+    handle: 'rocky-racing',
+    title: 'RockyRacing',
+    description: 'Camiseta oversize con gráfica racing de ROCKY 035. Algodón grueso de 240 g.',
+    price: '39.0',
+    image: 'rocky-racing.webp',
+    stock: { S: 25, M: 30, L: 30, XL: 20 },
+  }),
+  product(2, {
+    handle: 'rockydz-boyz',
+    title: 'Rockydz boyz',
+    description: 'La banda de los Rockydz en la espalda. Quedan pocas en las tallas grandes.',
+    price: '35.0',
+    image: 'rockydz-boyz.webp',
+    stock: { S: 12, M: 3, L: 2, XL: 1 },
+  }),
+  product(3, {
+    handle: 'smoker-edition',
+    title: 'Smoker Edition',
+    description: 'Edición camel con el muñeco fumador. Voló en el primer día.',
+    price: '45.0',
+    image: 'rocky35-camel.webp',
+    stock: { S: 0, M: 0, L: 0, XL: 0 },
+  }),
+  product(4, {
+    handle: '35-red',
+    title: '35 RED',
+    description: 'El 35 en rojo sobre negro. Talla única.',
+    price: '29.9',
+    stock: { 'Default Title': 8 },
+  }),
+  product(5, {
+    handle: '35-white',
+    title: '35 WHITE',
+    description: 'El 35 en blanco. La S y la XL ya volaron.',
+    price: '29.9',
+    stock: { S: 0, M: 5, L: 6, XL: 0 },
+  }),
+  product(6, {
+    handle: 'dwag',
+    title: 'DWAG',
+    description: 'Rocky, el perro y jefe de la banda, en grande.',
+    price: '32.5',
+    stock: { S: 10, M: 10, L: 10, XL: 10 },
+  }),
+  product(7, {
+    handle: 'danger',
+    title: 'Danger',
+    description: 'Cinta de peligro y diana roja.',
+    price: '35.0',
+    stock: { M: 4, L: 4 },
+  }),
+  product(8, {
+    handle: 'flora-blue',
+    title: 'Flora Blue',
+    description: 'Flores azules pintadas a mano.',
+    price: '34.0',
+    stock: { S: 7, M: 7, L: 7 },
+  }),
+  product(9, {
+    handle: 'level-orange',
+    title: 'LEVEL ORANGE',
+    description: 'Del drop anterior: naranja y nivel de burbuja.',
+    price: '38.0',
+    drop: DROP_3,
+    stock: { S: 5, M: 5, L: 5, XL: 5 },
+  }),
+  product(10, {
+    handle: 'mugshot',
+    title: 'Mugshot',
+    description: 'Del drop anterior: la foto de ficha policial de la crew.',
+    price: '35.0',
+    drop: DROP_3,
+    stock: { S: 0, M: 1, L: 0, XL: 0 },
+  }),
+]);
+
+export const VARIANTS = new Map(
+  PRODUCTS.flatMap((p) => p.variants.map((v) => [v.id, { ...v, product: p }]))
+);
+export const VARIANT_BY_ALIAS = new Map([...VARIANTS.values()].map((v) => [v.alias, v]));
+
+// Acepta un GID de variante o un alias «handle/talla» (p. ej. rockydz-boyz/L).
+export function findVariant(idOrAlias) {
+  return VARIANTS.get(idOrAlias) || VARIANT_BY_ALIAS.get(idOrAlias) || null;
+}
+
+// Clientes de Customer Accounts. El id es el GID que usa Crew como identidad.
+export const CUSTOMERS = Object.freeze({
+  ana: {
+    id: 'gid://shopify/Customer/7035000001',
+    firstName: 'Ana',
+    lastName: 'Prueba',
+    displayName: 'Ana Prueba',
+    email: 'ana.prueba@example.test',
+  },
+  // Sin nombre: Shopify pone el email como displayName y la web debe caer a «Miembro 035».
+  leo: {
+    id: 'gid://shopify/Customer/7035000002',
+    firstName: '',
+    lastName: '',
+    displayName: 'leo@example.test',
+    email: 'leo@example.test',
+  },
+  nuria: {
+    id: 'gid://shopify/Customer/7035000003',
+    firstName: 'Nuria',
+    lastName: '',
+    displayName: 'Nuria',
+    email: 'nuria.crew@example.test',
+  },
+});
+
+export function customerByKey(key) {
+  return CUSTOMERS[key] || null;
+}
+
+export function customerById(id) {
+  return Object.values(CUSTOMERS).find((c) => c.id === id) || null;
+}
+
+// Pedidos que responde el doble Admin (orders). El servidor no consulta Admin
+// en ejecución; están para quien lo llame (p. ej. un script) y para comprobarlo.
+export const SEED_ORDERS = Object.freeze([
+  {
+    id: 'gid://shopify/Order/6035000901',
+    name: '#E2-0901',
+    customerId: CUSTOMERS.nuria.id,
+    total: '74.0',
+    currency: 'EUR',
+    financialStatus: 'PAID',
+    processedAt: '2026-10-30T18:20:00Z',
+    lines: [
+      { variantId: variantGid(1, 2), quantity: 1 },
+      { variantId: variantGid(2, 1), quantity: 1 },
+    ],
+  },
+]);

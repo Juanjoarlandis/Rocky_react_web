@@ -1,0 +1,20 @@
+import { startInstance, launchBrowser, openPage } from '../harness.mjs';
+import { PORT, touchDrag, line, cdp } from './lib.mjs';
+const inst = await startInstance(PORT);
+const b = await launchBrowser();
+try {
+  const { page } = await openPage(b, 'movil', { origin: inst.origin });
+  await page.goto(inst.origin + '/crew'); await page.waitForTimeout(1500);
+  const s = await cdp(page);
+  await s.send('Input.synthesizeScrollGesture', { x: 200, y: 500, yDistance: -600, gestureSourceType: 'touch' });
+  await page.waitForTimeout(800);
+  console.log('synth touch', await page.evaluate(() => scrollY));
+  await s.send('Input.synthesizeScrollGesture', { x: 200, y: 500, yDistance: -600, gestureSourceType: 'mouse' });
+  await page.waitForTimeout(800);
+  console.log('synth mouse', await page.evaluate(() => scrollY));
+  await touchDrag(page, line(200, 600, 200, 200, 20));
+  await page.waitForTimeout(800);
+  console.log('touchDrag', await page.evaluate(() => scrollY));
+  await page.mouse.wheel(0, 500); await page.waitForTimeout(500);
+  console.log('wheel', await page.evaluate(() => scrollY));
+} finally { await b.close(); inst.stop(); }

@@ -1,0 +1,84 @@
+// R-GATE-11: arranque con la puerta mal configurada (en :3309, proceso propio).
+// Mismo entorno de E1 que el arnés (valores de .env.example) más lo que pide cada paso.
+import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import { REPO } from '../harness.mjs';
+import { raw, card, saveObs, sleep } from './util.mjs';
+
+const NODE = '/RUTA/A/node24';
+const PORT = 3309;
+const O = `http://localhost:${PORT}`;
+function exampleEnv() {
+  const out = {};
+  for (const line of fs.readFileSync(path.join(REPO, '.env.example'), 'utf8').split('\n')) {
+    const m = line.match(/^([A-Z][A-Z0-9_]*)=(.*)$/);
+    if (m) out[m[1]] = m[2];
+  }
+  return out;
+}
+function run(env, { waitMs = 4000 } = {}) {
+  return new Promise((resolve) => {
+    const child = spawn(NODE, ['server/index.mjs'], {
+      cwd: REPO,
+      env: { PATH: process.env.PATH, HOME: process.env.HOME, ...exampleEnv(), PORT: String(PORT), PUBLIC_ORIGIN: O, API_ALLOWED_ORIGINS: O, ...env },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let out = '';
+    child.stdout.on('data', (d) => (out += d));
+    child.stderr.on('data', (d) => (out += d));
+    const timer = setTimeout(() => resolve({ child, out: () => out, exited: false }), waitMs);
+    child.on('exit', (code, signal) => { clearTimeout(timer); resolve({ child, out: () => out, exited: true, code, signal }); });
+  });
+}
+async function listening() {
+  try { await raw('GET', `${O}/api/health`); return true; } catch { return false; }
+}
+async function kill(r) {
+  if (r.exited) return;
+  const done = new Promise((res) => r.child.once('exit', res));
+  r.child.kill('SIGTERM');
+  await Promise.race([done, sleep(1500)]);
+  if (r.child.exitCode === null && r.child.signalCode === null) r.child.kill('SIGKILL');
+}
+
+const c = card('R-GATE-11', 'api');
+const firstLine = (s) => s.split('\n').find((l) => l.trim()) || '';
+try {
+  const cases = [
+    ['paso 1 (contraseña corta)', { SITE_ACCESS_ENABLED: 'true', SITE_ACCESS_PASSWORD: 'corta' }, 'SITE_ACCESS_PASSWORD es obligatorio y debe tener al menos 12 caracteres.'],
+    ['paso 2 (SITE_ACCESS_ENABLED=yes)', { SITE_ACCESS_ENABLED: 'yes', SITE_ACCESS_PASSWORD: 'x'.repeat(16) }, 'SITE_ACCESS_ENABLED sólo puede ser true o false.'],
+    ['paso 3 (sin contraseña)', { SITE_ACCESS_ENABLED: 'true', SITE_ACCESS_PASSWORD: '' }, 'SITE_ACCESS_PASSWORD es obligatorio y debe tener al menos 12 caracteres.'],
+  ];
+  for (const [label, env, msg] of cases) {
+    const r = await run(env);
+    const up = !r.exited && (await listening());
+    const out = r.out();
+    const jsonLog = out.split('\n').some((l) => { try { return JSON.parse(l).message?.includes(msg.slice(0, 20)); } catch { return false; } });
+    c.check(`${label}: no escucha, sale con código ≠ 0 y muestra «${msg}»`, r.exited && r.code !== 0 && !up && out.includes(msg), `exited=${r.exited} code=${r.code} escucha=${up}; 1.ª línea: ${firstLine(out).slice(0, 140)}`);
+    c.check(`${label}: traza de Node, no log JSON`, !jsonLog && /at createConfig|at readSiteAccess|at readBooleanFlag|Error:/.test(out), `logJSON=${jsonLog}; traza=${/\n\s+at /.test(out)}`);
+    await kill(r);
+  }
+  // Paso 4: vacío → puerta apagada.
+  {
+    const r = await run({ SITE_ACCESS_ENABLED: '' }, { waitMs: 2500 });
+    const up = await listening();
+    const doc = up ? await raw('GET', `${O}/crew`, { headers: { Accept: 'text/html' } }) : null;
+    c.check('paso 4 (SITE_ACCESS_ENABLED vacío): escucha y la puerta queda apagada', up && doc.status === 200 && !doc.body.includes('Coming soon') && doc.body.includes('<div id="root">'), up ? `${doc.status} SPA=${doc.body.includes('<div id="root">')}` : 'no escucha');
+    await kill(r);
+  }
+  // Contraseña con espacios: no se recorta.
+  {
+    const spaced = '  abc-123-x  '; // 13 caracteres con espacios delante y detrás (de prueba)
+    const r = await run({ SITE_ACCESS_ENABLED: 'true', SITE_ACCESS_PASSWORD: spaced }, { waitMs: 2500 });
+    const up = await listening();
+    const post = (pw) => raw('POST', `${O}/access-gate`, { headers: { Origin: O, 'Content-Type': 'application/x-www-form-urlencoded' }, body: `password=${encodeURIComponent(pw)}` });
+    const trimmed = up ? (await post(spaced.trim())).status : null;
+    const exact = up ? (await post(spaced)).status : null;
+    c.check('la contraseña no se recorta: sin espacios → 401; exacta → 303', up && trimmed === 401 && exact === 303, `escucha=${up} recortada=${trimmed} exacta=${exact}`);
+    await kill(r);
+  }
+  c.note('Tests: server/config/app.test.mjs (7 tests, en verde en esta sesión, incluidos «fails closed when the site access configuration is incomplete or ambiguous» y «keeps the site access gate off unless it is explicitly enabled»).');
+} finally {
+  saveObs('gate-config', [c]);
+}

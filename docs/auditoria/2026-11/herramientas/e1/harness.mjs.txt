@@ -1,0 +1,126 @@
+// Arnés común para ejecutar los recorridos de E1 con Playwright (auditoría 2026-11).
+// Usa Google Chrome del sistema y una instancia propia de Express por agente,
+// que sirve el build de `dist/` y la API en el mismo origen, con almacén en memoria.
+import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import { chromium } from 'playwright';
+
+export const REPO = '/RUTA/AL/REPO';
+export const SCRATCH = '/RUTA/AL/SCRATCH';
+const NODE = '/RUTA/A/node24';
+
+export const VIEWPORTS = {
+  escritorio: { viewport: { width: 1440, height: 900 } },
+  movil: { viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
+};
+
+// Variables de `.env.example` con sus valores de ejemplo (los secretos van vacíos).
+// dotenv no pisa variables que ya existen, así que fijarlas todas garantiza E1
+// aunque el usuario cree un `.env` en la raíz del repo para E2.
+function exampleEnv() {
+  const out = {};
+  for (const line of fs.readFileSync(path.join(REPO, '.env.example'), 'utf8').split('\n')) {
+    const m = line.match(/^([A-Z][A-Z0-9_]*)=(.*)$/);
+    if (m) out[m[1]] = m[2];
+  }
+  // Variables que el servidor lee y `.env.example` no documenta: se vacían para que
+  // un `.env` real nunca active envíos de correo ni credenciales en E1.
+  for (const k of ['RESEND_API_KEY', 'SHOPIFY_ADMIN_ACCESS_TOKEN', 'BEATS_ADMIN_TOKEN', 'AVISOS_FROM', 'AVISOS_REPLY_TO']) {
+    out[k] = '';
+  }
+  return out;
+}
+
+// Arranca `node server/index.mjs` en `port` con su propio origen permitido.
+// `env` añade o pisa variables (límites, puerta de prueba…).
+export async function startInstance(port, env = {}) {
+  const origin = `http://localhost:${port}`;
+  const child = spawn(NODE, ['server/index.mjs'], {
+    cwd: REPO,
+    env: {
+      PATH: process.env.PATH,
+      HOME: process.env.HOME,
+      ...exampleEnv(),
+      PORT: String(port),
+      PUBLIC_ORIGIN: origin,
+      API_ALLOWED_ORIGINS: origin,
+      ...env,
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const log = [];
+  child.stdout.on('data', (d) => log.push(String(d)));
+  child.stderr.on('data', (d) => log.push(String(d)));
+  for (let i = 0; i < 60; i += 1) {
+    try {
+      const res = await fetch(`${origin}/api/health`);
+      if (res.ok) return { origin, child, log, stop: () => child.kill('SIGTERM') };
+    } catch {
+      /* todavía arrancando */
+    }
+    if (child.exitCode !== null) break;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  child.kill('SIGTERM');
+  throw new Error(`La instancia de ${origin} no arrancó:\n${log.join('').slice(-2000)}`);
+}
+
+export async function launchBrowser() {
+  return chromium.launch({ channel: 'chrome' });
+}
+
+// Abre una página con el viewport pedido y recoge errores de consola, errores de
+// página, peticiones fallidas y respuestas >= 400. `skipIntro` marca la intro
+// como vista en sessionStorage antes de cargar (usa false en los recorridos de la intro).
+export async function openPage(browser, viewportName, { origin, skipIntro = true, reducedMotion = 'no-preference', storage = {} } = {}) {
+  const context = await browser.newContext({ ...VIEWPORTS[viewportName], reducedMotion, locale: 'es-ES' });
+  if (skipIntro || Object.keys(storage).length) {
+    await context.addInitScript(({ skip, storage: s }) => {
+      try {
+        if (skip) sessionStorage.setItem('rocky-splash-seen', '1');
+        for (const [k, v] of Object.entries(s)) localStorage.setItem(k, v);
+      } catch {
+        /* almacenamiento bloqueado */
+      }
+    }, { skip: skipIntro, storage });
+  }
+  const page = await context.newPage();
+  const issues = { console: [], pageErrors: [], failed: [], http: [] };
+  page.on('console', (m) => {
+    if (m.type() === 'error' || m.type() === 'warning') issues.console.push(`${m.type()}: ${m.text()}`.slice(0, 300));
+  });
+  page.on('pageerror', (e) => issues.pageErrors.push(String(e).slice(0, 300)));
+  page.on('requestfailed', (r) => issues.failed.push(`${r.method()} ${r.url()} ${r.failure()?.errorText}`));
+  page.on('response', (r) => {
+    if (r.status() >= 400) issues.http.push(`${r.status()} ${r.request().method()} ${r.url()}`);
+  });
+  return { context, page, issues };
+}
+
+export function summarize(issues) {
+  const parts = [];
+  if (issues.pageErrors.length) parts.push(`errores de página: ${issues.pageErrors.join(' | ')}`);
+  if (issues.console.length) parts.push(`consola: ${issues.console.join(' | ')}`);
+  if (issues.failed.length) parts.push(`peticiones fallidas: ${issues.failed.join(' | ')}`);
+  if (issues.http.length) parts.push(`HTTP>=400: ${issues.http.join(' | ')}`);
+  return parts.join(' ; ') || 'sin errores de consola ni de red';
+}
+
+// Captura en scratchpad/capturas-e1/<area>/<nombre>.png
+export async function shot(page, area, name, opts = {}) {
+  const dir = path.join(SCRATCH, 'capturas-e1', area);
+  fs.mkdirSync(dir, { recursive: true });
+  const file = path.join(dir, `${name}.png`);
+  await page.screenshot({ path: file, ...opts });
+  return file;
+}
+
+// Una línea por recorrido y viewport en scratchpad/resultados-e1/<area>.tsv:
+// id, viewport, resultado (OK | FALLO | NO EJECUTADO: motivo), evidencia, hallazgos.
+export function record(area, { id, viewport, resultado, evidencia = '', hallazgos = '' }) {
+  const dir = path.join(SCRATCH, 'resultados-e1');
+  fs.mkdirSync(dir, { recursive: true });
+  const clean = (s) => String(s).replace(/[\t\n\r]+/g, ' ').trim();
+  fs.appendFileSync(path.join(dir, `${area}.tsv`), [id, viewport, resultado, evidencia, hallazgos].map(clean).join('\t') + '\n');
+}

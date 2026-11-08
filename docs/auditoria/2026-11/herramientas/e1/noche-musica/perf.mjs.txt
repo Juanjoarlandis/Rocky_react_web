@@ -1,0 +1,170 @@
+// R-NIGHT-22: rendimiento de la pared y del spray (lienzo, repintados, fotogramas, tareas largas).
+import fs from 'node:fs';
+import path from 'node:path';
+import { startInstance, launchBrowser, openPage } from '../harness.mjs';
+import { OUT, PORT, collector, nightOn, navTo, cdp, touchDrag, line, sum, r2, sprayStorage } from './lib.mjs';
+
+const C = collector('perf');
+const inst = await startInstance(PORT);
+const browser = await launchBrowser();
+
+async function installRecorder(page) {
+  await page.evaluate(() => {
+    window.__perf = { frames: [], long: [], relayouts: 0, redraws: [] };
+    let last = performance.now();
+    const loop = (t) => { window.__perf.frames.push(t - last); last = t; if (window.__perfOn) requestAnimationFrame(loop); };
+    window.__perfOn = true;
+    requestAnimationFrame(loop);
+    try {
+      const po = new PerformanceObserver((l) => l.getEntries().forEach((e) => window.__perf.long.push(Math.round(e.duration))));
+      po.observe({ type: 'longtask', buffered: false });
+      window.__perfPo = po;
+    } catch { /* sin longtask */ }
+  });
+}
+async function readRecorder(page) {
+  return page.evaluate(() => {
+    window.__perfOn = false;
+    window.__perfPo?.disconnect();
+    const f = window.__perf.frames.slice(2).sort((a, b) => a - b);
+    const total = f.reduce((a, b) => a + b, 0);
+    const p = (q) => Math.round(f[Math.min(f.length - 1, Math.floor(q * f.length))] || 0);
+    return { frames: f.length, fps: Math.round((f.length / total) * 1000), p50: p(0.5), p95: p(0.95), max: Math.round(f[f.length - 1] || 0), over33: f.filter((x) => x > 33).length, long: window.__perf.long.length, longMax: Math.max(0, ...window.__perf.long), longSum: window.__perf.long.reduce((a, b) => a + b, 0) };
+  });
+}
+async function interact(page, vp, ms = 5000) {
+  const t0 = Date.now();
+  let i = 0;
+  while (Date.now() - t0 < ms) {
+    if (vp === 'escritorio') {
+      await page.mouse.move(100 + ((i * 37) % 1200), 150 + ((i * 53) % 600), { steps: 4 });
+      if (i % 10 === 0) await page.mouse.wheel(0, i % 20 === 0 ? 400 : -300);
+    } else {
+      await touchDrag(page, line(300, 600, 300, 300, 8), { stepDelay: 16 });
+      await touchDrag(page, line(300, 300, 300, 600, 8), { stepDelay: 16 });
+    }
+    i += 1;
+  }
+}
+async function traceArea(page, vp, label, action) {
+  const file = path.join(OUT, `trace-${label}-${vp}.json`);
+  await browser.startTracing(page, { path: file, categories: ['devtools.timeline', 'disabled-by-default-devtools.timeline'] });
+  await action();
+  await browser.stopTracing();
+  const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+  const events = data.traceEvents || data;
+  const paints = events.filter((e) => e.name === 'Paint' && e.args?.data?.clip);
+  const vw = vp === 'escritorio' ? 1440 : 375;
+  const vh = vp === 'escritorio' ? 900 : 812;
+  let area = 0;
+  let full = 0;
+  for (const e of paints) {
+    const c = e.args.data.clip;
+    const xs = [c[0], c[2], c[4], c[6]];
+    const ys = [c[1], c[3], c[5], c[7]];
+    const a = (Math.max(...xs) - Math.min(...xs)) * (Math.max(...ys) - Math.min(...ys));
+    area += a;
+    if (a >= vw * vh * 0.9) full += 1;
+  }
+  const frames = events.filter((e) => e.name === 'BeginFrame' || e.name === 'DrawFrame').length;
+  const paintDur = paints.reduce((a, e) => a + (e.dur || 0), 0) / 1000;
+  fs.rmSync(file);
+  return { paints: paints.length, fullViewportPaints: full, paintRecordMs: Math.round(paintDur) };
+}
+
+try {
+  for (const vp of ['movil', 'escritorio']) {
+    const rate = vp === 'movil' ? 4 : 1;
+    const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin });
+    const s = await cdp(page);
+    await s.send('Emulation.setCPUThrottlingRate', { rate });
+    await s.send('Performance.enable');
+    await page.goto(`${inst.origin}/`);
+    await page.waitForTimeout(2500);
+    // Día: referencia.
+    await installRecorder(page);
+    await interact(page, vp);
+    const day = await readRecorder(page);
+    const traceDay = await traceArea(page, vp, 'dia', () => interact(page, vp, 2000));
+    await page.evaluate(() => window.scrollTo(0, 0));
+    // Noche.
+    await page.evaluate(() => {
+      window.__relayouts = [];
+      const watch = () => {
+        const c = document.querySelector('canvas.spray-wall');
+        if (!c) return setTimeout(watch, 50);
+        new MutationObserver(() => window.__relayouts.push(`${c.width}x${c.height}@${Math.round(performance.now())}`)).observe(c, { attributes: true, attributeFilter: ['width', 'height'] });
+        window.__relayouts.push(`${c.width}x${c.height}@inicio`);
+      };
+      watch();
+    });
+    await nightOn(page, vp);
+    await page.waitForTimeout(1500);
+    const canvasHome = await page.evaluate(() => { const c = document.querySelector('canvas.spray-wall'); return { w: c.width, h: c.height, css: `${c.style.width}×${c.style.height}`, appH: document.querySelector('.app').offsetHeight }; });
+    await installRecorder(page);
+    await interact(page, vp);
+    const night = await readRecorder(page);
+    const traceNight = await traceArea(page, vp, 'noche', () => interact(page, vp, 2000));
+    const relayHome = await page.evaluate(() => window.__relayouts.slice());
+    // /crew: página larga, con imágenes que cargan tarde.
+    await page.evaluate(() => { window.__relayouts = []; });
+    await navTo(page, vp, 'Crew');
+    await page.waitForTimeout(500);
+    await page.evaluate(() => {
+      const c = document.querySelector('canvas.spray-wall');
+      window.__relayouts = [`${c.width}x${c.height}@llegada`];
+      new MutationObserver(() => window.__relayouts.push(`${c.width}x${c.height}@${Math.round(performance.now())}`)).observe(c, { attributes: true, attributeFilter: ['width', 'height'] });
+    });
+    // Bajar hasta el final para que carguen las imágenes diferidas.
+    for (let i = 0; i < 12; i += 1) {
+      if (vp === 'escritorio') await page.mouse.wheel(0, 1500);
+      else await touchDrag(page, line(300, 700, 300, 100, 6), { stepDelay: 10 });
+      await page.waitForTimeout(250);
+    }
+    await page.waitForTimeout(1500);
+    const canvasCrew = await page.evaluate(() => { const c = document.querySelector('canvas.spray-wall'); return { w: c.width, h: c.height, css: `${c.style.width}×${c.style.height}`, appH: document.querySelector('.app').offsetHeight }; });
+    const relayCrew = await page.evaluate(() => window.__relayouts.slice());
+    // Pared casi llena (≈ 5800 puntos sembrados) y repintado al redimensionar.
+    const cx = (vp === 'escritorio' ? 1440 : 375) / 2;
+    const zig = (n, y0, s) => ({ c: s % 3, s, p: Array.from({ length: n }, (_, i) => [Math.round(-cx + 10 + (i % 40) * 3), y0 + Math.floor(i / 40) * 6]).flat(), d: [[Math.round(-cx + 20), y0, 50]] });
+    const seed = { v: 1, pages: { '/crew': { t: Date.now(), strokes: Array.from({ length: 10 }, (_, k) => zig(580, 300 + k * 600, k + 1)) } } };
+    await page.evaluate((v) => localStorage.setItem('rocky-spray', JSON.stringify(v)), seed);
+    await page.evaluate(() => {
+      window.__redraws = [];
+      const orig = CanvasRenderingContext2D.prototype.clearRect;
+      CanvasRenderingContext2D.prototype.clearRect = function patched(...a) {
+        if (this.canvas.classList.contains('spray-wall')) {
+          const t0 = performance.now();
+          setTimeout(() => window.__redraws.push(Math.round(performance.now() - t0)), 0);
+        }
+        return orig.apply(this, a);
+      };
+    });
+    await navTo(page, vp, 'Tienda');
+    await navTo(page, vp, 'Crew'); // carga la pared sembrada
+    await page.waitForTimeout(800);
+    const loaded = (await sprayStorage(page))?.pages?.['/crew']?.strokes?.reduce((a, x) => a + x.p.length / 2, 0);
+    await installRecorder(page);
+    const w = vp === 'escritorio' ? 1440 : 375;
+    await page.setViewportSize({ width: w - 40, height: vp === 'escritorio' ? 900 : 812 });
+    await page.waitForTimeout(800);
+    await page.setViewportSize({ width: w, height: vp === 'escritorio' ? 900 : 812 });
+    await page.waitForTimeout(800);
+    const resize = await readRecorder(page);
+    const redraws = await page.evaluate(() => window.__redraws.slice());
+    const mem = await page.evaluate(() => (performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1e6) : null));
+    const metrics = Object.fromEntries((await s.send('Performance.getMetrics')).metrics.filter((m) => ['JSHeapUsedSize', 'Nodes', 'LayoutCount', 'RecalcStyleCount'].includes(m.name)).map((m) => [m.name, Math.round(m.value)]));
+    await s.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+    const mb = (c) => r2((c.w * c.h * 4) / 1e6);
+    C.add({
+      id: 'R-NIGHT-22', viewport: vp, resultado: 'OK',
+      evidencia: `CPU ×${rate}, Chrome headless (renderizado por software: cifras orientativas); lienzo en '/' ${canvasHome.w}×${canvasHome.h} = ${r2((canvasHome.w * canvasHome.h) / 1e6)} Mpx (≈ ${mb(canvasHome)} MB RGBA; .app ${canvasHome.appH}px) y en /crew ${canvasCrew.w}×${canvasCrew.h} = ${r2((canvasCrew.w * canvasCrew.h) / 1e6)} Mpx (≈ ${mb(canvasCrew)} MB), existe sin coger el spray; re-creaciones del lienzo al encender en '/': ${relayHome.length} (${relayHome.join(', ')}); en /crew al bajar y cargar imágenes: ${relayCrew.length} (${relayCrew.slice(0, 8).join(', ')}${relayCrew.length > 8 ? '…' : ''}); interacción 5 s de día ${JSON.stringify(day)} vs de noche ${JSON.stringify(night)}; eventos Paint en una traza de 2 s de día ${JSON.stringify(traceDay)} vs de noche ${JSON.stringify(traceNight)}; con ${loaded} puntos en la pared, duración de cada repintado completo del lienzo (llegar a '/', llegar a /crew y dos cambios de ancho) ${JSON.stringify(redraws)} ms, fotogramas ${JSON.stringify(resize)}; heap JS ${mem} MB; ${JSON.stringify(metrics)}; ${sum(issues)}`,
+      hallazgos: 'C-NOCHE-09, C-NOCHE-10',
+    });
+    fs.writeFileSync(path.join(OUT, `perf-${vp}.json`), JSON.stringify({ canvasHome, canvasCrew, relayHome, relayCrew, day, night, traceDay, traceNight, redraws, resize, mem, metrics }, null, 2));
+    await context.close();
+  }
+} finally {
+  await browser.close();
+  inst.stop();
+}

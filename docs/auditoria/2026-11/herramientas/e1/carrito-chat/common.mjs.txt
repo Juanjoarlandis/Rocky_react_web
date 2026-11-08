@@ -1,0 +1,127 @@
+// Utilidades comunes de los recorridos de carrito, Rocky IA y Crew (E1).
+import fs from 'node:fs';
+import path from 'node:path';
+import { openPage, SCRATCH } from '../harness.mjs';
+
+export const OUT = path.join(SCRATCH, 'e1', 'carrito-chat', 'out');
+fs.mkdirSync(OUT, { recursive: true });
+
+const LOCAL = /^(https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/|data:|blob:|about:)/;
+
+// openPage del arnés + bloqueo de cualquier petición que no sea local, para no
+// tocar internet (los intentos quedan en issues.external).
+export async function guardedPage(browser, viewport, opts = {}) {
+  const res = await openPage(browser, viewport, opts);
+  res.issues.external = [];
+  await res.context.route(
+    (url) => !LOCAL.test(url.toString()),
+    (route) => {
+      res.issues.external.push(route.request().url());
+      return route.abort('blockedbyclient');
+    }
+  );
+  return res;
+}
+
+export function save(name, data) {
+  fs.writeFileSync(path.join(OUT, `${name}.json`), JSON.stringify(data, null, 2));
+}
+
+// Describe el elemento activo y si su foco se ve (outline o sombra), con el
+// estilo calculado. Para los cromos mira además el aro de la carta.
+export async function focusInfo(page) {
+  return page.evaluate(() => {
+    const el = document.activeElement;
+    if (!el || el === document.body) return { tag: el ? 'BODY' : null, visible: false };
+    const cs = getComputedStyle(el);
+    const label =
+      el.getAttribute('aria-label') ||
+      (el.innerText || el.value || el.getAttribute('placeholder') || '').trim().slice(0, 60);
+    const outline =
+      cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0
+        ? `${cs.outlineWidth} ${cs.outlineStyle} ${cs.outlineColor}`
+        : '';
+    const shadow = cs.boxShadow !== 'none' ? cs.boxShadow : '';
+    let cardRing = '';
+    const card = el.closest('.crew-card');
+    if (card) {
+      const inner = card.querySelector('.crew-card-inner');
+      const s = inner ? getComputedStyle(inner).boxShadow : 'none';
+      if (s !== 'none') cardRing = s;
+    }
+    const r = el.getBoundingClientRect();
+    return {
+      tag: el.tagName,
+      cls: (el.className && el.className.baseVal === undefined ? el.className : '').slice(0, 80),
+      label,
+      href: el.getAttribute('href'),
+      focusVisible: el.matches(':focus-visible'),
+      outline,
+      shadow: shadow.slice(0, 120),
+      border: `${cs.borderColor}`,
+      cardRing: cardRing.slice(0, 120),
+      visible: Boolean(outline || shadow || cardRing),
+      inViewport: r.bottom > 0 && r.top < innerHeight && r.width > 0,
+    };
+  });
+}
+
+// Pulsa Tab `n` veces y devuelve la secuencia de focos.
+export async function tabSequence(page, n, { shift = false } = {}) {
+  const seq = [];
+  for (let i = 0; i < n; i += 1) {
+    await page.keyboard.press(shift ? 'Shift+Tab' : 'Tab');
+    await page.waitForTimeout(60);
+    seq.push(await focusInfo(page));
+  }
+  return seq;
+}
+
+export function fmtSeq(seq) {
+  return seq
+    .map((f) => `${f.tag}${f.label ? `«${f.label}»` : ''}${f.visible ? '' : '[SIN FOCO VISIBLE]'}`)
+    .join(' → ');
+}
+
+export async function headersOf(res) {
+  const out = {};
+  res.headers.forEach((v, k) => {
+    out[k] = v;
+  });
+  return out;
+}
+
+// fetch con resumen: status, cuerpo y cabeceras relevantes.
+export async function call(url, { method = 'GET', headers = {}, body } = {}) {
+  const res = await fetch(url, { method, headers, body, redirect: 'manual' });
+  const text = await res.text();
+  const h = await headersOf(res);
+  return {
+    status: res.status,
+    body: text.slice(0, 400),
+    setCookie: res.headers.getSetCookie?.() || [],
+    headers: {
+      'cache-control': h['cache-control'],
+      'content-type': h['content-type'],
+      'ratelimit-limit': h['ratelimit-limit'],
+      'ratelimit-remaining': h['ratelimit-remaining'],
+      'ratelimit-reset': h['ratelimit-reset'],
+      'retry-after': h['retry-after'],
+      'access-control-allow-origin': h['access-control-allow-origin'],
+      'access-control-allow-methods': h['access-control-allow-methods'],
+      'access-control-allow-headers': h['access-control-allow-headers'],
+      'access-control-max-age': h['access-control-max-age'],
+      location: h.location,
+    },
+  };
+}
+
+export function brief(r) {
+  const rl = r.headers['ratelimit-limit']
+    ? ` RL=${r.headers['ratelimit-limit']}/${r.headers['ratelimit-remaining']}`
+    : '';
+  const ck = r.setCookie.length
+    ? ` Set-Cookie=${r.setCookie.map((c) => c.replace(/(rocky_session=)[^;]+/, '$1<id>')).join(' || ')}`
+    : ' sin Set-Cookie';
+  return `${r.status} ${r.body}${rl}${ck}`;
+}

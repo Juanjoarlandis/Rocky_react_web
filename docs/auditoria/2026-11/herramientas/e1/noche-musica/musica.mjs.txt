@@ -1,0 +1,618 @@
+// R-MUS-01..09, R-MUS-11..13 (radio global, píldora, radiocasete, cintas, fallos, peso).
+import { execFileSync } from 'node:child_process';
+import { REPO, startInstance, launchBrowser, openPage } from '../harness.mjs';
+import {
+  PORT, collector, snap, themeState, toggleNight, nightOn, spaGo, navTo, audioState, trackMusic, cdp, touchDrag, line, touchScroll, sum, r2,
+} from './lib.mjs';
+
+const C = collector('musica');
+const only = process.argv.slice(2);
+const want = (id) => !only.length || only.some((o) => id.includes(o));
+const press = async (page, vp, loc) => (vp === 'escritorio' ? loc.click() : loc.tap());
+const pillBtn = (page) => page.locator('.mini-player button');
+
+// Bytes de audio recibidos por petición (CDP).
+async function netBytes(page) {
+  const s = await cdp(page);
+  await s.send('Network.enable');
+  const reqs = new Map();
+  s.on('Network.requestWillBeSent', (e) => { if (e.request.url.includes('/music/')) reqs.set(e.requestId, { url: e.request.url.replace(/^https?:\/\/[^/]+/, ''), range: e.request.headers.Range || e.request.headers.range || '', bytes: 0, status: null, state: 'pendiente' }); });
+  s.on('Network.responseReceived', (e) => { const r = reqs.get(e.requestId); if (r) r.status = e.response.status; });
+  s.on('Network.dataReceived', (e) => { const r = reqs.get(e.requestId); if (r) r.bytes += e.encodedDataLength || e.dataLength; });
+  s.on('Network.loadingFinished', (e) => { const r = reqs.get(e.requestId); if (r) { r.state = 'fin'; r.total = e.encodedDataLength; } });
+  s.on('Network.loadingFailed', (e) => { const r = reqs.get(e.requestId); if (r) r.state = `fallo:${e.errorText}${e.canceled ? '(cancelada)' : ''}`; });
+  return {
+    list: () => [...reqs.values()].map((r) => `${r.url} ${r.range} → ${r.status} ${r.state} ${r.total ?? r.bytes} B`),
+    total: () => [...reqs.values()].reduce((a, r) => a + (r.total ?? r.bytes), 0),
+  };
+}
+
+const inst = await startInstance(PORT);
+const browser = await launchBrowser();
+try {
+  // ---------------- R-MUS-01 ----------------
+  for (const vp of ['escritorio', 'movil']) {
+    if (!want('R-MUS-01')) break;
+    const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin });
+    const net = await netBytes(page);
+    await page.goto(`${inst.origin}/`);
+    await page.waitForTimeout(3000);
+    const s0 = await audioState(page);
+    const bytes0 = net.total();
+    const group = await page.locator('.mini-player').getAttribute('aria-label');
+    await press(page, vp, page.getByRole('button', { name: 'Reproducir BARRO' }));
+    await page.waitForTimeout(1500);
+    const s1 = await audioState(page);
+    const anim = await page.evaluate(() => {
+      const d = document.querySelector('.mini-player.is-playing .mini-player-disc');
+      const a = document.querySelector('[data-groove] .al-ritmo');
+      return { disc: d ? `${getComputedStyle(d).animationName}/${getComputedStyle(d).display}` : 'ausente', alRitmo: a ? getComputedStyle(a).animationName : 'ausente', nAlRitmo: document.querySelectorAll('.al-ritmo').length };
+    });
+    // El estado sale de los eventos del medio: pausar el <audio> por fuera.
+    await page.evaluate(() => document.querySelector('audio').pause());
+    await page.waitForTimeout(300);
+    const sExt = await audioState(page);
+    await press(page, vp, pillBtn(page));
+    await page.waitForTimeout(800);
+    await press(page, vp, page.getByRole('button', { name: 'Pausar BARRO' }));
+    await page.waitForTimeout(300);
+    const s2 = await audioState(page);
+    const ok = s0.src === null && s0.preload === 'none' && bytes0 === 0 && s1.currentSrc === '/music/barro.m4a' && s1.paused === false && s1.pillBtn === 'Pausar BARRO' && s1.pillPlaying && s1.groove === '1' && s1.bpm === '77' &&
+      anim.alRitmo !== 'none' && anim.alRitmo !== 'ausente' && sExt.pillBtn === 'Reproducir BARRO' && s2.paused && s2.groove === null && s2.bpm === null && group === 'Reproductor de Rocky 035';
+    C.add({
+      id: 'R-MUS-01', viewport: vp, resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `al cargar (3 s): <audio> src=${s0.src} preload=${s0.preload}, bytes de audio=${bytes0}; grupo «${group}»; tras «Reproducir BARRO»: ${JSON.stringify({ src: s1.currentSrc, paused: s1.paused, t: s1.t, pill: s1.pillBtn, groove: s1.groove, bpm: s1.bpm })}; disco ${anim.disc}, cabeceo .al-ritmo ${anim.alRitmo} (${anim.nAlRitmo} muñecos); pausa por fuera del botón → píldora «${sExt.pillBtn}» groove=${sExt.groove}; «Pausar BARRO» → paused=${s2.paused} groove=${s2.groove} --bpm=${s2.bpm}; peticiones ${net.list().join(' | ')}; ${sum(issues)}`,
+      hallazgos: '',
+    });
+    if (!ok) await snap(page, `R-MUS-01-${vp}`);
+    await context.close();
+  }
+
+  // ---------------- R-MUS-02 ----------------
+  for (const vp of ['escritorio', 'movil']) {
+    if (!want('R-MUS-02')) break;
+    const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin });
+    await page.goto(`${inst.origin}/`);
+    await page.waitForTimeout(1500);
+    await press(page, vp, page.getByRole('button', { name: 'Reproducir BARRO' }));
+    await page.waitForTimeout(1500);
+    await page.evaluate(() => { document.querySelector('audio').__probe = 1; });
+    const t0 = (await audioState(page)).t;
+    await press(page, vp, page.getByRole('link', { name: 'Ir a La Colmena: BARRO' }));
+    await page.waitForTimeout(1500);
+    const st = await audioState(page);
+    const studio = await page.evaluate(() => ({ path: location.pathname, pill: !!document.querySelector('.mini-player'), probe: document.querySelector('audio').__probe, live: document.querySelector('.bb-now')?.getAttribute('aria-live') }));
+    await navTo(page, vp, 'Tienda');
+    const back = await audioState(page);
+    const ok = studio.path === '/estudio' && !studio.pill && studio.probe === 1 && st.paused === false && st.t > t0 && st.bbNow === 'Sonando: BARRO' && back.pillBtn === 'Pausar BARRO' && back.paused === false;
+    C.add({
+      id: 'R-MUS-02', viewport: vp, resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `BARRO en t=${t0}; título de la píldora → ${studio.path}: píldora=${studio.pill}, mismo <audio>=${studio.probe === 1}, paused=${st.paused}, t=${st.t}, radiocasete «${st.bbNow}» (aria-live=${studio.live}); vuelta a Tienda → píldora «${back.pillBtn}», paused=${back.paused}, t=${back.t}; ${sum(issues)}`,
+      hallazgos: '',
+    });
+    if (!ok) await snap(page, `R-MUS-02-${vp}`);
+    await context.close();
+  }
+
+  // ---------------- R-MUS-03 ----------------
+  for (const vp of ['escritorio', 'movil']) {
+    if (!want('R-MUS-03')) break;
+    const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin });
+    await page.goto(`${inst.origin}/estudio`);
+    await page.waitForTimeout(2000);
+    const slider = page.getByRole('slider', { name: 'Progreso del tema' });
+    await slider.scrollIntoViewIfNeeded();
+    const times0 = await page.locator('.bb-time').allTextContents();
+    const setlistDur = await page.locator('.setlist-duration').first().textContent();
+    // Mover la barra antes del primer play.
+    const sb = await slider.boundingBox();
+    const dragSlider = async (frac) => {
+      const b = await slider.boundingBox();
+      const x0 = b.x + 4;
+      const x1 = b.x + b.width * frac;
+      const y = b.y + b.height / 2;
+      if (vp === 'escritorio') {
+        await page.mouse.move(x0, y);
+        await page.mouse.down();
+        await page.mouse.move(x1, y, { steps: 8 });
+        await page.mouse.up();
+      } else {
+        await touchDrag(page, line(x0, y, x1, y, 10));
+        await page.waitForTimeout(650);
+      }
+    };
+    await dragSlider(0.5);
+    await page.waitForTimeout(300);
+    const pre = await audioState(page);
+    const preVal = await slider.inputValue();
+    await press(page, vp, page.locator('.bb-controls .player-btn-main'));
+    await page.waitForTimeout(1800);
+    const playing = await audioState(page);
+    const art = await page.evaluate(() => {
+      const g = (s) => { const el = document.querySelector(s); return el ? getComputedStyle(el).animationName : 'ausente'; };
+      return { cls: document.querySelector('.bb-art').getAttribute('class'), spool: g('.bb-art.is-playing .bb-spool'), senal: g('.bb-art.is-playing .bb-senal'), luz: document.querySelector('.bb-art.is-playing .bb-luz') ? getComputedStyle(document.querySelector('.bb-art.is-playing .bb-luz')).fill : 'ausente', times: [...document.querySelectorAll('.bb-time')].map((e) => e.textContent) };
+    });
+    await dragSlider(0.5);
+    await page.waitForTimeout(400);
+    const mid = await audioState(page);
+    await page.waitForTimeout(3200);
+    const prevBtn = page.getByRole('button', { name: 'Tema anterior' });
+    const nextBtn = page.getByRole('button', { name: 'Tema siguiente' });
+    const tBeforePrev = (await audioState(page)).t;
+    await press(page, vp, prevBtn);
+    await page.waitForTimeout(300);
+    const afterPrev = await audioState(page);
+    await press(page, vp, prevBtn); // antes de 3 s
+    await page.waitForTimeout(400);
+    const afterPrev2 = await audioState(page);
+    // En pausa y <3 s: «Tema anterior» lo pone a sonar.
+    await press(page, vp, page.locator('.bb-controls .player-btn-main'));
+    await page.waitForTimeout(300);
+    await press(page, vp, prevBtn);
+    await page.waitForTimeout(800);
+    const prevPaused = await audioState(page);
+    // «Tema siguiente» sonando y en pausa.
+    await page.waitForTimeout(1200);
+    const tN0 = (await audioState(page)).t;
+    await press(page, vp, nextBtn);
+    await page.waitForTimeout(400);
+    const nextPlaying = await audioState(page);
+    await press(page, vp, page.locator('.bb-controls .player-btn-main'));
+    await page.waitForTimeout(300);
+    const tPaused = (await audioState(page)).t;
+    await press(page, vp, nextBtn);
+    await page.waitForTimeout(800);
+    const nextPaused = await audioState(page);
+    // Setlist
+    await press(page, vp, page.locator('.bb-controls .player-btn-main'));
+    await page.waitForTimeout(300);
+    await press(page, vp, page.locator('.setlist-row').first());
+    await page.waitForTimeout(800);
+    const row = await page.evaluate(() => { const r = document.querySelector('.setlist-row'); return { cls: r.className, spinner: !!r.querySelector('.setlist-spinner'), title: r.querySelector('.setlist-title').textContent }; });
+    const rowAudio = await audioState(page);
+    const ok = times0.join() === '0:00,0:00' && setlistDur === '1:53' && pre.src === null && pre.t === 0 && playing.paused === false && playing.bbNow === 'Sonando: BARRO' && art.spool !== 'none' && art.spool !== 'ausente' &&
+      Math.abs(mid.t - mid.dur / 2) < 8 && afterPrev.t < 1 && afterPrev2.currentSrc === '/music/barro.m4a' && afterPrev2.paused === false && prevPaused.paused === false &&
+      nextPlaying.t >= tN0 && nextPaused.paused === false && nextPaused.t >= tPaused && row.cls.includes('is-active') && row.spinner && rowAudio.paused === false;
+    C.add({
+      id: 'R-MUS-03', viewport: vp, resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `antes del play tiempos ${times0.join(' / ')} y Setlist ${setlistDur}; arrastrar la barra sin play → valor ${preVal}, src=${pre.src}, t=${pre.t}; «Reproducir» → «${playing.bbNow}», paused=${playing.paused}, dur=${playing.dur}; dibujo ${JSON.stringify(art)}; arrastrar a la mitad → t=${mid.t} de ${mid.dur}; «Tema anterior» con t=${tBeforePrev} → t=${afterPrev.t}; otra vez (<3 s) → ${afterPrev2.currentSrc} paused=${afterPrev2.paused} t=${afterPrev2.t}; en pausa y <3 s → paused=${prevPaused.paused}; «Tema siguiente» sonando: t ${tN0}→${nextPlaying.t} (sin cambio visible); en pausa en t=${tPaused} → paused=${nextPaused.paused} t=${nextPaused.t} (reanuda); fila Setlist ${JSON.stringify(row)} paused=${rowAudio.paused}; ${sum(issues)}`,
+      hallazgos: 'C-NOCHE-02, C-NOCHE-06',
+    });
+    if (!ok) await snap(page, `R-MUS-03-${vp}`);
+    await context.close();
+  }
+
+  // ---------------- R-MUS-04 ----------------
+  for (const vp of ['escritorio', 'movil']) {
+    if (!want('R-MUS-04')) break;
+    const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin });
+    await page.goto(`${inst.origin}/`);
+    await page.waitForTimeout(1500);
+    await press(page, vp, page.getByRole('button', { name: 'Reproducir BARRO' }));
+    await page.waitForTimeout(1200);
+    await page.evaluate(() => { document.querySelector('audio').__probe = 1; });
+    const log = [];
+    const check = async (label) => {
+      const a = await audioState(page);
+      const probe = await page.evaluate(() => ({ probe: document.querySelector('audio')?.__probe, path: location.pathname, chatPill: !!document.querySelector('.mini-player--chat') }));
+      log.push({ label, path: probe.path, paused: a.paused, t: a.t, probe: probe.probe, chatPill: probe.chatPill });
+    };
+    await check('inicio');
+    await navTo(page, vp, 'Drops');
+    await check('Drops');
+    await navTo(page, vp, 'Tienda');
+    await press(page, vp, page.locator('main a[href^="/product/"]').first());
+    await page.waitForTimeout(1200);
+    await check('ficha (enlace interno)');
+    await navTo(page, vp, 'Rocky IA');
+    await check('Rocky IA');
+    await press(page, vp, page.locator('.mini-player--chat button'));
+    await page.waitForTimeout(400);
+    const chatPaused = await audioState(page);
+    await press(page, vp, page.locator('.mini-player--chat button'));
+    await page.waitForTimeout(800);
+    const chatResumed = await audioState(page);
+    await navTo(page, vp, 'Crew');
+    await check('Crew');
+    await page.reload();
+    await page.waitForTimeout(1500);
+    const afterReload = await audioState(page);
+    const cont = log.every((l, i) => !l.paused && l.probe === 1 && (i === 0 || l.t > log[i - 1].t));
+    const ok = cont && log[3].chatPill && chatPaused.paused && chatPaused.pillBtn === 'Reproducir BARRO' && chatResumed.paused === false && afterReload.paused && afterReload.src === null && afterReload.pillBtn === 'Reproducir BARRO';
+    C.add({
+      id: 'R-MUS-04', viewport: vp, resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `recorrido ${log.map((l) => `${l.label} ${l.path} paused=${l.paused} t=${l.t} mismo-audio=${l.probe === 1}${l.chatPill ? ' píldora en cabecera del chat' : ''}`).join(' → ')}; en el chat pausar → «${chatPaused.pillBtn}», reanudar → paused=${chatResumed.paused}; recargar → src=${afterReload.src} paused=${afterReload.paused} «${afterReload.pillBtn}»; paso 4 (login de Shopify) no ejecutado: requiere E2; ${sum(issues)}`,
+      hallazgos: '',
+    });
+    if (!ok) await snap(page, `R-MUS-04-${vp}`);
+    await context.close();
+  }
+
+  // ---------------- R-MUS-05 ----------------
+  for (const vp of ['escritorio', 'movil']) {
+    if (!want('R-MUS-05')) break;
+    const parts = [];
+    let ok = true;
+    let nuevo2 = false;
+    // (a) radio sin tocar
+    {
+      const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin });
+      const net = await netBytes(page);
+      await page.goto(`${inst.origin}/`);
+      await page.waitForTimeout(1500);
+      await toggleNight(page, vp);
+      await page.waitForTimeout(1500);
+      const on = await audioState(page);
+      await press(page, vp, page.getByRole('button', { name: 'Pausar MODO NEÓN' }));
+      await page.waitForTimeout(300);
+      await toggleNight(page, vp);
+      await page.waitForTimeout(600);
+      const off = await audioState(page);
+      // Variante sin pausar antes de apagar.
+      await toggleNight(page, vp);
+      await page.waitForTimeout(1500);
+      await toggleNight(page, vp);
+      await page.waitForTimeout(600);
+      const off2 = await audioState(page);
+      let clickPausa = null;
+      if (off2.pillBtn === 'Pausar BARRO') {
+        nuevo2 = true;
+        await snap(page, `R-MUS-05-${vp}`);
+        await press(page, vp, page.getByRole('button', { name: 'Pausar BARRO' }));
+        await page.waitForTimeout(1500);
+        clickPausa = await audioState(page);
+      }
+      parts.push(`(a) encender → ${on.currentSrc} paused=${on.paused} «${on.pillBtn}» --bpm=${on.bpm}; pausar MODO NEÓN y apagar → ${off.currentSrc} paused=${off.paused} «${off.pillBtn}» groove=${off.groove}; encender y apagar sin pausar → ${off2.currentSrc} paused=${off2.paused} «${off2.pillBtn}» is-playing=${off2.pillPlaying} groove=${off2.groove} --bpm=${off2.bpm}${clickPausa ? `; pulsar «Pausar BARRO» → paused=${clickPausa.paused} t=${clickPausa.t} «${clickPausa.pillBtn}» (empieza a sonar)` : ''}; peticiones ${net.list().join(' | ')}; ${sum(issues)}`);
+      ok = ok && on.currentSrc === '/music/modo-neon.m4a' && on.paused === false && on.pillBtn === 'Pausar MODO NEÓN' && on.bpm === '75' && off.currentSrc === '/music/barro.m4a' && off.paused && off.pillBtn === 'Reproducir BARRO' && off2.pillBtn === 'Reproducir BARRO';
+      await context.close();
+    }
+    // (b) BARRO sonando a mitad
+    {
+      const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin });
+      await page.goto(`${inst.origin}/`);
+      await page.waitForTimeout(1500);
+      await press(page, vp, page.getByRole('button', { name: 'Reproducir BARRO' }));
+      await page.waitForTimeout(1200);
+      await page.evaluate(() => { document.querySelector('audio').currentTime = 56; });
+      await page.waitForTimeout(800);
+      const mid = await audioState(page);
+      await toggleNight(page, vp);
+      await page.waitForTimeout(1500);
+      const night = await audioState(page);
+      await toggleNight(page, vp);
+      await page.waitForTimeout(1500);
+      const day = await audioState(page);
+      parts.push(`(b) BARRO en t=${mid.t} → encender: ${night.currentSrc} paused=${night.paused} t=${night.t}; apagar: ${day.currentSrc} paused=${day.paused} t=${day.t} «${day.pillBtn}»; ${sum(issues)}`);
+      ok = ok && night.currentSrc === '/music/modo-neon.m4a' && !night.paused && day.currentSrc === '/music/barro.m4a' && !day.paused && day.t < 5;
+      await context.close();
+    }
+    // (c) en /estudio
+    {
+      const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin });
+      await page.goto(`${inst.origin}/estudio`);
+      await page.waitForTimeout(1800);
+      await page.evaluate(() => { window.__bus = []; window.addEventListener('rocky:colmena-suena', (e) => window.__bus.push(e.detail?.source)); });
+      await toggleNight(page, vp);
+      await page.waitForTimeout(1500);
+      const st = await audioState(page);
+      const rows = await page.evaluate(() => [...document.querySelectorAll('.setlist-row')].map((r) => `${r.querySelector('.setlist-title').textContent}${r.classList.contains('is-active') ? '[activa]' : ''}${r.querySelector('.setlist-spinner') ? '[spinner]' : ''}`));
+      await press(page, vp, page.locator('.bb-controls .player-btn-main'));
+      await page.waitForTimeout(300);
+      await press(page, vp, page.locator('.setlist-row').first());
+      await page.waitForTimeout(1200);
+      const afterRow = await audioState(page);
+      const bus = await page.evaluate(() => window.__bus);
+      await snap(page, `R-MUS-05-estudio-noche-${vp}`);
+      parts.push(`(c) /estudio de noche: radiocasete «${st.bbNow}», Setlist ${rows.join(', ')}; pausar y pulsar la fila «BARRO» → ${afterRow.currentSrc} paused=${afterRow.paused} «${afterRow.bbNow}»; eventos rocky:colmena-suena ${JSON.stringify(bus)}; ${sum(issues)}`);
+      ok = ok && st.bbNow === 'Sonando: MODO NEÓN' && afterRow.currentSrc === '/music/modo-neon.m4a' && bus.includes('radio');
+      await context.close();
+    }
+    C.add({
+      id: 'R-MUS-05', viewport: vp, resultado: ok ? 'OK' : 'FALLO',
+      evidencia: parts.join(' ; '),
+      hallazgos: ['C-NOCHE-01', 'C-NOCHE-04', nuevo2 ? 'NUEVO-2' : ''].filter(Boolean).join(', '),
+    });
+  }
+
+  // ---------------- R-MUS-06 ----------------
+  for (const vp of ['escritorio', 'movil']) {
+    if (!want('R-MUS-06')) break;
+    const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin });
+    await page.goto(`${inst.origin}/estudio`);
+    await page.waitForTimeout(1800);
+    const loopTest = async () => {
+      await page.evaluate(() => { window.__ended = 0; document.querySelector('audio').addEventListener('ended', () => { window.__ended += 1; }); });
+      const slider = page.getByRole('slider', { name: 'Progreso del tema' });
+      await slider.fill('99');
+      await page.waitForTimeout(400);
+      const near = await audioState(page);
+      const wait = Math.ceil((near.dur - near.t) * 1000) + 1500;
+      await page.waitForTimeout(Math.min(wait, 6000));
+      const after = await audioState(page);
+      const ended = await page.evaluate(() => window.__ended);
+      return { near, after, ended };
+    };
+    await press(page, vp, page.locator('.bb-controls .player-btn-main'));
+    await page.waitForTimeout(1500);
+    const day = await loopTest();
+    await toggleNight(page, vp);
+    await page.waitForTimeout(1800);
+    const night = await loopTest();
+    const ok = day.ended >= 1 && !day.after.paused && day.after.t < 5 && night.ended >= 1 && !night.after.paused && night.after.t < 5 && night.after.currentSrc === '/music/modo-neon.m4a';
+    C.add({
+      id: 'R-MUS-06', viewport: vp, resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `BARRO: barra a 99 % → t=${day.near.t}/${day.near.dur}; tras el final ended=${day.ended}, paused=${day.after.paused}, t=${day.after.t} «${day.after.bbNow}»; MODO NEÓN: t=${night.near.t}/${night.near.dur} → ended=${night.ended}, paused=${night.after.paused}, t=${night.after.t} «${night.after.bbNow}»; ${sum(issues)}`,
+      hallazgos: '',
+    });
+    if (!ok) await snap(page, `R-MUS-06-${vp}`);
+    await context.close();
+  }
+
+  // ---------------- R-MUS-07 ----------------
+  for (const vp of ['escritorio', 'movil']) {
+    if (!want('R-MUS-07')) break;
+    const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin });
+    await context.addInitScript(() => {
+      HTMLMediaElement.prototype.play = function play() { window.__plays = (window.__plays || 0) + 1; return Promise.reject(new DOMException('bloqueado', 'NotAllowedError')); };
+    });
+    await page.goto(`${inst.origin}/`);
+    await page.waitForTimeout(1500);
+    await press(page, vp, page.getByRole('button', { name: 'Reproducir BARRO' }));
+    await page.waitForTimeout(800);
+    const a = await audioState(page);
+    await toggleNight(page, vp);
+    await page.waitForTimeout(1500);
+    const b = await audioState(page);
+    const plays = await page.evaluate(() => window.__plays);
+    const alerts = await page.evaluate(() => [...document.querySelectorAll('[role="alert"], [role="status"]')].map((e) => e.textContent.trim()).filter(Boolean).join(' | '));
+    const ok = a.paused && a.pillBtn === 'Reproducir BARRO' && b.pillBtn === 'Reproducir MODO NEÓN' && issues.pageErrors.length === 0 && plays === 2;
+    C.add({
+      id: 'R-MUS-07', viewport: vp, resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `play() rechazado (NotAllowedError) ${plays} veces; tras «Reproducir BARRO»: paused=${a.paused} «${a.pillBtn}» groove=${a.groove}; tras encender el descontrol: ${b.src} «${b.pillBtn}»; avisos visibles: «${alerts}» (ninguno sobre la música); ${sum(issues)}`,
+      hallazgos: 'C-NOCHE-03',
+    });
+    if (!ok) await snap(page, `R-MUS-07-${vp}`);
+    await context.close();
+  }
+
+  // ---------------- R-MUS-08 ----------------
+  for (const vp of ['escritorio', 'movil']) {
+    if (!want('R-MUS-08')) break;
+    const parts = [];
+    let recovered = {};
+    {
+      const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin });
+      await page.route('**/music/*.m4a', (r) => r.abort('failed'));
+      await page.goto(`${inst.origin}/`);
+      await page.waitForTimeout(1500);
+      await press(page, vp, page.getByRole('button', { name: 'Reproducir BARRO' }));
+      await page.waitForTimeout(1500);
+      const a = await audioState(page);
+      await toggleNight(page, vp);
+      await page.waitForTimeout(1500);
+      const b = await audioState(page);
+      await page.unroute('**/music/*.m4a');
+      await press(page, vp, page.getByRole('button', { name: /Reproducir MODO NEÓN|Pausar MODO NEÓN/ }));
+      await page.waitForTimeout(2000);
+      const c = await audioState(page);
+      if (c.paused) await snap(page, `R-MUS-08-${vp}`);
+      await toggleNight(page, vp);
+      await page.waitForTimeout(600);
+      await toggleNight(page, vp);
+      await page.waitForTimeout(2000);
+      const d = await audioState(page);
+      parts.push(`pista bloqueada: «Reproducir BARRO» → error=${a.error} networkState=${a.networkState} paused=${a.paused} «${a.pillBtn}»; descontrol → ${b.src} error=${b.error} «${b.pillBtn}»; desbloquear y pulsar otra vez → paused=${c.paused} error=${c.error} readyState=${c.readyState} «${c.pillBtn}»; apagar y encender → paused=${d.paused} error=${d.error} t=${d.t} «${d.pillBtn}»; ${sum(issues)}`);
+      recovered = { a, b, c, d };
+      await context.close();
+    }
+    // Variante de día: reintento sobre BARRO sin cambiar de cinta.
+    let dayRetry;
+    {
+      const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin });
+      await page.route('**/music/*.m4a', (r) => r.abort('failed'));
+      await page.goto(`${inst.origin}/`);
+      await page.waitForTimeout(1500);
+      await press(page, vp, page.getByRole('button', { name: 'Reproducir BARRO' }));
+      await page.waitForTimeout(1500);
+      await page.unroute('**/music/*.m4a');
+      await press(page, vp, page.getByRole('button', { name: /BARRO/ }).last());
+      await page.waitForTimeout(2000);
+      dayRetry = await audioState(page);
+      parts.push(`de día, desbloquear y reintentar BARRO → paused=${dayRetry.paused} error=${dayRetry.error} «${dayRetry.pillBtn}»; ${sum(issues)}`);
+      await context.close();
+    }
+    const { a, b, c, d } = recovered;
+    // Si al volver la red el botón «Reproducir» sigue sin sonar, la radio queda rota hasta recargar o cambiar de cinta.
+    const ok = a.paused && a.pillBtn === 'Reproducir BARRO' && a.error !== null && b.pillBtn === 'Reproducir MODO NEÓN' && d.paused === false && c.paused === false && dayRetry.paused === false;
+    C.add({
+      id: 'R-MUS-08', viewport: vp, resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `${parts.join(' ; ')}; sin aviso al usuario en ningún caso`,
+      hallazgos: c.paused || dayRetry.paused ? 'C-NOCHE-03' : '',
+    });
+  }
+
+  // ---------------- R-MUS-09 ----------------
+  for (const vp of ['escritorio', 'movil']) {
+    if (!want('R-MUS-09')) break;
+    const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin });
+    await page.goto(`${inst.origin}/estudio`);
+    await page.waitForTimeout(2000);
+    const state = async () => ({
+      ...(await audioState(page)),
+      mesa: await page.locator('button[aria-label="Parar el beat"], button[aria-label="Reproducir el beat"]').first().getAttribute('aria-label'),
+      ranking: await page.evaluate(() => [...document.querySelectorAll('.ranking-play')].map((b) => b.getAttribute('aria-label')).filter((l) => l.startsWith('Parar')).join(',') || 'callado'),
+    });
+    await press(page, vp, page.locator('.bb-controls .player-btn-main'));
+    await page.waitForTimeout(1200);
+    const s1 = await state();
+    await press(page, vp, page.getByRole('button', { name: 'Reproducir el beat' }));
+    await page.waitForTimeout(1000);
+    const s2 = await state();
+    await press(page, vp, page.locator('.bb-controls .player-btn-main'));
+    await page.waitForTimeout(1000);
+    const s3 = await state();
+    // Publicar un beat (en la instancia propia, almacén en memoria) para tener ranking.
+    await press(page, vp, page.getByRole('button', { name: 'Publicar en el ranking' }));
+    await page.getByLabel('Nombre del beat').fill(`Auditoria ${vp}`);
+    await page.getByLabel('Tu apodo').fill('auditor');
+    await press(page, vp, page.getByRole('button', { name: 'Publicar', exact: true }));
+    await page.waitForTimeout(1500);
+    const pubMsg = await page.locator('.mesa-publicar-nota').textContent().catch(() => 'sin mensaje');
+    const listen = page.locator('.ranking-play').first();
+    await listen.scrollIntoViewIfNeeded();
+    const s3b = await state();
+    await press(page, vp, listen);
+    await page.waitForTimeout(1200);
+    const s4 = await state();
+    await press(page, vp, page.locator('.bb-controls .player-btn-main'));
+    await page.waitForTimeout(1000);
+    const s5 = await state();
+    await press(page, vp, page.getByRole('button', { name: 'Reproducir el beat' }));
+    await page.waitForTimeout(1000);
+    const s6 = await state();
+    await navTo(page, vp, 'Tienda');
+    await page.waitForTimeout(1500);
+    const s7 = await audioState(page);
+    const fmt = (s) => `radio ${s.paused ? 'pausa' : 'suena'} · mesa «${s.mesa}» · ranking ${s.ranking}`;
+    const two = [s1, s2, s3, s4, s5, s6].filter((s) => [!s.paused, s.mesa === 'Parar el beat', s.ranking !== 'callado'].filter(Boolean).length > 1).length;
+    const ok = !s1.paused && s2.paused && s2.mesa === 'Parar el beat' && !s3.paused && s3.mesa === 'Reproducir el beat' && s4.paused && s4.ranking !== 'callado' && !s5.paused && s5.ranking === 'callado' && s6.paused && s7.paused && two === 0;
+    C.add({
+      id: 'R-MUS-09', viewport: vp, resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `1) radio: ${fmt(s1)}; 2) mesa: ${fmt(s2)}; 3) radio: ${fmt(s3)}; publicar → «${pubMsg}» (${fmt(s3b)}); 4) ranking: ${fmt(s4)}; radio otra vez: ${fmt(s5)}; mesa otra vez: ${fmt(s6)}; 5) fuera del estudio: radio paused=${s7.paused} «${s7.pillBtn}»; estados con dos fuentes a la vez: ${two}; ${sum(issues)}`,
+      hallazgos: '',
+    });
+    if (!ok) await snap(page, `R-MUS-09-${vp}`);
+    await context.close();
+  }
+
+  // ---------------- R-MUS-11 ----------------
+  for (const vp of ['escritorio', 'movil']) {
+    if (!want('R-MUS-11')) break;
+    const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin, reducedMotion: 'reduce' });
+    await page.goto(`${inst.origin}/`);
+    await page.waitForTimeout(1500);
+    await press(page, vp, page.getByRole('button', { name: 'Reproducir BARRO' }));
+    await page.waitForTimeout(1200);
+    const home = await page.evaluate(() => {
+      const a = document.querySelector('[data-groove] .al-ritmo');
+      const d = document.querySelector('.mini-player.is-playing .mini-player-disc');
+      return { playing: !!document.querySelector('.mini-player.is-playing'), alRitmo: a ? getComputedStyle(a).animationName : 'ausente', disc: d ? getComputedStyle(d).animationName : 'ausente', trans: getComputedStyle(document.querySelector('.mini-player')).transitionDuration };
+    });
+    let hover = 'sin puntero (móvil)';
+    if (vp === 'escritorio') {
+      const b = await page.locator('.mini-player-btn').boundingBox();
+      await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+      await page.waitForTimeout(250);
+      const h = await page.evaluate(() => [getComputedStyle(document.querySelector('.mini-player')).transform, getComputedStyle(document.querySelector('.mini-player-btn')).transform]);
+      await page.mouse.down();
+      await page.waitForTimeout(100);
+      const pr = await page.evaluate(() => getComputedStyle(document.querySelector('.mini-player-btn')).transform);
+      await page.mouse.up();
+      hover = `hover píldora/botón transform ${h.join(' / ')}; pulsado ${pr}`;
+      // volver a sonar (el clic de arriba pausa)
+      await page.waitForTimeout(300);
+      if ((await audioState(page)).paused) await page.locator('.mini-player-btn').click();
+    }
+    await navTo(page, vp, 'Estudio');
+    await page.waitForTimeout(800);
+    const bb = await page.evaluate(() => {
+      const g = (s) => { const el = document.querySelector(s); return el ? `${getComputedStyle(el).animationName} op=${getComputedStyle(el).opacity}` : 'ausente'; };
+      const al = document.querySelector('[data-groove] .al-ritmo');
+      return { spool: g('.bb-art.is-playing .bb-spool'), diana: g('.bb-art.is-playing .bb-diana'), senal: g('.bb-art.is-playing .bb-senal'), luz: document.querySelector('.bb-art.is-playing .bb-luz') ? getComputedStyle(document.querySelector('.bb-art.is-playing .bb-luz')).fill : 'ausente', productor: al ? getComputedStyle(al).animationName : 'ausente' };
+    });
+    const a = await audioState(page);
+    const ok = home.playing && home.alRitmo === 'none' && home.disc === 'none' && bb.spool.startsWith('none') && bb.diana.startsWith('none') && bb.senal.startsWith('none op=0.9') && bb.luz !== 'ausente' && !a.paused && (vp === 'movil' || /none \/ none; pulsado none/.test(hover));
+    C.add({
+      id: 'R-MUS-11', viewport: vp, resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `con reduce y BARRO sonando (paused=${a.paused}): ${JSON.stringify(home)}; ${hover}; radiocasete ${JSON.stringify(bb)}; ${sum(issues)}`,
+      hallazgos: '',
+    });
+    if (!ok) await snap(page, `R-MUS-11-${vp}`);
+    await context.close();
+  }
+
+  // ---------------- R-MUS-12 ----------------
+  for (const vp of ['movil', 'escritorio']) {
+    if (!want('R-MUS-12')) break;
+    const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin });
+    await page.goto(`${inst.origin}/`);
+    await page.waitForTimeout(1500);
+    const pillInfo = () => page.evaluate(() => {
+      const p = document.querySelector('.mini-player');
+      const t = p.querySelector('.mini-player-title');
+      const b = p.querySelector('.mini-player-btn');
+      const d = p.querySelector('.mini-player-disc');
+      const slot = p.parentElement;
+      const r = p.getBoundingClientRect();
+      return {
+        variant: p.className.replace(/\s+/g, ' ').trim(), slotPos: getComputedStyle(slot).position, pos: getComputedStyle(p).position, z: getComputedStyle(slot).zIndex, top: Math.round(r.top),
+        disc: getComputedStyle(d).display, titleMax: getComputedStyle(t).maxWidth, titleW: t.clientWidth, titleSW: t.scrollWidth, overflow: getComputedStyle(t).textOverflow,
+        btn: `${Math.round(b.getBoundingClientRect().width)}×${Math.round(b.getBoundingClientRect().height)}`, title: t.getAttribute('title'), aria: t.getAttribute('aria-label'), color: getComputedStyle(t).color, bg: getComputedStyle(p).backgroundColor,
+      };
+    });
+    const home = await pillInfo();
+    if (vp === 'escritorio') await page.mouse.wheel(0, 700); else await touchScroll(page, 200, 600, 700);
+    await page.waitForTimeout(400);
+    const scrolled = await pillInfo();
+    await navTo(page, vp, 'Rocky IA');
+    await page.waitForTimeout(800);
+    const chatDay = await pillInfo();
+    await nightOn(page, vp);
+    await page.waitForTimeout(400);
+    const chatNight = await pillInfo();
+    await snap(page, `R-MUS-12-chat-noche-${vp}`);
+    const ok = vp === 'movil'
+      ? home.disc === 'none' && home.titleMax === '120px' && home.btn === '36×36' && scrolled.top < 0 && chatNight.titleMax === '48px' && chatNight.title === 'MODO NEÓN' && chatNight.aria === 'Ir a La Colmena: MODO NEÓN'
+      : true;
+    C.add({
+      id: 'R-MUS-12', viewport: vp, resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `${vp === 'escritorio' ? '(comparación) ' : ''}portada ${JSON.stringify(home)}; tras bajar 700 px top=${scrolled.top}; chat de día ${JSON.stringify({ variant: chatDay.variant, titleMax: chatDay.titleMax, w: chatDay.titleW, sw: chatDay.titleSW })}; chat de noche ${JSON.stringify(chatNight)} (visible ${chatNight.titleW}px de ${chatNight.titleSW}px de «MODO NEÓN»); ${sum(issues)}`,
+      hallazgos: '',
+    });
+    if (!ok) await snap(page, `R-MUS-12-${vp}`);
+    await context.close();
+  }
+
+  // ---------------- R-MUS-13 ----------------
+  let probe = '';
+  try {
+    probe = ['barro.m4a', 'modo-neon.m4a'].map((f) => {
+      const out = execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration,size,bit_rate:stream=codec_name,sample_rate,channels', '-of', 'compact', `${REPO}/dist/music/${f}`], { encoding: 'utf8' });
+      return `${f}: ${out.trim().replace(/\n/g, ' ; ')}`;
+    }).join(' || ');
+  } catch (e) {
+    probe = `ffprobe falló: ${String(e).slice(0, 80)}`;
+  }
+  for (const vp of ['escritorio', 'movil']) {
+    if (!want('R-MUS-13')) break;
+    const { page, issues, context } = await openPage(browser, vp, { origin: inst.origin });
+    const net = await netBytes(page);
+    const tm = trackMusic(page);
+    await page.goto(`${inst.origin}/`);
+    await page.waitForTimeout(3000);
+    const before = net.total();
+    await press(page, vp, page.getByRole('button', { name: 'Reproducir BARRO' }));
+    await page.waitForTimeout(2500);
+    await page.evaluate(() => { document.querySelector('audio').currentTime = 90; });
+    await page.waitForTimeout(1500);
+    const afterBarro = net.list();
+    await toggleNight(page, vp);
+    await page.waitForTimeout(2500);
+    await toggleNight(page, vp);
+    await page.waitForTimeout(1500);
+    const all = net.list();
+    const resp = tm.resps.map((r) => `${r.url} ${r.status} ${r.type} len=${r.length} range=${r.range} cache="${r.cache}" accept-ranges=${r.accept} enc=${r.enc || '—'}`);
+    const has206 = tm.resps.some((r) => r.status === 206);
+    const cache = [...new Set(tm.resps.map((r) => r.cache))].join(' | ');
+    const ok = before === 0 && has206 && cache.includes('max-age=14400');
+    C.add({
+      id: 'R-MUS-13', viewport: vp, resultado: ok ? 'OK' : 'FALLO',
+      evidencia: `bytes de audio antes del primer play: ${before}; peticiones (CDP) ${all.join(' | ')}; respuestas ${resp.join(' | ')}; ffprobe ${probe}; E3 (curl -I a producción) no ejecutado; ${sum(issues)}`,
+      hallazgos: 'C-NOCHE-26, C-NOCHE-27',
+    });
+    await context.close();
+  }
+} finally {
+  await browser.close();
+  inst.stop();
+}
