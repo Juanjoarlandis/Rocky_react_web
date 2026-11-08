@@ -33,9 +33,6 @@
     "vite": "^8.2.1",
     "vitest": "^4.1.12"
   },
-  "overrides": {
-    "qs": "6.16.1"
-  },
   "scripts": {
     "start": "node server/index.mjs",
     "build": "vite build",

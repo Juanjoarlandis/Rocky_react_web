@@ -21,8 +21,9 @@ que necesita aprobación de su diseño antes de implementarse.
   `proxy-addr` 2.0.8, `vite` 8.3.6, `concurrently` 10.0.7, y transitivas).
 - Subir `@vitest/coverage-v8` (pin exacto) y `vitest` (rango `^`) de 4.1.10 a **4.1.12**
   (2026-10-15), que corrige `@vitest/mocker`; se conserva el estilo de cada uno.
-- Subir el `overrides` de `qs` (añadido en la rama de septiembre) de 6.16.0 a **6.16.1**
-  (2026-10-14), que corrige GHSA-6pq8-jhm2-2vcw; arrastraba a `express` y `body-parser`.
+- Resolver `qs` en **6.16.1** (2026-10-14), que corrige GHSA-6pq8-jhm2-2vcw. El `overrides`
+  que lo fijaba en 6.16.0 (añadido en la rama de septiembre) primero se subió y, tras la
+  revisión independiente, se retiró: ya no hace falta (ver `design.md`, D4).
 - Documentar en `.env.example` las nueve variables que faltan, con valores vacíos o los
   valores por defecto del código y un comentario de para qué sirven.
 - Corregir a 644 los permisos de `public/music/modo-neon.m4a` y `public/theme-init.js` en
