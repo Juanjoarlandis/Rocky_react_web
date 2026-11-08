@@ -623,7 +623,9 @@
 
   .pads-rejilla {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    /* minmax(0, …): sin él, el ancho mínimo del contenido de cada pad (proporción
+       1,5 : 1 sobre su alto) ensancha las columnas y la rejilla se sale en móvil. */
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 12px;
     max-width: 760px;
     margin: 0 auto;
@@ -828,13 +830,19 @@
       flex: 1 1 100%;
     }
 
+    .pads-rejilla {
+      gap: 8px;
+    }
+
     .pad {
       aspect-ratio: 1.5 / 1;
       padding: 5px 6px;
     }
 
+    /* Por debajo de ~340px la etiqueta encoge un poco: «Redoble» o «Reversa»
+       llegaban a pisar el borde de un pad de 52px. */
     .pad-label {
-      font-size: var(--text-2xs);
+      font-size: min(var(--text-2xs), 3.4vw);
     }
 
     .mesa-nota {
