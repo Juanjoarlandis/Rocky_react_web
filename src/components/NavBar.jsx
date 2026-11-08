@@ -120,13 +120,6 @@ const NavBar = ({
   // El primer valor sale del <html> que dejó preparado index.html.
   const [tema, setTema] = useState(temaActual);
   const music = useOptionalMusic();
-  const enciendeApaga = () => {
-    const nuevo = alternaTema();
-    setTema(nuevo);
-    // La cinta cambia en este mismo clic: fuera de él, el navegador no la
-    // dejaría sonar sola.
-    music?.setNightTape(nuevo === 'neon');
-  };
   const neonPuesto = tema === 'neon';
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -139,6 +132,16 @@ const NavBar = ({
     setMenuOpen(false);
     menuButtonRef.current?.focus();
   }, []);
+
+  const enciendeApaga = (desdeLaHoja) => {
+    const nuevo = alternaTema();
+    setTema(nuevo);
+    // La cinta cambia en este mismo clic: fuera de él, el navegador no la
+    // dejaría sonar sola.
+    music?.setNightTape(nuevo === 'neon');
+    // Encender desde la hoja la recoge: detrás viene el rótulo y la portada.
+    if (desdeLaHoja && nuevo === 'neon') closeMenu();
+  };
 
   // Cambiar de ruta cierra la hoja aunque se llegue por otro camino.
   useEffect(() => {
@@ -195,19 +198,17 @@ const NavBar = ({
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [menuOpen]);
 
-  const themeButton = (className) => (
+  const themeButton = (className, { enLaHoja = false } = {}) => (
     <button
       type="button"
       className={`${className} ${neonPuesto ? 'navbar-theme--on' : ''}`}
-      onClick={enciendeApaga}
+      onClick={() => enciendeApaga(enLaHoja)}
       aria-pressed={neonPuesto}
       aria-label={neonPuesto ? 'Apagar el descontrol' : 'Activar el descontrol'}
       title={neonPuesto ? 'Apagar el descontrol' : 'Activar el descontrol'}
     >
       <BombillaIcon />
-      {className.includes('sheet') && (
-        <span>{neonPuesto ? 'Apagar el descontrol' : 'Activar el descontrol'}</span>
-      )}
+      {enLaHoja && <span>{neonPuesto ? 'Apagar el descontrol' : 'Activar el descontrol'}</span>}
     </button>
   );
 
@@ -295,7 +296,13 @@ const NavBar = ({
             />
           </nav>
           <div className="navbar-sheet-footer">
-            {themeButton('navbar-theme navbar-theme--sheet')}
+            {themeButton('navbar-theme navbar-theme--sheet', { enLaHoja: true })}
+            {/* El cierre dentro del diálogo, para teclado y lector de pantalla:
+                la «X» de la barra queda fuera de él (H-014). Solo se ve con foco. */}
+            <button type="button" className="navbar-sheet-close" onClick={closeMenu}>
+              <MenuIcon open />
+              Cerrar
+            </button>
           </div>
         </div>
       )}

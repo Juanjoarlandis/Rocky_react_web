@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
-import { beforeEach, expect, test, vi } from 'vitest';
+import { MemoryRouter, useLocation } from 'react-router';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import App from './App.jsx';
 
 /* La tienda se simula: App se prueba como armazón (splash, navbar, muñecos),
@@ -46,6 +46,63 @@ function storefront(overrides = {}) {
 
 beforeEach(() => {
   useStorefront.mockReturnValue(storefront());
+});
+
+afterEach(() => {
+  delete document.documentElement.dataset.theme;
+});
+
+// Enseña la ruta en curso y su clave: una clave nueva es una entrada nueva en el historial.
+function RutaActual() {
+  const location = useLocation();
+  return (
+    <output data-testid="ruta" data-key={location.key}>
+      {location.pathname}
+    </output>
+  );
+}
+
+function renderEn(path) {
+  sessionStorage.setItem('rocky-splash-seen', '1');
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <App />
+      <RutaActual />
+    </MemoryRouter>
+  );
+}
+
+test('encender el descontrol fuera de la portada lleva a ella cuando termina el rótulo', async () => {
+  renderEn('/legal/privacidad');
+  fireEvent.click(screen.getAllByRole('button', { name: 'Activar el descontrol' })[0]);
+  expect(await screen.findByTestId('descontrol-flash')).toHaveTextContent('Descontrol activado');
+  expect(screen.getByTestId('ruta')).toHaveTextContent('/legal/privacidad');
+  await waitFor(() => expect(screen.getByTestId('ruta')).toHaveTextContent(/^\/$/), {
+    timeout: 3000,
+  });
+  expect(screen.queryByTestId('descontrol-flash')).not.toBeInTheDocument();
+});
+
+test('encender el descontrol en la portada no añade historial', async () => {
+  renderEn('/');
+  const antes = screen.getByTestId('ruta').dataset.key;
+  fireEvent.click(screen.getAllByRole('button', { name: 'Activar el descontrol' })[0]);
+  expect(await screen.findByTestId('descontrol-flash')).toBeInTheDocument();
+  await waitFor(() => expect(screen.queryByTestId('descontrol-flash')).not.toBeInTheDocument(), {
+    timeout: 3000,
+  });
+  expect(screen.getByTestId('ruta')).toHaveTextContent(/^\/$/);
+  expect(screen.getByTestId('ruta').dataset.key).toBe(antes);
+});
+
+test('apagar el descontrol no navega', async () => {
+  document.documentElement.dataset.theme = 'neon';
+  renderEn('/legal/privacidad');
+  fireEvent.click(screen.getAllByRole('button', { name: 'Apagar el descontrol' })[0]);
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 1600));
+  });
+  expect(screen.getByTestId('ruta')).toHaveTextContent('/legal/privacidad');
 });
 
 test('muestra el splash de carga en la primera visita', () => {

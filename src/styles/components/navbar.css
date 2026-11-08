@@ -376,7 +376,40 @@
 
   .navbar-sheet-footer {
     display: flex;
+    flex-wrap: wrap;
+    align-items: center;
     justify-content: flex-start;
+    gap: var(--space-3);
+  }
+
+  .navbar-sheet-close {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 44px;
+    padding: var(--space-2) var(--space-3);
+    border: 2px solid var(--ink);
+    border-radius: var(--wobble-sm);
+    background-color: var(--card);
+    box-shadow: var(--shadow-ink-xs);
+    color: var(--ink);
+    font-family: var(--font-hand);
+    font-size: var(--text-md);
+    cursor: pointer;
+  }
+
+  /* En táctil manda la «X» de la barra; este cierre aparece al llegar con el
+   teclado (mismo recorte que .sr-only mientras no tiene el foco). */
+  .navbar-sheet-close:not(:focus-visible) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   .navbar-theme--sheet {

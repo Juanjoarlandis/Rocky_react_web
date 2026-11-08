@@ -79,12 +79,15 @@ describe('Lightbox', () => {
 
   it('bloquea el desplazamiento del fondo y restaura su estado al cerrar', () => {
     stubDialog();
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = 'auto';
+    // Quien desplaza la página es <html> (H-010); el body no se toca.
+    const html = document.documentElement;
+    const previous = html.style.overflow;
+    html.style.overflow = 'auto';
     const { unmount } = render(<Lightbox src="/foto.webp" alt="Camiseta" onClose={vi.fn()} />);
-    expect(document.body.style.overflow).toBe('hidden');
+    expect(html.style.overflow).toBe('hidden');
+    expect(document.body.style.overflow).toBe('');
     unmount();
-    expect(document.body.style.overflow).toBe('auto');
-    document.body.style.overflow = previous;
+    expect(html.style.overflow).toBe('auto');
+    html.style.overflow = previous;
   });
 });

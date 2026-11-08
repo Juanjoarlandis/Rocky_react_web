@@ -174,24 +174,35 @@ function NightScene({ pathname }) {
 
 /* El modo descontrol: la escena de luz negra mientras dure la noche y, al
    encenderlo con la bombilla (no al llegar ya de noche), un apagón en el
-   que se enciende el rótulo. */
-export default function Descontrol({ pathname, disabled = false }) {
+   que se enciende el rótulo. Cuando el rótulo termina (o al momento, con
+   movimiento reducido) avisa con `onActivated`: App lleva a la portada. */
+export default function Descontrol({ pathname, disabled = false, onActivated }) {
   const night = useNightMode();
   const wasNight = useRef(night);
   const [flash, setFlash] = useState(false);
+  // La última versión del aviso, sin reiniciar el temporizador en cada render.
+  const onActivatedRef = useRef(onActivated);
+  useEffect(() => {
+    onActivatedRef.current = onActivated;
+  }, [onActivated]);
 
   useEffect(() => {
     const turnedOn = night && !wasNight.current;
     wasNight.current = night;
-    if (turnedOn && !prefersReducedMotion()) setFlash(true);
     if (!night) setFlash(false);
+    if (!turnedOn) return;
+    if (prefersReducedMotion()) onActivatedRef.current?.();
+    else setFlash(true);
   }, [night]);
 
-  // El apagón se retira solo al acabar; si se apaga el descontrol a mitad,
-  // se va con él (el efecto de arriba lo quita).
+  // El apagón se retira solo al acabar y entonces avisa; si se apaga el
+  // descontrol a mitad, se va con él (el efecto de arriba lo quita) sin avisar.
   useEffect(() => {
     if (!flash) return undefined;
-    const timer = window.setTimeout(() => setFlash(false), FLASH_MS);
+    const timer = window.setTimeout(() => {
+      setFlash(false);
+      onActivatedRef.current?.();
+    }, FLASH_MS);
     return () => window.clearTimeout(timer);
   }, [flash]);
 

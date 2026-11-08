@@ -85,3 +85,68 @@ describe('Modo descontrol: la pared de luz negra', () => {
     expect(screen.queryByTestId('uv-wall')).not.toBeInTheDocument();
   });
 });
+
+/* Encender el descontrol con la bombilla acaba en la portada: Descontrol avisa
+   cuando termina el rótulo y App decide la navegación. */
+describe('Modo descontrol: aviso para ir a la portada', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  const enciende = () =>
+    act(async () => {
+      document.documentElement.dataset.theme = 'neon';
+    });
+
+  it('avisa cuando termina el rótulo, no antes', async () => {
+    vi.useFakeTimers();
+    const onActivated = vi.fn();
+    render(<Descontrol pathname="/estudio" onActivated={onActivated} />);
+    await enciende();
+    expect(screen.getByTestId('descontrol-flash')).toBeInTheDocument();
+    expect(onActivated).not.toHaveBeenCalled();
+    await act(async () => {
+      vi.advanceTimersByTime(1500);
+    });
+    expect(onActivated).toHaveBeenCalledTimes(1);
+  });
+
+  it('si se apaga a mitad del rótulo, no avisa', async () => {
+    vi.useFakeTimers();
+    const onActivated = vi.fn();
+    render(<Descontrol pathname="/estudio" onActivated={onActivated} />);
+    await enciende();
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+      delete document.documentElement.dataset.theme;
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
+    });
+    expect(screen.queryByTestId('descontrol-flash')).not.toBeInTheDocument();
+    expect(onActivated).not.toHaveBeenCalled();
+  });
+
+  it('con movimiento reducido no hay rótulo y avisa al encender', async () => {
+    vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
+      matches: query === '(prefers-reduced-motion: reduce)',
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+    const onActivated = vi.fn();
+    render(<Descontrol pathname="/estudio" onActivated={onActivated} />);
+    await enciende();
+    expect(screen.queryByTestId('descontrol-flash')).not.toBeInTheDocument();
+    expect(onActivated).toHaveBeenCalledTimes(1);
+  });
+
+  it('llegar ya de noche no avisa', async () => {
+    vi.useFakeTimers();
+    document.documentElement.dataset.theme = 'neon';
+    const onActivated = vi.fn();
+    render(<Descontrol pathname="/estudio" onActivated={onActivated} />);
+    await act(async () => {
+      vi.advanceTimersByTime(3000);
+    });
+    expect(onActivated).not.toHaveBeenCalled();
+  });
+});

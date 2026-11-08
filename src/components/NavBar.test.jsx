@@ -68,13 +68,15 @@ describe('NavBar mobile menu', () => {
     vi.spyOn(window, 'matchMedia').mockReturnValue(media);
     renderNavBar();
     fireEvent.click(screen.getByRole('button', { name: 'Abrir el menú' }));
-    expect(document.body.style.overflow).toBe('hidden');
+    // Se bloquea <html>, que es quien desplaza la página (H-010).
+    expect(document.documentElement.style.overflow).toBe('hidden');
+    expect(document.body.style.overflow).toBe('');
     act(() => {
       media.matches = true;
       change?.(media);
     });
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(document.body.style.overflow).toBe('');
+    expect(document.documentElement.style.overflow).toBe('');
     expect(screen.getByRole('link', { name: 'Inicio' })).toHaveFocus();
     expect(media.removeEventListener).toHaveBeenCalled();
   });
@@ -124,6 +126,55 @@ describe('NavBar mobile menu', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Abrir el menú' }));
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('link', { name: 'Drops' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  /* H-014: el único cierre estaba fuera del diálogo modal. */
+  it('se cierra desde dentro: «Cerrar» es el último control de la hoja', () => {
+    renderNavBar();
+    const button = screen.getByRole('button', { name: 'Abrir el menú' });
+    fireEvent.click(button);
+    const sheet = screen.getByRole('dialog', { name: 'Menú' });
+    const cerrar = within(sheet).getByRole('button', { name: 'Cerrar' });
+
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+    expect(cerrar).toHaveFocus();
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(within(sheet).getAllByRole('link')[0]).toHaveFocus();
+
+    fireEvent.click(cerrar);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(button).toHaveFocus();
+  });
+
+  it('«Cerrar» solo se ve al recibir el foco', () => {
+    expect(navBarCss).toMatch(/\.navbar-sheet-close:not\(:focus-visible\)\s*\{[^}]*clip:/);
+  });
+});
+
+describe('NavBar: la bombilla de la hoja', () => {
+  afterEach(() => {
+    delete document.documentElement.dataset.theme;
+  });
+
+  it('encender el descontrol desde la hoja la cierra', () => {
+    renderNavBar();
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir el menú' }));
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Activar el descontrol' })
+    );
+    expect(document.documentElement.dataset.theme).toBe('neon');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('apagarlo desde la hoja la deja abierta', () => {
+    document.documentElement.dataset.theme = 'neon';
+    renderNavBar();
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir el menú' }));
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Apagar el descontrol' })
+    );
+    expect(document.documentElement.dataset.theme).toBeUndefined();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 });
 

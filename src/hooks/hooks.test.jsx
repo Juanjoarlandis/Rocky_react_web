@@ -11,6 +11,8 @@ describe('hooks', () => {
     vi.restoreAllMocks();
     vi.useRealTimers();
     document.title = '';
+    document.documentElement.style.overflow = '';
+    document.body.style.overflow = '';
   });
 
   it('useDocumentTitle pone «Página · ROCKY 035» y lo restaura al desmontar', () => {
@@ -25,12 +27,55 @@ describe('hooks', () => {
     expect(document.title).toBe('antes');
   });
 
-  it('useLockBodyScroll bloquea el scroll y devuelve el valor anterior', () => {
-    document.body.style.overflow = 'auto';
+  /* Quien desplaza la página es <html> (H-010): bloquear el body no para nada
+     y lo convierte en contenedor de scroll, al que se pega la barra sticky. */
+  it('useLockBodyScroll bloquea el <html>, no toca el body y devuelve los valores anteriores', () => {
+    const html = document.documentElement;
+    html.style.overflow = 'auto';
+    document.body.style.overflow = 'visible';
     const { unmount } = renderHook(() => useLockBodyScroll(true));
-    expect(document.body.style.overflow).toBe('hidden');
+    expect(html.style.overflow).toBe('hidden');
+    expect(document.body.style.overflow).toBe('visible');
     unmount();
-    expect(document.body.style.overflow).toBe('auto');
+    expect(html.style.overflow).toBe('auto');
+    expect(document.body.style.overflow).toBe('visible');
+  });
+
+  it('useLockBodyScroll con capas solapadas solo libera al soltar la última', () => {
+    const html = document.documentElement;
+    const primera = renderHook(() => useLockBodyScroll(true));
+    const segunda = renderHook(({ on }) => useLockBodyScroll(on), { initialProps: { on: true } });
+    // Se cierra antes la que se abrió primero: la otra sigue tapando la página.
+    primera.unmount();
+    expect(html.style.overflow).toBe('hidden');
+    segunda.rerender({ on: false });
+    expect(html.style.overflow).toBe('');
+    segunda.unmount();
+    expect(html.style.overflow).toBe('');
+  });
+
+  it('useLockBodyScroll guarda el hueco de la barra solo si la había', () => {
+    const html = document.documentElement;
+    // Con barra clásica (viewport más ancho que el contenido): se guarda su hueco.
+    vi.spyOn(html, 'clientWidth', 'get').mockReturnValue(window.innerWidth - 15);
+    const conBarra = renderHook(() => useLockBodyScroll(true));
+    expect(html.style.getPropertyValue('scrollbar-gutter')).toBe('stable');
+    conBarra.unmount();
+    expect(html.style.getPropertyValue('scrollbar-gutter')).toBe('');
+
+    // Sin barra (móvil o página corta): no se reserva nada.
+    vi.spyOn(html, 'clientWidth', 'get').mockReturnValue(window.innerWidth);
+    const sinBarra = renderHook(() => useLockBodyScroll(true));
+    expect(html.style.overflow).toBe('hidden');
+    expect(html.style.getPropertyValue('scrollbar-gutter')).toBe('');
+    sinBarra.unmount();
+  });
+
+  it('useLockBodyScroll en falso no toca nada', () => {
+    const { unmount } = renderHook(() => useLockBodyScroll(false));
+    expect(document.documentElement.style.overflow).toBe('');
+    unmount();
+    expect(document.documentElement.style.overflow).toBe('');
   });
 
   it('useCopyToClipboard copia, avisa un rato y devuelve false sin portapapeles', async () => {

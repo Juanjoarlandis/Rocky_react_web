@@ -1,5 +1,5 @@
 import React, { Suspense, useCallback, useEffect, useState } from 'react';
-import { matchPath, Route, Routes, useLocation } from 'react-router';
+import { matchPath, Route, Routes, useLocation, useNavigate } from 'react-router';
 import NavBar from './components/NavBar';
 import Footer from './components/Footer';
 import NotFound from './components/NotFound';
@@ -19,6 +19,7 @@ import { normalizeDemoCatalog } from './features/storefront/normalize';
 import { useStorefront } from './features/storefront/useStorefront';
 import { STORAGE_KEYS } from './config/storageKeys.js';
 import { readStorage, writeStorage } from './utils/storage.js';
+import { ROUTES } from './config/routes.js';
 
 // Páginas cargadas bajo demanda
 const ProductDetail = React.lazy(() => import('./features/catalog/ProductDetail'));
@@ -42,6 +43,14 @@ function App() {
   });
   const [carreras, setCarreras] = useState(0);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  // Encender el descontrol acaba en la portada, cuando se apaga el rótulo; si
+  // ya se está en ella, no se apila otra entrada en el historial.
+  const { pathname } = location;
+  const irALaPortada = useCallback(() => {
+    if (pathname !== ROUTES.home) navigate(ROUTES.home);
+  }, [pathname, navigate]);
 
   /* Un único envoltorio sobre el `addToCart` de la tienda para no repetirlo en
      cada página. Sólo cuenta la carrera si el añadido ha salido bien: si la
@@ -102,7 +111,7 @@ function App() {
         <ScrollToTop />
         <CuriousPeeker pathname={location.pathname} disabled={showSplash} />
         <CartRunner runId={carreras} disabled={showSplash} />
-        <Descontrol pathname={location.pathname} disabled={showSplash} />
+        <Descontrol pathname={location.pathname} disabled={showSplash} onActivated={irALaPortada} />
         <Estampida disabled={showSplash} />
         <main id="main-content" className="app-main" tabIndex={-1}>
           {((!commerce.loading && commerce.mode === 'demo') || commerce.error) && (

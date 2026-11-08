@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useLockBodyScroll } from '../hooks/useLockBodyScroll.js';
 import logo from '../images/Rockypng.png';
 import skaterOllie from '../images/optimized/splash/skater-ollie.webp';
 import grafiteroSpray from '../images/optimized/splash/grafitero-spray.webp';
@@ -44,14 +44,9 @@ const HEADS = [
 ];
 
 export default function SplashIntro() {
-  // La tienda ya está montada debajo; sin scroll hasta que se recoja la cortina
-  useEffect(() => {
-    const previo = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previo;
-    };
-  }, []);
+  // La tienda ya está montada debajo; sin scroll hasta que se recoja la cortina.
+  // Mismo bloqueo que el menú y el lightbox, para que se puedan solapar.
+  useLockBodyScroll(true);
 
   return (
     <div className="splash-intro" role="status">
