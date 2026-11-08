@@ -302,6 +302,19 @@ Tareas de operación:
   bundle y saldrán del repositorio siguiendo `docs/marketing/README.md`; el
   plan para purgar el historial está en `docs/ops/reescritura-historial.md`.
 
+### Publicar una release
+
+Las releases se preparan, se promueven y se revierten con órdenes del repo, en simulacro
+por defecto. Solo se publica un commit que esté en GitHub; la promoción espera a que el
+contenedor esté sano y vuelve atrás sola si no lo está. Detalle, requisitos y qué hacer si
+algo falla en [`docs/ops/publicar.md`](docs/ops/publicar.md).
+
+```bash
+npm run release:preparar -- --etiqueta <nombre> [--aplicar]
+npm run release:promover -- --release <id> [--aplicar]
+npm run release:revertir -- [--aplicar]
+```
+
 ## Verificación antes de publicar
 
 ```bash

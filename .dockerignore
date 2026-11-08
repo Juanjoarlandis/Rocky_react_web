@@ -17,3 +17,6 @@ assets-master
 yarn.lock
 *.log
 *.md
+# Herramientas de publicación: se ejecutan desde el equipo del operador, no en la imagen
+# (sus tests necesitan git, que la imagen de build no trae).
+scripts/release

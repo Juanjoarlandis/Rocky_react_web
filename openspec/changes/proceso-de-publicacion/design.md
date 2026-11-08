@@ -59,7 +59,7 @@ ejecución contra la Raspberry es inofensiva.
 
 ## Contratos
 
-- `npm run release:preparar -- --commit <sha|rama> --etiqueta <nombre> [--aplicar]`
+- `npm run release:preparar -- --etiqueta <nombre> [--aplicar]` (publica el commit de `HEAD`)
 - `npm run release:promover -- --release <id> [--aplicar]`
 - `npm run release:revertir -- [--aplicar]`
 - Configuración por entorno: `RELEASE_HOST` (por defecto `raspberry`) y `RELEASE_ROOT`
@@ -87,3 +87,45 @@ afectada porque este cambio no despliega.
 
 - Si la Raspberry exige contraseña para `sudo` en modo no interactivo: se comprueba en
   el simulacro y, si hace falta, se documenta cómo ejecutarlo.
+
+## Revisión independiente (ronda 1, 2026-11-08) y cambios de diseño
+
+La revisión encontró 1 bloqueante, 6 importantes y 8 menores; la revisión de seguridad no
+encontró vulnerabilidades por encima del umbral. Cambios resultantes:
+
+- **D1 (ejecución)**: el script ya no se ejecuta atado a la sesión SSH. Se guarda en la
+  carpeta de la release (`promover-<marca>.sh`), se lanza con `sudo -n setsid -f` con su
+  salida en `promover-<marca>.log` y el equipo local solo sigue el log hasta una marca
+  final. Así un corte de conexión no deja la promoción a medias sin vuelta atrás.
+- **D2 (paquete)**: `ls-tree -z` y `git --literal-pathspecs archive`, para que nombres no
+  ASCII o con `[ ]` ni se escapen del filtro ni arrastren otros ficheros. `scripts/release`
+  entra en `.dockerignore`: sus tests necesitan `git`, que la imagen de build no trae
+  (bloqueante de la revisión).
+- **D3 (remoto)**: `git fetch --prune origin` y solo `refs/remotes/origin/`; se prefiere
+  `main` y se registra sin el prefijo `origin/`, como en las releases anteriores.
+- **D4 (plantilla)**: `set -Eeuo pipefail`, borrado de `current.next` residual, copias con
+  la marca de la operación, registros anteriores apartados, cerrojo `flock`, comprobación
+  de que el estado cifrado es un fichero normal, códigos de salida 2/1/3 con marca final
+  y `anterior.txt` con la release sustituida.
+- **D5 (identificadores)**: la validación acepta también el formato antiguo
+  (`<marca>-<texto kebab>`), para poder revertir a las 44 releases existentes; la
+  generación sigue siendo `<marca>-<etiqueta>-<8 hex>`.
+- **Revertir**: usa `anterior.txt` (la release realmente sustituida al promover); la
+  release de partida de `release.json` queda como respaldo avisado para releases
+  promovidas a mano.
+- **Contratos**: `preparar` publica siempre el commit de `HEAD` (no hay `--commit`); los
+  argumentos desconocidos o sin valor se rechazan; `RELEASE_ROOT` y `RELEASE_HOST` se
+  validan.
+- **Pregunta abierta resuelta**: el simulacro comprueba `sudo -n true` y avisa si `sudo`
+  pide contraseña; `--aplicar` exige `NOPASSWD` o ejecución manual del script.
+
+## Revisión independiente (ronda 2, 2026-11-08)
+
+Confirmó corregido el bloqueante de la ronda 1 y encontró uno nuevo: el `umask 077` global
+del script dejaba `anterior.txt` (y los registros) en 600 de root, ilegibles para el
+usuario de despliegue, y `revertir` caía en silencio a `release.json`. Corrección: el
+`umask` restrictivo solo envuelve la escritura del selector, los registros quedan en 644,
+la lectura remota distingue «no existe» (respaldo avisado) de «no se puede leer» (aborta),
+el destino y los avisos se anuncian antes de ejecutar y un fallo previo a los cambios
+también deja marca final. Por el límite de dos rondas no hubo una tercera; queda cubierto
+por pruebas.
