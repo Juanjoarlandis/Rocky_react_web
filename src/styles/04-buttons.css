@@ -48,9 +48,13 @@
   }
 
   .btn--primary:hover:not(:disabled) {
-    background-color: var(--accent);
+    background-color: var(--accent-dark);
     border-color: var(--ink);
     color: var(--white);
+  }
+
+  :where([data-theme='neon']) .btn--primary:hover:not(:disabled) {
+    color: var(--ink-fixed);
   }
 
   .btn--primary.btn--added {

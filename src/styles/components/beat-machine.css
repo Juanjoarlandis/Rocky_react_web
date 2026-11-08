@@ -576,7 +576,7 @@
     margin: 8px 2px 0;
     font-family: var(--font-hand);
     font-size: var(--text-xs);
-    color: rgba(var(--card-rgb), 0.45);
+    color: rgba(var(--card-rgb), 0.6);
   }
 
   /* ---------- Pads ---------- */
@@ -765,7 +765,7 @@
     min-width: 220px;
     font-family: var(--font-hand);
     font-size: var(--text-xs);
-    color: rgba(var(--card-rgb), 0.45);
+    color: rgba(var(--card-rgb), 0.6);
     text-align: right;
   }
 

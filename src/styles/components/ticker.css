@@ -95,8 +95,10 @@
     animation: ticker-scroll 30s linear infinite;
   }
 
+  /* `pre` y no `nowrap`: los spans son elementos flex y el espacio final se
+   recortaría, así que en la costura del bucle se leía «VUELAN ✦ROCKY 035». */
   .ticker-track span {
-    white-space: nowrap;
+    white-space: pre;
     font-family: var(--font-display);
     font-size: var(--text-sm);
     letter-spacing: 0.14em;
@@ -122,19 +124,32 @@
     }
   }
 
-  /* ---------- Modo neón ----------
-   La marquesina ya era de noche: aquí sólo se le da corriente. */
+  /* ---------- Modo descontrol ----------
+   De noche la marquesina es cinta de precinto: lima fluorescente con las
+   franjas de peligro arriba y abajo, como en una escena acordonada. */
 
   [data-theme='neon'] .ticker {
-    /* Los bordes de tinta, que de día se fundían con el fondo, de noche son
-       el canto iluminado del rótulo. */
+    background-color: var(--uv-lime);
+    background-image:
+      repeating-linear-gradient(-45deg, var(--neon-night) 0 10px, transparent 10px 20px),
+      repeating-linear-gradient(-45deg, var(--neon-night) 0 10px, transparent 10px 20px);
+    background-position:
+      left top,
+      left bottom;
+    background-size: 100% 7px;
+    background-repeat: no-repeat;
+    border-color: var(--neon-night);
     box-shadow:
-      0 4px 0 rgba(var(--black-rgb), 0.45),
-      0 0 26px rgba(var(--neon-pink-rgb), 0.2);
+      0 5px 0 rgba(var(--black-rgb), 0.5),
+      0 0 32px rgba(var(--uv-lime-rgb), 0.35);
+  }
+
+  [data-theme='neon'] .ticker-track {
+    padding: 13px 0;
   }
 
   [data-theme='neon'] .ticker-track span {
-    color: var(--white);
-    text-shadow: 0 0 10px rgba(var(--neon-cyan-rgb), 0.55);
+    color: var(--neon-night);
+    text-shadow: none;
   }
 }

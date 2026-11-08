@@ -99,6 +99,8 @@ export function useStepSequencer({
     const seq = seqRef.current;
     clearInterval(seq.timer);
     seq.timer = null;
+    if (seq.raf !== null) cancelAnimationFrame(seq.raf);
+    seq.raf = null;
     seq.queue = [];
     setPlaying(false);
     setStep(-1);

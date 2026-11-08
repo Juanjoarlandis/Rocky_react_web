@@ -1,7 +1,23 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App.jsx';
+
+beforeEach(() => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          mode: 'demo',
+          capabilities: { catalog: false, cart: false, customerAccounts: false },
+        }),
+        { status: 200 }
+      )
+    )
+  );
+});
+afterEach(() => vi.unstubAllGlobals());
 
 function renderRoute(pathname) {
   sessionStorage.setItem('rocky-splash-seen', '1');
@@ -13,8 +29,9 @@ function renderRoute(pathname) {
 }
 
 describe('MiniPlayer route ownership', () => {
-  it('docks one player between the navigation and content', () => {
+  it('docks one player between the navigation and content', async () => {
     const { container } = renderRoute('/');
+    await screen.findByText(/Modo demo/);
     const player = screen.getByRole('group', { name: /reproductor de rocky 035/i });
     const slot = container.querySelector('.mini-player-slot--content');
     const main = container.querySelector('.app-main');
@@ -24,20 +41,25 @@ describe('MiniPlayer route ownership', () => {
     expect(screen.getAllByRole('group', { name: /reproductor de rocky 035/i })).toHaveLength(1);
   });
 
-  it('places one player inside the Rocky IA header', async () => {
-    const { container } = renderRoute('/rockyIA');
+  it.each(['/rockyIA', '/rockyIA/', '/RockyIA'])(
+    'places one player inside the chat header at %s',
+    async (route) => {
+      const { container } = renderRoute(route);
 
-    await screen.findByRole('heading', { name: 'Rocky IA' });
-    const player = screen.getByRole('group', { name: /reproductor de rocky 035/i });
-    const headerSlot = container.querySelector('.chat-header-player');
+      await screen.findByRole('heading', { name: 'Rocky IA' });
+      const player = screen.getByRole('group', { name: /reproductor de rocky 035/i });
+      const headerSlot = container.querySelector('.chat-header-player');
 
-    expect(headerSlot).toContainElement(player);
-    expect(container.querySelector('.mini-player-slot--content')).not.toBeInTheDocument();
-    expect(screen.getAllByRole('group', { name: /reproductor de rocky 035/i })).toHaveLength(1);
-  });
+      expect(headerSlot).toContainElement(player);
+      expect(container.querySelector('.app--chat')).toBeInTheDocument();
+      expect(container.querySelector('footer')).not.toBeInTheDocument();
+      expect(container.querySelector('.mini-player-slot--content')).not.toBeInTheDocument();
+      expect(screen.getAllByRole('group', { name: /reproductor de rocky 035/i })).toHaveLength(1);
+    }
+  );
 
-  it('renders neither a player nor an empty slot in Studio', async () => {
-    const { container } = renderRoute('/estudio');
+  it.each(['/estudio', '/estudio/', '/Estudio'])('renders no mini-player at %s', async (route) => {
+    const { container } = renderRoute(route);
 
     await screen.findByRole('heading', { name: 'La Colmena' });
     expect(

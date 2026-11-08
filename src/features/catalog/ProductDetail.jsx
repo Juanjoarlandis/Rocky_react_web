@@ -5,16 +5,27 @@ import AddToCartButton from '../cart/AddToCartButton';
 import EyeIcon from '../../components/icons/EyeIcon';
 import PlaceholderTee from './PlaceholderTee';
 import DropAviso from './DropAviso';
-import sentadoBordeBlanco from '../../images/optimized/characters/sentado-borde-blanco-600.webp';
-import nubePaseando from '../../images/optimized/characters/nube-paseando-600.webp';
+import AddToCalendar from './AddToCalendar';
+import sentadoBordeBlanco from '../../images/optimized/characters/sentado-borde-blanco-hd.webp';
+import nubePaseando from '../../images/optimized/characters/nube-paseando-hd.webp';
 import { formatPrice } from '../../utils/price';
 import { PLACEHOLDER_IMAGE } from '../../config/commerce.js';
 import { PURCHASE_STATES, purchaseLabel, purchaseState } from '../storefront/availability.js';
 import '../../styles/components/product-media.css';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
+import { prefersReducedMotion } from '../../utils/media.js';
 import '../../styles/pages/product-detail.css';
+import { useNightArt } from '../night/nightArt.js';
 
-function ProductDetail({ products, addToCart, commerceMode = 'demo', canAddToCart = true }) {
+function ProductDetail({
+  products,
+  addToCart,
+  commerceMode = 'demo',
+  canAddToCart = true,
+  loading = false,
+  catalogError = '',
+}) {
+  const vigiaArt = useNightArt(sentadoBordeBlanco);
   const { productId } = useParams();
   const { hash } = useLocation();
   const [zoomOpen, setZoomOpen] = useState(false);
@@ -23,7 +34,14 @@ function ProductDetail({ products, addToCart, commerceMode = 'demo', canAddToCar
   const product = products.find(
     (candidate) => String(candidate.handle ?? candidate.id) === String(productId)
   );
-  useDocumentTitle(product?.title || 'Producto no encontrado');
+  useDocumentTitle(
+    product?.title ||
+      (loading
+        ? 'Cargando producto'
+        : catalogError
+          ? 'Producto no disponible'
+          : 'Producto no encontrado')
+  );
   const [selectedVariantId, setSelectedVariantId] = useState(
     () => product?.defaultVariantId || product?.variants?.[0]?.id || null
   );
@@ -36,7 +54,10 @@ function ProductDetail({ products, addToCart, commerceMode = 'demo', canAddToCar
   const focusAviso = () => {
     const input = avisoRef.current?.querySelector('input[type="email"]');
     if (!input) return;
-    input.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+    input.scrollIntoView?.({
+      block: 'center',
+      behavior: prefersReducedMotion() ? 'instant' : 'smooth',
+    });
     input.focus({ preventScroll: true });
   };
 
@@ -45,6 +66,22 @@ function ProductDetail({ products, addToCart, commerceMode = 'demo', canAddToCar
   }, [hash, product]);
 
   if (!product) {
+    if (loading)
+      return (
+        <div className="page-loading" role="status">
+          Cargando producto…
+        </div>
+      );
+    if (catalogError)
+      return (
+        <div className="product-empty">
+          <h1 className="page-title">Producto no disponible</h1>
+          <p role="alert">{catalogError}</p>
+          <Link to="/" className="btn btn--ghost">
+            Volver a la tienda
+          </Link>
+        </div>
+      );
     return (
       <div className="product-empty">
         <h1 className="page-title">Producto no encontrado</h1>
@@ -71,9 +108,49 @@ function ProductDetail({ products, addToCart, commerceMode = 'demo', canAddToCar
       </Link>
 
       <div className="detail-grid">
-        <div className="detail-info">
+        <header className="detail-heading">
           <p className="kicker detail-drop">{product.drop}</p>
           <h1 className="detail-title squiggle-underline">{product.title}</h1>
+        </header>
+
+        <div className="detail-media-wrap tape">
+          {/* Un chaval de la banda vigila el producto desde el marco */}
+          <img
+            src={vigiaArt}
+            width="717"
+            height="1186"
+            decoding="async"
+            alt=""
+            className="detail-doodle neon-art al-ritmo"
+            style={{ '--fase': '1' }}
+          />
+          <button
+            type="button"
+            className="paper-card detail-media"
+            onClick={() => !isPlaceholder && setZoomOpen(true)}
+            aria-label={`Ver ${product.title} en grande`}
+            disabled={isPlaceholder}
+          >
+            {isPlaceholder ? (
+              <PlaceholderTee title={product.title} />
+            ) : (
+              <img
+                src={product.image}
+                width={product.imageWidth ?? 1254}
+                height={product.imageHeight ?? 1254}
+                alt={product.title}
+                className="detail-image"
+              />
+            )}
+            {!isPlaceholder && (
+              <span className="product-zoom" aria-hidden="true">
+                <EyeIcon />
+              </span>
+            )}
+          </button>
+        </div>
+
+        <div className="detail-info">
           {product.description && <p className="detail-description">{product.description}</p>}
           {product.specifications?.length > 0 && (
             <ul className="detail-specs">
@@ -140,46 +217,10 @@ function ProductDetail({ products, addToCart, commerceMode = 'demo', canAddToCar
             {state === PURCHASE_STATES.NOTIFY && (
               <div id="aviso" ref={avisoRef}>
                 <DropAviso producto={String(product.handle ?? product.id)} />
+                <AddToCalendar />
               </div>
             )}
           </div>
-        </div>
-
-        <div className="detail-media-wrap tape">
-          {/* Un chaval de la banda vigila el producto desde el marco */}
-          <img
-            src={sentadoBordeBlanco}
-            width="717"
-            height="1186"
-            decoding="async"
-            alt=""
-            className="detail-doodle neon-art al-ritmo"
-            style={{ '--fase': '1' }}
-          />
-          <button
-            type="button"
-            className="paper-card detail-media"
-            onClick={() => !isPlaceholder && setZoomOpen(true)}
-            aria-label={`Ver ${product.title} en grande`}
-            disabled={isPlaceholder}
-          >
-            {isPlaceholder ? (
-              <PlaceholderTee title={product.title} />
-            ) : (
-              <img
-                src={product.image}
-                width={product.imageWidth ?? 1254}
-                height={product.imageHeight ?? 1254}
-                alt={product.title}
-                className="detail-image"
-              />
-            )}
-            {!isPlaceholder && (
-              <span className="product-zoom" aria-hidden="true">
-                <EyeIcon />
-              </span>
-            )}
-          </button>
         </div>
       </div>
 

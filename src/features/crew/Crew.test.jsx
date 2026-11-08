@@ -26,9 +26,11 @@ describe('La Crew', () => {
     const abrir = within(cromo).getByRole('button', { name: '↻ expediente' });
     expect(abrir).toHaveAttribute('aria-expanded', 'false');
 
+    abrir.focus();
     fireEvent.click(abrir);
     expect(cromo).toHaveClass('is-flipped');
     expect(abrir).toHaveAttribute('aria-expanded', 'true');
+    expect(within(cromo).getByRole('button', { name: '↻ volver' })).toHaveFocus();
     expect(localStorage.getItem('rocky-album-abiertos')).toContain('ollie');
 
     // Enter sobre el enlace del expediente no vuelve a girar la carta
@@ -38,7 +40,32 @@ describe('La Crew', () => {
 
     fireEvent.click(within(cromo).getByRole('button', { name: '↻ volver' }));
     expect(cromo).not.toHaveClass('is-flipped');
+    expect(abrir).toHaveFocus();
     expect(document.title).toBe('La Crew · ROCKY 035');
+  });
+
+  it.each(['%', '%E0%A4%A', 'unknown'])('ignores an invalid or unknown fragment #%s', (hash) => {
+    renderCrew(`/crew#${hash}`);
+    expect(screen.getByRole('heading', { name: 'La Crew' })).toBeInTheDocument();
+    expect(document.querySelector('.is-flipped')).toBeNull();
+  });
+
+  it('opens a shared card without animated scrolling when motion is reduced', () => {
+    vi.useFakeTimers();
+    vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: true });
+    const scroll = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scroll,
+    });
+    try {
+      renderCrew('/crew#dormilon');
+      vi.advanceTimersByTime(350);
+      expect(scroll).toHaveBeenCalledWith({ block: 'center', behavior: 'instant' });
+    } finally {
+      delete HTMLElement.prototype.scrollIntoView;
+      vi.useRealTimers();
+    }
   });
 
   it('abre el cromo del enlace directo (#id) y lo apunta en la colección', () => {

@@ -8,6 +8,8 @@ import { readJson, writeJson } from '../../utils/storage.js';
 import { useCopyToClipboard } from '../../hooks/useCopyToClipboard.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useRevealOnScroll } from '../../hooks/useRevealOnScroll.js';
+import { useNightArt, useNightArtResolver } from '../night/nightArt.js';
+import { useNightFicha } from '../night/nightCrew.js';
 
 const TOTAL_CROMOS = CREW.length + POR_FICHAR.length;
 const CLAVE_ABIERTOS = STORAGE_KEYS.albumOpened;
@@ -132,15 +134,21 @@ export function CrewCard({
   reveal = 'static',
   orden = 0,
 }) {
+  const memberArt = useNightArt(miembro.img);
+  const ficha = useNightFicha(miembro);
   const [girado, setGirado] = useState(autoGirado);
   const cardRef = useRef(null);
+  const restoreCardFocusRef = useRef(false);
   const { copied: copiado, copy } = useCopyToClipboard();
 
   useEffect(() => {
     if (autoGirado && cardRef.current) {
       onAbrir?.(miembro.id);
       const timer = setTimeout(() => {
-        cardRef.current?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+        cardRef.current?.scrollIntoView?.({
+          block: 'center',
+          behavior: prefersReducedMotion() ? 'instant' : 'smooth',
+        });
       }, 350);
       return () => clearTimeout(timer);
     }
@@ -149,7 +157,15 @@ export function CrewCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoGirado]);
 
+  useEffect(() => {
+    if (!restoreCardFocusRef.current) return;
+    restoreCardFocusRef.current = false;
+    const face = girado ? '.crew-card-back' : '.crew-card-front';
+    cardRef.current?.querySelector(`${face} .crew-girar`)?.focus({ preventScroll: true });
+  }, [girado]);
+
   const girar = () => {
+    restoreCardFocusRef.current = cardRef.current?.contains(document.activeElement);
     // El aviso al álbum va fuera del updater: StrictMode los ejecuta dos veces.
     if (!girado) onAbrir?.(miembro.id);
     setGirado((v) => !v);
@@ -206,7 +222,7 @@ export function CrewCard({
       className={clases}
       data-reveal-id={miembro.id}
       style={{ '--orden': orden }}
-      aria-label={`Cromo de ${miembro.nombre}`}
+      aria-label={`Cromo de ${ficha.nombre}`}
       onClick={() => {
         alSalir();
         girar();
@@ -232,7 +248,7 @@ export function CrewCard({
                             número de ficha, que es estable— y El Productor
                             más fuerte que nadie, que para eso es lo suyo. */}
             <img
-              src={miembro.img}
+              src={memberArt}
               width={miembro.imgWidth}
               height={miembro.imgHeight}
               alt=""
@@ -246,8 +262,8 @@ export function CrewCard({
               FICHADO
             </span>
           )}
-          <h3 className="crew-nombre">{miembro.nombre}</h3>
-          <p className="crew-rol">{miembro.rol}</p>
+          <h3 className="crew-nombre">{ficha.nombre}</h3>
+          <p className="crew-rol">{ficha.rol}</p>
           {miembro.stats.length > 0 && (
             <ul className="crew-stats">
               {miembro.stats.map((stat) => (
@@ -278,15 +294,15 @@ export function CrewCard({
           <dl className="expediente-datos">
             <div>
               <dt className="kicker">Alias</dt>
-              <dd>{miembro.nombre}</dd>
+              <dd>{ficha.nombre}</dd>
             </div>
             <div>
               <dt className="kicker">Oficio</dt>
-              <dd>{miembro.rol}</dd>
+              <dd>{ficha.rol}</dd>
             </div>
             <div>
               <dt className="kicker">Dice</dt>
-              <dd>«{miembro.frase}»</dd>
+              <dd>«{ficha.frase}»</dd>
             </div>
             <div>
               <dt className="kicker">Visto en</dt>
@@ -346,9 +362,15 @@ function LaminaSep({ numero, titulo, nota, cuenta }) {
 }
 
 function Crew() {
+  const artFor = useNightArtResolver();
   const albumRef = useRef(null);
   const { hash } = useLocation();
-  const hashId = decodeURIComponent(hash.slice(1));
+  let hashId = '';
+  try {
+    hashId = decodeURIComponent(hash.slice(1));
+  } catch {
+    // Un enlace mal codificado abre el álbum sin seleccionar ningún cromo.
+  }
   useDocumentTitle('La Crew');
 
   // Tu colección: expedientes que ya has abierto, guardados en el navegador
@@ -432,7 +454,7 @@ function Crew() {
             return (
               <img
                 key={id}
-                src={miembro.img}
+                src={artFor(miembro.img)}
                 alt=""
                 className="neon-art"
                 style={{ height: alto, marginBottom: vuela || 0 }}

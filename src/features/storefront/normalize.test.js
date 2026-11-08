@@ -43,6 +43,22 @@ describe('Shopify UI normalization', () => {
     });
   });
 
+  it('files unassigned locked designs under the current drop, not under «Tienda»', () => {
+    const [locked, revealed] = normalizeCatalog([
+      { handle: 'sin-foto', title: 'Sin foto', image: null, drop: null, variants: [] },
+      {
+        handle: 'con-foto',
+        title: 'Con foto',
+        image: { url: 'https://cdn.shopify.com/tee.jpg', alt: '' },
+        drop: null,
+        variants: [],
+      },
+    ]);
+
+    expect(locked).toMatchObject({ drop: 'ROCKY DROP 4', dropHandle: 'rocky-drop-4' });
+    expect(revealed).toMatchObject({ drop: 'Tienda', dropHandle: 'tienda' });
+  });
+
   it('maps only sanitized cart data and retains Shopify totals as Money values', () => {
     const cart = normalizeCart({
       totalQuantity: 2,

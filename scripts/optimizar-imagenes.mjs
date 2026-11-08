@@ -1,17 +1,15 @@
 // Regenera src/images/optimized/** a partir de una carpeta maestra con las
 // imágenes originales (PNG, JPG, WebP, TIFF), conservando la estructura de
-// carpetas y los anchos que ya tienen los ficheros generados.
+// carpetas y las dimensiones que ya tienen los ficheros generados.
 //
 //   npm run images:optimize                              # lee assets-master/
 //   npm run images:optimize -- --source ~/rocky-master   # otra carpeta maestra
 //   npm run images:optimize -- --dry-run                 # sólo enseña el plan
 //   npm run images:optimize -- --only characters/lata-spray
 //
-// Regla de nombres: assets-master/<carpeta>/<nombre>.png genera
-// src/images/optimized/<carpeta>/<nombre>-<ancho>.webp por cada ancho que ya
-// exista para ese nombre (p. ej. characters/lata-spray-600.webp) o, si no
-// hay ninguno, <nombre>.webp a tamaño maestro (o al ancho por defecto de la
-// carpeta, si lo tiene). Con --width se fuerza un único ancho.
+// Los personajes históricos -600 usan ALTURA; shell/ usa ancho. Los nuevos
+// -hd conservan los píxeles del maestro y se codifican sin pérdida. --width
+// crea una salida -wN para no confundir ancho con la altura histórica.
 //
 // sharp no es dependencia del proyecto (arrastra binarios nativos al build):
 //   npm install --no-save sharp
@@ -26,10 +24,10 @@ const DEFAULT_SOURCE = 'assets-master';
 const DEFAULT_OUTPUT = 'src/images/optimized';
 const MASTER_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.tif', '.tiff']);
 // Anchos por defecto cuando una carpeta todavía no tiene salidas generadas.
-const DEFAULT_WIDTH_BY_FOLDER = Object.freeze({ characters: 600 });
+const DEFAULT_HEIGHT_BY_FOLDER = Object.freeze({ characters: 600 });
 const DEFAULT_QUALITY = 82;
 
-function parseArgs(argv) {
+export function parseArgs(argv) {
   const options = {
     source: DEFAULT_SOURCE,
     output: DEFAULT_OUTPUT,
@@ -37,18 +35,33 @@ function parseArgs(argv) {
     only: null,
     width: null,
     quality: DEFAULT_QUALITY,
+    lossless: false,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
-    const next = () => argv[(index += 1)];
+    const next = () => {
+      const value = argv[(index += 1)];
+      if (!value || value.startsWith('--')) throw new Error(`Falta el valor de ${argument}.`);
+      return value;
+    };
     if (argument === '--source') options.source = next();
     else if (argument === '--output') options.output = next();
     else if (argument === '--dry-run') options.dryRun = true;
     else if (argument === '--only') options.only = next();
-    else if (argument === '--width') options.width = Number.parseInt(next(), 10);
-    else if (argument === '--quality') options.quality = Number.parseInt(next(), 10);
+    else if (argument === '--width') options.width = Number(next());
+    else if (argument === '--quality') options.quality = Number(next());
+    else if (argument === '--lossless') options.lossless = true;
     else if (argument === '--help' || argument === '-h') options.help = true;
     else throw new Error(`Argumento desconocido: ${argument}`);
+  }
+  if (
+    options.width !== null &&
+    (!Number.isInteger(options.width) || options.width < 1 || options.width > 8192)
+  ) {
+    throw new Error('--width debe ser un entero entre 1 y 8192.');
+  }
+  if (!Number.isInteger(options.quality) || options.quality < 1 || options.quality > 100) {
+    throw new Error('--quality debe ser un entero entre 1 y 100.');
   }
   return options;
 }
@@ -101,24 +114,25 @@ async function existingTargets(outputDirectory, master) {
   } catch {
     return [];
   }
-  const pattern = new RegExp(`^${escapeRegExp(master.stem)}(?:-(\\d{2,4}))?\\.webp$`);
+  const pattern = new RegExp(`^${escapeRegExp(master.stem)}(?:-(hd|w?\\d{1,4}))?\\.webp$`);
   return names
     .map((name) => pattern.exec(name))
     .filter(Boolean)
     .map((match) => ({
       file: path.join(directory, match[0]),
-      width: match[1] ? Number.parseInt(match[1], 10) : null,
+      original: match[1] === 'hd',
+      preserveDimensions: match[1] !== 'hd',
     }));
 }
 
-function planTargets(outputDirectory, master, existing, forcedWidth) {
+export function planTargets(outputDirectory, master, existing, forcedWidth) {
   if (forcedWidth) {
     return [
       {
         file: path.join(
           outputDirectory,
           master.relativeDirectory,
-          `${master.stem}-${forcedWidth}.webp`
+          `${master.stem}-w${forcedWidth}.webp`
         ),
         width: forcedWidth,
       },
@@ -126,15 +140,15 @@ function planTargets(outputDirectory, master, existing, forcedWidth) {
   }
   if (existing.length > 0) return existing;
   const folder = master.relativeDirectory.split(path.sep)[0];
-  const width = DEFAULT_WIDTH_BY_FOLDER[folder] ?? null;
+  const height = DEFAULT_HEIGHT_BY_FOLDER[folder] ?? null;
   return [
     {
       file: path.join(
         outputDirectory,
         master.relativeDirectory,
-        width ? `${master.stem}-${width}.webp` : `${master.stem}.webp`
+        height ? `${master.stem}-${height}.webp` : `${master.stem}.webp`
       ),
-      width,
+      height,
     },
   ];
 }
@@ -143,7 +157,7 @@ async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
     console.info(
-      'Uso: npm run images:optimize -- [--source dir] [--output dir] [--only carpeta/nombre] [--width N] [--quality N] [--dry-run]'
+      'Uso: npm run images:optimize -- [--source dir] [--output dir] [--only carpeta/nombre] [--width N] [--quality N] [--lossless] [--dry-run]'
     );
     return;
   }
@@ -165,6 +179,9 @@ async function main() {
   if (masters.length === 0) {
     throw new Error('No hay imágenes maestras que procesar.');
   }
+  if (new Set(masters.map((master) => master.key)).size !== masters.length) {
+    throw new Error('Hay varios maestros con el mismo nombre de salida. Usa uno por personaje.');
+  }
 
   const sharp = options.dryRun ? null : await loadSharp();
   let generated = 0;
@@ -177,7 +194,13 @@ async function main() {
     );
     for (const target of targets) {
       const label = `${master.key} → ${path.relative(rootDirectory, target.file)}${
-        target.width ? ` (${target.width}px)` : ' (tamaño maestro)'
+        target.preserveDimensions
+          ? ' (dimensiones existentes)'
+          : target.width
+            ? ` (ancho ${target.width}px)`
+            : target.height
+              ? ` (alto ${target.height}px)`
+              : ' (tamaño maestro)'
       }`;
       if (options.dryRun) {
         console.info(`  [simulacro] ${label}`);
@@ -185,10 +208,20 @@ async function main() {
       }
       await fs.mkdir(path.dirname(target.file), { recursive: true });
       let pipeline = sharp(master.absolutePath);
-      if (target.width) {
-        pipeline = pipeline.resize({ width: target.width, withoutEnlargement: true });
+      let { width, height } = target;
+      if (target.preserveDimensions) {
+        ({ width, height } = await sharp(target.file).metadata());
       }
-      await pipeline.webp({ quality: options.quality, effort: 6 }).toFile(target.file);
+      if (width || height) {
+        pipeline = pipeline.resize({ width, height, fit: 'inside', withoutEnlargement: true });
+      }
+      await pipeline
+        .webp({
+          quality: options.quality,
+          lossless: target.original || options.lossless,
+          effort: 6,
+        })
+        .toFile(target.file);
       generated += 1;
       console.info(`  ${label}`);
     }
@@ -200,7 +233,9 @@ async function main() {
   );
 }
 
-main().catch((error) => {
-  console.error(`\nERROR: ${error.message}`);
-  process.exitCode = 1;
-});
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(`\nERROR: ${error.message}`);
+    process.exitCode = 1;
+  });
+}

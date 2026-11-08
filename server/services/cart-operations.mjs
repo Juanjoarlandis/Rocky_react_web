@@ -32,6 +32,7 @@ export function createCartOperations({
   async function runIdempotent(session, operationId, action) {
     const idempotencyKey = `${session.key}:${operationId}`;
     return withCartLock(session.key, async () => {
+      await sessions.reload(session);
       const existing = await store.get('cartOperations', idempotencyKey);
       if (existing?.status === 'completed') return existing.response;
       if (existing) {
@@ -112,16 +113,16 @@ export function createCartOperations({
     },
 
     async updateLine(session, { lineId, quantity, operationId }, context) {
-      const cartId = requireCartId(session);
       return runIdempotent(session, operationId, async () => {
+        const cartId = requireCartId(session);
         await requireOwnedLine(cartId, lineId, context);
         return storefront.updateLines(cartId, { lineId, quantity }, context);
       });
     },
 
     async removeLine(session, { lineId, operationId }, context) {
-      const cartId = requireCartId(session);
       return runIdempotent(session, operationId, async () => {
+        const cartId = requireCartId(session);
         await requireOwnedLine(cartId, lineId, context);
         return storefront.removeLines(cartId, { lineId }, context);
       });

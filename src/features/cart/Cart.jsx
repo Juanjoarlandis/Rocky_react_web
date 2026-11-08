@@ -2,13 +2,14 @@ import { Link } from 'react-router';
 import { parsePrice, formatPrice } from '../../utils/price';
 import PlaceholderTee from '../catalog/PlaceholderTee';
 import emptyCartImage from '../../images/optimized/shell/tumbado-800.webp';
-import asomadoBorde from '../../images/optimized/characters/asomado-borde-600.webp';
-import dormidoEsperando from '../../images/optimized/characters/dormido-esperando-600.webp';
-import bombillaEureka from '../../images/optimized/characters/bombilla-eureka-600.webp';
+import asomadoBorde from '../../images/optimized/characters/asomado-borde-hd.webp';
+import dormidoEsperando from '../../images/optimized/characters/dormido-esperando-hd.webp';
+import bombillaEureka from '../../images/optimized/characters/bombilla-eureka-hd.webp';
 import { MAX_LINE_QUANTITY, PLACEHOLDER_IMAGE } from '../../config/commerce.js';
 import { ROUTES } from '../../config/routes.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import '../../styles/pages/cart.css';
+import { useNightArt } from '../night/nightArt.js';
 
 function Cart({
   cart,
@@ -22,6 +23,9 @@ function Cart({
   incrementQuantity,
   decrementQuantity,
 }) {
+  const emptyCartArt = useNightArt(emptyCartImage);
+  const curiosoArt = useNightArt(asomadoBorde);
+  const bombillaArt = useNightArt(bombillaEureka);
   useDocumentTitle('Carrito');
   const isShopify = commerceMode === 'shopify';
   const knownSubtotal = cart.reduce((acc, product) => {
@@ -42,12 +46,29 @@ function Cart({
     }
   };
 
+  const handleCartChange = async (operation, product) => {
+    try {
+      await operation(product);
+    } catch {
+      // El hook ya publica el error; el evento consume el rechazo.
+    }
+  };
+
+  const warningNotice = warnings.length > 0 && (
+    <ul className="cart-warnings" role="alert">
+      {warnings.map((warning) => (
+        <li key={`${warning.code}:${warning.message}`}>{warning.message}</li>
+      ))}
+    </ul>
+  );
+
   if (cart.length === 0) {
     return (
       <div className="cart-empty">
+        {warningNotice}
         <div className="paper-card cart-empty-card">
           <img
-            src={emptyCartImage}
+            src={emptyCartArt}
             width="800"
             height="539"
             alt=""
@@ -56,7 +77,7 @@ function Cart({
           />
           {/* El Bombilla ya sabe la solución: ¡a la tienda! */}
           <img
-            src={bombillaEureka}
+            src={bombillaArt}
             width="334"
             height="600"
             alt=""
@@ -82,18 +103,12 @@ function Cart({
         </Link>
       </div>
 
-      {warnings.length > 0 && (
-        <ul className="cart-warnings" role="alert">
-          {warnings.map((warning) => (
-            <li key={`${warning.code}:${warning.message}`}>{warning.message}</li>
-          ))}
-        </ul>
-      )}
+      {warningNotice}
 
       <div className="doodle-shelf cart-list-wrap">
         {/* Un curioso asomado tras el borde del carrito */}
         <img
-          src={asomadoBorde}
+          src={curiosoArt}
           width="767"
           height="600"
           alt=""
@@ -149,7 +164,7 @@ function Cart({
                   <button
                     type="button"
                     className="quantity-btn"
-                    onClick={() => decrementQuantity(product)}
+                    onClick={() => handleCartChange(decrementQuantity, product)}
                     disabled={busy}
                     aria-label="Quitar una unidad"
                   >
@@ -159,7 +174,7 @@ function Cart({
                   <button
                     type="button"
                     className="quantity-btn"
-                    onClick={() => incrementQuantity(product)}
+                    onClick={() => handleCartChange(incrementQuantity, product)}
                     disabled={busy || product.quantity >= MAX_LINE_QUANTITY}
                     aria-label="Añadir una unidad"
                   >
@@ -170,7 +185,7 @@ function Cart({
                 <button
                   type="button"
                   className="cart-item-remove"
-                  onClick={() => removeFromCart(product)}
+                  onClick={() => handleCartChange(removeFromCart, product)}
                   disabled={busy}
                   aria-label={`Eliminar ${product.title} del carrito`}
                 >

@@ -1,4 +1,5 @@
 import express from 'express';
+import { HttpError } from '../errors.mjs';
 import { asyncRoute } from '../middleware/async-route.mjs';
 import { createFixedWindowRateLimiter } from '../middleware/rate-limit.mjs';
 
@@ -6,7 +7,12 @@ import { createFixedWindowRateLimiter } from '../middleware/rate-limit.mjs';
 // consentimiento y un campo trampa; la lista sólo sale por el script de
 // exportación, nunca por la API. La respuesta es {ok, duplicate, product};
 // los mensajes de error van en castellano porque los lee la persona.
-export function createAvisosRouter({ config, avisos, requireOrigin }) {
+export function createAvisosRouter({
+  config,
+  avisos,
+  requireOrigin,
+  hasPersistentStorage = false,
+}) {
   const router = express.Router();
 
   router.post(
@@ -17,6 +23,12 @@ export function createAvisosRouter({ config, avisos, requireOrigin }) {
       windowMs: config.avisos.rateLimitWindowMs,
     }),
     asyncRoute(async (req, res) => {
+      if (config.isProduction && !hasPersistentStorage) {
+        throw new HttpError('Los avisos no están disponibles ahora mismo.', {
+          status: 503,
+          code: 'AVISOS_UNAVAILABLE',
+        });
+      }
       const { producto, email, consentimiento, apodo } = req.body ?? {};
 
       // El campo trampa: ningún humano lo ve, así que quien lo rellena es un

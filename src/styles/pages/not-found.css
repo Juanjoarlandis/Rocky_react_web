@@ -41,4 +41,65 @@
     font-family: var(--font-hand);
     font-size: var(--text-lg);
   }
+
+  /* ---------- El 404 a oscuras (modo descontrol) ----------
+     Se ha ido la luz: una capa casi negra con un agujero donde apunta la
+     linterna. Va debajo de la navbar, que siempre deja salir, y la salida
+     se esconde en un sitio distinto cada vez. */
+  .notfound-oscuridad {
+    --tx: 50vw;
+    --ty: 40vh;
+
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-dark);
+    pointer-events: none;
+    background-color: rgba(var(--black-rgb), 0.97);
+    mask-image: radial-gradient(
+      circle 170px at var(--tx) var(--ty),
+      transparent 0%,
+      transparent 42%,
+      rgba(var(--black-rgb), 1) 100%
+    );
+  }
+
+  .notfound-salida {
+    position: fixed;
+    top: var(--sy);
+    left: var(--sx);
+    white-space: nowrap;
+  }
+
+  /* La única pista que no se apaga. */
+  .notfound-pista {
+    position: fixed;
+    left: 50%;
+    bottom: max(var(--space-5), env(safe-area-inset-bottom));
+    z-index: var(--z-tools);
+    width: max-content;
+    max-width: calc(100vw - 2 * var(--space-4));
+    margin: 0;
+    color: var(--uv-violet-soft);
+    font-family: var(--font-hand);
+    font-size: var(--text-sm);
+    text-align: center;
+    text-shadow: 0 0 10px rgba(var(--uv-violet-rgb), 0.8);
+    translate: -50% 0;
+  }
+
+  @media (max-width: 640px) {
+    .notfound-oscuridad {
+      mask-image: radial-gradient(
+        circle 130px at var(--tx) var(--ty),
+        transparent 0%,
+        transparent 42%,
+        rgba(var(--black-rgb), 1) 100%
+      );
+    }
+
+    /* En móvil el bote de spray vive abajo a la derecha: la pista sube. */
+    .notfound-pista {
+      bottom: calc(max(var(--space-4), env(safe-area-inset-bottom)) + 56px);
+    }
+  }
 }

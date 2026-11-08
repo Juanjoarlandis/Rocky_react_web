@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router';
 import Lightbox from './Lightbox';
 import AddToCartButton from '../cart/AddToCartButton';
 import DropAviso from './DropAviso';
+import AddToCalendar from './AddToCalendar';
 import EyeIcon from '../../components/icons/EyeIcon';
 import PlaceholderTee from './PlaceholderTee';
 import StreetWall from '../../components/StreetWall';
@@ -10,6 +11,7 @@ import { CrosshairSpinner } from '../../components/doodles/CrosshairSpinner';
 import { CURRENT_DROP } from '../../config/campaign.js';
 import { PLACEHOLDER_IMAGE } from '../../config/commerce.js';
 import { PURCHASE_STATES, purchaseLabel, purchaseState } from '../storefront/availability.js';
+import { designCount } from './designCount.js';
 // Variante sin los puntos de spray pintados: el chorro se anima aparte.
 import grafiteroSpray from '../../images/optimized/characters/grafitero-sin-chorro-420.webp';
 import corriendoBolsa from '../../images/optimized/splash/corriendo-bolsa.webp';
@@ -19,6 +21,7 @@ import '../../styles/components/product-media.css';
 import { ROUTES } from '../../config/routes.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import '../../styles/pages/home.css';
+import { useNightArt } from '../night/nightArt.js';
 
 /* El catálogo se lee por drops, en el orden en que aparecen: dentro de cada
    drop van primero los diseños con foto y los que siguen bajo llave se
@@ -47,16 +50,19 @@ function LockedDesigns({ dropKey, title, products }) {
   const count = products.length;
   return (
     <article className="paper-card product-card product-card--locked" data-testid="locked-designs">
+      {/* Sin la etiqueta del mockup: el cuerpo ya dice drop, estado y número, y
+          con ella la tarjeta repetía dos veces «N diseños bajo llave». */}
       <div className="product-media product-media--locked" aria-hidden="true">
-        <PlaceholderTee title={`${count} diseños`} label={`${count} diseños bajo llave`} />
+        <PlaceholderTee title={designCount(count)} compact />
       </div>
       <div className="product-body">
         <p className="kicker product-locked-kicker">{title} · sin revelar</p>
-        <h2 className="product-title">{count} diseños bajo llave</h2>
+        <h2 className="product-title">{designCount(count)} bajo llave</h2>
         <p className="product-locked-names">
           {products.map((product) => product.title).join(' · ')}
         </p>
         <DropAviso producto={dropKey} />
+        <AddToCalendar />
       </div>
     </article>
   );
@@ -70,6 +76,9 @@ function ProductPage({
   prioritizeFirstImage = false,
   loading = false,
 }) {
+  const grafiteroArt = useNightArt(grafiteroSpray);
+  const cruiserArt = useNightArt(cruiserPatinando);
+  const recaderoArt = useNightArt(corriendoBolsa);
   const { category } = useParams();
   const [zoomImage, setZoomImage] = useState(null);
 
@@ -90,7 +99,7 @@ function ProductPage({
       <div className="product-empty">
         {/* Se lo han llevado todo corriendo */}
         <img
-          src={corriendoBolsa}
+          src={recaderoArt}
           width="344"
           height="350"
           decoding="async"
@@ -113,7 +122,7 @@ function ProductPage({
         <div className="product-page-head-copy">
           <div className="product-page-head-row">
             <h1 className="page-title no-squiggle">{pageTitle}</h1>
-            {!isHome && <p className="product-count">{visibleProducts.length} productos</p>}
+            {!isHome && <p className="product-count">{designCount(visibleProducts.length)}</p>}
           </div>
           {isHome && (
             <>
@@ -121,7 +130,7 @@ function ProductPage({
               <div className="product-page-hero-meta">
                 <div className="product-page-hero-count">
                   <CrosshairSpinner className="product-page-hero-count-mark" />
-                  <p className="product-count">{visibleProducts.length} productos</p>
+                  <p className="product-count">{designCount(visibleProducts.length)}</p>
                 </div>
                 <a href="#productos" className="btn btn--primary product-page-hero-cta">
                   <span>Ver {CURRENT_DROP.shortTitle}</span>
@@ -146,7 +155,7 @@ function ProductPage({
             />
           </svg>
           <img
-            src={grafiteroSpray}
+            src={grafiteroArt}
             width="254"
             height="420"
             decoding="async"
@@ -162,7 +171,7 @@ function ProductPage({
           </span>
           {/* La Cruiser rueda por la línea recién pintada */}
           <img
-            src={cruiserPatinando}
+            src={cruiserArt}
             width="291"
             height="350"
             decoding="async"

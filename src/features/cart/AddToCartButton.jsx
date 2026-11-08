@@ -17,13 +17,19 @@ function AddToCartButton({
   useEffect(() => () => clearTimeout(timerRef.current), []);
 
   const handleClick = async () => {
+    clearTimeout(timerRef.current);
+    setAdded(false);
     setPending(true);
     setError('');
     try {
-      await addToCart(product, variantId);
-      setAdded(true);
-      clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => setAdded(false), 1200);
+      const result = await addToCart(product, variantId);
+      const notice = (result?.warnings || [])
+        .map((warning) => warning.message)
+        .filter(Boolean)
+        .join(' ');
+      setAdded(Boolean(result?.added));
+      setError(notice || (result?.added ? '' : 'No se ha podido añadir. Comprueba el stock.'));
+      if (result?.added) timerRef.current = setTimeout(() => setAdded(false), 1200);
     } catch (addError) {
       setError(addError instanceof Error ? addError.message : 'No se ha podido añadir.');
     } finally {

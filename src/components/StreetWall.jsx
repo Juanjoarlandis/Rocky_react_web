@@ -8,6 +8,7 @@ import { prefersReducedMotion } from '../utils/media.js';
 import fotografoAgachado from '../images/optimized/shell/fotografo-agachado.webp';
 import dianaJefe from '../images/optimized/splash/diana-jefe.webp';
 import '../styles/components/street-wall.css';
+import { useNightArt } from '../features/night/nightArt.js';
 
 /* El disparo entero del Paparazzi: chispazo en el objetivo y fogonazo hacia
    quien mira. Las animaciones de StreetWall.css duran exactamente esto. */
@@ -32,6 +33,8 @@ const CHISPAZO =
 // Muro de fotos tipo pared de habitación: polaroids pegadas con celo,
 // en blanco y negro, con pies de foto en rotulador.
 function StreetWall() {
+  const fotografoArt = useNightArt(fotografoAgachado);
+  const dianaArt = useNightArt(dianaJefe);
   const figuraRef = useRef(null);
   const wallGridRef = useRef(null);
   const [disparo, setDisparo] = useState(null);
@@ -140,7 +143,7 @@ function StreetWall() {
         {/* El fotógrafo de la crew, disparando el muro */}
         <span className="doodle street-photographer" ref={figuraRef}>
           <img
-            src={fotografoAgachado}
+            src={fotografoArt}
             width="212"
             height="316"
             loading="lazy"
@@ -220,7 +223,7 @@ function StreetWall() {
       <div className="street-wall-cta">
         {/* El Diana, la marca en persona, presenta a la banda */}
         <img
-          src={dianaJefe}
+          src={dianaArt}
           width="231"
           height="400"
           loading="lazy"

@@ -32,7 +32,7 @@ export function useStorefront({ demoProducts = EMPTY_PRODUCTS } = {}) {
 
   // En Shopify manda el carrito del BFF; en demo se puede añadir siempre que
   // el producto tenga precio y variante (eso lo decide availability.js).
-  const canAddToCart = mode !== 'shopify' || capabilities.cart;
+  const canAddToCart = mode === 'demo' || (mode === 'shopify' && capabilities.cart);
 
   const { account, logout } = customer;
   const {

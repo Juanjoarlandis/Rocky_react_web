@@ -26,6 +26,19 @@ export const TRACKS = [
   },
 ];
 
+// La cinta del modo neón: entra y suena sola al encender el descontrol, y al
+// apagarlo vuelve BARRO. Mientras dura la noche es la única de la radio.
+export const NIGHT_TRACKS = [
+  {
+    title: 'MODO NEÓN',
+    tag: 'Cinta de noche',
+    src: '/music/modo-neon.m4a',
+    duration: '2:07',
+    // ~150 BPM medidos sobre el audio; la cabeza, a medio tiempo, como BARRO.
+    bpm: 75,
+  },
+];
+
 export const EPS = [
   {
     title: 'BARRO',

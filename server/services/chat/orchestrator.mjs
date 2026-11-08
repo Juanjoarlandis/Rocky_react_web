@@ -1,5 +1,6 @@
 import { isFreeOpenRouterModel } from '../../config/app.mjs';
 import { ensureLogger } from '../../lib/logger.mjs';
+import { createAiBudget } from './budget.mjs';
 import {
   buildCommerceContext,
   buildVerifiedCommerceReply,
@@ -68,7 +69,7 @@ function appendTurn(history, userMessage, assistantMessage) {
   ].slice(-MAX_HISTORY_MESSAGES);
 }
 
-function freeModelRoute(models) {
+export function freeModelRoute(models) {
   // Se revalida en cada petición, no sólo al arrancar.
   assertFreeModels(models);
   return {
@@ -79,7 +80,12 @@ function freeModelRoute(models) {
   };
 }
 
-function reportedCost(data) {
+// Los modelos gratuitos que razonan (nemotron) se gastan los tokens pensando
+// en inglés y lo sueltan como respuesta. Rocky IA contesta sin pensar en voz
+// alta: más rápido y siempre en castellano.
+export const NO_THINKING = Object.freeze({ enabled: false });
+
+export function reportedCost(data) {
   const rawCost = data?.usage?.cost;
   if (rawCost === undefined || rawCost === null || rawCost === '') return null;
   const cost = Number(rawCost);
@@ -183,16 +189,16 @@ export function createChatHandler({
   crewRewards = null,
   openRouter,
   logger: providedLogger = null,
+  budget = createAiBudget({ config }),
 }) {
   const logger = ensureLogger(providedLogger);
   let activeRequests = 0;
-  let isCostSafetyTripped = false;
 
   return async function chatHandler(req, res) {
     if (!config.chat.apiKey) {
       return res.status(503).json({ message: 'Rocky IA no está configurado.' });
     }
-    if (isCostSafetyTripped) {
+    if (budget.isTripped()) {
       return res.status(503).json({
         message: 'Rocky IA está pausado por seguridad. Inténtalo más tarde.',
       });
@@ -256,9 +262,20 @@ export function createChatHandler({
       const trustedContext = [buildCommerceContext(products), crewContext]
         .filter(Boolean)
         .join('\n\n');
+      const route = freeModelRoute(config.chat.models);
+      const messages = buildRockyMessages(history, userMessage, trustedContext);
+      controller.signal.throwIfAborted();
+      // Sólo cuenta una llamada que va a salir al proveedor, y el cupo es el
+      // mismo para el chat y para las barras de la mesa (budget.mjs).
+      const wait = budget.reserve();
+      if (wait !== null) {
+        res.setHeader('Retry-After', String(wait));
+        return res.status(429).json({ message: 'Demasiadas peticiones. Inténtalo más tarde.' });
+      }
       const upstream = await openRouter.complete({
-        route: freeModelRoute(config.chat.models),
-        messages: buildRockyMessages(history, userMessage, trustedContext),
+        route,
+        messages,
+        reasoning: NO_THINKING,
         signal: controller.signal,
       });
       const data = upstream.data;
@@ -272,7 +289,7 @@ export function createChatHandler({
 
       const cost = reportedCost(data);
       if (cost !== null && cost !== 0) {
-        isCostSafetyTripped = true;
+        budget.trip();
         logger.error('OpenRouter cost safety circuit tripped', {
           requestId: req.requestId,
           reason: 'non_zero_cost',

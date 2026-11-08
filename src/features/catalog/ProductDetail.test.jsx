@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import ProductDetail from './ProductDetail.jsx';
 
 const product = {
@@ -31,6 +31,26 @@ const product = {
 };
 
 describe('ProductDetail', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('distinguishes pending catalog, failure and a missing product', () => {
+    const view = (props) => (
+      <MemoryRouter initialEntries={['/product/rocky-tee']}>
+        <Routes>
+          <Route path="/product/:productId" element={<ProductDetail products={[]} {...props} />} />
+        </Routes>
+      </MemoryRouter>
+    );
+    const { rerender } = render(view({ loading: true }));
+    expect(screen.getByRole('status')).toHaveTextContent('Cargando producto');
+    expect(screen.queryByText('Producto no encontrado')).not.toBeInTheDocument();
+    rerender(view({ catalogError: 'Sin conexión' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Sin conexión');
+    rerender(view({}));
+    expect(screen.getByRole('heading', { name: 'Producto no encontrado' })).toBeInTheDocument();
+    rerender(view({ products: [product] }));
+    expect(screen.getByRole('heading', { name: 'Rocky Tee' })).toBeInTheDocument();
+  });
   it('changes the trusted variant price and adds the selected variant ID', async () => {
     const addToCart = vi.fn().mockResolvedValue(null);
     render(
@@ -62,7 +82,7 @@ describe('ProductDetail', () => {
     );
   });
 
-  it('places product identity and purchase controls before media in source order', () => {
+  it('reads heading, media, description and purchase once in that order', () => {
     render(
       <MemoryRouter initialEntries={['/product/rocky-tee']}>
         <Routes>
@@ -84,16 +104,27 @@ describe('ProductDetail', () => {
     const title = screen.getByRole('heading', { name: 'Rocky Tee' });
     const addButton = screen.getByRole('button', { name: /añadir al carrito/i });
     const mediaButton = screen.getByRole('button', { name: /ver rocky tee en grande/i });
+    const description = screen.getByText(product.description);
 
     expect(
-      title.compareDocumentPosition(addButton) & Node.DOCUMENT_POSITION_FOLLOWING
+      title.compareDocumentPosition(mediaButton) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
     expect(
-      addButton.compareDocumentPosition(mediaButton) & Node.DOCUMENT_POSITION_FOLLOWING
+      mediaButton.compareDocumentPosition(description) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
+    expect(
+      description.compareDocumentPosition(addButton) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(screen.getAllByRole('heading', { name: 'Rocky Tee' })).toHaveLength(1);
   });
 
   it('sin precio ofrece «Avísame» y lleva el foco al formulario del drop', () => {
+    vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: true });
+    const scroll = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scroll,
+    });
     const unreleased = {
       id: '35-red',
       handle: '35-red',
@@ -130,5 +161,7 @@ describe('ProductDetail', () => {
     // Hay dos «Avísame»: el atajo de la ficha (primero) y el envío del formulario
     fireEvent.click(screen.getAllByRole('button', { name: 'Avísame' })[0]);
     expect(document.activeElement).toBe(screen.getByRole('textbox', { name: /tu email/i }));
+    expect(scroll).toHaveBeenCalledWith({ block: 'center', behavior: 'instant' });
+    delete HTMLElement.prototype.scrollIntoView;
   });
 });

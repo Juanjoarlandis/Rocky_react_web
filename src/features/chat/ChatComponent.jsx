@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import userLogo from '../../images/optimized/shell/menu-256.webp';
 import botLogo from '../../images/optimized/shell/ia-256.webp';
-import sentadoBordeRojo from '../../images/optimized/characters/sentado-borde-rojo-600.webp';
-import estrellaApoyado from '../../images/optimized/characters/estrella-apoyado-600.webp';
+import sentadoBordeRojo from '../../images/optimized/characters/sentado-borde-rojo-hd.webp';
+import estrellaApoyado from '../../images/optimized/characters/estrella-apoyado-hd.webp';
 import ChatProductCard from './ChatProductCard';
 import { isAbortError } from '../../api/http.js';
 import { sendChatMessage } from '../../api/chat.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import '../../styles/pages/chat.css';
+import { useNightArt } from '../night/nightArt.js';
 
 const QUICK_PROMPTS = ['Ver camisetas disponibles', '¿Qué hay del DROP 4?', 'Háblame de LA CREW'];
 
@@ -28,6 +29,8 @@ function ChatComponent({
   canAddToCart = false,
   headerPlayer = null,
 }) {
+  const porteroArt = useNightArt(sentadoBordeRojo);
+  const estrellaArt = useNightArt(estrellaApoyado);
   useDocumentTitle('Rocky IA');
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -103,7 +106,7 @@ function ChatComponent({
       <div className="chat-shell">
         {/* El Estrella vigila desde el lateral, solo cuando sobra pantalla */}
         <img
-          src={estrellaApoyado}
+          src={estrellaArt}
           width="784"
           height="1598"
           decoding="async"
@@ -148,7 +151,7 @@ function ChatComponent({
               <div className="chat-welcome-wrap">
                 {/* El del chándal rojo espera sentado en la tarjeta de bienvenida */}
                 <img
-                  src={sentadoBordeRojo}
+                  src={porteroArt}
                   width="720"
                   height="1187"
                   decoding="async"

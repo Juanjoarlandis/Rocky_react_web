@@ -28,10 +28,14 @@ import {
   encodePattern,
   patternFromRows,
 } from '../../utils/beatCodec';
-import breakdanceFreeze from '../../images/optimized/characters/breakdance-freeze-600.webp';
+import breakdanceFreeze from '../../images/optimized/characters/breakdance-freeze-hd.webp';
 import { STORAGE_KEYS } from '../../config/storageKeys.js';
 import { readJson, writeJson } from '../../utils/storage.js';
 import '../../styles/components/beat-machine.css';
+import PublishBeat from './ranking/PublishBeat.jsx';
+import Barra from './Barra.jsx';
+import { useNightArt } from '../night/nightArt.js';
+import { announcePlaying, onOtherPlaying } from './mesaBus.js';
 
 // LA MESA DE BEATS — la caja de ritmos de La Colmena.
 // Secuenciador de 8 pistas con velocidad y swing, 16 pads tocables con el
@@ -94,6 +98,8 @@ function randomPattern() {
 }
 
 function BeatMachine() {
+  // De noche baila El Congelao.
+  const dancerArt = useNightArt(breakdanceFreeze);
   const [searchParams] = useSearchParams();
   const [initial] = useState(() => initialState(searchParams));
 
@@ -197,13 +203,19 @@ function BeatMachine() {
     const engine = ensureEngine();
     if (!engine) return;
     pauseRadio();
+    // Un solo altavoz en La Colmena: si suena el ranking, se calla.
+    announcePlaying('mesa');
     startSequencer(engine);
   }, [ensureEngine, pauseRadio, startSequencer]);
 
   const stop = useCallback(() => {
     stopSequencer();
+    vuRef.current?.style.setProperty('--nivel', '0');
     setRecording(false);
   }, [stopSequencer]);
+
+  // Y si arranca el ranking, se calla la mesa.
+  useEffect(() => onOtherPlaying('mesa', stop), [stop]);
 
   const togglePlay = useCallback(() => {
     if (playing) stop();
@@ -251,14 +263,17 @@ function BeatMachine() {
   // Teclado: 1234 / QWER / ASDF / ZXCV tocan los pads; espacio arranca
   useEffect(() => {
     const onKeyDown = (e) => {
-      if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
       const target = e.target;
+      if (!(target instanceof HTMLElement) || !wrapRef.current?.contains(target)) return;
+      if (target.closest('dialog, [role="dialog"]')) return;
       const editable =
         target instanceof HTMLElement &&
         (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
       if (editable) return;
 
-      if (e.key === ' ' && wrapRef.current?.contains(target)) {
+      if (e.key === ' ') {
+        if (target.closest('button, a[href], [role="button"]')) return;
         e.preventDefault();
         togglePlay();
         return;
@@ -348,7 +363,7 @@ function BeatMachine() {
   return (
     <div className="mesa-wrap" ref={wrapRef}>
       <img
-        src={breakdanceFreeze}
+        src={dancerArt}
         width="604"
         height="600"
         alt=""
@@ -613,6 +628,15 @@ function BeatMachine() {
             <button type="button" className="btn btn--primary btn--sm" onClick={share}>
               {copied ? '¡Copiado!' : 'Compartir beat'}
             </button>
+            <PublishBeat pattern={pattern} bpm={bpm} swing={swing} tonality={tonality} />
+            <Barra
+              pattern={pattern}
+              bpm={bpm}
+              swing={swing}
+              tonality={tonality}
+              playing={playing}
+              step={uiStep}
+            />
           </div>
           <p className="mesa-nota">
             * Sonidos cocinados en el navegador, sin un solo sample. Comparte el enlace y tu beat se

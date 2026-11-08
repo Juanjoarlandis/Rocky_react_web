@@ -1,11 +1,13 @@
 import { Link } from 'react-router';
 import tumbado from '../../images/optimized/shell/tumbado-800.webp';
-import skaterOllie from '../../images/optimized/characters/skater-ollie-600.webp';
-import dadoSentado from '../../images/optimized/characters/dado-sentado-600.webp';
+import skaterOllie from '../../images/optimized/characters/skater-ollie-hd.webp';
+import dadoSentado from '../../images/optimized/characters/dado-sentado-hd.webp';
 import { PLACEHOLDER_IMAGE } from '../../config/commerce.js';
 import { formatPrice } from '../../utils/price';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
+import { designCount } from './designCount.js';
 import '../../styles/pages/drops.css';
+import { useNightArt } from '../night/nightArt.js';
 
 /* Cada drop se cuenta por lo que tiene: diseños con precio (disponible),
    bajo llave (sin revelar) o conceptos de vista previa. */
@@ -41,12 +43,14 @@ function dropState(drop) {
 }
 
 function dropMeta(drop) {
-  const parts = [`${drop.total} ${drop.total === 1 ? 'diseño' : 'diseños'}`];
+  const parts = [designCount(drop.total)];
   if (drop.locked > 0 && drop.locked < drop.total) parts.push(`${drop.locked} bajo llave`);
   return parts.join(' · ');
 }
 
 function MenuDrop({ products }) {
+  const tumbadoArt = useNightArt(tumbado);
+  const ollieArt = useNightArt(skaterOllie);
   useDocumentTitle('Drops');
   const drops = summarizeDrops(products);
 
@@ -57,7 +61,7 @@ function MenuDrop({ products }) {
       <div className="doodle-shelf drops-list-wrap">
         {/* El tumbado descansa sobre la primera tarjeta de la lista */}
         <img
-          src={tumbado}
+          src={tumbadoArt}
           width="800"
           height="500"
           alt=""
@@ -75,7 +79,7 @@ function MenuDrop({ products }) {
         />
         {/* Y el skater vuela por encima */}
         <img
-          src={skaterOllie}
+          src={ollieArt}
           width="600"
           height="600"
           alt=""
@@ -83,15 +87,19 @@ function MenuDrop({ products }) {
           style={{ '--fase': '1.1' }}
         />
         <nav className="drops-list" aria-label="Categorías">
-          <Link className="paper-card lift drops-link" to="/">
-            <span className="drops-link-copy">
-              <span className="drops-link-title">Todo el catálogo</span>
-              <span className="kicker drops-link-meta">{products.length} diseños</span>
-            </span>
-            <span className="drops-arrow" aria-hidden="true">
-              →
-            </span>
-          </Link>
+          {/* Con un solo drop, «Todo el catálogo» repetía la fila de debajo con
+              el mismo contador: sólo tiene sentido cuando hay más de uno. */}
+          {drops.length > 1 && (
+            <Link className="paper-card lift drops-link" to="/">
+              <span className="drops-link-copy">
+                <span className="drops-link-title">Todo el catálogo</span>
+                <span className="kicker drops-link-meta">{designCount(products.length)}</span>
+              </span>
+              <span className="drops-arrow" aria-hidden="true">
+                →
+              </span>
+            </Link>
+          )}
           {drops.map((drop) => (
             <Link
               key={drop.handle}

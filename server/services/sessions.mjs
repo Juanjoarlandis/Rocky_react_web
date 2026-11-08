@@ -1,5 +1,7 @@
 import crypto from 'node:crypto';
+import { HttpError } from '../http/errors.mjs';
 import { sha256Base64Url } from '../lib/hash.mjs';
+import { createKeyedLock } from '../lib/keyed-lock.mjs';
 
 const SESSION_LIFETIME_MS = 30 * 24 * 60 * 60 * 1_000;
 // lastSeenAt sólo se refresca cada cinco minutos: evita una escritura (y un
@@ -52,6 +54,20 @@ function sessionCookie(name, value, isProduction) {
 
 export function createSessionManager({ store, isProduction, clock = () => Date.now() }) {
   const cookieName = isProduction ? '__Host-rocky_session' : 'rocky_session';
+  // El candado abarca lectura y escritura, incluida la invalidación. El store
+  // sólo serializa operaciones individuales dentro de este proceso.
+  const withSessionLock = createKeyedLock();
+
+  async function requireRecord(key) {
+    const record = await store.get('sessions', key);
+    if (!record) {
+      throw new HttpError('La sesión ha caducado. Vuelve a intentarlo.', {
+        status: 401,
+        code: 'SESSION_EXPIRED',
+      });
+    }
+    return record;
+  }
 
   function readId(req) {
     const value = parseCookies(req.get('cookie'))[cookieName];
@@ -86,35 +102,59 @@ export function createSessionManager({ store, isProduction, clock = () => Date.n
       const id = readId(req);
       if (!id) return create(res);
       const key = hashSessionId(id);
-      const record = await store.get('sessions', key);
-      if (!record) return create(res);
-      const now = clock();
-      if (now - (record.lastSeenAt || 0) < LAST_SEEN_REFRESH_MS) {
-        return { id, key, record };
-      }
-      const updated = { ...record, lastSeenAt: now };
-      await store.set('sessions', key, updated, { expiresAt: now + SESSION_LIFETIME_MS });
-      return { id, key, record: updated };
+      return withSessionLock(key, async () => {
+        const record = await store.get('sessions', key);
+        if (!record) return create(res);
+        const now = clock();
+        if (now - (record.lastSeenAt || 0) < LAST_SEEN_REFRESH_MS) {
+          return { id, key, record };
+        }
+        const updated = { ...record, lastSeenAt: now };
+        await store.set('sessions', key, updated, { expiresAt: now + SESSION_LIFETIME_MS });
+        return { id, key, record: updated };
+      });
+    },
+
+    async reload(session) {
+      return withSessionLock(session.key, async () => {
+        session.record = await requireRecord(session.key);
+        return session;
+      });
     },
 
     async save(session, updates) {
-      const record = { ...session.record, ...updates, lastSeenAt: clock() };
-      await store.set('sessions', session.key, record, {
-        expiresAt: clock() + SESSION_LIFETIME_MS,
+      return withSessionLock(session.key, async () => {
+        const current = await requireRecord(session.key);
+        const record = { ...current, ...updates, lastSeenAt: clock() };
+        await store.set('sessions', session.key, record, {
+          expiresAt: clock() + SESSION_LIFETIME_MS,
+        });
+        session.record = record;
+        return session;
       });
-      session.record = record;
-      return session;
     },
 
-    async rotate(req, res, extra = {}) {
+    async rotate(req, res, extra = {}, { preserve = [] } = {}) {
       const id = readId(req);
-      if (id) await store.delete('sessions', hashSessionId(id));
-      return create(res, extra);
+      if (!id) return create(res, extra);
+      const key = hashSessionId(id);
+      return withSessionLock(key, async () => {
+        const current = await store.get('sessions', key);
+        const retained = {};
+        for (const field of preserve) {
+          if (current && Object.hasOwn(current, field)) retained[field] = current[field];
+        }
+        await store.delete('sessions', key);
+        return create(res, { ...retained, ...extra });
+      });
     },
 
     async destroy(req, res) {
       const id = readId(req);
-      if (id) await store.delete('sessions', hashSessionId(id));
+      if (id) {
+        const key = hashSessionId(id);
+        await withSessionLock(key, () => store.delete('sessions', key));
+      }
       const parts = [`${cookieName}=`, 'Max-Age=0', 'Path=/', 'HttpOnly', 'SameSite=Lax'];
       if (isProduction) parts.push('Secure');
       res.append('Set-Cookie', parts.join('; '));

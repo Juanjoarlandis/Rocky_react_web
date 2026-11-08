@@ -28,6 +28,7 @@ export async function fetchWithTimeout({
   fetchImpl = globalThis.fetch,
   timeoutMs = DEFAULT_TIMEOUT_MS,
   signal = null,
+  readResponse = (response) => response,
 }) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -35,19 +36,32 @@ export async function fetchWithTimeout({
   // petición se corta con la primera que dispare.
   const combined = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
   try {
-    return await fetchImpl(url, { ...options, signal: combined });
+    const response = await fetchImpl(url, { ...options, signal: combined });
+    return await readResponse(response);
   } finally {
     clearTimeout(timeout);
   }
 }
 
 export async function fetchJson({ url, options, fetchImpl, timeoutMs, signal } = {}) {
-  let response;
   try {
-    response = await fetchWithTimeout({ url, options, fetchImpl, timeoutMs, signal });
+    return await fetchWithTimeout({
+      url,
+      options,
+      fetchImpl,
+      timeoutMs,
+      signal,
+      // La lectura del cuerpo forma parte del timeout. Sólo un JSON malformado
+      // se convierte en null; las cancelaciones y fallos de red se propagan.
+      readResponse: async (response) => {
+        const payload = await response.json().catch((error) => {
+          if (error instanceof SyntaxError) return null;
+          throw error;
+        });
+        return { response, payload };
+      },
+    });
   } catch (error) {
     throw new FetchJsonError(isAbortError(error) ? 'TIMEOUT' : 'NETWORK_ERROR', { cause: error });
   }
-  const payload = await response.json().catch(() => null);
-  return { response, payload };
 }

@@ -28,3 +28,11 @@ Object.defineProperty(window.HTMLMediaElement.prototype, 'pause', {
   configurable: true,
   value: () => {},
 });
+
+// jsdom no pinta: sin el paquete canvas, getContext() avisa por consola y
+// devuelve null. El spray del descontrol ya sabe vivir sin contexto; aquí
+// sólo se calla el aviso.
+Object.defineProperty(window.HTMLCanvasElement.prototype, 'getContext', {
+  configurable: true,
+  value: () => null,
+});

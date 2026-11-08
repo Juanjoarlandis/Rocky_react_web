@@ -11,6 +11,71 @@ function requestDouble(cookie = '') {
 }
 
 describe('opaque application sessions', () => {
+  it('serializes invalidation with an already pending session write', async () => {
+    const store = new MemoryStore();
+    const sessions = createSessionManager({ store, isProduction: false });
+    const session = await sessions.open(requestDouble(), responseDouble());
+    const req = requestDouble(`rocky_session=${session.id}`);
+    const started = Promise.withResolvers();
+    const released = Promise.withResolvers();
+    const get = store.get.bind(store);
+    vi.spyOn(store, 'get').mockImplementationOnce(async (...args) => {
+      const record = await get(...args);
+      started.resolve();
+      await released.promise;
+      return record;
+    });
+    const saving = sessions.save(session, { chatHistory: [] });
+    await started.promise;
+    const destroying = sessions.destroy(req, responseDouble());
+    released.resolve();
+    await Promise.all([saving, destroying]);
+    expect(await sessions.read(req)).toBeNull();
+  });
+
+  it('does not save an expired session', async () => {
+    let now = 1_000;
+    const store = new MemoryStore({ clock: () => now });
+    const sessions = createSessionManager({ store, isProduction: false, clock: () => now });
+    const session = await sessions.open(requestDouble(), responseDouble());
+    now += 31 * 24 * 60 * 60 * 1_000;
+    await expect(sessions.save(session, { cartId: 'expired-cart' })).rejects.toMatchObject({
+      code: 'SESSION_EXPIRED',
+    });
+  });
+
+  it('merges concurrent changes against the current session', async () => {
+    const store = new MemoryStore();
+    const sessions = createSessionManager({ store, isProduction: false });
+    const first = await sessions.open(requestDouble(), responseDouble());
+    const req = requestDouble(`rocky_session=${first.id}`);
+    const other = await sessions.read(req);
+
+    await Promise.all([
+      sessions.save(first, { cartId: 'cart-current' }),
+      sessions.save(other, { chatHistory: [{ role: 'user', content: 'hola' }] }),
+    ]);
+
+    expect((await sessions.read(req)).record).toMatchObject({
+      cartId: 'cart-current',
+      chatHistory: [{ role: 'user', content: 'hola' }],
+    });
+  });
+
+  it.each(['rotate', 'destroy'])('does not restore a session after %s', async (action) => {
+    const store = new MemoryStore();
+    const sessions = createSessionManager({ store, isProduction: false });
+    const session = await sessions.open(requestDouble(), responseDouble());
+    const req = requestDouble(`rocky_session=${session.id}`);
+    await sessions[action](req, responseDouble());
+
+    await expect(sessions.save(session, { chatHistory: [] })).rejects.toMatchObject({
+      status: 401,
+      code: 'SESSION_EXPIRED',
+    });
+    expect(await sessions.read(req)).toBeNull();
+  });
+
   it('stores only a hash and emits a hardened production cookie', async () => {
     const clock = () => 1_000;
     const store = new MemoryStore({ clock });

@@ -33,6 +33,9 @@
     "vite": "^8.2.1",
     "vitest": "^4.1.10"
   },
+  "overrides": {
+    "qs": "6.16.0"
+  },
   "scripts": {
     "start": "node server/index.mjs",
     "build": "vite build",
@@ -45,6 +48,7 @@
     "format:check": "prettier --check .",
     "security:check": "node scripts/check-secrets.mjs",
     "avisos:exportar": "node scripts/exportar-avisos.mjs",
+    "avisos:enviar": "node scripts/enviar-avisos.mjs",
     "seed:drop4": "node scripts/seed-drop4.mjs",
     "images:optimize": "node scripts/optimizar-imagenes.mjs",
     "check": "npm run test:run && npm run lint && npm run lint:css && npm run build && npm run security:check",

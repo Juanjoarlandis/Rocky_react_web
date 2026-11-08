@@ -143,7 +143,7 @@
 
   .quantity-btn:hover {
     background-color: var(--ink-block);
-    color: var(--card);
+    color: var(--ink-block-text);
   }
 
   .quantity-btn:disabled {
@@ -280,10 +280,13 @@
     padding: 40px 24px 72px;
   }
 
+  /* Arriba hace falta más aire que abajo: las piernas del Tumbao cuelgan casi
+   la mitad de su alto por delante de la tarjeta (hasta ~78px con el dibujo a
+   250px) y con 40px le pisaban el final a «VACÍO». */
   .cart-empty-card {
     position: relative;
     margin-top: clamp(120px, 26vw, 190px);
-    padding: 40px 24px;
+    padding: clamp(64px, 14vw, 92px) 24px 40px;
     text-align: center;
     display: flex;
     flex-direction: column;

@@ -66,7 +66,8 @@ function CrewGate({ accountEnabled }) {
             </a>
           ) : (
             <p className="crew-gate-status" role="status">
-              Vista previa activa. Conectaremos Shopify para guardar tu progreso real.
+              Esto es una vista previa: aún no guardamos progreso. Cuando abramos las cuentas de la
+              Crew, lo que sumes se queda contigo.
             </p>
           )}
         </div>

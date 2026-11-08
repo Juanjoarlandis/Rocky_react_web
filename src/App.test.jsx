@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, expect, test, vi } from 'vitest';
 import App from './App.jsx';
@@ -7,6 +7,9 @@ import App from './App.jsx';
    sin fetch a /api/shopify/status en jsdom. */
 const useStorefront = vi.hoisted(() => vi.fn());
 vi.mock('./features/storefront/useStorefront', () => ({ useStorefront }));
+vi.mock('./features/cart/CartRunner', () => ({
+  default: ({ runId }) => <span aria-label="Carreras al carrito">{runId}</span>,
+}));
 
 function storefront(overrides = {}) {
   return {
@@ -65,6 +68,58 @@ test('muestra la tienda cuando el splash ya se ha visto', () => {
   );
   expect(screen.getByRole('link', { name: /inicio/i })).toBeInTheDocument();
   expect(screen.getByRole('status')).toHaveTextContent(/modo demo/i);
+});
+
+test.each([false, true])('celebrates only an effective cart addition (%s)', async (added) => {
+  sessionStorage.setItem('rocky-splash-seen', '1');
+  useStorefront.mockReturnValue(
+    storefront({
+      mode: 'shopify',
+      canAddToCart: true,
+      products: [
+        {
+          id: 'tee',
+          handle: 'tee',
+          title: 'Tee',
+          image: '/tee.webp',
+          price: '35',
+          defaultVariantId: 'v1',
+          availableForSale: true,
+        },
+      ],
+      addToCart: vi.fn().mockResolvedValue({ added, warnings: [] }),
+    })
+  );
+  render(
+    <MemoryRouter>
+      <App />
+    </MemoryRouter>
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Añadir al carrito' }));
+  await waitFor(() =>
+    expect(
+      screen.getByRole('button', { name: added ? 'Añadido ✓' : 'Añadir al carrito' })
+    ).toBeEnabled()
+  );
+  expect(screen.getByLabelText('Carreras al carrito')).toHaveTextContent(added ? '1' : '0');
+  expect(screen.getByRole('link', { name: 'Saltar al contenido' })).toHaveAttribute(
+    'href',
+    '#main-content'
+  );
+  expect(screen.getByRole('main')).toHaveAttribute('id', 'main-content');
+  expect(screen.getByRole('main')).toHaveAttribute('tabindex', '-1');
+});
+
+test('passes catalog loading to a directly opened product', async () => {
+  sessionStorage.setItem('rocky-splash-seen', '1');
+  useStorefront.mockReturnValue(storefront({ mode: 'checking', loading: true }));
+  render(
+    <MemoryRouter initialEntries={['/product/tee']}>
+      <App />
+    </MemoryRouter>
+  );
+  expect(await screen.findByText('Cargando producto…')).toBeInTheDocument();
+  expect(screen.queryByText('Producto no encontrado')).not.toBeInTheDocument();
 });
 
 test('la portada y las categorías comparten la misma página', () => {

@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import recadero from '../../images/optimized/characters/corriendo-bolsa-600.webp';
+import { Link } from 'react-router';
+import { legalPath } from '../../config/legal.js';
+import recadero from '../../images/optimized/characters/corriendo-bolsa-hd.webp';
 import '../../styles/components/drop-aviso.css';
 import { dropNoticeKey } from '../../config/storageKeys.js';
 import { readStorage, writeStorage } from '../../utils/storage.js';
 import { isAbortError } from '../../api/http.js';
+import { useNightArt } from '../night/nightArt.js';
 import { subscribeDropNotice } from '../../api/avisos.js';
 
 /* El mostrador de avisos de un drop que aún no ha caído: dejas tu email y El
@@ -16,6 +19,7 @@ export default function DropAviso({ producto }) {
     readStorage(dropNoticeKey(producto)) ? 'listo' : 'reposo'
   );
   const [repetido, setRepetido] = useState(false);
+  const recaderoArt = useNightArt(recadero);
   const [fallo, setFallo] = useState('');
   // La petición en vuelo se cancela si el formulario desaparece
   const requestRef = useRef(null);
@@ -60,7 +64,7 @@ export default function DropAviso({ producto }) {
       <div className="drop-aviso drop-aviso--listo" data-testid="drop-aviso-listo">
         {/* El Recadero ya tiene tu recado en la bolsa */}
         <img
-          src={recadero}
+          src={recaderoArt}
           width="589"
           height="600"
           loading="lazy"
@@ -113,7 +117,10 @@ export default function DropAviso({ producto }) {
       />
       <label className="drop-aviso-permiso">
         <input type="checkbox" name="consentimiento" required disabled={estado === 'enviando'} />
-        <span>Usaremos tu email sólo para avisarte de este drop; después, la lista se borra.</span>
+        <span>
+          Usaremos tu email sólo para avisarte de este drop; después, la lista se borra.{' '}
+          <Link to={legalPath('privacidad')}>Más en privacidad</Link>.
+        </span>
       </label>
       {fallo && (
         <p className="drop-aviso-fallo" role="alert">

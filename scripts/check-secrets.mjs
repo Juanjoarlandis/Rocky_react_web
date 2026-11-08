@@ -42,12 +42,14 @@ const secretPatterns = [
   ['Stripe live key', /\b(?:sk|rk)_live_[A-Za-z0-9]{16,}\b/g],
   [
     'non-empty secret assignment',
-    /(?:OPENROUTER_API_KEY|SHOPIFY_CLIENT_SECRET|APP_ENCRYPTION_KEY|SITE_ACCESS_PASSWORD)[ \t]*=[ \t]*["']?([^\s"'#]{8,})/g,
+    /(?:OPENROUTER_API_KEY|SHOPIFY_CLIENT_SECRET|APP_ENCRYPTION_KEY|SITE_ACCESS_PASSWORD|RESEND_API_KEY|BEATS_ADMIN_TOKEN)[ \t]*=[ \t]*["']?([^\s"'#]{8,})/g,
   ],
 ];
 const forbiddenBundleTerms = [
   'APP_ENCRYPTION_KEY',
+  'BEATS_ADMIN_TOKEN',
   'OPENROUTER_API_KEY',
+  'RESEND_API_KEY',
   'SHOPIFY_CLIENT_SECRET',
   'SITE_ACCESS_PASSWORD',
   'Shopify-Storefront-Private-Token',

@@ -364,15 +364,64 @@
     align-self: flex-start;
   }
 
-  /* El bloque de diseños bajo llave: ocupa dos huecos de la retícula, cuenta
-   los que faltan por revelar y ofrece un único aviso para todos. */
+  /* El bloque de diseños bajo llave: cuenta los que faltan por revelar y
+   ofrece un único aviso para todos. Va a lo ancho de la retícula, en su propia
+   fila: con `span 2` dejaba media fila vacía cuando era lo único del drop, y
+   un hueco en la cuarta columna cuando lo precedían tres diseños con foto. */
   .product-card--locked {
-    grid-column: span 2;
+    grid-column: 1 / -1;
   }
 
   .product-card--locked .product-media--locked {
     max-height: 260px;
     aspect-ratio: auto;
+  }
+
+  /* La reserva de dos líneas iguala las tarjetas de una fila; ésta va sola. */
+  .product-card--locked .product-title {
+    min-height: 0;
+  }
+
+  /* En escritorio se lee como un cartel de drop: el mockup a la izquierda y a
+   la derecha el rótulo, lo que viene y el aviso. Menos inclinada que las
+   tarjetas pequeñas, porque a lo ancho medio grado ya descuadra los cantos. */
+  @media (min-width: 901px) {
+    .product-card--locked.product-card {
+      display: grid;
+      grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+      transform: rotate(-0.25deg);
+    }
+
+    .product-card--locked.product-card:hover {
+      transform: rotate(0deg) translate(-3px, -3px);
+    }
+
+    .product-card--locked .product-media--locked {
+      max-height: none;
+      min-height: 340px;
+      border-right: 2px solid var(--ink);
+      border-bottom: 0;
+    }
+
+    .product-card--locked .product-body {
+      justify-content: center;
+      gap: 14px;
+      padding: 32px clamp(24px, 3vw, 40px);
+    }
+
+    .product-card--locked .product-title {
+      font-size: var(--text-2xl);
+    }
+
+    .product-card--locked .product-locked-names {
+      max-width: 52ch;
+    }
+
+    /* Más específico que el `margin-top: auto` de la tarjeta estrecha, que
+     viene después en la hoja y lo mandaría al fondo. */
+    .product-card--locked .product-body .drop-aviso {
+      margin-top: 6px;
+    }
   }
 
   .product-card--locked .product-media--locked .placeholder-tee__image {
@@ -440,10 +489,6 @@
     .product-grid {
       grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
       gap: 18px;
-    }
-
-    .product-card--locked {
-      grid-column: 1 / -1;
     }
 
     .product-page-head-row {

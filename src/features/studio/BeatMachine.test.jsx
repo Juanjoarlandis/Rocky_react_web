@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router';
@@ -23,6 +23,38 @@ function montar(ruta = '/estudio') {
 }
 
 describe('La mesa de beats', () => {
+  it('preserves Space activation for mute, solo and sequencer cells', async () => {
+    const user = userEvent.setup();
+    montar();
+    for (const label of ['Bombo', 'Solo de Bombo', 'Palmas, paso 1']) {
+      const button = screen.getByRole('button', { name: label });
+      button.focus();
+      await user.keyboard(' ');
+      expect(button).toHaveAttribute('aria-pressed', 'true');
+    }
+  });
+
+  it('does not capture pad shortcuts outside the table or inside a dialog', () => {
+    montar();
+    const outside = new KeyboardEvent('keydown', { key: 'q', bubbles: true, cancelable: true });
+    fireEvent(document.body, outside);
+    expect(outside.defaultPrevented).toBe(false);
+    const modal = document.createElement('div');
+    modal.setAttribute('role', 'dialog');
+    document.querySelector('.mesa-wrap').appendChild(modal);
+    const inside = new KeyboardEvent('keydown', { key: 'q', bubbles: true, cancelable: true });
+    fireEvent(modal, inside);
+    expect(inside.defaultPrevented).toBe(false);
+  });
+
+  it('keeps pad shortcuts available while a pad has focus', () => {
+    montar();
+    const pad = screen.getByRole('button', { name: 'Pad 1: Bombo' });
+    pad.focus();
+    const shortcut = new KeyboardEvent('keydown', { key: 'q', bubbles: true, cancelable: true });
+    fireEvent(pad, shortcut);
+    expect(shortcut.defaultPrevented).toBe(true);
+  });
   beforeEach(() => {
     localStorage.clear();
   });

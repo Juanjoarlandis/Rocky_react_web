@@ -1,0 +1,267 @@
+@layer components {
+  /* ---------- La pared de luz negra ----------
+     Capa fija detrás de todo el contenido (z-index -1 sobre el papel del
+     body): las tarjetas la tapan como taparían una pared. La linterna la
+     mueve Descontrol.jsx con --tx/--ty. */
+  .uv-wall,
+  .uv-oscuridad {
+    --tx: 50vw;
+    --ty: 40vh;
+    --depth: 0;
+    --torch-r: 300px;
+    /* Cuanto más se baja, más estrecho el haz. */
+    --torch-now: calc(var(--torch-r) * (1 - 0.35 * var(--depth)));
+  }
+
+  .uv-wall {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  /* El haz: un violeta tenue que tiñe la pared alrededor del cursor. */
+  .uv-torch {
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(
+      circle calc(var(--torch-now) * 1.45) at var(--tx) var(--ty),
+      rgba(var(--uv-violet-rgb), 0.17),
+      rgba(var(--uv-violet-rgb), 0.06) 45%,
+      transparent 72%
+    );
+  }
+
+  /* La tinta invisible: dentro del haz se lee entera; fuera apenas se
+     intuye, lo justo para que den ganas de pasar la luz por encima. */
+  .uv-ink-window {
+    position: absolute;
+    inset: 0;
+    mask-image: radial-gradient(
+      circle var(--torch-now) at var(--tx) var(--ty),
+      rgba(var(--black-rgb), 1) 0%,
+      rgba(var(--black-rgb), 0.85) 40%,
+      rgba(var(--black-rgb), 0.08) 100%
+    );
+  }
+
+  .uv-ink {
+    position: absolute;
+    inset: 0 0 auto;
+    will-change: transform;
+  }
+
+  .uv-tag {
+    position: absolute;
+    display: block;
+    font-size: calc(var(--tam) * 1rem);
+    line-height: 1;
+    white-space: nowrap;
+    transform: rotate(var(--giro));
+    transform-origin: left center;
+  }
+
+  .uv-tag--right {
+    transform-origin: right center;
+  }
+
+  /* Lo que no cabe en el margen sube por el canto, como el katakana del
+   footer: por la izquierda se lee de abajo arriba, como un lomo. */
+  .uv-tag--vertical {
+    writing-mode: vertical-rl;
+    transform-origin: center;
+  }
+
+  .uv-tag--vertical.uv-tag--left {
+    transform: rotate(calc(180deg + var(--giro)));
+  }
+
+  .uv-tag--vertical.uv-tag--pinta::after {
+    display: none;
+  }
+
+  /* Rótulo de spray fluorescente, con sus chorretones. */
+  .uv-tag--pinta {
+    font-family: var(--font-display);
+    letter-spacing: 0.03em;
+    color: var(--uv-lime);
+    text-shadow:
+      0 0 10px rgba(var(--uv-lime-rgb), 0.75),
+      0 0 28px rgba(var(--uv-lime-rgb), 0.3);
+  }
+
+  .uv-tag--pinta::after {
+    content: '';
+    position: absolute;
+    top: 86%;
+    left: 6%;
+    right: 10%;
+    height: 0.5em;
+    background-image: var(--uv-drips);
+    background-size: auto 100%;
+  }
+
+  /* Nota a rotulador, en violeta: la letra de alguien de la crew. */
+  .uv-tag--nota {
+    font-family: var(--font-hand);
+    font-weight: 500;
+    color: var(--uv-violet-soft);
+    text-shadow: 0 0 9px rgba(var(--uv-violet-rgb), 0.85);
+  }
+
+  /* La diana de la marca, pintada a mano en la pared. */
+  .uv-tag--diana {
+    width: calc(var(--tam) * 1rem);
+    aspect-ratio: 1;
+    border: 3px solid var(--uv-lime);
+    border-radius: 50%;
+    box-shadow:
+      0 0 12px rgba(var(--uv-lime-rgb), 0.6),
+      inset 0 0 10px rgba(var(--uv-lime-rgb), 0.35);
+  }
+
+  .uv-tag--diana::before,
+  .uv-tag--diana::after {
+    content: '';
+    position: absolute;
+    background-color: var(--uv-lime);
+    box-shadow: 0 0 8px rgba(var(--uv-lime-rgb), 0.7);
+  }
+
+  .uv-tag--diana::before {
+    top: 50%;
+    left: -22%;
+    right: -22%;
+    height: 3px;
+    translate: 0 -50%;
+  }
+
+  .uv-tag--diana::after {
+    left: 50%;
+    top: -22%;
+    bottom: -22%;
+    width: 3px;
+    translate: -50% 0;
+  }
+
+  /* Los días que llevan encerrados: cuatro palotes y el quinto tachando. */
+  .uv-tag--cuenta {
+    font-family: var(--font-display);
+    letter-spacing: 0.14em;
+    color: var(--uv-violet-soft);
+    text-decoration: line-through;
+    text-decoration-color: var(--uv-lime);
+    text-decoration-thickness: 0.14em;
+    text-shadow: 0 0 10px rgba(var(--uv-violet-rgb), 0.8);
+  }
+
+  /* ---------- La noche honda ----------
+     Delante del contenido (y debajo de la navbar): lejos de la linterna la
+     página se apaga un poco, y más cuanto más se baja. El tope deja el texto
+     por encima de 4,5:1 incluso abajo del todo. */
+  .uv-oscuridad {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-dark);
+    pointer-events: none;
+    background-image: radial-gradient(
+      circle calc(var(--torch-now) * 1.8) at var(--tx) var(--ty),
+      transparent 0%,
+      transparent 38%,
+      rgba(var(--black-rgb), calc(0.08 + 0.34 * var(--depth))) 100%
+    );
+  }
+
+  /* Abajo del todo te esperaban: Los del Banco se encienden. */
+  [data-theme='neon'] .uv-fondo .footer-illustration {
+    filter: invert(1) hue-rotate(180deg) saturate(1.7) brightness(1.2)
+      drop-shadow(0 0 6px rgba(var(--uv-violet-rgb), 0.95))
+      drop-shadow(0 0 30px rgba(var(--uv-lime-rgb), 0.45));
+  }
+
+  [data-theme='neon'] .footer-illustration {
+    transition: filter 0.9s ease;
+  }
+
+  @media (max-width: 640px) {
+    .uv-wall,
+    .uv-oscuridad {
+      --torch-r: 190px;
+    }
+  }
+
+  /* ---------- El apagón ----------
+     Al pulsar la bombilla se va la luz y el rótulo se enciende a trompicones
+     antes de que la luz negra se asiente. Sólo al encender, nunca al llegar. */
+  .descontrol-flash {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-splash);
+    display: grid;
+    place-items: center;
+    padding: 0 var(--space-4);
+    background-color: rgba(var(--black-rgb), 0.97);
+    pointer-events: none;
+    animation: apagon 1.4s ease-in forwards;
+  }
+
+  .descontrol-flash span {
+    font-family: var(--font-display);
+    font-size: clamp(2.4rem, 9vw, 6rem);
+    line-height: 0.95;
+    text-align: center;
+    text-transform: uppercase;
+    color: var(--uv-lime);
+    text-shadow:
+      0 0 12px rgba(var(--uv-lime-rgb), 0.9),
+      0 0 40px rgba(var(--uv-lime-rgb), 0.5),
+      0 0 90px rgba(var(--uv-violet-rgb), 0.55);
+    animation: rotulo-enciende 1.4s linear forwards;
+  }
+
+  @keyframes apagon {
+    0%,
+    62% {
+      opacity: 1;
+    }
+
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes rotulo-enciende {
+    0%,
+    8% {
+      opacity: 0;
+    }
+
+    10% {
+      opacity: 1;
+    }
+
+    14% {
+      opacity: 0.12;
+    }
+
+    20% {
+      opacity: 1;
+    }
+
+    23% {
+      opacity: 0.3;
+    }
+
+    28%,
+    70% {
+      opacity: 1;
+      scale: 1;
+    }
+
+    100% {
+      opacity: 0;
+      scale: 1.06;
+    }
+  }
+}

@@ -7,7 +7,10 @@ import {
   useRef,
   useState,
 } from 'react';
-import { TRACKS } from '../../data/studio';
+import { NIGHT_TRACKS, TRACKS } from '../../data/studio';
+import { useNightMode } from '../night/useNightMode.js';
+import { announcePlaying } from '../studio/mesaBus.js';
+import { temaActual } from '../../utils/theme.js';
 
 // Radio global de la web: el <audio> vive aquí, por encima de las rutas,
 // para que la música siga sonando mientras navegas. El boombox de La Colmena
@@ -19,6 +22,11 @@ import { TRACKS } from '../../data/studio';
 
 const MusicControlsContext = createContext(null);
 const MusicTimeContext = createContext(0);
+
+// De día suena la radio de siempre; de noche, la cinta del modo neón. El tema
+// se lee del <html>, que es quien manda (utils/theme.js).
+const tapeFor = (night) => (night ? NIGHT_TRACKS : TRACKS);
+const currentTape = () => tapeFor(temaActual() === 'neon');
 
 // audio.play() devuelve promesa en navegadores reales, pero no en jsdom (tests)
 function playSafely(audio, onBlocked) {
@@ -38,7 +46,9 @@ export function MusicProvider({ children }) {
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const track = TRACKS[index];
+  const dayWasPlaying = useRef(false);
+  const tracks = tapeFor(useNightMode());
+  const track = tracks[index] ?? tracks[0];
 
   /* Mientras suena la radio, el body lleva el pulso: `data-groove` enciende
      el cabeceo de los muñecos estáticos (la clase `al-ritmo`) y `--bpm` les
@@ -57,7 +67,7 @@ export function MusicProvider({ children }) {
 
   const activateTrack = useCallback((nextIndex) => {
     const audio = audioRef.current;
-    const nextTrack = TRACKS[nextIndex];
+    const nextTrack = currentTape()[nextIndex];
     if (!audio || !nextTrack) return;
 
     if (audio.getAttribute('src') !== nextTrack.src) {
@@ -92,10 +102,29 @@ export function MusicProvider({ children }) {
     }
   }, []);
 
+  /* El descontrol trae su cinta. Se llama desde el mismo clic de la bombilla
+     para que el navegador deje sonar sin más: al encender entra el tema de
+     noche y suena; al apagar vuelve BARRO, que sólo suena si ya sonaba antes
+     de la noche. */
+  const setNightTape = useCallback((night) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (night) dayWasPlaying.current = !audio.paused;
+    const resume = night || dayWasPlaying.current;
+    if (!night) dayWasPlaying.current = false;
+    audio.pause();
+    audio.setAttribute('src', tapeFor(night)[0].src);
+    audio.load();
+    setIndex(0);
+    setTime(0);
+    setDuration(0);
+    if (resume) playSafely(audio, () => setPlaying(false));
+  }, []);
+
   const select = useCallback((i) => activateTrack(i), [activateTrack]);
 
   const next = useCallback(
-    () => activateTrack((index + 1) % TRACKS.length),
+    () => activateTrack((index + 1) % currentTape().length),
     [activateTrack, index]
   );
 
@@ -105,7 +134,8 @@ export function MusicProvider({ children }) {
       audio.currentTime = 0;
       return;
     }
-    activateTrack((index - 1 + TRACKS.length) % TRACKS.length);
+    const length = currentTape().length;
+    activateTrack((index - 1 + length) % length);
   }, [activateTrack, index]);
 
   const seek = useCallback(
@@ -120,7 +150,7 @@ export function MusicProvider({ children }) {
 
   const handleEnded = () => {
     const audio = audioRef.current;
-    if (TRACKS.length === 1) {
+    if (currentTape().length === 1) {
       // Con un solo tema, la radio va en bucle
       audio.currentTime = 0;
       playSafely(audio, () => setPlaying(false));
@@ -131,7 +161,7 @@ export function MusicProvider({ children }) {
 
   const controls = useMemo(
     () => ({
-      tracks: TRACKS,
+      tracks,
       track,
       index,
       playing,
@@ -142,8 +172,9 @@ export function MusicProvider({ children }) {
       prev,
       select,
       seek,
+      setNightTape,
     }),
-    [track, index, playing, duration, toggle, pause, next, prev, select, seek]
+    [tracks, track, index, playing, duration, toggle, pause, next, prev, select, seek, setNightTape]
   );
 
   return (
@@ -158,7 +189,11 @@ export function MusicProvider({ children }) {
         <audio
           ref={audioRef}
           preload="none"
-          onPlay={() => setPlaying(true)}
+          onPlay={() => {
+            setPlaying(true);
+            // La radio manda callar a la mesa y al ranking, como ellos a ella.
+            announcePlaying('radio');
+          }}
           onPause={() => setPlaying(false)}
           onError={() => setPlaying(false)}
           onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
@@ -178,6 +213,12 @@ export function useMusic() {
     throw new Error('useMusic debe usarse dentro de <MusicProvider>');
   }
   return ctx;
+}
+
+// Para quien sólo avisa a la radio y puede vivir sin ella (la barra de
+// navegación, que en sus pruebas va sin MusicProvider).
+export function useOptionalMusic() {
+  return useContext(MusicControlsContext);
 }
 
 // El segundo actual del tema; sólo para quien pinta el progreso.

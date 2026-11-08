@@ -1,0 +1,175 @@
+@layer components {
+  /* La estampida: la crew entera cruza la ventana de izquierda a derecha, por
+     encima de todo (hasta de la navbar) pero sin recibir clics. */
+  .estampida {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-runner);
+    overflow: hidden;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .estampida-grito {
+    position: absolute;
+    top: 14vh;
+    left: 50%;
+    margin: 0;
+    color: var(--accent);
+    font-family: var(--font-display);
+    font-size: clamp(2.4rem, 9vw, 6rem);
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+    text-shadow: var(--shadow-ink-md);
+    translate: -50% 0;
+    animation: estampida-grito 1.8s ease-out both;
+  }
+
+  .estampida-corredor {
+    position: absolute;
+    top: var(--carril);
+    left: 0;
+    height: var(--alto);
+    will-change: transform;
+    animation: estampida-cruza var(--dura) linear var(--sale) both;
+  }
+
+  .estampida-art {
+    display: block;
+    width: auto;
+    height: 100%;
+    animation: estampida-trote 0.32s linear infinite;
+  }
+
+  .estampida-corredor.salta .estampida-art {
+    animation: estampida-salto 0.64s ease-in-out infinite;
+  }
+
+  /* Polvareda a los pies. */
+  .estampida-corredor::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: -30%;
+    width: 60%;
+    height: 14px;
+    border-radius: 50%;
+    background: radial-gradient(ellipse, rgba(var(--ink-rgb), 0.28), transparent 70%);
+    animation: estampida-polvo 0.32s linear infinite;
+  }
+
+  @keyframes estampida-cruza {
+    /* Sale y entra a su propio ancho fuera de la ventana: el Tumbao es más
+     largo que alto y con una distancia fija asomaba al empezar. */
+    from {
+      transform: translate3d(calc(-100% - 24px), 0, 0);
+    }
+
+    to {
+      transform: translate3d(calc(100vw + 24px), 0, 0);
+    }
+  }
+
+  @keyframes estampida-trote {
+    0%,
+    100% {
+      translate: 0 0;
+      rotate: -5deg;
+    }
+
+    50% {
+      translate: 0 -7px;
+      rotate: 3deg;
+    }
+  }
+
+  @keyframes estampida-salto {
+    0%,
+    100% {
+      translate: 0 0;
+      rotate: -4deg;
+    }
+
+    45% {
+      translate: 0 -38px;
+      rotate: 6deg;
+    }
+  }
+
+  @keyframes estampida-polvo {
+    0%,
+    100% {
+      opacity: 0.2;
+      scale: 0.7 1;
+    }
+
+    50% {
+      opacity: 0.6;
+      scale: 1.1 1;
+    }
+  }
+
+  @keyframes estampida-grito {
+    0% {
+      opacity: 0;
+      scale: 0.4;
+      rotate: -8deg;
+    }
+
+    18% {
+      opacity: 1;
+      scale: 1.1;
+      rotate: 3deg;
+    }
+
+    26%,
+    75% {
+      opacity: 1;
+      scale: 1;
+      rotate: -2deg;
+    }
+
+    100% {
+      opacity: 0;
+      scale: 1;
+      rotate: -2deg;
+    }
+  }
+
+  /* De noche la polvareda es de luz. */
+  [data-theme='neon'] .estampida-corredor::after {
+    background: radial-gradient(ellipse, rgba(var(--uv-violet-rgb), 0.45), transparent 70%);
+  }
+
+  /* Con movimiento reducido no corren: aparecen en fila abajo y se van. */
+  .estampida.is-quieta .estampida-corredor {
+    top: auto;
+    bottom: 6vh;
+    left: calc(var(--fila) * (100% / var(--total)));
+    height: 90px;
+    animation: estampida-aparece 2.6s ease both;
+  }
+
+  .estampida.is-quieta .estampida-art,
+  .is-quieta .estampida-corredor::after,
+  .estampida.is-quieta .estampida-grito {
+    animation: none;
+  }
+
+  .estampida.is-quieta .estampida-grito {
+    animation: estampida-aparece 2.6s ease both;
+  }
+
+  @keyframes estampida-aparece {
+    0%,
+    100% {
+      opacity: 0;
+    }
+
+    15%,
+    80% {
+      opacity: 1;
+    }
+  }
+}

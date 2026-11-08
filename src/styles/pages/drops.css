@@ -13,9 +13,11 @@
     margin-top: clamp(115px, 24vw, 235px);
   }
 
+  /* Las piernas cuelgan antes de la flecha «→» de la tarjeta: arrimado al
+   canto le pisaba la flecha en escritorio y en móvil la tapaba entera. */
   .drops-illustration {
     bottom: 100%;
-    right: 6%;
+    right: clamp(52px, 10%, 76px);
     width: clamp(170px, 40%, 240px);
     /* El costado del muñeco (53% de la altura del dibujo) apoya en el borde
        y las piernas cuelgan por delante de la tarjeta */
@@ -25,7 +27,7 @@
   /* El Dado sentado en la misma repisa, en la otra punta */
   .drops-dado {
     bottom: calc(100% - 8px);
-    left: 50%;
+    left: 42%;
     transform: translateX(-50%);
     height: clamp(72px, 9vw, 94px);
     width: auto;
@@ -134,8 +136,12 @@
     }
 
     .drops-illustration {
-      right: 2%;
-      width: clamp(150px, 48%, 220px);
+      right: 48px;
+      width: clamp(140px, 42%, 200px);
+    }
+
+    .drops-dado {
+      left: 26%;
     }
 
     .drops-skater {

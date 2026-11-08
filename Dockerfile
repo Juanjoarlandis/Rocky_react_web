@@ -31,6 +31,7 @@ COPY --from=build --chown=node:node /app/shared ./shared
 # El servidor lee el catálogo demo con fs para validar los avisos de drop.
 COPY --from=build --chown=node:node /app/src/data/demoCatalog.json ./src/data/demoCatalog.json
 COPY --from=build --chown=node:node /app/scripts/exportar-avisos.mjs ./scripts/exportar-avisos.mjs
+COPY --from=build --chown=node:node /app/scripts/enviar-avisos.mjs ./scripts/enviar-avisos.mjs
 COPY --from=build --chown=node:node /app/dist ./dist
 
 USER node

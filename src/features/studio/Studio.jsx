@@ -6,18 +6,37 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { CrosshairSpinner } from '../../components/doodles/CrosshairSpinner';
 import { useMusic } from '../music/MusicContext';
 import { ARTIST, TRACKS, EPS } from '../../data/studio';
-import auricularesSentado from '../../images/optimized/characters/auriculares-sentado-600.webp';
-import colgadoBorde from '../../images/optimized/characters/colgado-borde-600.webp';
-import teleSentado from '../../images/optimized/characters/tele-sentado-borde-600.webp';
-import lunaMovil from '../../images/optimized/characters/luna-movil-600.webp';
+import auricularesSentado from '../../images/optimized/characters/auriculares-sentado-hd.webp';
+import colgadoBorde from '../../images/optimized/characters/colgado-borde-hd.webp';
+import teleSentado from '../../images/optimized/characters/tele-sentado-borde-hd.webp';
+import lunaMovil from '../../images/optimized/characters/luna-movil-hd.webp';
+import { useRef, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import BeatMachine from './BeatMachine';
+import Ranking from './ranking/Ranking.jsx';
 import '../../styles/pages/studio.css';
+import { useNightArt } from '../night/nightArt.js';
 
 // Abeja garabateada de La Colmena, con su vuelo en trazos discontinuos.
 // Ojo de diana para que sea de la familia.
 function Studio() {
+  const productorArt = useNightArt(auricularesSentado);
   useDocumentTitle('La Colmena');
   const { index, playing, select } = useMusic();
+  const [, setSearchParams] = useSearchParams();
+  const [mesaKey, setMesaKey] = useState(0);
+  const mesaRef = useRef(null);
+
+  /* Remezclar un beat del ranking: la mesa lee su estado de la URL al
+     montarse, así que se escribe ahí y se vuelve a montar. */
+  const remix = (beat) => {
+    setSearchParams(
+      { beat: beat.code, bpm: String(beat.bpm), swing: String(beat.swing), tono: beat.tono },
+      { replace: true }
+    );
+    setMesaKey((key) => key + 1);
+    mesaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   return (
     <div className="page-container studio">
@@ -31,7 +50,7 @@ function Studio() {
         {/* El productor cabeza-hexágono vibra encima del radiocasete.
                     Cuando suena la radio cabecea el doble que nadie: es lo suyo. */}
         <img
-          src={auricularesSentado}
+          src={productorArt}
           alt=""
           className="doodle studio-doodle neon-art al-ritmo al-ritmo--fuerte"
           style={{ '--fase': '0' }}
@@ -83,13 +102,15 @@ function Studio() {
         </p>
       </section>
 
-      <section className="mesa-section" aria-label="La mesa de beats">
+      <section className="mesa-section" aria-label="La mesa de beats" ref={mesaRef}>
         <h2 className="studio-section-title squiggle-underline">La mesa de beats</h2>
         <p className="subtitle mesa-subtitle">
           Ocho pistas, dieciséis pads y swing. Deja tu ritmo en La Colmena: El Freeze lo baila.
         </p>
-        <BeatMachine />
+        <BeatMachine key={mesaKey} />
       </section>
+
+      <Ranking onRemix={remix} />
 
       <section className="listen" aria-label={`Escuchar a ${ARTIST.name}`}>
         <h2 className="studio-section-title squiggle-underline">Escúchalo en serio</h2>

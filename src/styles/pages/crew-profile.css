@@ -1,9 +1,12 @@
 @layer pages {
+  /* El mismo ancho y los mismos márgenes que .page-container: con 1500px y
+   su propio padding, el título arrancaba a ~45px del borde mientras el logo y
+   el resto de páginas lo hacen a la vertical de la navbar. */
   .crew-profile-page {
-    width: min(1500px, 100%);
+    width: min(var(--container-wide), 100%);
     min-width: 0;
     margin: 0 auto;
-    padding: clamp(28px, 4vw, 64px) clamp(16px, 3.2vw, 48px) 96px;
+    padding: clamp(28px, 4vw, 64px) 24px 96px;
   }
 
   /* El Larguirucho está doblado como si no cupiera en ningún sitio, así que sólo
@@ -74,8 +77,11 @@
     font-family: var(--font-body);
   }
 
+  /* En bloque: el título de página es inline-block y, con los dos en línea, en
+   escritorio el antetítulo se quedaba a la izquierda del rótulo y no encima. */
   .crew-kicker {
-    display: inline-block;
+    display: block;
+    width: fit-content;
     margin-bottom: 9px;
     color: var(--accent);
   }
@@ -733,7 +739,7 @@
 
   @media (max-width: 900px) {
     .crew-profile-page {
-      padding: 28px 14px 76px;
+      padding: 28px 24px 76px;
     }
 
     .crew-profile-header,
@@ -822,6 +828,12 @@
 
     .crew-purchase-rewards {
       justify-content: flex-start;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .crew-profile-page {
+      padding-inline: 16px;
     }
   }
 

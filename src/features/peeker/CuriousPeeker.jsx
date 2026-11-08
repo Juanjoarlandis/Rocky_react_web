@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import asomadoBorde from '../../images/optimized/characters/asomado-borde-600.webp';
+import asomadoBorde from '../../images/optimized/characters/asomado-borde-hd.webp';
 // Derivado de `characters/cotilla-esquina.png` (620x820, el original de
 // ImageGen): mismo encuadre a 348x460, que sobra para los 115 px que se ve como
 // mucho, y pesa 47 kB en vez de 585 kB.
@@ -13,6 +13,7 @@ import {
   refreshPlacement,
 } from './domProbe.js';
 import '../../styles/components/curious-peeker.css';
+import { useNightArtResolver } from '../night/nightArt.js';
 
 // EL MUÑECO CURIOSO — aquí sólo viven el estado, los temporizadores y el
 // render. Las medidas de cada pose están en `geometry.js`; esto es la imagen
@@ -56,6 +57,7 @@ function between([min, max]) {
 }
 
 export default function CuriousPeeker({ pathname, disabled = false }) {
+  const artFor = useNightArtResolver();
   const [placement, setPlacement] = useState(null);
   const [peek, setPeek] = useState(RESTING);
   const boxRef = useRef(null);
@@ -230,7 +232,7 @@ export default function CuriousPeeker({ pathname, disabled = false }) {
         <span className="curious-peeker-mirror">
           <img
             className="curious-peeker-art neon-art"
-            src={POSE_ART[placement.pose]}
+            src={artFor(POSE_ART[placement.pose])}
             width={art.width}
             height={art.height}
             style={{

@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import DropAviso from './DropAviso.jsx';
 
@@ -27,7 +28,11 @@ describe('DropAviso: el mostrador de avisos del drop', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    render(<DropAviso producto="signal-ghost" />);
+    render(
+      <MemoryRouter>
+        <DropAviso producto="signal-ghost" />
+      </MemoryRouter>
+    );
     rellenaYEnvia();
 
     await waitFor(() => expect(screen.getByTestId('drop-aviso-listo')).toBeInTheDocument());
@@ -52,7 +57,11 @@ describe('DropAviso: el mostrador de avisos del drop', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    render(<DropAviso producto="signal-ghost" />);
+    render(
+      <MemoryRouter>
+        <DropAviso producto="signal-ghost" />
+      </MemoryRouter>
+    );
     rellenaYEnvia({ permiso: false });
 
     await waitFor(() =>
@@ -66,7 +75,11 @@ describe('DropAviso: el mostrador de avisos del drop', () => {
   it('si el servidor no responde, lo cuenta y deja reintentar', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('sin red')));
 
-    render(<DropAviso producto="signal-ghost" />);
+    render(
+      <MemoryRouter>
+        <DropAviso producto="signal-ghost" />
+      </MemoryRouter>
+    );
     rellenaYEnvia();
 
     await waitFor(() =>
@@ -79,7 +92,11 @@ describe('DropAviso: el mostrador de avisos del drop', () => {
     localStorage.setItem('rocky-aviso-signal-ghost', '1');
     vi.stubGlobal('fetch', vi.fn());
 
-    render(<DropAviso producto="signal-ghost" />);
+    render(
+      <MemoryRouter>
+        <DropAviso producto="signal-ghost" />
+      </MemoryRouter>
+    );
 
     expect(screen.getByTestId('drop-aviso-listo')).toBeInTheDocument();
     expect(screen.queryByTestId('drop-aviso')).toBeNull();
@@ -88,7 +105,11 @@ describe('DropAviso: el mostrador de avisos del drop', () => {
 
   it('lleva el campo trampa escondido para que sólo lo rellenen bots', () => {
     vi.stubGlobal('fetch', vi.fn());
-    const { container } = render(<DropAviso producto="signal-ghost" />);
+    const { container } = render(
+      <MemoryRouter>
+        <DropAviso producto="signal-ghost" />
+      </MemoryRouter>
+    );
 
     const trampa = container.querySelector('input[name="apodo"]');
     expect(trampa).toHaveAttribute('aria-hidden', 'true');

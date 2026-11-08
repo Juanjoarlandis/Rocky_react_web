@@ -52,6 +52,20 @@
     --neon-pink-rgb: 255, 46, 196;
     --neon-cyan-rgb: 41, 229, 255;
     --neon-paper-rgb: 12, 9, 23;
+    /* La luz negra del modo descontrol: violeta ultravioleta y lima
+     fluorescente, la pareja de colores de los villanos. Constantes, como las
+     de arriba; el bloque neón las reparte. */
+    --uv-lime: #d4ff26;
+    --uv-lime-soft: #e8ff94;
+    --uv-violet: #9d72ff;
+    --uv-violet-soft: #c4adff;
+    --uv-lime-rgb: 212, 255, 38;
+    --uv-violet-rgb: 157, 114, 255;
+    /* El cursor con el spray en la mano: la boquilla, en lima. */
+    --spray-cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'><circle cx='14' cy='14' r='9' fill='none' stroke='%23d4ff26' stroke-width='2' stroke-dasharray='3 3'/><circle cx='14' cy='14' r='2' fill='%23d4ff26'/></svg>")
+      14 14;
+    /* El subrayado de los rótulos de noche: una pasada de pintura que gotea. */
+    --uv-drips: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='96' height='22' viewBox='0 0 96 22'><path d='M0 1.5 Q24 0 48 1.2 T96 1.5 V5.5 H92.5 V8.5 Q92.5 10.5 90.5 10.5 Q88.5 10.5 88.5 8.5 V5.5 H76 V16 Q76 19.5 73 19.5 Q70 19.5 70 16 V5.5 H55.5 V11 Q55.5 13 53.75 13 Q52 13 52 11 V5.5 H36.5 V18 Q36.5 21.5 33.25 21.5 Q30 21.5 30 18 V5.5 H15.5 V9 Q15.5 11 13.75 11 Q12 11 12 9 V5.5 H0 Z' fill='%23d4ff26'/></svg>");
     --neon-card-rgb: 23, 17, 41;
     --neon-night: #16041f;
 
@@ -138,8 +152,12 @@
     /* ---------- Capas ---------- */
     --z-doodle: 1;
     --z-peeker: 900;
+    /* La oscuridad del descontrol: encima del contenido y del que se asoma,
+     debajo de la navbar para que siempre haya por dónde salir. */
+    --z-dark: 950;
     --z-nav: 1000;
     --z-runner: 1100;
+    --z-tools: 1150;
     --z-overlay: 1200;
     --z-splash: 3000;
 
@@ -189,16 +207,22 @@
     /* Garabatos muy suaves del papel de cuaderno (estrella, diana, nube, rayo). */
     --notebook-doodles: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'><g fill='none' stroke='%231a1a1a' stroke-opacity='0.05' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M38 30 L41 42 L53 45 L41 48 L38 60 L35 48 L23 45 L35 42 Z'/><g><circle cx='195' cy='72' r='10'/><path d='M181 72 L209 72 M195 58 L195 86'/></g><path d='M52 190 q12 -10 24 0 q10 8 22 0 l-6 -5 m6 5 l-8 4'/><path d='M200 175 l-8 16 h9 l-10 18'/></g></svg>");
 
+    /* El panal de La Colmena, sólo en la página del estudio. */
+    --honeycomb: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='56' height='97' viewBox='0 0 56 97'><g fill='none' stroke='%231a1a1a' stroke-opacity='0.05' stroke-width='2'><path d='M28 1 L54 16 L54 48 L28 63 L2 48 L2 16 Z'/><path d='M28 63 L54 78 L54 97 M28 63 L2 78 L2 97'/></g></svg>");
+
     /* Moteado de spray para zonas oscuras (estilo póster fotocopiado) */
     --spray-speckle: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'><g fill='white' fill-opacity='0.13'><circle cx='14' cy='22' r='1.6'/><circle cx='52' cy='9' r='1'/><circle cx='88' cy='30' r='2.2'/><circle cx='131' cy='14' r='1.2'/><circle cx='166' cy='38' r='1.7'/><circle cx='30' cy='62' r='1.1'/><circle cx='73' cy='71' r='1.5'/><circle cx='118' cy='58' r='0.9'/><circle cx='152' cy='83' r='2'/><circle cx='9' cy='104' r='1.9'/><circle cx='49' cy='118' r='1.2'/><circle cx='95' cy='106' r='1.4'/><circle cx='137' cy='124' r='1'/><circle cx='171' cy='142' r='1.5'/><circle cx='24' cy='152' r='1.3'/><circle cx='66' cy='165' r='2.1'/><circle cx='108' cy='148' r='1'/><circle cx='147' cy='168' r='1.6'/></g></svg>");
   }
 
   /* =====================================================================
-   MODO NEÓN — la misma calle, de noche.
+   MODO NEÓN — el descontrol: la misma calle, de noche y bajo luz negra.
    Se enciende con html[data-theme='neon'] (interruptor de la navbar,
    src/utils/theme.js). La gramática no cambia: el papel pasa a asfalto,
-   la tinta a luz, y los muñecos se vuelven tubo de neón por filtro (ver
-   .neon-art en 03-utilities.css).
+   la tinta a luz, y los muñecos se vuelven tubo por filtro (ver .neon-art
+   en 03-utilities.css). La paleta no es el rosa y cian de cualquier noche
+   synthwave sino la de una pared bajo ultravioleta: lo blanco brilla en
+   violeta y la pintura fluorescente en lima. La crew malvada deja pintadas
+   con tinta invisible que sólo enseña la linterna (features/night).
    ===================================================================== */
 
   html[data-theme='neon'] {
@@ -208,9 +232,14 @@
     --card: #171129;
     --line: #453d6b;
     --muted: #9d97c4;
-    --accent: #ff2ec4;
-    --accent-dark: #ff6ad5;
-    --blue: #29e5ff;
+    --accent: var(--uv-lime);
+    --accent-dark: var(--uv-lime-soft);
+    --blue: var(--uv-violet-soft);
+
+    /* Los halos de todos los componentes se escriben con estas dos: lo que
+     era rosa brilla ahora en violeta UV y lo que era cian, en lima. */
+    --neon-pink-rgb: var(--uv-violet-rgb);
+    --neon-cyan-rgb: var(--uv-lime-rgb);
     --ink-block: #120d20;
     --ink-block-text: #edf1ff;
 
@@ -229,18 +258,25 @@
     --info: #7cc4ff;
     --info-bg: #0e1f33;
 
-    /* Las sombras duras siguen siendo duras, pero ahora además irradian. */
-    --shadow-ink-sm: 3px 3px 0 rgba(0, 0, 0, 0.65), 0 0 14px rgba(255, 46, 196, 0.22);
-    --shadow-ink: 5px 5px 0 rgba(0, 0, 0, 0.65), 0 0 20px rgba(255, 46, 196, 0.25);
-    --shadow-ink-lg: 8px 8px 0 rgba(0, 0, 0, 0.65), 0 0 28px rgba(41, 229, 255, 0.22);
+    /* Las sombras duras siguen siendo duras, pero ahora además irradian. La
+     escala va entera: sin -xs y -md, el hover de los botones (de -sm a -md)
+     pasaba de sombra negra con halo a un bloque de tinta clara. */
+    --shadow-ink-xs: 2px 2px 0 rgba(0, 0, 0, 0.65), 0 0 10px rgba(var(--uv-violet-rgb), 0.22);
+    --shadow-ink-sm: 3px 3px 0 rgba(0, 0, 0, 0.65), 0 0 14px rgba(var(--uv-violet-rgb), 0.26);
+    --shadow-ink-md: 4px 4px 0 rgba(0, 0, 0, 0.65), 0 0 18px rgba(var(--uv-violet-rgb), 0.28);
+    --shadow-ink: 5px 5px 0 rgba(0, 0, 0, 0.65), 0 0 20px rgba(var(--uv-violet-rgb), 0.3);
+    --shadow-ink-lg: 8px 8px 0 rgba(0, 0, 0, 0.65), 0 0 28px rgba(var(--uv-lime-rgb), 0.18);
 
-    /* El garabato de subrayar, en rosa eléctrico. */
-    --squiggle: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='8' viewBox='0 0 48 8'><path d='M2 5 Q 8 1 14 5 T 26 5 T 38 5 T 47 4' fill='none' stroke='%23ff2ec4' stroke-width='3' stroke-linecap='round'/></svg>");
+    /* El garabato de subrayar, en lima fluorescente. */
+    --squiggle: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='8' viewBox='0 0 48 8'><path d='M2 5 Q 8 1 14 5 T 26 5 T 38 5 T 47 4' fill='none' stroke='%23d4ff26' stroke-width='3' stroke-linecap='round'/></svg>");
 
-    /* El cuaderno de noche: mismos garabatos y misma retícula, en cian tenue. */
-    --dot-rgb: var(--neon-cyan-rgb);
-    --dot-alpha: 0.09;
-    --notebook-doodles: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'><g fill='none' stroke='%2329e5ff' stroke-opacity='0.06' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M38 30 L41 42 L53 45 L41 48 L38 60 L35 48 L23 45 L35 42 Z'/><g><circle cx='195' cy='72' r='10'/><path d='M181 72 L209 72 M195 58 L195 86'/></g><path d='M52 190 q12 -10 24 0 q10 8 22 0 l-6 -5 m6 5 l-8 4'/><path d='M200 175 l-8 16 h9 l-10 18'/></g></svg>");
+    /* El cuaderno de noche: mismos garabatos y misma retícula, en violeta UV. */
+    --dot-rgb: var(--uv-violet-rgb);
+    --dot-alpha: 0.12;
+    --notebook-doodles: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'><g fill='none' stroke='%239d72ff' stroke-opacity='0.08' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M38 30 L41 42 L53 45 L41 48 L38 60 L35 48 L23 45 L35 42 Z'/><g><circle cx='195' cy='72' r='10'/><path d='M181 72 L209 72 M195 58 L195 86'/></g><path d='M52 190 q12 -10 24 0 q10 8 22 0 l-6 -5 m6 5 l-8 4'/><path d='M200 175 l-8 16 h9 l-10 18'/></g></svg>");
+
+    /* Y el panal, en miel encendida: en tinta oscura no se veía de noche. */
+    --honeycomb: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='56' height='97' viewBox='0 0 56 97'><g fill='none' stroke='%23ffd60a' stroke-opacity='0.07' stroke-width='2'><path d='M28 1 L54 16 L54 48 L28 63 L2 48 L2 16 Z'/><path d='M28 63 L54 78 L54 97 M28 63 L2 78 L2 97'/></g></svg>");
 
     color-scheme: dark;
   }

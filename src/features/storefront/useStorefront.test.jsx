@@ -59,6 +59,7 @@ describe('useStorefront', () => {
     const { result } = renderHook(() => useStorefront({ demoProducts }));
 
     expect(result.current.mode).toBe('checking');
+    expect(result.current.canAddToCart).toBe(false);
     expect(result.current.products).toEqual([]);
 
     await act(async () => {
@@ -287,13 +288,15 @@ describe('useStorefront', () => {
     const { result } = renderHook(() => useStorefront({ demoProducts }));
 
     await waitFor(() => expect(result.current.products[0]?.handle).toBe('rocky-tee'));
+    expect(result.current.mode).toBe('shopify');
+    expect(result.current.canAddToCart).toBe(false);
     expect(result.current.capabilities.cart).toBe(false);
     expect(result.current.capabilities.customerAccounts).toBe(false);
     expect(result.current.canCheckout).toBe(false);
 
     await expect(
       result.current.addToCart(result.current.products[0], 'gid://shopify/ProductVariant/2')
-    ).rejects.toThrow('variante disponible');
+    ).rejects.toThrow('carrito no está disponible');
     expect(api.addCartLine).not.toHaveBeenCalled();
 
     await act(async () => {

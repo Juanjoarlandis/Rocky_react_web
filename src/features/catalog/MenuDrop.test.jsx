@@ -41,4 +41,15 @@ describe('Drops', () => {
     expect(screen.getAllByText('Concepto')).toHaveLength(3);
     expect(screen.getByText(`${products.length} diseños`)).toBeInTheDocument();
   });
+
+  it('no repite «Todo el catálogo» cuando sólo hay un drop', () => {
+    const soloDrop4 = products.filter((product) => product.dropHandle === 'rocky-drop-4');
+    render(
+      <MemoryRouter>
+        <MenuDrop products={soloDrop4} />
+      </MemoryRouter>
+    );
+    expect(screen.queryByText('Todo el catálogo')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /ROCKY DROP 4/ })).toBeInTheDocument();
+  });
 });

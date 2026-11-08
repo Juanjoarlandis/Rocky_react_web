@@ -9,6 +9,11 @@ const variant = {
 const product = { handle: 'tee', title: 'Tee', price: variant.price, availableForSale: true };
 
 describe('regla de compra única', () => {
+  it.each(['checking', 'unavailable'])('blocks a priced variant while mode is %s', (mode) => {
+    expect(purchaseState(product, variant, { mode, cartEnabled: true })).toBe(
+      PURCHASE_STATES.CART_UNAVAILABLE
+    );
+  });
   it('sin precio conocido no se añade en ningún modo', () => {
     for (const mode of ['demo', 'shopify']) {
       expect(

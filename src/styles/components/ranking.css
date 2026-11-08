@@ -1,0 +1,332 @@
+@layer components {
+  /* ---------- El ranking de La Colmena ----------
+     Mismo papel que el setlist: una tarjeta con filas separadas por
+     discontinuas. Cada beat se ve como la rejilla de la mesa en pequeño. */
+  .ranking-subtitle {
+    display: block;
+    margin-top: -8px;
+  }
+
+  .ranking-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin: var(--space-4) 0 var(--space-3);
+  }
+
+  .ranking-tab {
+    min-height: 44px;
+    padding: var(--space-2) var(--space-4);
+    border: 2px solid var(--ink);
+    border-radius: var(--wobble-xs);
+    background-color: var(--card);
+    color: var(--ink);
+    font-family: var(--font-hand);
+    font-size: var(--text-base);
+    cursor: pointer;
+  }
+
+  .ranking-tab.is-active {
+    background-color: var(--ink-block);
+    color: var(--ink-block-text);
+    box-shadow: var(--shadow-accent-xs);
+  }
+
+  [data-theme='neon'] .ranking-tab.is-active {
+    border-color: var(--accent);
+    background-color: var(--accent);
+    color: var(--neon-night);
+  }
+
+  .ranking-panel {
+    overflow: hidden;
+    padding: 0;
+  }
+
+  .ranking-empty {
+    margin: 0;
+    padding: var(--space-6) var(--space-5);
+    color: var(--muted);
+    font-family: var(--font-hand);
+    font-size: var(--text-md);
+    text-align: center;
+  }
+
+  .ranking-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .ranking-beat {
+    display: grid;
+    grid-template:
+      'pos play thumb info like' auto
+      '. . . actions actions' auto / auto auto auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-1) var(--space-4);
+    padding: var(--space-3) var(--space-5);
+    border-bottom: 2px dashed var(--line);
+    transition: background-color var(--dur-fast) ease;
+  }
+
+  .ranking-beat:last-child {
+    border-bottom: none;
+  }
+
+  .ranking-beat.is-playing {
+    background-color: var(--paper);
+  }
+
+  /* Lo recién publicado llega con un fogonazo de post-it. */
+  .ranking-beat.is-new {
+    animation: ranking-recien 2.6s ease-out 1;
+  }
+
+  @keyframes ranking-recien {
+    from {
+      background-color: var(--postit);
+    }
+  }
+
+  .ranking-pos {
+    grid-area: pos;
+    color: var(--muted);
+    font-family: var(--font-display);
+    font-size: var(--text-md);
+  }
+
+  .ranking-beat.is-top .ranking-pos {
+    color: var(--accent);
+  }
+
+  .ranking-play {
+    grid-area: play;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border: 2px solid var(--ink);
+    border-radius: 50%;
+    background-color: var(--card);
+    color: var(--ink);
+    font-size: var(--text-sm);
+    box-shadow: var(--shadow-ink-xs);
+    cursor: pointer;
+  }
+
+  .ranking-play[aria-pressed='true'] {
+    border-color: var(--accent);
+    background-color: var(--accent);
+    color: var(--white);
+  }
+
+  [data-theme='neon'] .ranking-play[aria-pressed='true'] {
+    color: var(--neon-night);
+  }
+
+  .pattern-thumb {
+    grid-area: thumb;
+    display: block;
+    width: 96px;
+    height: auto;
+  }
+
+  .pattern-thumb__cell {
+    fill: var(--ink);
+  }
+
+  .pattern-thumb__head {
+    fill: var(--accent);
+    opacity: 0.35;
+  }
+
+  [data-theme='neon'] .pattern-thumb {
+    filter: drop-shadow(0 0 3px rgba(var(--uv-violet-rgb), 0.7));
+  }
+
+  .ranking-info {
+    grid-area: info;
+    min-width: 0;
+  }
+
+  .ranking-name {
+    margin: 0;
+    overflow: hidden;
+    color: var(--ink);
+    font-family: var(--font-hand);
+    font-size: var(--text-lg);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ranking-meta {
+    margin: 0;
+    color: var(--muted);
+    font-family: var(--font-hand);
+    font-size: var(--text-sm);
+  }
+
+  .ranking-like {
+    grid-area: like;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 40px;
+    padding: var(--space-1) var(--space-3);
+    border: 2px solid var(--line);
+    border-radius: var(--wobble-xs);
+    background: none;
+    color: var(--muted);
+    font-family: var(--font-hand);
+    font-size: var(--text-base);
+    cursor: pointer;
+  }
+
+  .ranking-like svg path {
+    fill: transparent;
+  }
+
+  .ranking-like:hover {
+    border-color: var(--accent);
+  }
+
+  .ranking-like.is-liked {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .ranking-like.is-liked svg path {
+    fill: currentColor;
+  }
+
+  .ranking-actions {
+    grid-area: actions;
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-4);
+  }
+
+  .ranking-link {
+    min-height: 32px;
+    padding: 2px 0;
+    border: none;
+    background: none;
+    color: var(--ink);
+    font-family: var(--font-hand);
+    font-size: var(--text-sm);
+    text-decoration: underline dashed;
+    text-underline-offset: 3px;
+    cursor: pointer;
+  }
+
+  .ranking-link--muted {
+    color: var(--muted);
+  }
+
+  .ranking-link--danger {
+    color: var(--danger);
+  }
+
+  .ranking-note {
+    margin: 12px 4px 0;
+    color: var(--muted);
+    font-family: var(--font-hand);
+    font-size: var(--text-base);
+    transform: rotate(-0.6deg);
+  }
+
+  @media (max-width: 640px) {
+    .ranking-beat {
+      grid-template:
+        'play info like' auto
+        'thumb actions actions' auto / auto minmax(0, 1fr) auto;
+      gap: var(--space-2) var(--space-3);
+      padding: var(--space-3);
+    }
+
+    .ranking-pos {
+      display: none;
+    }
+
+    .pattern-thumb {
+      width: 64px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ranking-beat.is-new {
+      animation: none;
+    }
+  }
+
+  /* ---------- Publicar desde la mesa ----------
+     Va sobre el chasis oscuro de la mesa, que no cambia con el tema: por eso
+     tira de los colores fijos de la mesa y no de los del papel. */
+  .mesa-publicar {
+    display: grid;
+    flex-basis: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3);
+    margin-top: var(--space-2);
+    padding: var(--space-3);
+    border: 1px dashed var(--mesa-line);
+    border-radius: 10px;
+  }
+
+  .mesa-publicar-campo {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    color: rgba(var(--card-rgb), 0.75);
+    font-family: var(--font-hand);
+    font-size: var(--text-sm);
+  }
+
+  .mesa-publicar-campo input {
+    min-height: 40px;
+    padding: var(--space-2) var(--space-3);
+    border: 2px solid var(--mesa-line);
+    border-radius: 8px;
+    background-color: var(--mesa-screen);
+    color: rgba(var(--card-rgb), 1);
+    font: inherit;
+  }
+
+  .mesa-publicar-campo input:focus-visible {
+    border-color: var(--mesa-cyan);
+  }
+
+  .mesa-publicar-trampa {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .mesa-publicar-botones {
+    display: flex;
+    grid-column: 1 / -1;
+    gap: var(--space-2);
+  }
+
+  .mesa-publicar-nota {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: rgba(var(--card-rgb), 0.6);
+    font-family: var(--font-hand);
+    font-size: var(--text-xs);
+  }
+
+  .mesa-publicar-nota.is-error {
+    color: var(--on-ink-accent);
+  }
+
+  @media (max-width: 640px) {
+    .mesa-publicar {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+}

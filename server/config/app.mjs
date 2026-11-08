@@ -15,10 +15,19 @@ function readSiteAccess(env) {
   });
 }
 
+// La llave para quitar beats del ranking: o no está, o es larga.
+function readAdminToken(value) {
+  const token = String(value || '').trim();
+  if (token && token.length < 24) {
+    throw new Error('BEATS_ADMIN_TOKEN debe tener al menos 24 caracteres.');
+  }
+  return token;
+}
+
 const DEFAULT_FREE_MODELS = [
   'google/gemma-4-31b-it:free',
   'nvidia/nemotron-3-ultra-550b-a55b:free',
-  'openai/gpt-oss-20b:free',
+  'google/gemma-4-26b-a4b-it:free',
 ];
 
 export function isFreeOpenRouterModel(model) {
@@ -126,6 +135,18 @@ export function createConfig(env = process.env) {
         min: 1_000,
         max: 3_600_000,
       }),
+    },
+    // El ranking de beats: publicar es cosa de pocos por ventana; dar like y
+    // reportar, de muchos más. Sin BEATS_ADMIN_TOKEN no hay forma de quitar
+    // beats a mano (los reportes siguen ocultándolos).
+    beats: {
+      publishRateLimitMax: readPositiveInteger(env.BEATS_PUBLISH_RATE_LIMIT_MAX, 6, { max: 100 }),
+      voteRateLimitMax: readPositiveInteger(env.BEATS_VOTE_RATE_LIMIT_MAX, 60, { max: 1_000 }),
+      rateLimitWindowMs: readPositiveInteger(env.BEATS_RATE_LIMIT_WINDOW_MS, 600_000, {
+        min: 1_000,
+        max: 3_600_000,
+      }),
+      adminToken: readAdminToken(env.BEATS_ADMIN_TOKEN),
     },
   };
 }

@@ -12,8 +12,10 @@ import { createFixedWindowRateLimiter } from './http/middleware/rate-limit.mjs';
 import { requestIds } from './http/middleware/request-id.mjs';
 import { securityHeaders } from './http/middleware/security-headers.mjs';
 import { createAvisosRouter } from './http/routes/avisos.mjs';
+import { createBeatsRouter } from './http/routes/beats.mjs';
 import { createChatRouter } from './http/routes/chat.mjs';
 import { createCrewRouter } from './http/routes/crew.mjs';
+import { createDropRouter } from './http/routes/drop.mjs';
 import { createHealthRouter } from './http/routes/health.mjs';
 import { createAccountRouter } from './http/routes/shopify/account.mjs';
 import { createCartRouter } from './http/routes/shopify/cart.mjs';
@@ -26,6 +28,7 @@ import { createCustomerAccountClient } from './integrations/shopify/customer-acc
 import { createStorefrontClient } from './integrations/shopify/storefront.mjs';
 import { createLogger, ensureLogger } from './lib/logger.mjs';
 import { createAvisosService } from './services/avisos.mjs';
+import { createBeatsService } from './services/beats.mjs';
 import { createCartOperations } from './services/cart-operations.mjs';
 import { createCatalogCache } from './services/catalog-cache.mjs';
 import { createCrewRewardsService } from './services/crew/rewards.mjs';
@@ -78,6 +81,7 @@ export function createApp({
   const catalogCache = storefront ? createCatalogCache({ storefront }) : null;
   const knownProducts = createKnownProducts({ catalog: catalogCache, logger });
   const avisos = createAvisosService({ store: stateStore, knownProducts, logger });
+  const beats = createBeatsService({ store: stateStore });
   const requireOrigin = requireTrustedOrigin(config);
 
   const app = express();
@@ -156,7 +160,28 @@ export function createApp({
     })
   );
 
-  app.use('/api/avisos', createAvisosRouter({ config, avisos, requireOrigin }));
+  app.use(
+    '/api/avisos',
+    createAvisosRouter({
+      config,
+      avisos,
+      requireOrigin,
+      hasPersistentStorage: storageConfig.hasStateStore,
+    })
+  );
+
+  app.use(
+    '/api/beats',
+    createBeatsRouter({
+      config,
+      beats,
+      sessions,
+      requireOrigin,
+      hasPersistentStorage: storageConfig.hasStateStore,
+    })
+  );
+
+  app.use('/api/drop', createDropRouter({ config }));
 
   app.all('/api/*', (req, res) => {
     res.status(404).json({ message: 'Ruta no encontrada.' });

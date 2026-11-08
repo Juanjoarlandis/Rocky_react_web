@@ -14,11 +14,11 @@ export class ApiError extends Error {
 export const NETWORK_ERROR_MESSAGE = 'No se ha podido conectar con la tienda.';
 export const DEFAULT_ERROR_MESSAGE = 'La tienda no ha podido completar la operación.';
 
-export async function requestJson(path, { method = 'GET', body, signal } = {}) {
+export async function requestJson(path, { method = 'GET', body, signal, headers = {} } = {}) {
   const options = {
     method,
     credentials: 'same-origin',
-    headers: { Accept: 'application/json' },
+    headers: { ...headers, Accept: 'application/json' },
   };
   if (signal) options.signal = signal;
   if (body !== undefined) {

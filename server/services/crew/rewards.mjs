@@ -190,6 +190,7 @@ function createProfile(now, displayName = '') {
     equippedFrameId: null,
     ownedRewardIds: [],
     creditedOrderIds: [],
+    paidOrderIds: [],
     redemptionOperations: {},
     purchases: [],
     activity: [],
@@ -319,13 +320,18 @@ export function createCrewRewardsService({ store, clock = () => Date.now() }) {
       const key = profileKey(customerId);
       return withCustomerLock(key, async () => {
         const { profile } = await readPrivateProfile(customerId);
-        if (profile.creditedOrderIds.includes(orderId)) {
+        // La deduplicación crece con los pedidos y se guarda atómicamente con
+        // el saldo. El historial visible sigue acotado. Los perfiles antiguos
+        // parten de sus IDs conservados: los ya descartados no se pueden recuperar.
+        profile.paidOrderIds ??= [...profile.creditedOrderIds];
+        if (profile.paidOrderIds.includes(orderId)) {
           return { credited: false, reason: 'duplicate_order', profile: publicProfile(profile) };
         }
 
         profile.xp += rewards.xp;
         profile.ticketBalanceTenths += rewards.ticketTenths;
         profile.lifetimeTicketsEarnedTenths += rewards.ticketTenths;
+        profile.paidOrderIds.push(orderId);
         profile.creditedOrderIds = [...profile.creditedOrderIds, orderId].slice(-MAX_ORDER_IDS);
         const purchase = orderSummary(order, rewards);
         profile.purchases = [purchase, ...profile.purchases].slice(0, MAX_PURCHASES);

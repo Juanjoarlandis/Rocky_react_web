@@ -22,6 +22,7 @@ export function hasKnownPrice(product, variant) {
 export function purchaseState(product, variant, { mode = 'demo', cartEnabled = true } = {}) {
   if (!product) return PURCHASE_STATES.NOTIFY;
   if (product.isPreview) return PURCHASE_STATES.PREVIEW;
+  if (mode !== 'demo' && mode !== 'shopify') return PURCHASE_STATES.CART_UNAVAILABLE;
   if (!hasKnownPrice(product, variant) || !variant) return PURCHASE_STATES.NOTIFY;
   if (mode === 'shopify' && !cartEnabled) return PURCHASE_STATES.CART_UNAVAILABLE;
   if (variant.availableForSale === false || product.availableForSale === false) {

@@ -247,10 +247,15 @@ export function createAccessGate({
         }
 
         attempts.clear(clientKey);
-        await sessions.rotate(req, res, {
-          siteAccessGrant: processGrant,
-          siteAccessExpiresAt: clock() + config.siteAccess.sessionLifetimeMs,
-        });
+        await sessions.rotate(
+          req,
+          res,
+          {
+            siteAccessGrant: processGrant,
+            siteAccessExpiresAt: clock() + config.siteAccess.sessionLifetimeMs,
+          },
+          { preserve: ['cartId', 'customerTokenId'] }
+        );
         setGateHeaders(res);
         return res.redirect(303, '/');
       } catch (error) {

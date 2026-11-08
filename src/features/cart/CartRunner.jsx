@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 // El repartidor de ROCKY, el que sale corriendo con la bolsa. El dibujo va
 // mirando a la derecha, que es justo hacia donde está el carrito en la barra:
 // no hay que voltearlo.
-import corriendoBolsa from '../../images/optimized/characters/corriendo-bolsa-600.webp';
+import corriendoBolsa from '../../images/optimized/characters/corriendo-bolsa-hd.webp';
 import '../../styles/components/cart-runner.css';
 import { clamp } from '../../utils/math.js';
 import { prefersReducedMotion } from '../../utils/media.js';
+import { useNightArt } from '../night/nightArt.js';
 
 const ART = Object.freeze({ width: 589, height: 600 });
 
@@ -72,6 +73,7 @@ export function planRun(destino, size, view, estorbos = []) {
    carrito guardado y al tocar el `+` de la página del carrito. */
 export default function CartRunner({ runId = 0, disabled = false }) {
   const [carrera, setCarrera] = useState(null);
+  const runnerArt = useNightArt(corriendoBolsa);
 
   useEffect(() => {
     if (!runId || disabled) return undefined;
@@ -123,7 +125,7 @@ export default function CartRunner({ runId = 0, disabled = false }) {
       aria-hidden="true"
     >
       <img
-        src={corriendoBolsa}
+        src={runnerArt}
         width={ART.width}
         height={ART.height}
         decoding="async"

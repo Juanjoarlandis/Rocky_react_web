@@ -132,7 +132,7 @@
     width: 66px;
     height: 66px;
     background-color: var(--ink-block);
-    color: var(--card);
+    color: var(--ink-block-text);
     transform: rotate(2deg);
   }
 

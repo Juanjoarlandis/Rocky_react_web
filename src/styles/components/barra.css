@@ -1,0 +1,75 @@
+@layer components {
+  /* La barra de Rocky IA, sobre el chasis oscuro de la mesa (colores fijos de
+     la mesa, no del papel): cuatro versos y el que toca, encendido. */
+  .mesa-barra {
+    display: flex;
+    flex-basis: 100%;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border: 1px dashed var(--mesa-line);
+    border-radius: 10px;
+  }
+
+  .mesa-barra-titulo {
+    margin: 0;
+    color: var(--mesa-lilac);
+    font-family: var(--font-display);
+    font-size: var(--text-sm);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .mesa-barra-versos {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .mesa-barra-versos li {
+    color: rgba(var(--card-rgb), 0.62);
+    font-family: var(--font-hand);
+    font-size: var(--text-md);
+    line-height: 1.3;
+    transition:
+      color var(--dur-fast) ease,
+      transform var(--dur-fast) ease;
+  }
+
+  .mesa-barra-versos li.is-now {
+    color: var(--mesa-cyan);
+    transform: translateX(6px);
+    text-shadow: 0 0 12px rgba(var(--card-rgb), 0.25);
+  }
+
+  .mesa-barra-nota {
+    margin: 0;
+    color: rgba(var(--card-rgb), 0.6);
+    font-family: var(--font-hand);
+    font-size: var(--text-xs);
+  }
+
+  .mesa-barra-nota.is-error {
+    color: var(--on-ink-accent);
+  }
+
+  .mesa-barra-botones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mesa-barra-versos li {
+      transition: none;
+    }
+
+    .mesa-barra-versos li.is-now {
+      transform: none;
+    }
+  }
+}

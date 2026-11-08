@@ -92,5 +92,48 @@ export function createAvisosService({
         return { status: 'added' };
       });
     },
+
+    // Lo que usan los scripts de exportación y envío. Nada de esto sale por
+    // la API.
+    async products() {
+      return (await store.get(AVISOS_NAMESPACE, AVISOS_INDICE)) ?? [];
+    },
+
+    async list(product) {
+      return (await store.get(AVISOS_NAMESPACE, product)) ?? [];
+    },
+
+    // Marca como enviadas las entradas de esos emails, con la hora del envío.
+    // Devuelve cuántas ha marcado.
+    async markSent(product, emails, at = clock().toISOString()) {
+      const objetivo = new Set(emails);
+      return enFila(async () => {
+        const lista = (await store.get(AVISOS_NAMESPACE, product)) ?? [];
+        let marcadas = 0;
+        const actualizada = lista.map((entrada) => {
+          if (!objetivo.has(entrada.email) || entrada.enviado) return entrada;
+          marcadas += 1;
+          return { ...entrada, enviado: at };
+        });
+        if (marcadas > 0) await store.set(AVISOS_NAMESPACE, product, actualizada);
+        return marcadas;
+      });
+    },
+
+    // Borra la lista de un producto y lo saca del índice. Devuelve si había.
+    async clear(product) {
+      return enFila(async () => {
+        const habia = await store.delete(AVISOS_NAMESPACE, product);
+        const indice = (await store.get(AVISOS_NAMESPACE, AVISOS_INDICE)) ?? [];
+        if (indice.includes(product)) {
+          await store.set(
+            AVISOS_NAMESPACE,
+            AVISOS_INDICE,
+            indice.filter((candidate) => candidate !== product)
+          );
+        }
+        return Boolean(habia);
+      });
+    },
   };
 }

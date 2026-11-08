@@ -7,6 +7,7 @@ import { useLockBodyScroll } from '../hooks/useLockBodyScroll.js';
 import { DEFAULT_AVATAR_ID } from '../config/commerce.js';
 import { ROUTES, accountLoginUrl } from '../config/routes.js';
 import { alternaTema, temaActual } from '../utils/theme.js';
+import { useOptionalMusic } from '../features/music/MusicContext.jsx';
 import logo from '../images/Rockypng.png';
 import cartIcon from '../images/optimized/shell/cart-96.webp';
 
@@ -118,7 +119,14 @@ const NavBar = ({
 }) => {
   // El primer valor sale del <html> que dejó preparado index.html.
   const [tema, setTema] = useState(temaActual);
-  const enciendeApaga = () => setTema(alternaTema());
+  const music = useOptionalMusic();
+  const enciendeApaga = () => {
+    const nuevo = alternaTema();
+    setTema(nuevo);
+    // La cinta cambia en este mismo clic: fuera de él, el navegador no la
+    // dejaría sonar sola.
+    music?.setNightTape(nuevo === 'neon');
+  };
   const neonPuesto = tema === 'neon';
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -127,7 +135,10 @@ const NavBar = ({
   const sheetId = useId();
   const location = useLocation();
 
-  const closeMenu = useCallback(() => setMenuOpen(false), []);
+  const closeMenu = useCallback(() => {
+    setMenuOpen(false);
+    menuButtonRef.current?.focus();
+  }, []);
 
   // Cambiar de ruta cierra la hoja aunque se llegue por otro camino.
   useEffect(() => {
@@ -135,6 +146,22 @@ const NavBar = ({
   }, [location.pathname]);
 
   useLockBodyScroll(menuOpen);
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const desktop = window.matchMedia('(min-width: 641px)');
+    const closeOnDesktop = () => {
+      if (!desktop.matches) return;
+      const needsFocus = sheetRef.current?.contains(document.activeElement);
+      setMenuOpen(false);
+      if (needsFocus) {
+        menuButtonRef.current?.closest('header')?.querySelector('.navbar-brand')?.focus();
+      }
+    };
+    closeOnDesktop();
+    desktop.addEventListener?.('change', closeOnDesktop);
+    return () => desktop.removeEventListener?.('change', closeOnDesktop);
+  }, [menuOpen]);
 
   /* Con la hoja abierta el foco entra en ella, Tab da vueltas dentro y
        Escape la cierra devolviendo el foco al botón que la abrió. */
@@ -174,12 +201,12 @@ const NavBar = ({
       className={`${className} ${neonPuesto ? 'navbar-theme--on' : ''}`}
       onClick={enciendeApaga}
       aria-pressed={neonPuesto}
-      aria-label={neonPuesto ? 'Apagar el neón' : 'Encender el neón'}
-      title={neonPuesto ? 'Apagar el neón' : 'Encender el neón'}
+      aria-label={neonPuesto ? 'Apagar el descontrol' : 'Activar el descontrol'}
+      title={neonPuesto ? 'Apagar el descontrol' : 'Activar el descontrol'}
     >
       <BombillaIcon />
       {className.includes('sheet') && (
-        <span>{neonPuesto ? 'Apagar el neón' : 'Encender el neón'}</span>
+        <span>{neonPuesto ? 'Apagar el descontrol' : 'Activar el descontrol'}</span>
       )}
     </button>
   );

@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { BANCOS, PAD_TECLAS, PRESETS, TONALIDADES, TRACKS, TRACK_IDS, padsDelBanco } from './mesa';
-import { STEP_COUNT, TRACK_COUNT } from '../utils/beatCodec';
+import { STEP_COUNT, TONO_IDS, TRACK_COUNT } from '../utils/beatCodec';
 import { VOICE_NAMES } from '../audio/voices';
 
 describe('datos de la mesa', () => {
+  it('las tonalidades son las que acepta el ranking del servidor', () => {
+    expect(TONALIDADES.map((tonalidad) => tonalidad.id)).toEqual([...TONO_IDS]);
+  });
+
   it('tiene una pista por hueco del códec', () => {
     expect(TRACKS).toHaveLength(TRACK_COUNT);
     expect(new Set(TRACK_IDS).size).toBe(TRACK_COUNT);

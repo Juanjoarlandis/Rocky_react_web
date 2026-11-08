@@ -76,4 +76,15 @@ describe('Lightbox', () => {
     expect(onClose).not.toHaveBeenCalled();
     opener.remove();
   });
+
+  it('bloquea el desplazamiento del fondo y restaura su estado al cerrar', () => {
+    stubDialog();
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'auto';
+    const { unmount } = render(<Lightbox src="/foto.webp" alt="Camiseta" onClose={vi.fn()} />);
+    expect(document.body.style.overflow).toBe('hidden');
+    unmount();
+    expect(document.body.style.overflow).toBe('auto');
+    document.body.style.overflow = previous;
+  });
 });

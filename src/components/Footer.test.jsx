@@ -1,4 +1,5 @@
 import { act, render } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Footer from './Footer';
@@ -44,7 +45,11 @@ describe('Footer: patrulla de El Lata', () => {
   });
 
   it('reserva la misma imagen, pero arranca con el póster ligero', () => {
-    const { container } = render(<Footer />);
+    const { container } = render(
+      <MemoryRouter>
+        <Footer />
+      </MemoryRouter>
+    );
 
     const image = container.querySelector('.ticker-lata-image');
     expect(image).toHaveAttribute(
@@ -65,7 +70,11 @@ describe('Footer: patrulla de El Lata', () => {
   });
 
   it('activa el WebP animado al acercarse al footer y deja de observar', () => {
-    const { container } = render(<Footer />);
+    const { container } = render(
+      <MemoryRouter>
+        <Footer />
+      </MemoryRouter>
+    );
 
     act(() => {
       observers[0].callback([{ isIntersecting: true }], observers[0]);
@@ -80,7 +89,11 @@ describe('Footer: patrulla de El Lata', () => {
 
   it('mantiene siempre el póster cuando se pide movimiento reducido', () => {
     setReducedMotion(true);
-    const { container } = render(<Footer />);
+    const { container } = render(
+      <MemoryRouter>
+        <Footer />
+      </MemoryRouter>
+    );
 
     const image = container.querySelector('.ticker-lata-image');
     expect(image).toHaveAttribute(
@@ -99,7 +112,11 @@ describe('Footer: patrulla de El Lata', () => {
 
   it('carga la animación directamente si el navegador no puede observar', () => {
     vi.stubGlobal('IntersectionObserver', undefined);
-    const { container } = render(<Footer />);
+    const { container } = render(
+      <MemoryRouter>
+        <Footer />
+      </MemoryRouter>
+    );
 
     expect(container.querySelector('.ticker-lata-image')).toHaveAttribute(
       'src',

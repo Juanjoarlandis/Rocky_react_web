@@ -52,7 +52,7 @@ describe('ProductPage preview drops', () => {
 
     expect(catalogLink).toHaveAttribute('href', '#productos');
     expect(productGrid).toHaveAttribute('id', 'productos');
-    expect(screen.getByText('2 productos')).toBeInTheDocument();
+    expect(screen.getByText('2 diseños')).toBeInTheDocument();
     expect(
       heading.compareDocumentPosition(tagline) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
@@ -93,7 +93,7 @@ describe('ProductPage preview drops', () => {
     );
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('ASPHALT AFTERDARK');
-    expect(screen.getByText('2 productos')).toBeInTheDocument();
+    expect(screen.getByText('2 diseños')).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Vista previa' })).toHaveLength(2);
     expect(screen.queryByRole('button', { name: /añadir al carrito/i })).not.toBeInTheDocument();
     expect(screen.queryByText('HECHO DESDE LA COLMENA')).not.toBeInTheDocument();
@@ -284,7 +284,7 @@ describe('ProductPage card anatomy', () => {
     );
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('ROCKY 035');
     expect(screen.getByText('HECHO DESDE LA COLMENA')).toBeInTheDocument();
-    expect(screen.getByText(`${previewProducts.length} productos`)).toBeInTheDocument();
+    expect(screen.getByText(`${previewProducts.length} diseños`)).toBeInTheDocument();
     const cta = screen.getByRole('link', { name: 'Ver Drop 4' });
     expect(cta).toHaveAttribute('href', '#productos');
     expect(document.getElementById('productos')).not.toBeNull();

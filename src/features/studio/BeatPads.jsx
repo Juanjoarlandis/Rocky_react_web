@@ -10,11 +10,12 @@ function BeatPads({ pads, teclas, onHit, activo }) {
           className={`pad pad--${pad.tipo || 'medio'} ${activo === pad.id ? 'pad--golpe' : ''}`}
           onPointerDown={(e) => {
             e.preventDefault();
+            e.currentTarget.focus({ preventScroll: true });
             onHit(pad, i);
           }}
-          onKeyDown={(e) => {
-            // El teclado global ya dispara; aquí sólo evitamos el doble golpe
-            if (e.key === ' ' || e.key === 'Enter') e.preventDefault();
+          onClick={(e) => {
+            // Teclado y tecnologías de apoyo emiten click sin pointerDown.
+            if (e.detail === 0) onHit(pad, i);
           }}
           aria-label={`Pad ${i + 1}: ${pad.label}`}
         >

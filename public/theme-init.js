@@ -1,21 +1,11 @@
-// Se carga antes que React para aplicar el tema guardado sin un fogonazo de
-// color. Es un archivo del mismo origen para cumplir la CSP de producción.
-(function applyInitialTheme() {
+// Se carga antes que React. La web siempre arranca de día: el modo neón sólo
+// se enciende con la bombilla y dura lo que dura la visita. Las versiones
+// anteriores guardaban el tema; aquí se borra ese recuerdo. Es un archivo del
+// mismo origen para cumplir la CSP de producción.
+(function startInDaylight() {
   try {
-    var theme = localStorage.getItem('rocky-theme');
-    if (theme !== 'neon' && theme !== 'light') {
-      theme =
-        window.matchMedia &&
-        window.matchMedia('(prefers-color-scheme: dark)').matches
-          ? 'neon'
-          : 'light';
-    }
-    if (theme === 'neon') {
-      document.documentElement.dataset.theme = 'neon';
-      var meta = document.querySelector('meta[name="theme-color"]');
-      if (meta) meta.setAttribute('content', '#0c0917');
-    }
+    localStorage.removeItem('rocky-theme');
   } catch (error) {
-    // Sin localStorage se conserva el modo día definido en el documento.
+    // Sin localStorage no hay nada que borrar.
   }
 })();

@@ -1,18 +1,32 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import AddToCartButton from './AddToCartButton.jsx';
 
 const product = { id: 'tee', handle: 'tee', title: 'Tee' };
 
 describe('AddToCartButton', () => {
+  it.each([false, true])(
+    'shows stock warnings and celebrates only an effective addition (%s)',
+    async (added) => {
+      const addToCart = vi
+        .fn()
+        .mockResolvedValue({ added, warnings: [{ message: 'Stock ajustado' }] });
+      render(<AddToCartButton product={product} variantId="v1" addToCart={addToCart} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Añadir al carrito' }));
+      expect(await screen.findByRole('alert')).toHaveTextContent('Stock ajustado');
+      expect(screen.getByRole('button')).toHaveTextContent(
+        added ? 'Añadido ✓' : 'Añadir al carrito'
+      );
+    }
+  );
   it('añade, celebra un momento y vuelve a su sitio', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    const addToCart = vi.fn().mockResolvedValue(null);
+    const addToCart = vi.fn().mockResolvedValue({ added: true });
     render(<AddToCartButton product={product} variantId="v1" addToCart={addToCart} />);
     fireEvent.click(screen.getByRole('button', { name: 'Añadir al carrito' }));
     expect(addToCart).toHaveBeenCalledWith(product, 'v1');
     await waitFor(() => expect(screen.getByRole('button')).toHaveTextContent('Añadido ✓'));
-    vi.advanceTimersByTime(1300);
+    act(() => vi.advanceTimersByTime(1300));
     await waitFor(() => expect(screen.getByRole('button')).toHaveTextContent('Añadir al carrito'));
     vi.useRealTimers();
   });

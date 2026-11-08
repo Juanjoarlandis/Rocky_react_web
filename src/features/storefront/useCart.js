@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useReducer, useState } from 'react';
+import { useCallback, useMemo, useReducer, useRef, useState } from 'react';
 import { addCartLine, beginCheckout, removeCartLine, updateCartLine } from '../../api/shopify.js';
 import { normalizeCart } from './normalize.js';
 import { errorMessage } from '../../utils/errors.js';
@@ -33,9 +33,11 @@ export function cartReducer(state, action) {
       return withTotals(state.items.filter((item) => item.id !== action.item.id));
     case 'quantity':
       return withTotals(
-        state.items.map((item) =>
-          item.id === action.item.id ? { ...item, quantity: action.quantity } : item
-        )
+        state.items
+          .map((item) =>
+            item.id === action.item.id ? { ...item, quantity: item.quantity + action.delta } : item
+          )
+          .filter((item) => item.quantity > 0)
       );
     default:
       return state;
@@ -55,109 +57,147 @@ function parseCheckoutUrl(value) {
   return url.toString();
 }
 
-/* Operaciones del carrito en los dos modos. `busy` cuenta las mutaciones
-   en vuelo: dos a la vez no se liberan la una a la otra. */
+function variantQuantity(cart, variantId) {
+  return cart.items.reduce(
+    (sum, item) => sum + (item.variantId === variantId ? item.quantity : 0),
+    0
+  );
+}
+
+/* Cada operación espera a la anterior: una respuesta antigua nunca pisa el
+   carrito nuevo. `busy` incluye también las operaciones que esperan turno. */
 export function useCart({ mode, cartEnabled, onError }) {
   const [cart, dispatch] = useReducer(cartReducer, EMPTY_CART);
+  const cartRef = useRef(EMPTY_CART);
+  const operationsRef = useRef(Promise.resolve());
   // Shopify avisa aquí de cosas como MERCHANDISE_OUT_OF_STOCK cuando la
   // variante se agota entre que se pinta el catálogo y se pulsa añadir.
   const [warnings, setWarnings] = useState([]);
   const [inFlight, setInFlight] = useState(0);
 
-  const applyServerCart = useCallback((serverCart) => {
-    dispatch({ type: 'replace', cart: normalizeCart(serverCart) });
-  }, []);
-
   // Para lo que ya llega normalizado (la primera lectura del arranque)
   const applyNormalizedCart = useCallback((normalizedCart) => {
+    cartRef.current = normalizedCart;
     dispatch({ type: 'replace', cart: normalizedCart });
   }, []);
 
-  const runCartMutation = useCallback(
-    async (mutation) => {
-      setInFlight((count) => count + 1);
-      onError?.('');
-      try {
-        const response = await mutation();
-        applyServerCart(response.cart);
-        // Solo el texto: `target` lleva el id de línea con el token del carrito.
-        setWarnings(
-          (response.warnings || []).map((warning) => ({
-            code: warning.code || 'CART_WARNING',
-            message: warning.message,
-          }))
-        );
-        return response;
-      } catch (mutationError) {
-        onError?.(errorMessage(mutationError));
-        throw mutationError;
-      } finally {
-        setInFlight((count) => count - 1);
-      }
+  const applyServerCart = useCallback(
+    (serverCart) => {
+      const normalized = normalizeCart(serverCart);
+      applyNormalizedCart(normalized);
+      return normalized;
     },
-    [applyServerCart, onError]
+    [applyNormalizedCart]
+  );
+
+  const ensureCartAvailable = useCallback(() => {
+    if (mode !== 'demo' && (mode !== 'shopify' || !cartEnabled)) {
+      throw new Error('El carrito no está disponible.');
+    }
+  }, [mode, cartEnabled]);
+
+  const runCartOperation = useCallback(
+    (operation) => {
+      setInFlight((count) => count + 1);
+      const pending = operationsRef.current.then(async () => {
+        onError?.('');
+        try {
+          return await operation();
+        } catch (operationError) {
+          onError?.(errorMessage(operationError));
+          throw operationError;
+        } finally {
+          setInFlight((count) => count - 1);
+        }
+      });
+      // Un fallo se devuelve al llamador, pero no bloquea el siguiente turno.
+      operationsRef.current = pending.catch(() => {});
+      return pending;
+    },
+    [onError]
+  );
+
+  const runCartMutation = useCallback(
+    (mutation, addedVariantId) =>
+      runCartOperation(async () => {
+        const previousQuantity = variantQuantity(cartRef.current, addedVariantId);
+        const response = await mutation();
+        // Otra operación en la cola puede haber eliminado ya esta línea.
+        if (response === null) return null;
+        const normalized = applyServerCart(response.cart);
+        // `target` lleva el token del carrito: sólo se expone el aviso público.
+        const publicWarnings = (response.warnings || []).map((warning) => ({
+          code: warning.code || 'CART_WARNING',
+          message: warning.message,
+        }));
+        setWarnings(publicWarnings);
+        return {
+          ...response,
+          warnings: publicWarnings,
+          ...(addedVariantId
+            ? { added: variantQuantity(normalized, addedVariantId) > previousQuantity }
+            : {}),
+        };
+      }),
+    [applyServerCart, runCartOperation]
   );
 
   const addToCart = useCallback(
     async (product, variantId) => {
+      ensureCartAvailable();
       if (mode === 'shopify') {
-        if (!cartEnabled || !variantId) {
+        if (!variantId) {
           throw new Error('Este producto no tiene una variante disponible.');
         }
-        return runCartMutation(() => addCartLine({ variantId, quantity: 1 }));
+        return runCartMutation(() => addCartLine({ variantId, quantity: 1 }), variantId);
       }
       dispatch({ type: 'add', product });
-      return null;
+      return { added: true, warnings: [] };
     },
-    [cartEnabled, mode, runCartMutation]
+    [ensureCartAvailable, mode, runCartMutation]
   );
 
   const removeFromCart = useCallback(
     async (item) => {
+      ensureCartAvailable();
       if (mode === 'shopify') {
         return runCartMutation(() => removeCartLine({ lineId: item.lineId }));
       }
       dispatch({ type: 'remove', item });
       return null;
     },
-    [mode, runCartMutation]
+    [ensureCartAvailable, mode, runCartMutation]
   );
 
   const changeQuantity = useCallback(
-    async (item, quantity) => {
-      if (quantity < 1) return removeFromCart(item);
+    async (item, delta) => {
+      ensureCartAvailable();
       if (mode === 'shopify') {
-        return runCartMutation(() => updateCartLine({ lineId: item.lineId, quantity }));
+        return runCartMutation(() => {
+          const currentItem = cartRef.current.items.find((line) => line.lineId === item.lineId);
+          if (!currentItem) return null;
+          const quantity = currentItem.quantity + delta;
+          return quantity < 1
+            ? removeCartLine({ lineId: currentItem.lineId })
+            : updateCartLine({ lineId: currentItem.lineId, quantity });
+        });
       }
-      dispatch({ type: 'quantity', item, quantity });
+      dispatch({ type: 'quantity', item, delta });
       return null;
     },
-    [mode, removeFromCart, runCartMutation]
+    [ensureCartAvailable, mode, runCartMutation]
   );
 
-  const incrementQuantity = useCallback(
-    (item) => changeQuantity(item, item.quantity + 1),
-    [changeQuantity]
-  );
-  const decrementQuantity = useCallback(
-    (item) => changeQuantity(item, item.quantity - 1),
-    [changeQuantity]
-  );
+  const incrementQuantity = useCallback((item) => changeQuantity(item, 1), [changeQuantity]);
+  const decrementQuantity = useCallback((item) => changeQuantity(item, -1), [changeQuantity]);
 
   const checkout = useCallback(async () => {
     if (mode !== 'shopify' || !cartEnabled) return null;
-    setInFlight((count) => count + 1);
-    onError?.('');
-    try {
+    return runCartOperation(async () => {
       const response = await beginCheckout();
       return parseCheckoutUrl(response?.checkoutUrl);
-    } catch (checkoutError) {
-      onError?.(errorMessage(checkoutError));
-      throw checkoutError;
-    } finally {
-      setInFlight((count) => count - 1);
-    }
-  }, [cartEnabled, mode, onError]);
+    });
+  }, [cartEnabled, mode, runCartOperation]);
 
   const totalItems = useMemo(
     () => cart.items.reduce((sum, item) => sum + item.quantity, 0),

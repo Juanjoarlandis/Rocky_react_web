@@ -9,6 +9,45 @@ function jsonResponse(body, status = 200) {
 }
 
 describe('fetchJson', () => {
+  it('keeps the timeout active while reading the response body', async () => {
+    vi.useFakeTimers();
+    const caller = new AbortController();
+    let outcome;
+    const fetchImpl = vi.fn(
+      async (url, { signal }) =>
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              signal.addEventListener('abort', () => controller.error(signal.reason), {
+                once: true,
+              });
+            },
+          })
+        )
+    );
+    const pending = fetchJson({
+      url: 'https://api.test',
+      fetchImpl,
+      timeoutMs: 50,
+      signal: caller.signal,
+    }).then(
+      (value) => {
+        outcome = value;
+      },
+      (error) => {
+        outcome = error;
+      }
+    );
+    try {
+      await vi.advanceTimersByTimeAsync(51);
+      expect(outcome).toMatchObject({ name: 'FetchJsonError', code: 'TIMEOUT' });
+    } finally {
+      caller.abort();
+      await pending;
+      vi.useRealTimers();
+    }
+  });
+
   it('returns the response and its parsed body', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(jsonResponse({ ok: true }, 201));
 

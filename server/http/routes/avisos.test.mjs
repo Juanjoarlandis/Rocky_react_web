@@ -67,6 +67,16 @@ describe('exportación CSV de avisos', () => {
 });
 
 describe('POST /api/avisos', () => {
+  it('rejects production subscriptions without encrypted persistence', async () => {
+    const { store, baseUrl } = await arrancaServidor({
+      env: { NODE_ENV: 'production', TRUST_PROXY_HOPS: '1' },
+    });
+    const response = await apunta(baseUrl, ALTA);
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ code: 'AVISOS_UNAVAILABLE' });
+    expect(await store.get(AVISOS_NAMESPACE, ALTA.producto)).toBeNull();
+  });
+
   it('apunta el aviso y lo deja en el store con su índice', async () => {
     const { store, baseUrl } = await arrancaServidor();
 

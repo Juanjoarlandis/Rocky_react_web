@@ -5,7 +5,11 @@ export const STORAGE_KEYS = Object.freeze({
   albumOpened: 'rocky-album-abiertos',
   beatTable: 'rocky-mesa-beats',
   preloadReload: 'rocky-preload-reload',
-  theme: 'rocky-theme',
+  spray: 'rocky-spray',
+  // El apodo con el que publicas en el ranking de beats, para no reescribirlo.
+  beatsAlias: 'rocky-beats-apodo',
+  // Sólo en el navegador de quien administra: la llave para quitar beats.
+  beatsAdmin: 'rocky-beats-admin',
 });
 
 // Un recibo por producto: «ya te apuntamos al aviso de este drop».

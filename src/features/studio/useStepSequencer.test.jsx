@@ -149,7 +149,7 @@ describe('useStepSequencer', () => {
   });
 
   it('para: deja de agendar y apaga el cabezal', () => {
-    const { result, trigger } = montar();
+    const { result, trigger, onFrame } = montar();
     act(() => result.current.start(fakeEngine()));
     avanzar(100);
     expect(result.current.step).toBe(0);
@@ -160,8 +160,13 @@ describe('useStepSequencer', () => {
     expect(result.current.isRunning()).toBe(false);
 
     const llamadas = trigger.mock.calls.length;
+    const frames = onFrame.mock.calls.length;
     avanzar(1000);
     expect(trigger).toHaveBeenCalledTimes(llamadas);
+    expect(onFrame).toHaveBeenCalledTimes(frames);
+    act(() => result.current.start(fakeEngine()));
+    avanzar(100);
+    expect(onFrame.mock.calls.length).toBeGreaterThan(frames);
   });
 
   it('al desmontar suelta el intervalo y el bucle de pintura', () => {

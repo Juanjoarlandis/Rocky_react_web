@@ -1,17 +1,24 @@
 // Saca la lista de avisos del drop del store cifrado, para el día del envío.
 //
 //   npm run avisos:exportar                    → CSV por stdout
-//   npm run avisos:exportar -- --vaciar <id>   → borra la lista de un producto
-//                                                (lo prometido: tras el drop,
-//                                                la lista se borra)
+// Sólo lectura: otro escritor sobre el fichero cifrado perdería cambios del
+// servidor o restauraría listas ya borradas desde su copia en memoria.
 //
 // Corre donde viva el servidor, con APP_ENCRYPTION_KEY y STATE_STORE_PATH en
 // el entorno: la lista nunca sale por la API.
 
 import path from 'node:path';
 import dotenv from 'dotenv';
-import { AVISOS_INDICE, AVISOS_NAMESPACE, celdaCsvSegura } from '../server/services/avisos.mjs';
+import { celdaCsvSegura, createAvisosService } from '../server/services/avisos.mjs';
+import { silentLogger } from '../server/lib/logger.mjs';
 import { EncryptedStore } from '../server/storage/encrypted-file-store.mjs';
+
+if (process.argv.length > 2) {
+  console.error(
+    'Este exportador sólo permite lectura. --vaciar se ha deshabilitado porque puede perder datos con el servidor activo. La limpieza necesita un procedimiento de mantenimiento con un único escritor.'
+  );
+  process.exit(1);
+}
 
 dotenv.config({ quiet: true });
 
@@ -26,31 +33,19 @@ const store = new EncryptedStore({
   key,
 });
 
-const [modo, objetivo] = process.argv.slice(2);
-const indice = (await store.get(AVISOS_NAMESPACE, AVISOS_INDICE)) ?? [];
-
-if (modo === '--vaciar') {
-  if (!objetivo) {
-    console.error('Dime qué producto vaciar: --vaciar <id>');
-    process.exit(1);
-  }
-  const habia = await store.delete(AVISOS_NAMESPACE, objetivo);
-  await store.set(
-    AVISOS_NAMESPACE,
-    AVISOS_INDICE,
-    indice.filter((producto) => producto !== objetivo)
-  );
-  console.error(habia ? `Lista de "${objetivo}" borrada.` : `"${objetivo}" no tenía lista.`);
-  process.exit(0);
-}
+const avisos = createAvisosService({ store, logger: silentLogger });
+const indice = await avisos.products();
 
 // CSV a stdout; los avisos de progreso van por stderr para no ensuciarlo.
-console.log('producto,email,fecha');
+// "enviado" queda vacío hasta que scripts/enviar-avisos.mjs manda el aviso.
+console.log('producto,email,fecha,enviado');
 let total = 0;
 for (const producto of indice) {
-  const lista = (await store.get(AVISOS_NAMESPACE, producto)) ?? [];
-  for (const { email, fecha } of lista) {
-    console.log([producto, email, fecha].map((valor) => celdaCsvSegura(valor)).join(','));
+  const lista = await avisos.list(producto);
+  for (const { email, fecha, enviado } of lista) {
+    console.log(
+      [producto, email, fecha, enviado ?? ''].map((valor) => celdaCsvSegura(valor)).join(',')
+    );
     total += 1;
   }
 }

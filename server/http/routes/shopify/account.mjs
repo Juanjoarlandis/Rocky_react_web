@@ -84,10 +84,12 @@ export function createAccountRouter({ config, sessions, customerAccounts, requir
         code: req.query.code,
         sessionBinding: previousSession.key,
       });
-      await sessions.rotate(req, res, {
-        ...(previousSession.record.cartId ? { cartId: previousSession.record.cartId } : {}),
-        customerTokenId: completed.tokenId,
-      });
+      await sessions.rotate(
+        req,
+        res,
+        { customerTokenId: completed.tokenId },
+        { preserve: ['cartId', 'siteAccessGrant', 'siteAccessExpiresAt'] }
+      );
       return res.redirect(302, completed.returnPath);
     })
   );

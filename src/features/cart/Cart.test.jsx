@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import Cart from './Cart.jsx';
@@ -28,6 +28,22 @@ function renderCart(props = {}) {
 }
 
 describe('Cart', () => {
+  it('shows stock warnings even when the cart is empty', () => {
+    renderCart({ cart: [], warnings: [{ code: 'OUT_OF_STOCK', message: 'Sin stock' }] });
+    expect(screen.getByRole('alert')).toHaveTextContent('Sin stock');
+  });
+
+  it.each([
+    ['incrementQuantity', 'Añadir una unidad'],
+    ['decrementQuantity', 'Quitar una unidad'],
+    ['removeFromCart', 'Eliminar 35 RED del carrito'],
+  ])('handles a rejected %s without dropping the cart', async (operation, label) => {
+    const mutation = vi.fn().mockRejectedValue(new Error('Sin conexión'));
+    renderCart({ [operation]: mutation });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: label })));
+    expect(mutation).toHaveBeenCalledWith(line);
+    expect(screen.getByRole('heading', { name: 'Tu carrito' })).toBeInTheDocument();
+  });
   it('con el carrito vacío manda a la tienda', () => {
     render(
       <MemoryRouter>

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useLockBodyScroll } from '../../hooks/useLockBodyScroll.js';
 import '../../styles/components/lightbox.css';
 
 /* Foto a lo grande en un <dialog> nativo: showModal() se ocupa del foco, de
@@ -8,6 +9,7 @@ import '../../styles/components/lightbox.css';
    doble montaje de StrictMode; quitar el diálogo del DOM ya lo cierra. */
 function Lightbox({ src, alt, onClose }) {
   const dialogRef = useRef(null);
+  useLockBodyScroll(true);
 
   useEffect(() => {
     const dialog = dialogRef.current;

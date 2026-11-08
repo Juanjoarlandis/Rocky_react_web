@@ -1,8 +1,9 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import NavBar from './NavBar.jsx';
+import { MusicProvider } from '../features/music/MusicContext.jsx';
 
 const navBarCss = readFileSync('src/styles/components/navbar.css', 'utf8');
 
@@ -53,6 +54,38 @@ describe('NavBar Crew entry', () => {
 });
 
 describe('NavBar mobile menu', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('closes at the desktop breakpoint and releases scroll and hidden focus', () => {
+    let change;
+    const media = {
+      matches: false,
+      addEventListener: (_event, fn) => {
+        change = fn;
+      },
+      removeEventListener: vi.fn(),
+    };
+    vi.spyOn(window, 'matchMedia').mockReturnValue(media);
+    renderNavBar();
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir el menú' }));
+    expect(document.body.style.overflow).toBe('hidden');
+    act(() => {
+      media.matches = true;
+      change?.(media);
+    });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(document.body.style.overflow).toBe('');
+    expect(screen.getByRole('link', { name: 'Inicio' })).toHaveFocus();
+    expect(media.removeEventListener).toHaveBeenCalled();
+  });
+
+  it('returns focus when choosing the current destination', () => {
+    renderNavBar();
+    const button = screen.getByRole('button', { name: 'Abrir el menú' });
+    fireEvent.click(button);
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('link', { name: 'Tienda' }));
+    expect(button).toHaveFocus();
+  });
   it('opens a sheet with the six destinations, traps focus and closes with Escape', () => {
     renderNavBar();
     const button = screen.getByRole('button', { name: 'Abrir el menú' });
@@ -114,10 +147,43 @@ describe('NavBar responsive contract', () => {
     expect(names).toEqual(['Tienda', 'Drops', 'Estudio', 'Crew', 'Rocky IA', 'Mi Crew']);
     expect(screen.getByRole('link', { name: 'Inicio' })).toHaveAttribute('href', '/');
     expect(screen.getByRole('link', { name: 'Carrito, 2 artículos' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /neón/ })).toHaveAttribute('aria-pressed');
+    expect(screen.getByRole('button', { name: /descontrol/ })).toHaveAttribute('aria-pressed');
     expect(screen.getByRole('button', { name: 'Abrir el menú' })).toHaveAttribute(
       'aria-expanded',
       'false'
     );
+  });
+});
+
+describe('NavBar: la bombilla trae la música del descontrol', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete document.documentElement.dataset.theme;
+  });
+
+  it('al encender el neón suena su cinta en el mismo clic, y al apagarlo vuelve BARRO', () => {
+    const play = vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockResolvedValue();
+    vi.spyOn(window.HTMLMediaElement.prototype, 'load').mockImplementation(() => {});
+    const { container } = render(
+      <MemoryRouter>
+        <MusicProvider>
+          <NavBar
+            totalItems={0}
+            accountEnabled={false}
+            account={{ loggedIn: false, customer: null }}
+          />
+        </MusicProvider>
+      </MemoryRouter>
+    );
+    const audio = container.querySelector('audio');
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Activar el descontrol' })[0]);
+    expect(document.documentElement.dataset.theme).toBe('neon');
+    expect(audio).toHaveAttribute('src', '/music/modo-neon.m4a');
+    expect(play).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Apagar el descontrol' })[0]);
+    expect(document.documentElement.dataset.theme).toBeUndefined();
+    expect(audio).toHaveAttribute('src', '/music/barro.m4a');
   });
 });

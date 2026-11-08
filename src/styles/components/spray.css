@@ -1,0 +1,172 @@
+@layer components {
+  /* La pintura va en la pared: un lienzo del alto de la página, detrás del
+     contenido y encima de la luz negra (mismo z-index, va después). */
+  .spray-wall {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  /* Con el spray en la mano el dedo pinta en vez de hacer scroll, y el ratón
+     no selecciona texto al arrastrar. */
+  .is-spraying,
+  .is-spraying body {
+    touch-action: none;
+  }
+
+  .is-spraying body {
+    cursor: var(--spray-cursor), crosshair;
+    user-select: none;
+  }
+
+  /* ---------- El bote flotante ---------- */
+  .spray-fab {
+    position: fixed;
+    right: max(var(--space-4), env(safe-area-inset-right));
+    bottom: max(var(--space-4), env(safe-area-inset-bottom));
+    z-index: var(--z-tools);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 44px;
+    padding: var(--space-2) var(--space-4);
+    border: 2px solid var(--uv-lime);
+    border-radius: var(--wobble-sm);
+    background-color: rgba(var(--neon-paper-rgb), 0.88);
+    color: var(--uv-lime);
+    font-family: var(--font-hand);
+    font-size: var(--text-base);
+    box-shadow:
+      0 0 18px rgba(var(--uv-lime-rgb), 0.35),
+      inset 0 0 10px rgba(var(--uv-lime-rgb), 0.12);
+    cursor: pointer;
+    transform: rotate(-2deg);
+    transition: transform var(--dur-fast) ease;
+  }
+
+  .spray-fab:hover {
+    transform: rotate(0deg) translateY(-2px);
+  }
+
+  /* ---------- La caja de herramientas ---------- */
+  .spray-tools {
+    position: fixed;
+    left: 50%;
+    bottom: max(var(--space-4), env(safe-area-inset-bottom));
+    z-index: var(--z-tools);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    width: max-content;
+    max-width: calc(100vw - 2 * var(--space-4));
+    padding: var(--space-3) var(--space-4);
+    border: 2px solid var(--uv-lime);
+    border-radius: var(--wobble-md);
+    background-color: rgba(var(--neon-paper-rgb), 0.92);
+    box-shadow: 0 0 26px rgba(var(--uv-lime-rgb), 0.3);
+    backdrop-filter: blur(6px);
+    translate: -50% 0;
+  }
+
+  .spray-colors {
+    display: flex;
+    gap: var(--space-2);
+    margin-right: var(--space-2);
+  }
+
+  .spray-color {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 2px solid transparent;
+    border-radius: 50%;
+    background-color: var(--spray-color);
+    box-shadow: 0 0 10px var(--spray-color);
+    cursor: pointer;
+    transition: transform var(--dur-fast) ease;
+  }
+
+  .spray-color.is-active {
+    border-color: var(--ink);
+    transform: scale(1.15);
+  }
+
+  .spray-tool {
+    min-height: 40px;
+    padding: var(--space-1) var(--space-3);
+    border: 2px solid var(--line);
+    border-radius: var(--wobble-xs);
+    background-color: transparent;
+    color: var(--ink);
+    font-family: var(--font-hand);
+    font-size: var(--text-sm);
+    cursor: pointer;
+  }
+
+  .spray-tool:hover:not(:disabled) {
+    border-color: var(--uv-lime);
+  }
+
+  .spray-tool:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .spray-tool.is-warning {
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+
+  .spray-tool--photo {
+    border-color: var(--uv-lime);
+    background-color: var(--uv-lime);
+    color: var(--neon-night);
+  }
+
+  .spray-tool--close {
+    min-width: 40px;
+  }
+
+  .spray-status {
+    flex-basis: 100%;
+    margin: 0;
+    color: var(--muted);
+    font-family: var(--font-hand);
+    font-size: var(--text-xs);
+    text-align: center;
+  }
+
+  @media (max-width: 640px) {
+    .spray-fab span {
+      display: none;
+    }
+
+    .spray-fab {
+      padding: var(--space-2);
+      min-width: 44px;
+      justify-content: center;
+    }
+
+    .spray-tools {
+      bottom: max(var(--space-3), env(safe-area-inset-bottom));
+      padding: var(--space-2) var(--space-3);
+    }
+
+    /* En el móvil la barra ya ocupa dos filas: la ayuda fija sobra, los
+     avisos (foto hecha, pared limpia) siguen saliendo. */
+    .spray-status--hint {
+      display: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .spray-fab,
+    .spray-color {
+      transition: none;
+    }
+  }
+}

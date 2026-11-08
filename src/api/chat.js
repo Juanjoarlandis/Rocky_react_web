@@ -48,3 +48,8 @@ export async function sendChatMessage(message, { signal } = {}) {
     products: Array.isArray(data.products) ? data.products : [],
   };
 }
+
+// La barra de la mesa: cuatro versos de Rocky IA sobre el beat.
+export function requestBarra(beat) {
+  return requestJson('/api/chat/barra', { method: 'POST', body: beat });
+}

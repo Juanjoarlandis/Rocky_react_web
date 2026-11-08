@@ -1,5 +1,5 @@
 import React, { Suspense, useCallback, useEffect, useState } from 'react';
-import { Route, Routes, useLocation } from 'react-router';
+import { matchPath, Route, Routes, useLocation } from 'react-router';
 import NavBar from './components/NavBar';
 import Footer from './components/Footer';
 import NotFound from './components/NotFound';
@@ -11,6 +11,8 @@ import SplashIntro from './components/SplashIntro';
 import ProductPage from './features/catalog/ProductPage';
 import CuriousPeeker from './features/peeker/CuriousPeeker';
 import CartRunner from './features/cart/CartRunner';
+import Descontrol from './features/night/Descontrol';
+import Estampida from './features/estampida/Estampida';
 import demoCatalog from './data/demoCatalog.json';
 import previewProducts from '../shared/preview-products.mjs';
 import { normalizeDemoCatalog } from './features/storefront/normalize';
@@ -26,6 +28,7 @@ const MenuDrop = React.lazy(() => import('./features/catalog/MenuDrop'));
 const Studio = React.lazy(() => import('./features/studio/Studio'));
 const Crew = React.lazy(() => import('./features/crew/Crew'));
 const CrewProfile = React.lazy(() => import('./features/crew/CrewProfile'));
+const Legal = React.lazy(() => import('./features/legal/Legal'));
 
 const SPLASH_MS = 3000;
 const DEMO_CATALOG = Object.freeze([...normalizeDemoCatalog(demoCatalog), ...previewProducts]);
@@ -48,14 +51,14 @@ function App() {
   const addToCart = useCallback(
     async (...args) => {
       const resultado = await addToCartInStore(...args);
-      setCarreras((n) => n + 1);
+      if (resultado?.added) setCarreras((n) => n + 1);
       return resultado;
     },
     [addToCartInStore]
   );
   // Rocky IA es una pantalla de chat a viewport completo: sin footer ni scroll de página
-  const esChat = location.pathname === '/rockyIA';
-  const esEstudio = location.pathname === '/estudio';
+  const esChat = Boolean(matchPath('/rockyIA', location.pathname));
+  const esEstudio = Boolean(matchPath('/estudio', location.pathname));
   const muestraPlayerDeContenido = !esChat && !esEstudio;
 
   useEffect(() => {
@@ -82,6 +85,9 @@ function App() {
     <MusicProvider>
       {showSplash && <SplashIntro />}
       <div className={`app ${esChat ? 'app--chat' : ''}`}>
+        <a className="skip-link" href="#main-content">
+          Saltar al contenido
+        </a>
         <NavBar
           totalItems={commerce.totalItems}
           accountEnabled={commerce.capabilities.customerAccounts}
@@ -96,7 +102,9 @@ function App() {
         <ScrollToTop />
         <CuriousPeeker pathname={location.pathname} disabled={showSplash} />
         <CartRunner runId={carreras} disabled={showSplash} />
-        <main className="app-main">
+        <Descontrol pathname={location.pathname} disabled={showSplash} />
+        <Estampida disabled={showSplash} />
+        <main id="main-content" className="app-main" tabIndex={-1}>
           {((!commerce.loading && commerce.mode === 'demo') || commerce.error) && (
             <div
               className={`commerce-notice ${commerce.error ? 'commerce-notice-error' : ''}`}
@@ -141,6 +149,12 @@ function App() {
                 element={
                   <ProductDetail
                     products={commerce.products}
+                    loading={commerce.loading}
+                    catalogError={
+                      commerce.capabilities.catalog || commerce.mode === 'demo'
+                        ? ''
+                        : commerce.error
+                    }
                     addToCart={addToCart}
                     commerceMode={commerce.mode}
                     canAddToCart={commerce.canAddToCart}
@@ -172,6 +186,7 @@ function App() {
                   />
                 }
               />
+              <Route path="/legal/:page" element={<Legal />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

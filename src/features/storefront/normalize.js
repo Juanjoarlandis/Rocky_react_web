@@ -1,4 +1,5 @@
 import { PLACEHOLDER_IMAGE as PRODUCT_PLACEHOLDER } from '../../config/commerce.js';
+import { CURRENT_DROP } from '../../config/campaign.js';
 import { productImageSize } from '../../data/productImages.js';
 
 /* «35 RED» → «35-red», «ROCKY DROP 4» → «rocky-drop-4»: los handles del
@@ -16,10 +17,29 @@ function firstSellableVariant(variants) {
   return variants.find((variant) => variant.availableForSale) || variants[0] || null;
 }
 
+/* Sin colección en Shopify, un diseño sin foto es del drop en curso: es el que
+   anuncian la portada y la etiqueta del mockup («Drop 4 · sin revelar»). Si no
+   se asignara, la tarjeta decía «Tienda · sin revelar» encima de esa etiqueta y
+   la página de drops listaba un drop llamado «Tienda». */
+function dropOf(product, image) {
+  if (product.drop?.title) {
+    return {
+      title: product.drop.title,
+      handle: product.drop.handle || slugify(product.drop.title),
+    };
+  }
+  if (image === PRODUCT_PLACEHOLDER) {
+    return { title: CURRENT_DROP.title, handle: CURRENT_DROP.handle };
+  }
+  return { title: 'Tienda', handle: 'tienda' };
+}
+
 export function normalizeCatalog(products = []) {
   return products.map((product) => {
     const variants = Array.isArray(product.variants) ? product.variants : [];
     const defaultVariant = firstSellableVariant(variants);
+    const image = product.image?.url || defaultVariant?.image?.url || PRODUCT_PLACEHOLDER;
+    const drop = dropOf(product, image);
     return {
       id: product.handle,
       handle: product.handle,
@@ -27,10 +47,10 @@ export function normalizeCatalog(products = []) {
       title: product.title,
       description: product.description || '',
       specifications: [],
-      image: product.image?.url || defaultVariant?.image?.url || PRODUCT_PLACEHOLDER,
+      image,
       imageAlt: product.image?.alt || defaultVariant?.image?.alt || product.title,
-      drop: product.drop?.title || 'Tienda',
-      dropHandle: product.drop?.handle || 'tienda',
+      drop: drop.title,
+      dropHandle: drop.handle,
       variants,
       defaultVariantId: defaultVariant?.id || null,
       price: defaultVariant?.price || null,

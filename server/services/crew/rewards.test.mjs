@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { sha256Base64Url } from '../../lib/hash.mjs';
 import { MemoryStore } from '../../storage/memory-store.mjs';
 import {
   CrewRewardsError,
@@ -70,6 +71,69 @@ describe('Crew reward rules', () => {
 });
 
 describe('Crew reward profiles', () => {
+  it('retains the deduplication baseline from profiles without the new order ledger', async () => {
+    const store = new MemoryStore();
+    const service = createCrewRewardsService({ store });
+    await service.creditPaidOrder(paidOrder({ amount: '1.00' }));
+    const key = sha256Base64Url('gid://shopify/Customer/1');
+    const legacy = await store.get('crewProfiles', key);
+    delete legacy.paidOrderIds;
+    await store.set('crewProfiles', key, legacy);
+
+    await service.creditPaidOrder(paidOrder({ orderId: 'gid://shopify/Order/78', amount: '1.00' }));
+    const replay = await service.creditPaidOrder(paidOrder({ amount: '1.00' }));
+    expect(replay).toMatchObject({
+      credited: false,
+      reason: 'duplicate_order',
+      profile: { xp: 2 },
+    });
+    expect((await store.get('crewProfiles', key)).paidOrderIds).toEqual([
+      'gid://shopify/Order/77',
+      'gid://shopify/Order/78',
+    ]);
+  });
+
+  it('retries a failed profile write without losing or duplicating the order credit', async () => {
+    const store = new MemoryStore();
+    const service = createCrewRewardsService({ store });
+    vi.spyOn(store, 'set').mockRejectedValueOnce(new Error('synthetic disk failure'));
+    await expect(service.creditPaidOrder(paidOrder({ amount: '1.00' }))).rejects.toThrow(
+      'synthetic disk failure'
+    );
+
+    const [first, second] = await Promise.all([
+      service.creditPaidOrder(paidOrder({ amount: '1.00' })),
+      service.creditPaidOrder(paidOrder({ amount: '1.00' })),
+    ]);
+    expect(first).toMatchObject({ credited: true, profile: { xp: 1 } });
+    expect(second).toMatchObject({
+      credited: false,
+      reason: 'duplicate_order',
+      profile: { xp: 1 },
+    });
+  });
+
+  it('remembers paid orders beyond the bounded history and across service restarts', async () => {
+    const store = new MemoryStore();
+    const service = createCrewRewardsService({ store });
+    for (let index = 0; index < 251; index += 1) {
+      await service.creditPaidOrder(
+        paidOrder({ orderId: `gid://shopify/Order/${index}`, amount: '1.00' })
+      );
+    }
+    const restarted = createCrewRewardsService({ store });
+    const replay = await restarted.creditPaidOrder(
+      paidOrder({ orderId: 'gid://shopify/Order/0', amount: '1.00' })
+    );
+
+    expect(replay).toMatchObject({
+      credited: false,
+      reason: 'duplicate_order',
+      profile: { xp: 251 },
+    });
+    expect(replay.profile.purchases).toHaveLength(12);
+  });
+
   it('creates a private profile with a public starter collection', async () => {
     const service = createCrewRewardsService({
       store: new MemoryStore(),

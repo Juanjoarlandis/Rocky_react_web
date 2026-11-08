@@ -11,7 +11,14 @@ export function createOpenRouterClient({
   timeoutMs = 20_000,
 }) {
   return {
-    async complete({ route, messages, maxTokens = 300, temperature = 0.75, signal = null }) {
+    async complete({
+      route,
+      messages,
+      maxTokens = 300,
+      temperature = 0.75,
+      reasoning = null,
+      signal = null,
+    }) {
       const { response, payload } = await fetchJson({
         url: OPENROUTER_URL,
         fetchImpl,
@@ -30,6 +37,7 @@ export function createOpenRouterClient({
             messages,
             max_tokens: maxTokens,
             temperature,
+            ...(reasoning ? { reasoning } : {}),
             usage: { include: true },
           }),
         },
