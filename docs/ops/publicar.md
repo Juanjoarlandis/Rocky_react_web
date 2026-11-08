@@ -15,6 +15,11 @@ con autorización explícita.
 - Acceso SSH sin contraseña a la Raspberry con el usuario de despliegue (el que es dueño
   de `/opt/rocky035/releases` y está en el grupo `docker`). `RELEASE_HOST` elige el host
   (por defecto, el alias `raspberry` de `~/.ssh/config`; también vale la IP local).
+- Si el alias no llega (por ejemplo, Tailscale desconectado en tu equipo) y estás en la
+  misma red que la Raspberry, usa su IP local con el usuario delante:
+  `RELEASE_HOST=<usuario>@<ip-local>`. Con una IP, `~/.ssh/config` no aplica el alias: si
+  la clave vive en un agente propio (`IdentityAgent`, como el de 1Password), expórtalo en
+  `SSH_AUTH_SOCK` para esa orden.
 - `RELEASE_ROOT` si la raíz no es `/opt/rocky035` (solo rutas absolutas simples).
 - Para `--aplicar` en promover y revertir: `sudo` sin contraseña (`NOPASSWD`) para ese
   usuario, porque el script se lanza con `sudo -n` desacoplado de la sesión. El simulacro
@@ -133,5 +138,9 @@ El estado cifrado previo está en `/var/backups/rocky035/deploy-<id>-<marca>/`.
 - Construcción local de la imagen de producción con el `Dockerfile` del proyecto (los
   tests de `scripts/release` necesitan `git`, que la imagen no trae: por eso no entran en
   ella).
-- Pendiente: simulacro contra la Raspberry (tarea 3.3), bloqueado porque SSH no abría
-  sesión el día de la validación.
+- Contra la Raspberry (2026-11-08):
+  - `preparar`, `promover` y `revertir` en simulacro, con la Raspberry idéntica antes y
+    después (`ls -la /opt/rocky035`, `current`, imagen y arranque del contenedor);
+  - primera publicación real con estas órdenes: `20261108T164136Z-menu-movil-9a93b482`
+    sobre `20260929T100641Z-el-toxico-5617951b`. Promoción con resultado `ok`, contenedor
+    sano y el resto de contenedores de la Raspberry sin cambios.

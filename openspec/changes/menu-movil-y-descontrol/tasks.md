@@ -23,4 +23,4 @@ Nivel 2. TDD en cada tarea: prueba en rojo, implementación mínima, refactor en
 
 - [x] 4.1 `npm run check` en verde.
 - [x] 4.2 Revisión independiente (skill `engineering-review`) y corrección de bloqueantes.
-- [ ] 4.3 Commit, push y publicación en la Raspberry con `release:preparar` / `release:promover` (autorizado por el usuario el 2026-11-08), con simulacro previo.
+- [x] 4.3 Commit, push y publicación en la Raspberry con `release:preparar` / `release:promover` (autorizado por el usuario el 2026-11-08), con simulacro previo. Commits `cc2a86f` y `90c6c32`, CI en verde. Release `20261108T164136Z-menu-movil-9a93b482`: `PROMOCION-FIN resultado=ok`, contenedor `healthy` y el bundle servido incluye el arreglo.

@@ -18,11 +18,11 @@ lógica: prueba en rojo, implementación mínima, refactor en verde.
 
 - [x] 3.1 Probar la vuelta atrás en local con Docker: una imagen sana y otra que no pasa el healthcheck, sobre un layout de prueba en una carpeta temporal; verificar los escenarios «Release sana», «Release que no arranca», «Estado inesperado» y «Revertir a la anterior».
 - [x] 3.2 Comparar la plantilla renderizada para el caso `20260928T101659Z-crew-noche-16-fe7c1d2a` → `20260929T100641Z-el-toxico-5617951b` con el `promote.sh` real y justificar cada diferencia en `docs/ops/publicar.md`.
-- [ ] 3.3 (BLOQUEADA el 2026-11-08: la Raspberry responde al ping pero SSH no llega a abrir sesión) Ejecutar `preparar`, `promover` y `revertir` en simulacro contra la Raspberry y verificar que no cambia nada (`ls /opt/rocky035`, contenedor e imagen activos iguales antes y después).
+- [x] 3.3 (Desbloqueada el mismo día por la IP local: Tailscale estaba desconectado en el equipo de desarrollo. Simulacros de las tres órdenes con `ls -la /opt/rocky035`, `current`, imagen y arranque iguales antes y después; luego primera publicación real, `20261108T164136Z-menu-movil-9a93b482`.) Ejecutar `preparar`, `promover` y `revertir` en simulacro contra la Raspberry y verificar que no cambia nada (`ls /opt/rocky035`, contenedor e imagen activos iguales antes y después).
 
 ## 4. Documentación y revisión
 
-- [ ] 4.1 (documentación escrita y actualizada tras la revisión; falta comprobar los comandos en simulacro contra la Raspberry, ligado a 3.3) Escribir `docs/ops/publicar.md` (requisitos, órdenes, simulacro, vuelta atrás, qué hacer si falla) y la sección del README; verificar que los comandos documentados funcionan en simulacro.
+- [x] 4.1 (comandos comprobados en simulacro y en una publicación real contra la Raspberry, ver 3.3) Escribir `docs/ops/publicar.md` (requisitos, órdenes, simulacro, vuelta atrás, qué hacer si falla) y la sección del README; verificar que los comandos documentados funcionan en simulacro.
 - [x] 4.2 Revisión independiente (`engineering-review`) y revisión de seguridad (`security-review`); sin bloqueantes pendientes. Seguridad: sin vulnerabilidades por encima del umbral. Independiente: dos rondas (límite); el bloqueante de la segunda se corrigió con pruebas (5.3) sin una tercera ronda.
 
 ## 5. Revisión independiente, ronda 1
