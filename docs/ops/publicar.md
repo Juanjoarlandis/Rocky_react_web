@@ -98,6 +98,7 @@ ninguna de las dos, se niega.
 | «cambios sin commit» | El árbol no está limpio | Haz commit o descarta los cambios |
 | «ya está activa» / «no existe» / «no está construida» | Release o imagen no preparadas | Prepara con `--aplicar` o revisa el id |
 | Falla `sha256sum -c` o `docker build` al preparar | La copia o el build fallaron | Borra la carpeta a medias (`rm -rf /opt/rocky035/releases/<id>` como usuario de despliegue) y repite |
+| `vitest run` acaba en «Segmentation fault» (código 139) en el build, también al repetir | Una capa de la caché de Docker se ha corrompido en la tarjeta SD (visto el 2026-11-09: binario de rolldown con 22.490 bytes distintos del de npm y mismo tamaño) | Comprueba que `docker run` sobre esa capa revienta al cargar `@rolldown/binding-linux-arm64-gnu`. Luego construye esa release sin caché: `docker build --no-cache -t rocky035:<id> /opt/rocky035/releases/<id>`. Revisa la salud de la tarjeta |
 | «no se cumplía una precondición» (código 2) | El estado de producción no era el esperado o hay otra promoción en curso | No se ha tocado nada; revisa el log y qué release está activa |
 | «se ha restaurado la anterior» (código 1) | La release nueva no quedó sana | Ya está activa la anterior; mira el log y los del contenedor antes de reintentar |
 | «LA VUELTA ATRÁS HA FALLADO» (código 3) | No se pudo restaurar sola | Recuperación manual, abajo |
@@ -144,3 +145,13 @@ El estado cifrado previo está en `/var/backups/rocky035/deploy-<id>-<marca>/`.
   - primera publicación real con estas órdenes: `20261108T164136Z-menu-movil-9a93b482`
     sobre `20260929T100641Z-el-toxico-5617951b`. Promoción con resultado `ok`, contenedor
     sano y el resto de contenedores de la Raspberry sin cambios.
+- 2026-11-09: `20261109T125531Z-arte-curioso-c42eff38` sobre
+  `20261108T164136Z-menu-movil-9a93b482`. Promoción con resultado `ok` y contenedor sano.
+  Antes, la build de esa misma tanda falló dos veces con «Segmentation fault» por la caché
+  corrupta (ver «Si algo falla»). Se reconstruyó una vez sin caché, y la release definitiva
+  ya reutilizó la capa nueva de `npm ci`.
+- Para verificar en la Raspberry, pregunta al contenedor, no al puerto 3001 del host (ese
+  es de Uptime Kuma; ROCKY se publica en `127.0.0.1:3100`):
+  `docker exec rocky035 node -e "fetch('http://127.0.0.1:3001/api/health').then(r => r.text()).then(console.log)"`.
+  La raíz pública enseña la puerta de acceso, así que el código nuevo se comprueba en
+  `dist/assets` dentro del contenedor.

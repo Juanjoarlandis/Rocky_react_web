@@ -41,4 +41,4 @@ prototipo. TDD en cada tarea: prueba en rojo, implementación mínima, refactor 
 - [x] 4.1 Verificación en Chrome: capturas de día y de noche a 375 y 1280 px; la transición medida a 4× de CPU; teclado y movimiento reducido.
 - [x] 4.2 `npm run check` en verde (107 ficheros, 853 pruebas, lint, stylelint, build y escaneo de secretos).
 - [x] 4.3 Revisión independiente (`engineering-review`) y corrección de bloqueantes.
-- [ ] 4.4 Commits en la rama `arte/punto-de-mira-tippex-y-pegatinas` y push; publicar en producción solo si el usuario lo pide.
+- [x] 4.4 Commits en la rama `arte/punto-de-mira-tippex-y-pegatinas` y push; publicar en producción solo si el usuario lo pide. Integrado en `rescate/produccion-2026-09-29` (`e9f8303`). El usuario pidió publicarlo el 2026-11-09 y salió junto a la ronda 2 del Curioso (`b180d0d`). Release `20261109T125531Z-arte-curioso-c42eff38`: `PROMOCION-FIN resultado=ok`, contenedor `healthy`, y el `dist/` servido incluye la pegatina, el punto de mira, el rotulador y el Tipp-Ex.
