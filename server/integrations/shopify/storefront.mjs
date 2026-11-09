@@ -148,7 +148,10 @@ export function sanitizeCart(cart) {
 // imposibles; la pertenencia real la valida el servicio de carrito contra el
 // carrito de la sesion antes de llamar a la mutacion.
 export const CART_LINE_ID = /^gid:\/\/shopify\/CartLine\/[A-Za-z0-9-]+(\?cart=[A-Za-z0-9_-]+)?$/;
-export const PRODUCT_VARIANT_ID = /^gid:\/\/shopify\/ProductVariant\/[A-Za-z0-9]+$/;
+// Solo la forma canónica (un entero sin ceros delante): Shopify interpreta
+// «0101» o «101a» como la variante 101, y el guardián de la venta compara el id
+// tal cual, así que cualquier otra forma se saltaría el guardián.
+export const PRODUCT_VARIANT_ID = /^gid:\/\/shopify\/ProductVariant\/[1-9]\d{0,19}$/;
 
 function validateVariantInput(input) {
   const variantId = input?.variantId;

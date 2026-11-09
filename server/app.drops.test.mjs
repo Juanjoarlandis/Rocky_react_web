@@ -14,7 +14,12 @@ afterEach(async () => {
 });
 
 const DAY = 24 * 60 * 60 * 1000;
-const variantOf = (handle) => `gid://shopify/ProductVariant/${handle.replace(/-/g, '')}`;
+// Ids numéricos como los de Shopify (el BFF solo acepta la forma canónica).
+const variantNumbers = new Map();
+const variantOf = (handle) => {
+  if (!variantNumbers.has(handle)) variantNumbers.set(handle, 1000 + variantNumbers.size);
+  return `gid://shopify/ProductVariant/${variantNumbers.get(handle)}`;
+};
 const iso = (offset) => new Date(Date.now() + offset).toISOString();
 
 const config = (number, launchOffset, endsOffset = null) =>

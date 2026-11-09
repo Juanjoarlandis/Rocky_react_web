@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createStorefrontClient } from './storefront.mjs';
+import { PRODUCT_VARIANT_ID, createStorefrontClient } from './storefront.mjs';
 
 const config = {
   storeDomain: 'rocky-dev.myshopify.com',
@@ -203,5 +203,25 @@ describe('Storefront client', () => {
     }
 
     expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('solo acepta ids de variante en su forma canónica: Shopify lee 0101 o 101a como la 101', async () => {
+    // Si no, un id «disfrazado» se saltaría el guardián de la venta, que
+    // compara el id tal cual (venta-de-drops).
+    const fetchImpl = vi.fn();
+    const client = createStorefrontClient({ config, fetchImpl });
+    for (const variantId of [
+      'gid://shopify/ProductVariant/0101',
+      'gid://shopify/ProductVariant/101a',
+      'gid://shopify/ProductVariant/abc',
+      'gid://shopify/ProductVariant/0',
+      'gid://shopify/ProductVariant/123456789012345678901',
+    ]) {
+      await expect(
+        client.addLines('gid://shopify/Cart/t?key=k', { variantId, quantity: 1 })
+      ).rejects.toMatchObject({ code: 'INVALID_VARIANT' });
+    }
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(PRODUCT_VARIANT_ID.test('gid://shopify/ProductVariant/65158825574777')).toBe(true);
   });
 });
