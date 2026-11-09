@@ -17,6 +17,8 @@ export default [
       'public/theme-init.js',
       // Worktrees de otras sesiones de Claude Code (con su propio dist/): no son de este árbol.
       '.claude/worktrees/**',
+      // Maestros locales de arte y sus herramientas (fuera de Git, ver .gitignore).
+      'assets-master/**',
     ],
   },
   js.configs.recommended,
