@@ -51,6 +51,18 @@ import { announcePlaying, onOtherPlaying } from './mesaBus.js';
 const STORAGE_KEY = STORAGE_KEYS.beatTable;
 const INITIAL_PRESET = PRESETS[0];
 
+// La consola sólo se ve desde 1200 px (beat-machine.css)
+const CONSOLA_MQ = '(min-width: 1200px)';
+const consolaVisible = () =>
+  typeof window === 'undefined' || !window.matchMedia || window.matchMedia(CONSOLA_MQ).matches;
+
+// Lo que dice el banco BARRO cuando no carga, según por qué
+const MENSAJE_FALLO_BARRO = Object.freeze({
+  BARRO_DESCARGA: 'No se ha podido descargar BARRO. Comprueba la conexión.',
+  BARRO_DECODIFICAR: 'Tu navegador no puede leer el audio de BARRO.',
+  BARRO_SIN_AUDIO: 'Tu navegador no puede tocar audio.',
+});
+
 // Al pinchar una celda va rotando: silencio → golpe → acento → fantasma
 const CYCLE = [0, 2, 3, 1];
 
@@ -125,7 +137,8 @@ function BeatMachine() {
   const [activePreset, setActivePreset] = useState(INITIAL_PRESET.id);
   // El banco BARRO: su audio se carga al elegirlo (reposo → cargando → listo
   // o fallo). `tramos` es el Map id → AudioBuffer de los cortes.
-  const [barro, setBarro] = useState({ estado: 'reposo', tramos: null });
+  const [barro, setBarro] = useState({ estado: 'reposo', tramos: null, motivo: null });
+  const padsRef = useRef(null);
   // ¿Sigue montada la mesa cuando acaba la carga? Se pone a true al montar
   // (en desarrollo React monta, desmonta y vuelve a montar cada efecto).
   const montadaRef = useRef(false);
@@ -202,15 +215,23 @@ function BeatMachine() {
 
   // Los vúmetros se pintan en el mismo bucle que el cabezal: el de la
   // cabecera y los de la consola, con una variable CSS (sin renderizar React).
-  // Los de la consola suben al pico y caen poco a poco, como los de verdad.
-  const caidaRef = useRef([]);
+  // Los de la consola suben al pico y caen poco a poco, como los de verdad:
+  // la caída va por tiempo (pierden un 14 % cada 1/60 s), no por fotograma,
+  // para que en una pantalla de 120 Hz no caigan el doble de rápido. Con la
+  // consola oculta (menos de 1200 px) ni se leen los niveles por pista.
+  const caidaRef = useRef({ niveles: [], antes: 0 });
   const paintMeter = useCallback((engine) => {
     const master = engine.level();
     vuRef.current?.style.setProperty('--nivel', master.toFixed(3));
+    if (!consolaVisible()) return;
+    const ahora = performance.now();
+    const caida = caidaRef.current;
+    const factor = caida.antes ? 0.86 ** ((ahora - caida.antes) / (1000 / 60)) : 0;
+    caida.antes = ahora;
     const levelsNow = [...(engine.levels?.() ?? []), master];
     metersRef.current.forEach((meter, index) => {
-      const value = Math.max(levelsNow[index] ?? 0, (caidaRef.current[index] ?? 0) * 0.86);
-      caidaRef.current[index] = value;
+      const value = Math.max(levelsNow[index] ?? 0, (caida.niveles[index] ?? 0) * factor);
+      caida.niveles[index] = value;
       meter?.style.setProperty('--nivel', value.toFixed(3));
     });
   }, []);
@@ -239,7 +260,7 @@ function BeatMachine() {
     stopSequencer();
     vuRef.current?.style.setProperty('--nivel', '0');
     metersRef.current.forEach((meter) => meter?.style.setProperty('--nivel', '0'));
-    caidaRef.current = [];
+    caidaRef.current = { niveles: [], antes: 0 };
     setRecording(false);
   }, [stopSequencer]);
 
@@ -265,19 +286,23 @@ function BeatMachine() {
   // ---------- BARRO ----------
 
   const cargarBarro = useCallback(async () => {
-    const engine = ensureEngine();
-    if (!engine) {
-      setBarro({ estado: 'fallo', tramos: null });
-      return;
-    }
-    setBarro({ estado: 'cargando', tramos: null });
+    setBarro({ estado: 'cargando', tramos: null, motivo: null });
     try {
+      const engine = ensureEngine();
+      if (!engine) throw Object.assign(new Error('Sin Web Audio'), { code: 'BARRO_SIN_AUDIO' });
       const tramos = await cargarCortesBarro(engine.ctx);
-      if (montadaRef.current) setBarro({ estado: 'listo', tramos });
-    } catch {
-      if (montadaRef.current) setBarro({ estado: 'fallo', tramos: null });
+      if (montadaRef.current) setBarro({ estado: 'listo', tramos, motivo: null });
+    } catch (error) {
+      if (montadaRef.current) setBarro({ estado: 'fallo', tramos: null, motivo: error?.code });
     }
   }, [ensureEngine]);
+
+  // Al reintentar, el botón desaparece: el foco pasa a los pads para que los
+  // atajos del teclado sigan funcionando dentro de la mesa.
+  const reintentarBarro = () => {
+    padsRef.current?.focus();
+    cargarBarro();
+  };
 
   const elegirBanco = (id) => {
     setBank(id);
@@ -606,23 +631,25 @@ function BeatMachine() {
             </label>
           </div>
 
-          {bank === 'barro' && barro.estado === 'cargando' && (
-            <p className="pads-estado" role="status">
-              Cargando BARRO…
-            </p>
-          )}
+          {/* Una región viva fija: el lector anuncia sus cambios de texto */}
+          <p className="pads-estado" role="status">
+            {bank !== 'barro'
+              ? ''
+              : barro.estado === 'cargando'
+                ? 'Cargando BARRO…'
+                : recording
+                  ? 'Los cortes de BARRO se tocan en directo: no se graban en la rejilla.'
+                  : ''}
+          </p>
           {bank === 'barro' && barro.estado === 'fallo' && (
             <div className="pads-estado pads-estado--fallo">
-              <p role="alert">No se ha podido cargar BARRO. Comprueba la conexión.</p>
-              <button type="button" className="btn btn--ghost btn--sm" onClick={cargarBarro}>
+              <p role="alert">
+                {MENSAJE_FALLO_BARRO[barro.motivo] ?? MENSAJE_FALLO_BARRO.BARRO_DESCARGA}
+              </p>
+              <button type="button" className="btn btn--ghost btn--sm" onClick={reintentarBarro}>
                 Reintentar
               </button>
             </div>
-          )}
-          {bank === 'barro' && recording && (
-            <p className="pads-aviso" role="status">
-              Los cortes de BARRO se tocan en directo: no se graban en la rejilla.
-            </p>
           )}
 
           <BeatPads
@@ -630,6 +657,7 @@ function BeatMachine() {
             teclas={PAD_TECLAS}
             onHit={strikePad}
             activo={activePad}
+            grupoRef={padsRef}
             ocupado={bank === 'barro' && barro.estado === 'cargando'}
             deshabilitado={bank === 'barro' && !barroListo}
           />

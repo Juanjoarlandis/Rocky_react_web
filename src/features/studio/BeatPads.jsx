@@ -2,13 +2,23 @@
 // dedo o con las teclas 1234 / QWER / ASDF / ZXCV.
 // Mientras un banco carga (los cortes de BARRO) los pads se ven pero no
 // suenan: el grupo lo anuncia con aria-busy y cada pad va deshabilitado.
-function BeatPads({ pads, teclas, onHit, activo, ocupado = false, deshabilitado = false }) {
+function BeatPads({
+  pads,
+  teclas,
+  onHit,
+  activo,
+  ocupado = false,
+  deshabilitado = false,
+  grupoRef = null,
+}) {
   return (
     <div
+      ref={grupoRef}
       className="pads-rejilla"
       role="group"
       aria-label="Pads de sonido"
       aria-busy={ocupado || undefined}
+      tabIndex={-1}
     >
       {pads.map((pad, i) => (
         <button

@@ -1,5 +1,5 @@
 import { StrictMode } from 'react';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, beforeEach, vi } from 'vitest';
 import { MemoryRouter } from 'react-router';
@@ -251,7 +251,7 @@ describe('El banco BARRO', () => {
     const user = userEvent.setup();
     montar();
     await user.click(screen.getByRole('button', { name: 'BARRO' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent(/No se ha podido cargar BARRO/);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/No se ha podido descargar BARRO/);
     await user.click(screen.getByRole('button', { name: 'Batería' }));
     expect(screen.getByRole('button', { name: 'Pad 1: Bombo' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'BARRO' }));
@@ -291,6 +291,110 @@ describe('El banco BARRO', () => {
     });
     await screen.findByText((_, el) => el === primero && !primero.disabled);
     expect(primero).toBeEnabled();
+  });
+
+  it('el corte suena de verdad: su tramo, con la duración de su corte', async () => {
+    vi.stubGlobal('fetch', vi.fn(audioDeBarro));
+    let contexto;
+    class Espia extends ContextoConBarro {
+      constructor() {
+        super();
+        contexto = this;
+      }
+    }
+    vi.stubGlobal('AudioContext', Espia);
+    const user = userEvent.setup();
+    montar();
+    await user.click(screen.getByRole('button', { name: 'BARRO', exact: true }));
+    const primero = await screen.findByRole('button', {
+      name: `Pad 1: ${CORTES_BARRO[0].label}`,
+    });
+    await waitFor(() => expect(primero).toBeEnabled());
+    fireEvent.click(primero, { detail: 0 });
+    const [{ source }] = contexto.started;
+    expect(source.buffer.duration).toBeCloseTo(CORTES_BARRO[0].duracion, 2);
+  });
+
+  it('con REC y la mesa sonando, tocar cortes no cambia la rejilla', async () => {
+    vi.stubGlobal('fetch', vi.fn(audioDeBarro));
+    vi.stubGlobal('requestAnimationFrame', () => 0);
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    const user = userEvent.setup();
+    montar();
+    await user.click(screen.getByRole('button', { name: 'BARRO', exact: true }));
+    const primero = await screen.findByRole('button', {
+      name: `Pad 1: ${CORTES_BARRO[0].label}`,
+    });
+    await waitFor(() => expect(primero).toBeEnabled());
+    const encendidas = () =>
+      screen
+        .getAllByRole('button', { name: /, paso \d+$/ })
+        .filter((c) => c.getAttribute('aria-pressed') === 'true').length;
+    const antes = encendidas();
+    await user.click(screen.getByRole('button', { name: 'Reproducir el beat' }));
+    await user.click(screen.getByRole('button', { name: /REC/ }));
+    fireEvent.click(primero, { detail: 0 });
+    fireEvent.click(primero, { detail: 0 });
+    expect(encendidas()).toBe(antes);
+  });
+
+  it('tras «Reintentar» el foco sigue en la mesa y los atajos funcionan', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockImplementation(audioDeBarro);
+    vi.stubGlobal('fetch', fetchMock);
+    const user = userEvent.setup();
+    montar();
+    await user.click(screen.getByRole('button', { name: 'BARRO', exact: true }));
+    await user.click(await screen.findByRole('button', { name: 'Reintentar' }));
+    expect(document.querySelector('.mesa-wrap').contains(document.activeElement)).toBe(true);
+  });
+
+  it('si no se puede decodificar lo dice así, y reintentar no vuelve a descargar', async () => {
+    const fetchMock = vi.fn(audioDeBarro);
+    vi.stubGlobal('fetch', fetchMock);
+    let falla = true;
+    class Caprichoso extends ContextoConBarro {
+      async decodeAudioData(datos) {
+        if (falla) throw new Error('formato no soportado');
+        return super.decodeAudioData(datos);
+      }
+    }
+    vi.stubGlobal('AudioContext', Caprichoso);
+    const user = userEvent.setup();
+    montar();
+    await user.click(screen.getByRole('button', { name: 'BARRO', exact: true }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/no puede leer el audio de BARRO/);
+    falla = false;
+    await user.click(screen.getByRole('button', { name: 'Reintentar' }));
+    await screen.findByRole('button', { name: `Pad 1: ${CORTES_BARRO[0].label}` });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: `Pad 1: ${CORTES_BARRO[0].label}` })).toBeEnabled()
+    );
+    expect(fetchMock.mock.calls.filter(([url]) => url === BARRO_URL)).toHaveLength(1);
+  });
+
+  it('el estado del banco se anuncia en una región viva que no se monta y desmonta', async () => {
+    let soltar;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        () =>
+          new Promise((resolve) => {
+            soltar = () => resolve({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) });
+          })
+      )
+    );
+    const user = userEvent.setup();
+    montar();
+    const region = document.querySelector('.pads-estado[role="status"]');
+    expect(region).not.toBe(null);
+    await user.click(screen.getByRole('button', { name: 'BARRO', exact: true }));
+    expect(region).toHaveTextContent(/Cargando BARRO/);
+    soltar();
+    await waitFor(() => expect(region).toHaveTextContent(''));
+    expect(document.querySelector('.pads-estado[role="status"]')).toBe(region);
   });
 
   it('la nota del pie no dice que no haya ningún sample', () => {

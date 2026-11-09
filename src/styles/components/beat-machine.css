@@ -745,12 +745,15 @@
   }
 
   /* El banco BARRO cargando, sin cargar o con REC encendido */
-  .pads-estado,
-  .pads-aviso {
+  .pads-estado {
     margin: 0 2px 12px;
     font-family: var(--font-hand);
     font-size: var(--text-sm);
     color: rgba(var(--card-rgb), 0.78);
+  }
+
+  .pads-estado:empty {
+    display: none;
   }
 
   .pads-estado--fallo {
@@ -762,10 +765,6 @@
 
   .pads-estado--fallo p {
     margin: 0;
-    color: var(--gold);
-  }
-
-  .pads-aviso {
     color: var(--gold);
   }
 
@@ -930,19 +929,21 @@
   }
 
   /* El fader, en vertical con el input nativo (teclado y lector intactos).
-     Donde no se pueda girar se queda en horizontal dentro del canal. */
+     Las medidas van en propiedades lógicas: un navegador que no sabe girar
+     un range (Chrome < 124) deja el control en horizontal y entonces el
+     largo (inline-size) cae a lo ancho, no en una caja de 28 px. */
   .mesa .canal-fader[type='range'] {
     flex: none;
-    width: 100%;
-    min-width: 0;
+    inline-size: 100%;
+    min-inline-size: 0;
   }
 
   @supports (writing-mode: vertical-lr) {
     .mesa .canal-fader[type='range'] {
       writing-mode: vertical-lr;
       direction: rtl;
-      width: 28px;
-      height: 112px;
+      inline-size: 112px;
+      block-size: 28px;
     }
   }
 

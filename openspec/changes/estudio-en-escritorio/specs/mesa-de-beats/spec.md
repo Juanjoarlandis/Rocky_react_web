@@ -28,7 +28,8 @@ Por debajo de 1200 px la mesa SHALL mantener la distribución en una columna que
 ### Requirement: La consola mezcla cada pista
 Desde 1200 px, la mesa SHALL tener una consola con un canal por cada una de las 8 pistas y un
 canal maestro. Cada canal de pista SHALL tener un fader vertical de volumen, mute, solo y un
-vúmetro que se mueva con el sonido de esa pista. El maestro SHALL tener su fader y su
+vúmetro que se mueva con el sonido de esa pista mientras la mesa suena (con la mesa parada
+los vúmetros están en reposo, aunque se toquen pads). El maestro SHALL tener su fader y su
 vúmetro.
 
 #### Scenario: Bajar el hi-hat desde la consola

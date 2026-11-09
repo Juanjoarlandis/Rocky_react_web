@@ -3,22 +3,24 @@
 // les fije con `signal`, para comprobar vúmetros sin sonido de verdad.
 
 function param(value = 0) {
-  return {
+  // Cada llamada queda apuntada con su tiempo, para comprobar rampas y cortes.
+  const calls = [];
+  const apunta =
+    (nombre, cambia = true) =>
+    (v, ...resto) => {
+      calls.push([nombre, v, ...resto]);
+      if (cambia) created.value = v;
+    };
+  const created = {
     value,
-    setValueAtTime(v) {
-      this.value = v;
-    },
-    setTargetAtTime(v) {
-      this.value = v;
-    },
-    linearRampToValueAtTime(v) {
-      this.value = v;
-    },
-    exponentialRampToValueAtTime(v) {
-      this.value = v;
-    },
-    cancelScheduledValues() {},
+    calls,
+    setValueAtTime: apunta('setValueAtTime'),
+    setTargetAtTime: apunta('setTargetAtTime'),
+    linearRampToValueAtTime: apunta('linearRampToValueAtTime'),
+    exponentialRampToValueAtTime: apunta('exponentialRampToValueAtTime'),
+    cancelScheduledValues: apunta('cancelScheduledValues', false),
   };
+  return created;
 }
 
 function node(kind, extra = {}) {

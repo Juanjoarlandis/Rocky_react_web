@@ -52,11 +52,13 @@ Lo medido y el porqué están en `proposal.md`. Para el cómo importa lo siguien
 - La consola se renderiza siempre, pero por debajo de 1200 px se oculta con `display: none`.
 - Desde 1200 px, la cabeza de cada fila de la rejilla oculta su deslizador y su botón S, y conserva el nombre, que sigue haciendo de mute.
 - `display: none` saca el control oculto del árbol de accesibilidad, así que el lector de pantalla nunca ve el control duplicado.
+- Por lo mismo, desde 1200 px se oculta el volumen general del transporte: lo sustituye el fader del maestro, que mueve el mismo valor.
+- `.mesa-wrap` pasa a `position: relative` desde 1200 px para que la grada del público se coloque respecto a la mesa ensanchada y no respecto a la página.
 - **Alternativa descartada:** decidir con `matchMedia` en JavaScript. Es más código, da parpadeos al redimensionar y obliga a simular la anchura en las pruebas.
 
 ### D4 · Faders verticales con `<input type="range">` nativo
 - Se gira con `writing-mode: vertical-lr; direction: rtl`. Se conservan el teclado, el valor anunciado y el nombre accesible («Volumen de Caja»).
-- Donde el navegador no lo soporte (`@supports`), el fader se queda horizontal dentro de su canal.
+- Las medidas van en propiedades lógicas (`inline-size` 112 px, `block-size` 28 px). Un navegador que no gire el range (Chrome < 124 da verdadero en `@supports (writing-mode: vertical-lr)` pero lo pinta en horizontal) lo deja horizontal y a lo ancho del canal, no metido en una caja de 28 px.
 - **Alternativas descartadas:**
   - Un `role="slider"` hecho a mano: más código y más riesgo de accesibilidad.
   - Girar el input con `transform`: rompe la caja y la zona de clic.
@@ -64,7 +66,7 @@ Lo medido y el porqué están en `proposal.md`. Para el cómo importa lo siguien
 ### D5 · Un vúmetro por pista con analizadores en derivación
 - **El motor.** Cada bus de pista se conecta, además de a la mezcla, a un `AnalyserNode` propio (`fftSize` 1024, unos 21 ms) que no sale a ningún sitio. Es una derivación, así que no cambia el sonido. El motor expone `levels()` con el **pico** de cada pista, en el orden de `TRACK_IDS`.
   - Se pasó del RMS con 256 muestras al pico con 1024 en la verificación. Con 256, la ventana solo cubría 5 ms de cada fotograma de 16 ms, y la media aplastaba los golpes secos: el bombo llenaba el vúmetro y la caja apenas lo movía.
-- **El pintado.** Va en el mismo `onFrame` que el vúmetro maestro y escribe una variable CSS por canal. Lee cada fotograma solo mientras suena. Cada canal sube al pico y cae un 14 % por fotograma.
+- **El pintado.** Va en el mismo `onFrame` que el vúmetro maestro y escribe una variable CSS por canal. Lee cada fotograma solo mientras suena y solo si la consola se ve (`matchMedia('(min-width: 1200px)')`). Cada canal sube al pico y cae un 14 % cada 1/60 s, medido por tiempo, para que en pantallas de 120 Hz no caiga el doble de rápido.
 - El nivel se lee después del fader del bus, así que un fader bajo o un mute se ven en su vúmetro.
 - **Alternativas descartadas:**
   - Calcular un «nivel» por los disparos del secuenciador: no refleja el sonido real.
@@ -72,8 +74,8 @@ Lo medido y el porqué están en `proposal.md`. Para el cómo importa lo siguien
 
 ### D6 · Los cortes de BARRO: se descarga una vez y se guardan solo los trozos
 - **El módulo.** `src/features/studio/audio/barro.js` hace tres cosas:
-  1. descarga `/music/barro.m4a` una sola vez por pestaña y guarda en memoria el `ArrayBuffer`;
-  2. lo decodifica con el `AudioContext` del motor;
+  1. descarga `/music/barro.m4a` una sola vez por pestaña y guarda en memoria el `ArrayBuffer`; si la descarga falla, lo olvida para que el reintento vuelva a pedirlo;
+  2. lo decodifica con el `AudioContext` del motor, una vez por mesa montada; si la decodificación falla, conserva los bytes (reintentar no vuelve a bajar 2,7 MB);
   3. copia a buffers pequeños solo los 16 tramos de `CORTES_BARRO` y suelta el buffer entero.
 
   Así pasa de unos 43 MB a lo que sumen los cortes: con 16 cortes de unos 2 s, unos 12 MB.
@@ -81,7 +83,8 @@ Lo medido y el porqué están en `proposal.md`. Para el cómo importa lo siguien
 - **La voz `corte`.** Toca un buffer por el `padBus` con rampas de 5 ms al entrar y al salir, para que no haya clics. Usa `engine.chokes` con una clave por pad, de modo que repetir un pad corta el anterior y pads distintos se superponen.
 - **El estado del banco** está en `BeatMachine`: `reposo`, `cargando`, `listo` o `fallo`.
   - Al elegir BARRO se crea el motor si hace falta y se carga.
-  - Con `fallo`, los pads del banco muestran el error y un botón «Reintentar».
+  - Con `fallo`, los pads del banco muestran el error (distinto si falló la descarga o la decodificación) y un botón «Reintentar»; al pulsarlo el foco pasa al grupo de pads.
+  - «Cargando» y el aviso de REC van en una sola región viva (`role="status"`) que siempre está en el DOM, para que el lector anuncie los cambios.
   - El tono no afecta a los cortes, y el selector se desactiva con BARRO elegido.
   - Con REC encendido y BARRO elegido aparece un aviso de que los cortes no se graban. Los pads de BARRO no llevan pista, así que `trackIndexOf` ya devuelve -1 y no se graban.
 - **Alternativas descartadas:**

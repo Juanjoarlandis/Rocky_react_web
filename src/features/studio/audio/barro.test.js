@@ -58,22 +58,24 @@ describe('los cortes de BARRO', () => {
       .mockResolvedValue(respuesta());
     await expect(
       cargarCortesBarro(contextoQueDecodifica(), { fetchImpl, cortes: CORTES })
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ code: 'BARRO_DESCARGA' });
     const tramos = await cargarCortesBarro(contextoQueDecodifica(), { fetchImpl, cortes: CORTES });
     expect(tramos.size).toBe(2);
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
-  it('si no se puede decodificar, el error sube y no queda nada a medias', async () => {
+  it('si no se puede decodificar, el error sube con su código y reintentar no vuelve a descargar', async () => {
     const fetchImpl = vi.fn(async () => respuesta());
     const roto = new FakeAudioContext();
     roto.decodeAudioData = vi.fn(async () => {
       throw new Error('formato no soportado');
     });
-    await expect(cargarCortesBarro(roto, { fetchImpl, cortes: CORTES })).rejects.toThrow(
-      'formato no soportado'
-    );
-    await cargarCortesBarro(contextoQueDecodifica(), { fetchImpl, cortes: CORTES });
-    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    await expect(cargarCortesBarro(roto, { fetchImpl, cortes: CORTES })).rejects.toMatchObject({
+      message: 'formato no soportado',
+      code: 'BARRO_DECODIFICAR',
+    });
+    const tramos = await cargarCortesBarro(contextoQueDecodifica(), { fetchImpl, cortes: CORTES });
+    expect(tramos.size).toBe(2);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });

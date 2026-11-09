@@ -1,6 +1,8 @@
-// LAS VOCES DE LA MESA — cada sonido se sintetiza en el momento.
-// Nada de samples: osciladores, ruido y filtros. Cada voz acepta ganancia
-// (velocidad de la celda o del pad) y un envío a la reverb.
+// LAS VOCES DE LA MESA — casi todo se sintetiza en el momento con
+// osciladores, ruido y filtros. La única voz con audio grabado es «corte»,
+// que toca un tramo ya decodificado de BARRO (lo pasa la mesa en o.buffer).
+// Cada voz acepta ganancia (velocidad de la celda o del pad) y un envío a la
+// reverb.
 
 export function noteFreq(midi) {
   return 440 * 2 ** ((midi - 69) / 12);

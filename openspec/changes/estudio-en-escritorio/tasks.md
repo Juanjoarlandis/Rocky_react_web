@@ -64,7 +64,7 @@ Nivel 2. TDD en cada tarea de lógica: prueba en rojo, implementación mínima y
 
   Verifica: el script termina con todas las comprobaciones OK y deja capturas.
 - [ ] 5.3 Revisión de arte con capturas de día y de noche a 1280, 1440 y 1920 px. Incluye la consola, la grada bailando y en reposo y el banco BARRO en sus estados, y corrige lo que no encaje. Los cortes de BARRO los escucha y aprueba el usuario.
-- [ ] 5.4 Revisión independiente (`engineering-review`) contra estas especificaciones y el diff, y corrección de los bloqueantes en dos rondas como mucho.
+- [x] 5.4 Revisión independiente (`engineering-review`) contra estas especificaciones y el diff, y corrección de los bloqueantes en dos rondas como mucho.
 
 ## Workflow follow-up
 

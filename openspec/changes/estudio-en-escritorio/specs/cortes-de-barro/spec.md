@@ -24,8 +24,9 @@ cambiar de afinación con el selector de tono.
 - **THEN** el corte vuelve a empezar desde el principio, sin superponerse consigo mismo
 
 ### Requirement: El audio se carga solo cuando hace falta
-El audio de BARRO SHALL descargarse y decodificarse solo al elegir el banco BARRO, y una sola
-vez por visita. Mientras carga, los pads del banco SHALL decir que están cargando y SHALL NOT
+El audio de BARRO SHALL descargarse solo al elegir el banco BARRO, y una sola vez por
+pestaña. SHALL decodificarse una vez por cada mesa montada: volver a La Colmena lo decodifica
+de nuevo, pero no lo vuelve a descargar. Mientras carga, los pads del banco SHALL decir que están cargando y SHALL NOT
 sonar. Los demás bancos SHALL seguir funcionando mientras tanto.
 
 #### Scenario: Entrar sin tocar el banco
@@ -38,12 +39,17 @@ sonar. Los demás bancos SHALL seguir funcionando mientras tanto.
 
 ### Requirement: Si BARRO no llega, se dice y se puede reintentar
 Si la descarga o la decodificación fallan, el banco BARRO SHALL decirlo con un mensaje en
-castellano y un botón para reintentar. Los demás bancos, la rejilla y el transporte SHALL
-seguir funcionando.
+castellano que distinga los dos casos y un botón para reintentar. Los demás bancos, la
+rejilla y el transporte SHALL seguir funcionando. Tras pulsar «Reintentar», el foco SHALL
+seguir dentro de la mesa.
 
 #### Scenario: Sin conexión
 - **WHEN** falla la descarga del audio de BARRO
-- **THEN** el banco dice que no se ha podido cargar, ofrece reintentar y la batería sigue sonando
+- **THEN** el banco dice que no se ha podido descargar, ofrece reintentar y la batería sigue sonando
+
+#### Scenario: El navegador no entiende el audio
+- **WHEN** el audio llega pero el navegador no lo puede decodificar
+- **THEN** el banco dice que el navegador no puede leer el audio de BARRO y reintentar no lo vuelve a descargar
 
 ### Requirement: Los cortes se tocan en directo
 Los cortes de BARRO SHALL sonar en directo y SHALL NOT grabarse en la rejilla aunque REC esté

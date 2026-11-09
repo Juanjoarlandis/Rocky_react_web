@@ -26,7 +26,7 @@ function descargar(fetchImpl) {
       })
       .catch((error) => {
         bytes = null;
-        throw error;
+        throw Object.assign(error, { code: 'BARRO_DESCARGA' });
       });
   }
   return bytes;
@@ -51,10 +51,13 @@ export async function cargarCortesBarro(
   let tema;
   try {
     // decodeAudioData se queda con el buffer que recibe: se le pasa una copia.
+    // Si no lo entiende (un navegador sin AAC), los bytes se quedan: no hace
+    // falta volver a bajar 2,7 MB para reintentar.
     tema = await ctx.decodeAudioData(datos.slice(0));
   } catch (error) {
-    bytes = null;
-    throw error;
+    throw Object.assign(error instanceof Error ? error : new Error(String(error)), {
+      code: 'BARRO_DECODIFICAR',
+    });
   }
   return new Map(cortes.map((corte) => [corte.id, copiarTramo(ctx, tema, corte)]));
 }
