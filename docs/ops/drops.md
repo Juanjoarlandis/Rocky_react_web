@@ -36,21 +36,30 @@ Nadie tiene que hacer nada a la hora:
 ## El Taller (`/taller`)
 
 Se entra con **clave y código de la app** (TOTP). La sesión dura 8 horas, y hay 5
-intentos por IP cada 15 minutos. No hay enlace en la barra: se entra escribiendo
-la dirección.
+intentos por IP cada 15 minutos (una IPv6 cuenta por su /64). No hay enlace en la
+barra: se entra escribiendo la dirección.
+
+Si alguien mete **diez códigos malos con la clave buena** en una hora, la entrada
+se cierra una hora para todos y el log lo marca como error («Entrada al Taller
+cerrada…»). Eso quiere decir que la clave se ha filtrado: genera otra con
+`npm run taller:clave`, cámbiala en el entorno y reinicia.
+
+Si el permiso caduca (8 h o servidor reiniciado), el Taller vuelve solo a la
+entrada.
 
 - **Nuevo drop**: título, número y slug. Nace en borrador y no aparece en la web.
 - **Editar**:
   - lema, historia, lanzamiento y cierre, en **hora de Madrid**. Sin cierre, sigue en la calle hasta agotarse;
   - el cartel: PNG, JPEG o WebP de hasta 8 MB. Sube al guardar.
-- **Vista previa**: el cartel tal como saldrá anunciado, en la calle y en archivo.
+- **Vista previa**: el cartel tal como saldrá anunciado, en la calle, en últimas horas y en archivo. Es solo para mirar: sus pestañas y enlaces no hacen nada.
 - **Diseños**:
   - crear uno completo: título, descripción, precio, tallas S/M/L/XL con unidades o sin límite, y foto;
   - editarlo;
   - añadir un producto que ya exista, si no está en otro drop;
   - quitarlo del drop. Quitar un diseño lo saca también de la venta.
-- **Programar el drop**: lo publica en el canal Headless con la fecha de lanzamiento. Un drop sin diseños o sin fecha no se programa.
-- **Despublicar** (dos pulsaciones): vuelve a borrador y saca sus diseños del canal.
+- **Programar el drop**: lo publica en el canal Headless con la fecha de lanzamiento, y lo saca de los demás canales. Un drop sin diseños, sin fecha o con cambios sin guardar no se programa.
+- **Despublicar** (dos pulsaciones): vuelve a borrador y saca sus diseños de todos los canales.
+- Si Shopify falla a medias al programar, despublicar o mover la fecha, el Taller enseña el error y basta con repetir la acción: la fecha y el estado guardados no cambian hasta que Shopify ha terminado.
 - Cada drop dice **cuántos avisos tiene apuntados**: los suyos más los de sus diseños, sin repetir. Nunca enseña los emails.
 
 Cada cambio deja una línea en el log del servidor (`Taller`, acción, objetivo y
@@ -87,7 +96,23 @@ correo por persona con el título del drop y enlaza a `/products/rocky-drop-6`.
 
    Sin alguna de ellas, El Taller queda apagado (`/api/taller/*` → 404) y el arranque dice qué falta. La web sigue funcionando.
 4. **Publicar** la release con `docs/ops/publicar.md`.
-5. **Crear en el Taller el drop en curso** con sus productos, o escribir su metacampo. Hasta entonces la web no tiene drops: los productos salen como «Tienda» y se venden con sus reglas de siempre.
+5. **Revisar los canales.** En el admin de Shopify, los productos que vayan a ir en drops deben estar solo en el canal Headless. En otro canal (tienda online, Shop app…) se podrían ver o comprar sin pasar por la web, saltándose la fecha y el cierre. El Taller los saca de los demás canales al programar, despublicar o quitar un diseño. Con un producto que se añada a un drop ya programado, también.
+6. **Crear en el Taller el drop en curso** con sus productos. Hasta entonces la web no tiene drops: los productos salen como «Tienda» y se venden con sus reglas de siempre.
+
+   Si ya existe una colección `rocky-drop-N` de antes, el Taller no deja crear otra con ese slug (Shopify le pondría un sufijo). Hay dos opciones:
+   - elegir otro slug;
+   - **adoptarla**: en Shopify, en *Ajustes → Datos personalizados → Colecciones*, define el metacampo `rocky.drop` de tipo JSON y rellénalo en la colección con, por ejemplo:
+
+     ```json
+     {"version":1,"number":4,"tagline":"","story":"","launchAt":null,"endsAt":null,"status":"borrador"}
+     ```
+
+     Desde ese momento es un drop en borrador: sus productos dejan de verse en la web hasta que se programe. Hazlo justo antes de editarlo y programarlo en el Taller.
+
+## Riesgos aceptados
+
+- Quien ya abrió el pago de Shopify con el drop en la calle puede terminarlo después del cierre, como en una tienda que cierra con gente en la caja. Después del cierre no se puede añadir ni pedir el pago.
+- Si el servidor arranca con la Admin API caída, la web no tiene drops hasta que vuelva y los diseños del archivo se pueden comprar mientras tanto. Queda en el log («No se han podido leer los drops de Shopify»). Si cae con el servidor ya en marcha, se sigue con la última lectura buena.
 
 ## Vuelta atrás
 

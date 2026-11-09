@@ -51,8 +51,10 @@ Ver `proposal.md` (Why) y las especificaciones del cambio. Estado de partida com
 
 ### D2 · El modelo de drops se lee por la Admin API, en el servidor y con caché
 
-- **Lectura.** El BFF lee las colecciones `handle:rocky-drop-*` (hasta 50) con su metacampo, su imagen y sus productos (id, handle, título, estado de publicación) por la Admin API.
-- **Caché.** 30 segundos con una sola petición en vuelo. Si Shopify falla, sirve la última lectura buena durante 10 minutos como máximo. El Taller la invalida en cada escritura.
+- **Lectura.** El BFF recorre las colecciones por la Admin API (páginas de 100, hasta 20) y se queda con las `rocky-drop-*`, con su metacampo, su imagen y sus productos (id, handle, título, variantes, estado de publicación). Los productos se piden de 4 colecciones en 4.
+  - Sin el parámetro `query`: el buscador de Shopify tarda segundos en ver una colección recién creada y el Taller la perdía justo después de crearla (medido en la tienda de pruebas).
+  - Una colección `rocky-drop-*` sin metacampo (de antes del sistema de drops) no es un drop: se ignora sin avisar en el log. Un metacampo roto sí se avisa.
+- **Caché.** 30 segundos con una sola petición en vuelo. Si Shopify falla, sirve la última lectura buena sin caducar: el estado se calcula con la hora de cada consulta, así que una lectura vieja sigue cerrando los drops a su hora y el guardián de la venta no se abre (revisión independiente). El Taller la invalida en cada escritura; la invalidación sube una generación para que una lectura que empezó antes no se guarde como fresca.
 - **Alternativa descartada.** Leer el metacampo por Storefront: exige una definición con acceso público y expondría la configuración de los borradores.
 - **Sin credenciales Admin** (tienda real sin configurar), el modelo está vacío y la web funciona sin drops: todo es «Tienda».
 
@@ -63,11 +65,14 @@ Ver `proposal.md` (Why) y las especificaciones del cambio. Estado de partida com
 ### D4 · Venta: publicación programada en Shopify y guardián en el BFF
 
 - **Programar.** El drop se publica en el canal Headless con `publishDate = launchAt` (`publishablePublish`), y nunca en otros canales. Antes de la hora, la Storefront API no devuelve esos productos ni deja comprarlos.
-- **Volver a borrador o mover la fecha.** Primero se despublica y luego se publica con la fecha nueva.
+- **Despublicar es de todos los canales.** Un diseño que siguiera en la tienda online, la Shop app u otro canal se podría ver o comprar sin pasar por el BFF (`/cart/<variante>:1`, `/products/<handle>.json`). Por eso despublicar saca el producto de todas las publicaciones, y programar despublica antes de publicar solo en Headless.
+- **Volver a borrador o mover la fecha.** Primero se despublica y luego se publica con la fecha nueva. Shopify va antes que el metacampo: si algo falla a medias, la configuración guardada sigue siendo la anterior y repetir la acción vuelve a sincronizarlo todo.
 - **Guardián en el BFF.** Para el cierre, que Shopify no sabe programar, `cartOperations` consulta antes de añadir, subir cantidad o pagar. Busca el producto de la variante o de la línea en el modelo del catálogo:
   - si el drop no está a la venta, responde 409 (`DROP_NOT_ON_SALE` o `DROP_CLOSED_IN_CART`);
   - si el producto no está en el modelo, refresca una vez;
-  - si sigue sin estar, decide Shopify: o no está publicado, y lo rechaza, o no es de ningún drop.
+  - si sigue sin estar (más de 250 productos), lo busca por la variante en el modelo de drops, que conoce las variantes de cada diseño;
+  - si tampoco, decide Shopify: o no está publicado, y lo rechaza, o no es de ningún drop.
+- **Ids de variante canónicos.** El BFF solo acepta `gid://shopify/ProductVariant/<entero sin ceros delante>`: Shopify lee `…/0101` o `…/101a` como la variante 101 y el guardián, que compara el id tal cual, no la reconocería (comprobado en la tienda de pruebas en la revisión de seguridad).
 - **Alternativas descartadas:**
   - Solo el BFF: cualquier otro canal o token saltaría la fecha.
   - Solo Shopify: el archivo seguiría a la venta.
@@ -76,10 +81,12 @@ Ver `proposal.md` (Why) y las especificaciones del cambio. Estado de partida com
 ### D5 · Catálogo completo en el BFF
 
 - **Lista.** `catalogModel.listProducts()` pagina la Storefront de 50 en 50, hasta 5 páginas (250), con una sola petición en vuelo y 30 s de caché.
+  - Al caer un drop, la lectura de antes de su hora se da por vieja, y durante 2 minutos el catálogo se relee cada 5 s: Shopify tarda un poco en servir lo que publica con fecha. El navegador vuelve a pedir el catálogo al caer y a los 5, 15 y 35 s.
+  - La invalidación sube una generación, como en D2.
 - **Ruta pública.** `/api/shopify/products` devuelve la lista entera con `pageInfo.hasNextPage: false`, para mantener el contrato.
 - **Qué añade a cada producto.** Su `drop` sale del modelo de drops (D1), con `{ handle, title, number, state }`, y `purchasable` sale de D3.
 - **Filtro del teaser.** Quita cualquier producto de un drop anunciado. Aunque D4 ya lo impide en Shopify, el filtro cubre el caso de un producto publicado a mano antes de tiempo.
-- **Rocky IA** pasa a leer este mismo modelo en vez de su caché de 50.
+- **Rocky IA** pasa a leer este mismo modelo en vez de su caché de 50. Un diseño con `purchasable: false` sale como «drop cerrado», nunca como disponible.
 
 ### D6 · Contrato público `/api/drops`
 
@@ -106,7 +113,9 @@ Ver `proposal.md` (Why) y las especificaciones del cambio. Estado de partida com
   - `sessions.rotate` conservando `cartId` y `customerTokenId`;
   - el registro guarda `tallerGrant`, un secreto del proceso como el de la puerta, y `tallerExpiresAt` a 8 h;
   - reiniciar el servidor cierra las sesiones del Taller, que es lo esperable.
-- **Intentos.** El contador sale de la puerta a `server/lib/attempt-tracker.mjs`: 5 por IP cada 15 min.
+- **Intentos.** El contador sale de la puerta a `server/lib/attempt-tracker.mjs`: 5 por cliente cada 15 min. Una IPv6 cuenta por su /64 (a un cliente le suelen dar el /64 entero).
+- **Código por fuerza bruta.** Diez códigos malos con la clave buena en una hora cierran la entrada una hora para todos y se registra como error: solo puede pasar si alguien tiene la clave.
+- **Avalancha de intentos.** Como mucho dos `scrypt` a la vez; el resto responde 429 (`TALLER_BUSY`) sin calcular nada, para que no se ponga en cola el resto del servidor (el pool de libuv lo comparten el almacén cifrado y el DNS).
 - **Origen.** Las rutas del Taller que cambian algo llevan `requireOrigin`; las de lectura no, porque un `GET` del mismo origen no manda `Origin`. Las protegen la cookie SameSite, la política de origen exacta, que rechaza los orígenes ajenos, y el CORS sin credenciales. Todas van con `no-store`.
 - **Alternativas descartadas:**
   - Login de personal de Shopify (OAuth de app incrustada): mucho más complejo y no encaja con una SPA propia.
@@ -121,7 +130,7 @@ Ver `proposal.md` (Why) y las especificaciones del cambio. Estado de partida com
 | --- | --- |
 | Diseños | `productSet` por handle (`rocky-<slug-del-título>`, con sufijo si existe), con la foto como `files: [{ id }]`. Existencias como en el script de las camisetas: sin seguimiento = sin límite; con número = `inventoryQuantities` al crear, y `inventorySetQuantities` con `changeFromQuantity` al editar |
 | Añadir o quitar diseños | `collectionAddProducts` / `collectionRemoveProducts` |
-| Drop | `collectionCreate` / `collectionUpdate` (título, imagen) + `metafieldsSet` |
+| Drop | `collectionCreate` / `collectionUpdate` (título, imagen) + `metafieldsSet`. Antes de crear se mira si ya hay una colección con ese handle (`collectionByIdentifier`), sea o no un drop: Shopify le añadiría un sufijo. Una colección antigua se adopta escribiéndole el metacampo (`docs/ops/drops.md`) |
 
 Las respuestas del Taller nunca devuelven los errores crudos de Shopify. Se registran en el log y el usuario recibe un `HttpError` con código.
 
@@ -187,10 +196,12 @@ Las respuestas del Taller nunca devuelven los errores crudos de Shopify. Se regi
 
 ## Risks / Trade-offs
 
-- **La Admin API se cae o va lenta** → caché con última lectura buena durante 10 min. Pasado ese tiempo, la web no tiene drops pero sigue vendiendo lo publicado. Se registra en el log.
+- **La Admin API se cae o va lenta** → se sirve la última lectura buena mientras dure la caída, y queda en el log. Si el servidor arranca con la Admin API caída no hay ninguna lectura buena: la web no tiene drops y el guardián no reconoce los diseños del archivo, que Shopify sigue vendiendo hasta que vuelva. Riesgo aceptado: dura lo que la caída y se ve en el log.
+- **Un pago abierto antes del cierre** → la `checkoutUrl` de Shopify no sabe del `endsAt`: quien pidió el pago con el drop en la calle puede terminarlo después del cierre. Riesgo aceptado, como en una tienda que cierra con gente en la caja; el guardián sí impide añadir y pedir el pago después del cierre. Cerrarlo del todo exigiría quitar existencias o despublicar a la hora (un temporizador), que D4 descarta.
+- **Entrada del Taller cerrada una hora** por diez códigos malos con la clave buena → la crew no entra durante esa hora. Es el precio de frenar la fuerza bruta del código, y avisa de que la clave se ha filtrado: hay que rotarla.
 - **El reloj del servidor se desvía** → la Raspberry usa NTP. La cuenta atrás usa el `now` del servidor, y el guardián decide con el mismo reloj que el estado.
 - **Desfase de hasta 30 s en la hora del drop** (caché) → Shopify publica a la hora exacta. El navegador pide el estado al llegar a cero y repite a los 5 y a los 15 s si aún no ha cambiado.
-- **Mover la fecha de un drop ya programado** → se despublica y se vuelve a publicar con la fecha nueva. Si falla a medias, el drop queda marcado para resincronizar: el Taller lo enseña y deja reintentar.
+- **Mover la fecha de un drop ya programado** → se despublica y se vuelve a publicar con la fecha nueva, y solo después se guarda la fecha. Si falla a medias, la fecha guardada sigue siendo la vieja, el Taller enseña el error y repetir el cambio vuelve a sincronizar todos los diseños.
 - **Una sola cuenta para la crew** → sin trazabilidad por persona. Queda como deuda, con el registro de acciones por sesión.
 - **El secreto TOTP en el entorno de la Raspberry** → el mismo nivel de confianza que el resto de secretos del servidor. Se rota con `npm run taller:clave`.
 - **Las imágenes subidas antes del lanzamiento están en el CDN de Shopify** → sus URL no son adivinables y el BFF no las manda antes del lanzamiento.
@@ -206,7 +217,8 @@ Las respuestas del Taller nunca devuelven los errores crudos de Shopify. Se regi
    1. revisar los alcances de la app «Rocky» de la tienda real (`read_products`, `write_products`, `read_publications`, `write_publications`, `write_files`, `read_inventory`, `write_inventory`) y anotar el id de su publicación Headless;
    2. generar la clave y el secreto con `npm run taller:clave` y ponerlos en el entorno de la Raspberry junto a `SHOPIFY_HEADLESS_PUBLICATION_ID`;
    3. publicar la release;
-   4. crear en el Taller el drop en curso con sus productos.
+   4. revisar que los productos de los drops no estén publicados en otros canales (el Taller los saca al programar o despublicar);
+   5. crear en el Taller el drop en curso con sus productos, o adoptar la colección `rocky-drop-*` que ya exista escribiéndole el metacampo.
 
    Mientras tanto la web está tras la puerta de acceso, así que no hay impacto público.
 3. **Vuelta atrás.**

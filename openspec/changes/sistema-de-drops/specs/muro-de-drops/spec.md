@@ -24,8 +24,8 @@ Los carteles del archivo SHALL quedar parcialmente tapados por los más nuevos.
 ### Requirement: El cartel anunciado va tapado con cinta
 El cartel de un drop anunciado SHALL enseñar su número y título, su lema y la fecha marcada
 con el punto de mira. También SHALL enseñar una cuenta atrás a rotulador y una silueta por
-diseño, tapado con tiras de cinta «PRÓXIMAMENTE». SHALL NOT enseñar nombres, fotos ni
-precios de los diseños.
+diseño (hasta seis; con más, «+N» y el total), tapado con tiras de cinta «PRÓXIMAMENTE».
+SHALL NOT enseñar nombres, fotos ni precios de los diseños.
 
 #### Scenario: Teaser del Drop 6
 - **WHEN** el Drop 6 está anunciado con 5 diseños
