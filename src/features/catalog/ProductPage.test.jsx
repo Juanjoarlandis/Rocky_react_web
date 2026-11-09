@@ -1,9 +1,10 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import ProductPage from './ProductPage.jsx';
 import { normalizeDemoCatalog } from '../storefront/normalize.js';
+import { isTornFlipped } from './tornVariant.js';
 
 const productPageCss = readFileSync('src/styles/pages/home.css', 'utf8');
 
@@ -289,5 +290,207 @@ describe('ProductPage card anatomy', () => {
     expect(cta).toHaveAttribute('href', '#productos');
     expect(document.getElementById('productos')).not.toBeNull();
     expect(document.title).toBe('ROCKY 035');
+  });
+});
+
+/* Ideas 2 y 7 de dirección artística (cambio punto-de-mira-tippex-y-pegatinas). */
+const productMediaCss = readFileSync('src/styles/components/product-media.css', 'utf8');
+
+const forSale = {
+  id: 'rocky-airwave',
+  handle: 'rocky-airwave',
+  title: 'Airwave',
+  drop: 'DROP 4',
+  dropHandle: 'drop-4',
+  image: '/products/rocky-airwave.webp',
+  imageAlt: 'Camiseta blanca Airwave',
+  price: { amount: '29.00', currencyCode: 'EUR' },
+  defaultVariantId: 'gid://shopify/ProductVariant/10',
+  availableForSale: true,
+};
+const soldOut = {
+  ...forSale,
+  id: 'rocky-marea',
+  handle: 'rocky-marea',
+  title: 'Marea',
+  image: '/products/rocky-marea-035.webp',
+  imageAlt: 'Camiseta azul Marea',
+  defaultVariantId: 'gid://shopify/ProductVariant/11',
+  availableForSale: false,
+};
+
+function renderCatalog(products, addToCart = vi.fn()) {
+  return render(
+    <MemoryRouter>
+      <ProductPage products={products} addToCart={addToCart} commerceMode="shopify" canAddToCart />
+    </MemoryRouter>
+  );
+}
+
+const cardOf = (title) =>
+  screen.getByRole('heading', { level: 2, name: title }).closest('.product-card');
+
+describe('ProductPage: punto de mira', () => {
+  it('la foto de cada tarjeta lleva la mira decorativa y conserva su nombre', () => {
+    renderCatalog([forSale]);
+    const media = within(cardOf('Airwave')).getByRole('button', {
+      name: 'Ver Airwave en grande',
+    });
+    const reticle = media.querySelector('svg.product-reticle');
+    expect(reticle).not.toBeNull();
+    expect(reticle).toHaveAttribute('aria-hidden', 'true');
+    expect(reticle.querySelector('.product-reticle-aim')).not.toBeNull();
+    // El trazo no crece con la foto: 3 px de rotulador también en la ficha grande.
+    const paths = [...reticle.querySelectorAll('path')];
+    expect(paths.length).toBeGreaterThan(0);
+    paths.forEach((path) => expect(path).toHaveAttribute('vector-effect', 'non-scaling-stroke'));
+    // La pegatina del impacto es un elemento propio, de tamaño fijo, fuera del SVG.
+    const hit = media.querySelector('.product-reticle-hit');
+    expect(hit).not.toBeNull();
+    expect(hit.closest('svg')).toBeNull();
+    expect(hit).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('un agotado no lleva mira: no se apunta a lo que no se puede comprar', () => {
+    renderCatalog([forSale, soldOut]);
+    const media = within(cardOf('Marea')).getByRole('button', { name: 'Ver Marea en grande' });
+    expect(media.querySelector('.product-reticle')).toBeNull();
+    expect(media.querySelector('.product-reticle-hit')).toBeNull();
+  });
+
+  it('el impacto queda en la tarjeta que añadió, y no si el añadido falla', async () => {
+    const addToCart = vi
+      .fn()
+      .mockResolvedValueOnce({ added: false })
+      .mockResolvedValueOnce({ added: true });
+    renderCatalog([forSale, { ...forSale, id: 'otra', handle: 'otra', title: 'Otra' }], addToCart);
+    const card = cardOf('Airwave');
+    const other = cardOf('Otra');
+    const button = within(card).getByRole('button', { name: 'Añadir al carrito' });
+
+    fireEvent.click(button);
+    await waitFor(() => expect(within(card).getByRole('alert')).toBeInTheDocument());
+    expect(card.querySelector('.btn--added')).toBeNull();
+
+    fireEvent.click(button);
+    await waitFor(() => expect(card.querySelector('.btn--added')).not.toBeNull());
+    expect(other.querySelector('.btn--added')).toBeNull();
+    // Lo que pinta el impacto: la tarjeta casa con el selector de la hoja y
+    // contiene el punto de la mira; la otra no.
+    expect(card.matches('.product-card:has(.btn--added)')).toBe(true);
+    expect(card.querySelector('.product-media .product-reticle-hit')).not.toBeNull();
+    expect(other.matches('.product-card:has(.btn--added)')).toBe(false);
+  });
+
+  it('la hoja dibuja la mira al apuntar (puntero o teclado) y el impacto con «Añadido»', () => {
+    expect(productMediaCss).toMatch(
+      /@media \(hover: hover\)[\s\S]*?\.product-media:hover \.product-reticle-aim/
+    );
+    expect(productMediaCss).toMatch(/\.product-media:focus-visible \.product-reticle-aim/);
+    expect(productMediaCss).toMatch(/\.detail-media:focus-visible \.product-reticle-aim/);
+    expect(productMediaCss).toMatch(/\.product-card:has\(\.btn--added\) \.product-reticle-hit/);
+    expect(productMediaCss).toMatch(/\.detail-grid:has\(\.btn--added\) \.product-reticle-hit/);
+    // Cerrar → disparar → irse: la mira se cierra y desaparece y queda la pegatina.
+    expect(productMediaCss).toMatch(
+      /\.product-card:has\(\.btn--added\) \.product-reticle-aim,\s*\.detail-grid:has\(\.btn--added\) \.product-reticle-aim \{[^}]*opacity: 0;/
+    );
+    // En la ficha, la pegatina va abajo a la izquierda: arriba a la derecha la
+    // pisan los pies del muñeco sentado en el marco.
+    expect(productMediaCss).toMatch(
+      /\.detail-media \.product-reticle-hit \{[^}]*left:[^}]*bottom:/
+    );
+    // En la ficha la mira tiene un tamaño acotado, no el de la foto entera.
+    expect(productMediaCss).toMatch(/\.detail-media \.product-reticle \{[^}]*width: clamp\(/);
+  });
+
+  /* overflow: hidden de la tarjeta recortaba el anillo por fuera, y por dentro
+     lo tapaban la mira, la lupa y el papel roto (I2, ronda 2 de código): el
+     anillo es el último hijo pintado, un ::after encima de todo. */
+  it('el anillo de foco de la foto se ve entero dentro de la tarjeta', () => {
+    expect(productPageCss).toMatch(
+      /\.product-card \.product-media:focus-visible \{\s*outline: none;/
+    );
+    expect(productPageCss).toMatch(
+      /\.product-media:focus-visible::after \{[^}]*position: absolute;[^}]*inset: 3px;[^}]*border: 3px solid var\(--accent\);/
+    );
+  });
+
+  /* Con movimiento reducido ni la mira ni el impacto se animan. Una anulación
+     dentro de «reduce» pierde por especificidad frente a :has(.btn--added), así
+     que las transiciones solo pueden declararse dentro de «no-preference». */
+  it('las transiciones de la mira y del impacto solo existen sin movimiento reducido', () => {
+    const reticle = productMediaCss.slice(productMediaCss.indexOf('La mira'));
+    const motionBlock = /@media \(prefers-reduced-motion: no-preference\) \{[\s\S]*?\n {2}\}/g;
+    const blocks = reticle.match(motionBlock) ?? [];
+    const outside = reticle.replace(motionBlock, '');
+    expect(outside).not.toMatch(/transition/);
+    const motion = blocks.join('\n');
+    expect(motion).toMatch(/\.product-reticle-aim \{\s*transition:/);
+    expect(motion).toMatch(
+      /\.product-card:has\(\.btn--added\) \.product-reticle-hit,\s*\.detail-grid:has\(\.btn--added\) \.product-reticle-hit \{\s*transition:[^}]*120ms/
+    );
+  });
+});
+
+describe('ProductPage: pegatina arrancada', () => {
+  it('un agotado se ve medio arrancado y su foto sigue abriéndose entera', () => {
+    renderCatalog([forSale, soldOut]);
+    const card = cardOf('Marea');
+    expect(card).toHaveClass('is-sold-out');
+    const media = within(card).getByRole('button', { name: 'Ver Marea en grande' });
+    const torn = media.querySelector('.torn-sticker');
+    expect(torn).not.toBeNull();
+    expect(torn).toHaveAttribute('aria-hidden', 'true');
+    expect(within(card).getByRole('button', { name: 'Agotado' })).toBeDisabled();
+
+    fireEvent.click(media);
+    const zoom = document.querySelector('dialog img');
+    expect(zoom).toHaveAttribute('src', '/products/rocky-marea-035.webp');
+    expect(zoom.closest('dialog').querySelector('.torn-sticker')).toBeNull();
+  });
+
+  it('un disponible se ve entero', () => {
+    renderCatalog([forSale, soldOut]);
+    const card = cardOf('Airwave');
+    expect(card).not.toHaveClass('is-sold-out');
+    expect(card.querySelector('.torn-sticker')).toBeNull();
+  });
+
+  it('el rótulo «Agotado» no grita y cumple contraste AA; los desgarros alternan', () => {
+    expect(productPageCss).toMatch(/\.torn-sticker-label \{[^}]*color: var\(--accent-dark\);/);
+    // Más pequeño que el nombre del producto (I1, ronda 2 de código): el tope es
+    // --text-base y el título usa --text-md, que es mayor.
+    expect(productPageCss).toMatch(
+      /\.torn-sticker-label \{[^}]*font-size: clamp\(0\.8rem, 6cqi, var\(--text-base\)\);/
+    );
+    expect(productPageCss).toMatch(/\.product-title \{[^}]*font-size: var\(--text-md\);/);
+    const tokens = readFileSync('src/styles/00-tokens.css', 'utf8');
+    const rem = (name) => Number(tokens.match(new RegExp(`--${name}: ([\\d.]+)rem`))[1]);
+    expect(rem('text-base')).toBeLessThan(rem('text-md'));
+    expect(productPageCss).toMatch(/\.product-card--flip \.torn-sticker-paper \{[^}]*scale: -1 1;/);
+    expect(productPageCss).toMatch(/\.product-card--flip \.torn-sticker-label \{/);
+    expect(productPageCss).toMatch(/\.product-card--flip\.is-sold-out \.product-zoom \{/);
+    expect(productPageCss).not.toMatch(/nth-child\(even\)/);
+  });
+
+  /* Con 2 columnas, «par» ponía en espejo toda la columna derecha: la variante
+     va por producto (tornVariant.js), igual para él siempre. */
+  it('la variante del desgarro sale de cada producto', () => {
+    const flipped = { ...soldOut, id: 'f', handle: 'rocky-signal-ghost', title: 'Ghost' };
+    const plain = { ...soldOut, id: 'p', handle: 'rocky-marea-035', title: 'Marea' };
+    renderCatalog([plain, flipped]);
+    const isFlip = (title) => cardOf(title).classList.contains('product-card--flip');
+    expect(isFlip('Ghost')).toBe(isTornFlipped('rocky-signal-ghost'));
+    expect(isFlip('Marea')).toBe(isTornFlipped('rocky-marea-035'));
+    expect(isFlip('Ghost')).not.toBe(isFlip('Marea'));
+  });
+
+  it('la tarjeta agotada no se levanta ni hace zoom al pasar el puntero', () => {
+    expect(productPageCss).toMatch(/\.product-card:not\(:where\(\.is-sold-out\)\):hover \{/);
+    expect(productPageCss).toMatch(
+      /\.product-card:not\(:where\(\.is-sold-out\)\):hover \.product-image/
+    );
+    // Ninguna regla suelta levanta todas las tarjetas (las bajo llave tienen la suya).
+    expect(productPageCss).not.toMatch(/^\s*\.product-card:hover \{/m);
   });
 });

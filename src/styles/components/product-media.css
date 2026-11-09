@@ -54,4 +54,138 @@
   .product-media:focus-visible .product-zoom {
     opacity: 1;
   }
+
+  /* ---------- La mira (idea 2 de dirección artística) ----------
+     Se cierra sobre la foto al apuntarla. Al añadir al carrito, la mira se
+     cierra del todo y se va, y queda la pegatina del impacto mientras el
+     botón dice «Añadido ✓». El dibujo está en
+     components/doodles/ProductReticle.jsx; aquí, solo cuándo aparece cada cosa,
+     dónde va y cómo se mueve. Tarjetas del catálogo y ficha. */
+  .product-reticle {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  /* En la ficha la foto llega a 900 px: la mira se queda en un tamaño de mano. */
+  .detail-media .product-reticle {
+    inset: auto;
+    top: 50%;
+    left: 50%;
+    width: clamp(200px, 56%, 360px);
+    height: auto;
+    aspect-ratio: 1;
+    translate: -50% -50%;
+  }
+
+  .product-reticle-aim {
+    opacity: 0;
+    transform: scale(1.3) rotate(-14deg);
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  /* En táctil el :hover se queda pegado tras el toque: allí solo cuenta el foco. */
+  @media (hover: hover) {
+    .product-media:hover .product-reticle-aim,
+    .detail-media:hover .product-reticle-aim {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .product-media:focus-visible .product-reticle-aim,
+  .detail-media:focus-visible .product-reticle-aim {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* La pegatina del impacto: una mini-diana de tamaño fijo, como la del pecho
+     de los muñecos. La foto sigue clara de noche (es una polaroid), así que
+     el borde y la sombra van en tinta fija. */
+  .product-reticle-hit {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: clamp(28px, 13%, 44px);
+    aspect-ratio: 1;
+    border: 2px solid var(--ink-fixed);
+    border-radius: 50%;
+    background: radial-gradient(
+      circle,
+      var(--ink-fixed) 0 14%,
+      var(--accent) 15% 34%,
+      var(--white) 35% 48%,
+      var(--accent) 49%
+    );
+    box-shadow: 2px 2px 0 var(--ink-fixed);
+    transform: rotate(-8deg) scale(0);
+    pointer-events: none;
+  }
+
+  /* En la ficha, arriba a la derecha la pisan los pies del muñeco sentado en
+     el marco; abajo a la izquierda es la única esquina libre. */
+  .detail-media .product-reticle-hit {
+    top: auto;
+    right: auto;
+    left: 14px;
+    bottom: 14px;
+  }
+
+  .product-card:has(.btn--added) .product-reticle-aim,
+  .detail-grid:has(.btn--added) .product-reticle-aim {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+
+  .product-card:has(.btn--added) .product-reticle-hit,
+  .detail-grid:has(.btn--added) .product-reticle-hit {
+    transform: rotate(-8deg) scale(1);
+  }
+
+  /* El movimiento solo existe sin movimiento reducido. Anularlo dentro de
+     «reduce» no basta: :has(.btn--added) gana por especificidad. */
+  @media (prefers-reduced-motion: no-preference) {
+    .product-reticle-aim {
+      transition:
+        opacity var(--dur-base) ease,
+        transform var(--dur-slow) var(--ease-bounce);
+    }
+
+    .product-reticle-hit {
+      transition: transform var(--dur-fast) ease-in;
+    }
+
+    /* Cerrar → disparar → irse: la mira se cierra, el disparo deja la
+       pegatina un instante después y la mira se va. */
+    .product-card:has(.btn--added) .product-reticle-aim,
+    .detail-grid:has(.btn--added) .product-reticle-aim {
+      animation: product-reticle-shot 420ms ease-in;
+    }
+
+    .product-card:has(.btn--added) .product-reticle-hit,
+    .detail-grid:has(.btn--added) .product-reticle-hit {
+      transition: transform var(--dur-slow) var(--ease-bounce) 120ms;
+    }
+
+    @keyframes product-reticle-shot {
+      0% {
+        opacity: 1;
+        transform: scale(1.15) rotate(-6deg);
+      }
+
+      45% {
+        opacity: 1;
+        transform: scale(0.55);
+      }
+
+      100% {
+        opacity: 0;
+        transform: scale(0.55);
+      }
+    }
+  }
 }

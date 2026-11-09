@@ -118,3 +118,14 @@ Deuda registrada (no se corrige en este cambio):
   jsdom). La evidencia real es la verificación en Chrome: 114×46 px con foco.
 - Las pruebas de `App` del descontrol esperan unos 4,5 s en tiempo real.
 - `useLockBodyScroll` ya no toca el `body`; renombrarlo queda para C12.
+
+## Cambio posterior (2026-11-09): navegar bajo la tinta
+
+Con el cambio `punto-de-mira-tippex-y-pegatinas`, el rótulo de encendido pasa a taparse a
+rotulador. Revisando sus fotogramas apareció un doble corte: al retirarse el rótulo se
+volvía a ver medio segundo la página de partida y después se saltaba a la portada. El
+usuario eligió, viendo las dos tiras comparadas, navegar mientras la tinta tapa la
+pantalla. `Descontrol` avisa (`onActivated`) a los 450 ms, cuando el rotulador ya ha
+tapado la pantalla (392 ms), en vez de al final del rótulo (1,4 s). Las pruebas de
+`Descontrol.test.jsx` y `App.test.jsx` que fijaban el momento se cambiaron con esa
+decisión.
