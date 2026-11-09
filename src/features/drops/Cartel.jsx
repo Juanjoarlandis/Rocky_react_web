@@ -79,6 +79,74 @@ export default function Cartel({
     .filter(Boolean)
     .join(' ');
 
+  const pie = (
+    <div className="cartel-pie">
+      <p className="kicker cartel-estado">{ESTADO[estado]}</p>
+      <Titulo id={tituloId} className="cartel-titulo">
+        {drop.title}
+      </Titulo>
+      {drop.tagline && <p className="cartel-lema">{drop.tagline}</p>}
+
+      {anunciado && (
+        <>
+          <p className="cartel-cuando">{fechaAccesible(drop.launchAt)}</p>
+          <CuentaAtras target={drop.launchAt} serverNow={serverNow} />
+          {drop.designCount > 0 && (
+            <div className="cartel-siluetas">
+              <ul className="cartel-siluetas-lista" aria-hidden="true">
+                {Array.from({ length: Math.min(drop.designCount, MAX_SILUETAS) }, (_, i) => (
+                  <li key={i} className="cartel-silueta">
+                    <PlaceholderTee compact kicker={`Drop ${drop.number} · sin revelar`} />
+                  </li>
+                ))}
+                {/* Más de seis no caben en la nota: el resto, en una cifra. */}
+                {drop.designCount > MAX_SILUETAS && (
+                  <li className="cartel-silueta-mas">+{drop.designCount - MAX_SILUETAS}</li>
+                )}
+              </ul>
+              <p className="cartel-siluetas-texto">
+                {drop.designCount === 1
+                  ? '1 diseño bajo llave'
+                  : `${drop.designCount} diseños bajo llave`}
+              </p>
+            </div>
+          )}
+          {cabecera && <AddToCalendar drop={drop} />}
+        </>
+      )}
+
+      {estado === DROP_STATES.LAST_HOURS && drop.endsAt && (
+        <p className="sticker cartel-ultimas">
+          Últimas horas · {quedan(Date.parse(drop.endsAt) - now)}
+        </p>
+      )}
+
+      {enLaCalle && disenos.length > 0 && !cabecera && (
+        <ul className="cartel-miniaturas">
+          {disenos.slice(0, MAX_MINIATURAS).map((product) => (
+            <li key={product.handle}>
+              <img
+                src={product.image}
+                alt={product.imageAlt || product.title}
+                width="96"
+                height="96"
+                loading="lazy"
+                decoding="async"
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {!anunciado && !cabecera && (
+        <Link className="btn btn--ghost btn--sm cartel-entrar" to={ROUTES.category(drop.handle)}>
+          {archivo ? 'Ver el archivo' : 'Entrar al drop'}
+          <span aria-hidden="true"> →</span>
+        </Link>
+      )}
+    </div>
+  );
+
   return (
     <article
       className={clases}
@@ -126,79 +194,14 @@ export default function Cartel({
         )}
       </div>
 
+      {/* La nota y, si el drop está anunciado, su tira de pestañas forman una
+          sola hoja: giran juntas y comparten sombra (Pestanas la monta). */}
       <div className="cartel-nota">
-        <div className="cartel-pie">
-          <p className="kicker cartel-estado">{ESTADO[estado]}</p>
-          <Titulo id={tituloId} className="cartel-titulo">
-            {drop.title}
-          </Titulo>
-          {drop.tagline && <p className="cartel-lema">{drop.tagline}</p>}
-
-          {anunciado && (
-            <>
-              <p className="cartel-cuando">{fechaAccesible(drop.launchAt)}</p>
-              <CuentaAtras target={drop.launchAt} serverNow={serverNow} />
-              {drop.designCount > 0 && (
-                <div className="cartel-siluetas">
-                  <ul className="cartel-siluetas-lista" aria-hidden="true">
-                    {Array.from({ length: Math.min(drop.designCount, MAX_SILUETAS) }, (_, i) => (
-                      <li key={i} className="cartel-silueta">
-                        <PlaceholderTee compact kicker={`Drop ${drop.number} · sin revelar`} />
-                      </li>
-                    ))}
-                    {/* Más de seis no caben en la nota: el resto, en una cifra. */}
-                    {drop.designCount > MAX_SILUETAS && (
-                      <li className="cartel-silueta-mas">+{drop.designCount - MAX_SILUETAS}</li>
-                    )}
-                  </ul>
-                  <p className="cartel-siluetas-texto">
-                    {drop.designCount === 1
-                      ? '1 diseño bajo llave'
-                      : `${drop.designCount} diseños bajo llave`}
-                  </p>
-                </div>
-              )}
-              {cabecera && <AddToCalendar drop={drop} />}
-            </>
-          )}
-
-          {estado === DROP_STATES.LAST_HOURS && drop.endsAt && (
-            <p className="sticker cartel-ultimas">
-              Últimas horas · {quedan(Date.parse(drop.endsAt) - now)}
-            </p>
-          )}
-
-          {enLaCalle && disenos.length > 0 && !cabecera && (
-            <ul className="cartel-miniaturas">
-              {disenos.slice(0, MAX_MINIATURAS).map((product) => (
-                <li key={product.handle}>
-                  <img
-                    src={product.image}
-                    alt={product.imageAlt || product.title}
-                    width="96"
-                    height="96"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {!anunciado && !cabecera && (
-            <Link
-              className="btn btn--ghost btn--sm cartel-entrar"
-              to={ROUTES.category(drop.handle)}
-            >
-              {archivo ? 'Ver el archivo' : 'Entrar al drop'}
-              <span aria-hidden="true"> →</span>
-            </Link>
-          )}
-        </div>
-
-        {/* Las pestañas cuelgan bajo la nota, como en los anuncios de farola: los
-          huecos de las ya arrancadas dejan ver la pared. */}
-        {anunciado && <Pestanas drop={drop} />}
+        {anunciado ? (
+          <Pestanas drop={drop}>{pie}</Pestanas>
+        ) : (
+          <div className="cartel-hoja">{pie}</div>
+        )}
       </div>
     </article>
   );

@@ -7,11 +7,13 @@ const PESTANAS = 7;
 const HUECOS = new Set([1, 4]);
 
 /* Las pestañas recortables del cartel anunciado, como los anuncios de farola
-   (muro-de-drops): «AVÍSAME · 13·11». Arrancar una abre el aviso de ese drop y
+   (muro-de-drops): «AVÍSAME · 13·11». Cuelgan de la nota (children) en una
+   sola hoja, cortadas desde su borde de puntos; las que ya se llevó alguien
+   dejan un resto de papel rasgado. Arrancar una abre el aviso de ese drop y
    lleva el foco al email (o al aviso, si ya estaba apuntado). Son botones de
    verdad, pero solo uno entra en el tabulador: hacen todos lo mismo. La caída
    solo se anima sin movimiento reducido (cartel.css). */
-export default function Pestanas({ drop }) {
+export default function Pestanas({ drop, children }) {
   const [arrancadas, setArrancadas] = useState(() => new Set());
   const [abierto, setAbierto] = useState(false);
   // Cuenta las veces que se arranca una: cada una vuelve a mover el foco.
@@ -39,31 +41,37 @@ export default function Pestanas({ drop }) {
   }, [tirones]);
 
   return (
-    <div className="pestanas">
-      <ul className="pestanas-tira">
-        {Array.from({ length: PESTANAS }, (_, index) =>
-          HUECOS.has(index) ? (
-            <li key={index} className="pestana-hueco" aria-hidden="true" />
-          ) : (
-            <li key={index}>
-              <button
-                type="button"
-                className={`pestana${arrancadas.has(index) ? ' is-torn' : ''}`}
-                onClick={() => arrancar(index)}
-                aria-expanded={abierto}
-                aria-controls={formId}
-                aria-label={nombre}
-                tabIndex={index === enTurno ? 0 : -1}
-              >
-                <span aria-hidden="true">AVÍSAME · {fecha}</span>
-              </button>
-            </li>
-          )
-        )}
-      </ul>
+    <>
+      <div className="cartel-hoja cartel-hoja--pestanas">
+        {children}
+        <ul className="pestanas-tira">
+          {Array.from({ length: PESTANAS }, (_, index) =>
+            HUECOS.has(index) ? (
+              <li key={index} className="pestana-hueco" aria-hidden="true" />
+            ) : (
+              <li key={index} className={arrancadas.has(index) ? 'is-torn' : undefined}>
+                <button
+                  type="button"
+                  className={`pestana${arrancadas.has(index) ? ' is-torn' : ''}`}
+                  onClick={() => arrancar(index)}
+                  aria-expanded={abierto}
+                  aria-controls={formId}
+                  aria-label={nombre}
+                  tabIndex={index === enTurno ? 0 : -1}
+                >
+                  <span className="pestana-texto" aria-hidden="true">
+                    <span className="pestana-avisame">AVÍSAME</span>
+                    <span className="pestana-fecha">{fecha}</span>
+                  </span>
+                </button>
+              </li>
+            )
+          )}
+        </ul>
+      </div>
       <div id={formId} ref={avisoRef} className="pestanas-aviso" hidden={!abierto} tabIndex={-1}>
         {abierto && <DropAviso producto={drop.handle} />}
       </div>
-    </div>
+    </>
   );
 }

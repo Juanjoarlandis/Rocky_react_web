@@ -252,6 +252,12 @@
     min-width: 0;
   }
 
+  /* La hoja (la nota y, si hay, su tira de pestañas) gira entera con un solo
+     eje: así el borde de la nota y las pestañas casan en cualquier giro. */
+  .cartel-hoja {
+    transform: rotate(calc(var(--giro, 0deg) * -0.6));
+  }
+
   .cartel-pie {
     display: flex;
     flex-direction: column;
@@ -261,7 +267,20 @@
     border: 2px solid var(--ink);
     border-radius: var(--wobble-sm);
     box-shadow: var(--shadow-ink-sm);
-    transform: rotate(calc(var(--giro, 0deg) * -0.6));
+  }
+
+  /* Con pestañas, el borde de abajo de la nota es la línea de recorte y la
+     sombra la proyecta la silueta entera (nota, tiras y restos rasgados), no
+     cada caja: así no asoman trozos de sombra entre las pestañas. */
+  .cartel-hoja--pestanas {
+    filter: var(--shadow-ink-sm-silueta);
+  }
+
+  .cartel-hoja--pestanas .cartel-pie {
+    border-bottom-style: dashed;
+    border-bottom-right-radius: 0;
+    border-bottom-left-radius: 0;
+    box-shadow: none;
   }
 
   .cartel-estado {
@@ -377,22 +396,36 @@
 
   /* ---------- Pestañas recortables «AVÍSAME» ---------- */
 
-  .pestanas {
-    margin-top: calc(-1 * var(--space-4) - 2px);
-    padding: 0 var(--space-2);
-    transform: rotate(calc(var(--giro, 0deg) * -0.6));
-  }
-
+  /* Las tiras van de borde a borde de la nota, separadas por el corte de la
+     tijera (el hueco deja ver la pared) y sin borde arriba: arriba está la línea
+     de puntos de la nota. */
   .pestanas-tira {
-    display: flex;
+    --rasgado: polygon(
+      0 0,
+      100% 0,
+      100% 62%,
+      88% 100%,
+      75% 58%,
+      62% 96%,
+      50% 60%,
+      37% 100%,
+      25% 62%,
+      12% 95%,
+      0 64%
+    );
+
+    display: grid;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: column;
+    align-items: start;
+    column-gap: 4px;
     margin: 0;
     padding: 0;
-    border-left: 2px solid var(--ink);
     list-style: none;
   }
 
   .pestanas-tira > li {
-    flex: 1 1 0;
+    position: relative;
     min-width: 0;
   }
 
@@ -401,19 +434,39 @@
     align-items: center;
     justify-content: center;
     width: 100%;
-    height: 92px;
-    padding: 6px 0;
+    height: 88px;
+    padding: 0;
     border: 2px solid var(--ink);
-    border-top: 2px dashed var(--ink);
-    border-left-width: 0;
+    border-top: 0;
+    border-radius: 0 0 6px 6px / 0 0 4px 4px;
     background-color: var(--card);
     color: var(--ink);
     font-family: var(--font-hand);
+    cursor: pointer;
+    transform-origin: top center;
+  }
+
+  /* El texto se lee de abajo arriba, como en los anuncios de farola: el aviso
+     en negrita y la fecha al lado, más suave. */
+  .pestana-texto {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    line-height: 1;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+  }
+
+  .pestana-avisame {
     font-size: var(--text-2xs);
     font-weight: 700;
-    letter-spacing: 0.06em;
-    writing-mode: vertical-rl;
-    cursor: pointer;
+    letter-spacing: 0.08em;
+  }
+
+  .pestana-fecha {
+    font-size: var(--text-2xs);
+    color: var(--ink-soft);
   }
 
   .pestana:hover {
@@ -429,12 +482,37 @@
     visibility: hidden;
   }
 
-  /* Las que ya se llevó alguien: queda un resto de papel arriba y se ve la
-   pared. */
+  /* Las que ya se llevó alguien (las de serie y la que arrancas): queda un
+     resto de papel rasgado bajo la línea de puntos. Dos capas con el mismo
+     recorte: la tinta debajo y el papel 2 px más adentro, que hace de borde. */
   .pestana-hueco {
-    height: 92px;
-    border-top: 2px dashed var(--ink);
-    background-image: linear-gradient(var(--card) 0 9px, transparent 9px);
+    height: 14px;
+  }
+
+  .pestana-hueco::before,
+  .pestana-hueco::after,
+  .pestanas-tira > li.is-torn::before,
+  .pestanas-tira > li.is-torn::after {
+    position: absolute;
+    top: 0;
+    content: '';
+    clip-path: var(--rasgado);
+  }
+
+  .pestana-hueco::before,
+  .pestanas-tira > li.is-torn::before {
+    right: 0;
+    left: 0;
+    height: 14px;
+    background-color: var(--ink);
+  }
+
+  .pestana-hueco::after,
+  .pestanas-tira > li.is-torn::after {
+    right: 2px;
+    left: 2px;
+    height: 12px;
+    background-color: var(--card);
   }
 
   .pestanas-aviso:not([hidden]) {
@@ -515,8 +593,7 @@
       font-size: var(--text-lg);
     }
 
-    .pestana,
-    .pestana-hueco {
+    .pestana {
       height: 80px;
     }
   }
@@ -553,7 +630,14 @@
 
   @media (prefers-reduced-motion: no-preference) {
     .pestana {
-      transition: background-color var(--dur-fast) var(--ease-out);
+      transition:
+        background-color var(--dur-fast) var(--ease-out),
+        transform var(--dur-fast) var(--ease-out);
+    }
+
+    /* Al pasar por encima, la pestaña se separa un poco, como si tiraras. */
+    .pestana:hover {
+      transform: rotate(-3deg);
     }
 
     /* La pestaña arrancada cae girando antes de desaparecer. */

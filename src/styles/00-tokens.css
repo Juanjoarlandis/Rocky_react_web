@@ -139,6 +139,9 @@
     /* ---------- Sombras duras, estilo pegatina/cómic ---------- */
     --shadow-ink-xs: 2px 2px 0 var(--ink);
     --shadow-ink-sm: 3px 3px 0 var(--ink);
+    /* La misma sombra como filtro, para piezas que no son una caja (la hoja del
+       cartel con sus pestañas y sus restos rasgados) */
+    --shadow-ink-sm-silueta: drop-shadow(3px 3px 0 var(--ink));
     --shadow-ink-md: 4px 4px 0 var(--ink);
     --shadow-ink: 5px 5px 0 var(--ink);
     --shadow-ink-lg: 8px 8px 0 var(--ink);
@@ -265,6 +268,8 @@
      pasaba de sombra negra con halo a un bloque de tinta clara. */
     --shadow-ink-xs: 2px 2px 0 rgba(0, 0, 0, 0.65), 0 0 10px rgba(var(--uv-violet-rgb), 0.22);
     --shadow-ink-sm: 3px 3px 0 rgba(0, 0, 0, 0.65), 0 0 14px rgba(var(--uv-violet-rgb), 0.26);
+    --shadow-ink-sm-silueta: drop-shadow(3px 3px 0 rgba(0, 0, 0, 0.65))
+      drop-shadow(0 0 10px rgba(var(--uv-violet-rgb), 0.26));
     --shadow-ink-md: 4px 4px 0 rgba(0, 0, 0, 0.65), 0 0 18px rgba(var(--uv-violet-rgb), 0.28);
     --shadow-ink: 5px 5px 0 rgba(0, 0, 0, 0.65), 0 0 20px rgba(var(--uv-violet-rgb), 0.3);
     --shadow-ink-lg: 8px 8px 0 rgba(0, 0, 0, 0.65), 0 0 28px rgba(var(--uv-lime-rgb), 0.18);
