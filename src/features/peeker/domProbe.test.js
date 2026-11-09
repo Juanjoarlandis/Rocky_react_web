@@ -206,6 +206,27 @@ describe('sondas del muñeco: sin imágenes de por medio', () => {
     ).toBe(true);
   });
 
+  /* En el DOM de verdad la línea la pinta la foto (su borde inferior, con
+     position: relative, queda encima) y, con la tarjeta girada, las cajas de
+     los dos hermanos se solapan: los primeros píxeles del canto son de la foto. */
+  it('acepta la franja aunque la línea que pinta su canto sea del hermano de arriba', () => {
+    const art = artBox(1);
+    const ancho = Math.round(art.width * 2);
+    document.body.innerHTML = `
+      <article class="tarjeta" style="${PAPEL}">
+        <div class="foto" style="border-bottom: 2px solid"><img class="img" alt=""></div>
+        <div class="cuerpo"></div>
+      </article>`;
+    conCaja(document.querySelector('.tarjeta'), [100, 100, ancho, 360 + art.height]);
+    const foto = conCaja(document.querySelector('.foto'), [100, 100, ancho, 360]);
+    const cuerpo = conCaja(document.querySelector('.cuerpo'), [100, 459, ancho, art.height]);
+    document.elementFromPoint = (_x, y) => (y <= 461 ? foto : cuerpo);
+    const spot = collectSpots(VIEW, 1).find((s) => s.element === cuerpo);
+    expect(spot).toMatchObject({ topOnly: true, lineOwner: foto });
+    const encima = { pose: 'arriba', left: 150, top: 360, width: 100, height: 110 };
+    expect(edgeIsPainted(encima, spot)).toBe(true);
+  });
+
   it('en la esquina, vale el tramo junto al papel y no el que cae a la altura de la foto', () => {
     const { tarjeta, cuerpo, img } = tarjetaConFoto();
     document.elementFromPoint = (_x, y) => (y < 460 ? img : cuerpo);
@@ -213,6 +234,29 @@ describe('sondas del muñeco: sin imágenes de por medio', () => {
     const esquina = { pose: 'esquina', side: 'izq', left: 40, width: 80, height: 120 };
     expect(edgeIsPainted({ ...esquina, top: 490 }, spot)).toBe(true);
     expect(edgeIsPainted({ ...esquina, top: 300 }, spot)).toBe(false);
+  });
+
+  it('descarta un tramo que tapa otro elemento aunque más adentro siga la tarjeta', () => {
+    const { tarjeta, cuerpo } = tarjetaConFoto();
+    const otro = document.querySelector('.otro');
+    // Los 3 px de fuera son de otro elemento; detrás, el papel de la tarjeta.
+    document.elementFromPoint = (x) => (x > 360 - 3 ? otro : cuerpo);
+    const spot = { element: tarjeta, rect: tarjeta.getBoundingClientRect() };
+    expect(
+      edgeIsPainted(
+        { pose: 'esquina', side: 'der', left: 330, top: 490, width: 80, height: 120 },
+        spot
+      )
+    ).toBe(false);
+  });
+
+  it('descarta el canto de papel si 4 px más adentro ya está la foto', () => {
+    const { tarjeta, img } = tarjetaConFoto();
+    document.elementFromPoint = (_x, y) => (y < 200 + 3 ? tarjeta : img);
+    const spot = { element: tarjeta, rect: tarjeta.getBoundingClientRect() };
+    expect(
+      edgeIsPainted({ pose: 'arriba', left: 150, top: 100, width: 100, height: 110 }, spot)
+    ).toBe(false);
   });
 
   it('descarta un tramo que tapa otro elemento que no es del bloque', () => {
@@ -282,6 +326,59 @@ describe('sondas del muñeco: sin imágenes de por medio', () => {
     expect(
       edgeIsPainted({ pose: 'arriba', left: 150, top: 100, width: 100, height: 110 }, spot)
     ).toBe(false);
+  });
+
+  /* Los dibujos de una repisa (.doodle-shelf) son hermanos del bloque, no hijos:
+     el carrito con el dormilón encima, la tele sobre la tarjeta de escucha. */
+  it('veta un dibujo de la repisa que pisa el canto aunque sea hermano del bloque', () => {
+    document.body.innerHTML = `
+      <div class="doodle-shelf">
+        <img class="doodle" alt="" style="pointer-events: none">
+        <article class="tarjeta" style="${PAPEL}"></article>
+      </div>`;
+    const tarjeta = conCaja(document.querySelector('.tarjeta'), [100, 200, 260, 420]);
+    conCaja(document.querySelector('.doodle'), [120, 150, 200, 80]);
+    document.elementFromPoint = () => tarjeta;
+    const spot = { element: tarjeta, rect: tarjeta.getBoundingClientRect() };
+    expect(
+      edgeIsPainted({ pose: 'arriba', left: 150, top: 100, width: 100, height: 110 }, spot)
+    ).toBe(false);
+  });
+
+  /* Asomado por arriba se agarra al canto casi de punta a punta (del 1 al 99 %
+     del dibujo): un dibujo en la punta del tramo también le pisa las manos. */
+  it('veta un dibujo que solo pisa la punta del tramo de arriba', () => {
+    document.body.innerHTML = `
+      <div class="doodle-shelf">
+        <img class="doodle punta" alt="" style="pointer-events: none">
+        <img class="doodle fuera" alt="" style="pointer-events: none">
+        <article class="tarjeta" style="${PAPEL}"></article>
+      </div>`;
+    const tarjeta = conCaja(document.querySelector('.tarjeta'), [100, 200, 260, 420]);
+    document.elementFromPoint = () => tarjeta;
+    const spot = { element: tarjeta, rect: tarjeta.getBoundingClientRect() };
+    const arriba = { pose: 'arriba', left: 150, top: 100, width: 100, height: 110 };
+    // Un dibujo justo a la derecha del tramo no le toca.
+    conCaja(document.querySelector('.fuera'), [252, 150, 60, 60]);
+    expect(edgeIsPainted(arriba, spot)).toBe(true);
+    // Uno que cubre su último 8 %, sí.
+    conCaja(document.querySelector('.punta'), [242, 150, 60, 60]);
+    expect(edgeIsPainted(arriba, spot)).toBe(false);
+  });
+
+  it('un dibujo invisible de la repisa no veta el canto', () => {
+    document.body.innerHTML = `
+      <div class="doodle-shelf">
+        <img class="doodle" alt="" style="pointer-events: none; opacity: 0">
+        <article class="tarjeta" style="${PAPEL}"></article>
+      </div>`;
+    const tarjeta = conCaja(document.querySelector('.tarjeta'), [100, 200, 260, 420]);
+    conCaja(document.querySelector('.doodle'), [120, 150, 200, 80]);
+    document.elementFromPoint = () => tarjeta;
+    const spot = { element: tarjeta, rect: tarjeta.getBoundingClientRect() };
+    expect(
+      edgeIsPainted({ pose: 'arriba', left: 150, top: 100, width: 100, height: 110 }, spot)
+    ).toBe(true);
   });
 
   it('sin elementFromPoint (jsdom) no veta nada', () => {
