@@ -7,6 +7,7 @@ export const ROUTES = Object.freeze({
   studio: '/estudio',
   crew: '/crew',
   myCrew: '/mi-crew',
+  taller: '/taller',
   category: (handle) => `/products/${encodeURIComponent(handle)}`,
   product: (handle) => `/product/${encodeURIComponent(handle)}`,
 });

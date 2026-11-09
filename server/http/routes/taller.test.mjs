@@ -296,6 +296,7 @@ describe('/api/taller diseños', () => {
     ['existencias negativas', { sizes: [{ size: 'M', quantity: -1 }] }],
     ['fichero que no es una imagen de Shopify', { fileId: 'gid://shopify/Product/1' }],
     ['descripción larga', { description: 'x'.repeat(1001) }],
+    ['sin foto', { fileId: undefined }],
   ])('rechaza %s con 400', async (_name, patch) => {
     const taller = fakeTaller();
     const { base } = await start(taller);

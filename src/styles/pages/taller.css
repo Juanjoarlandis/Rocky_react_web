@@ -1,0 +1,328 @@
+@layer pages {
+  /* EL TALLER (taller-de-drops): el panel de la crew, con la misma papelería
+   que la tienda pero pensado para trabajar: campos grandes, etiquetas a mano
+   y la vista previa de los carteles tal como saldrán en el muro. */
+  .taller {
+    --container: var(--container-wide);
+    padding-top: 40px;
+    padding-bottom: 96px;
+  }
+
+  .taller-entrada {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    max-width: 420px;
+    margin: var(--space-7) auto 0;
+    padding: var(--space-6);
+  }
+
+  .taller-cabecera {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
+  }
+
+  .taller-pegador {
+    right: 18%;
+    bottom: -12px;
+    height: 120px;
+  }
+
+  .taller-rejilla {
+    display: grid;
+    gap: var(--space-6);
+  }
+
+  .taller-subtitulo {
+    margin: 0 0 var(--space-3);
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    color: var(--ink);
+  }
+
+  .taller-drops {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin: 0 0 var(--space-5);
+    padding: 0;
+    list-style: none;
+  }
+
+  .taller-drop {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: var(--space-1) var(--space-3);
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    color: var(--ink);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .taller-drop.is-active {
+    box-shadow: var(--shadow-accent);
+  }
+
+  .taller-drop:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .taller-drop-titulo {
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+  }
+
+  .taller-drop-estado {
+    align-self: start;
+    font-size: var(--text-xs);
+  }
+
+  .taller-drop-meta {
+    grid-column: 1 / -1;
+    font-family: var(--font-hand);
+    font-size: var(--text-sm);
+    color: var(--ink-soft);
+  }
+
+  .taller-nuevo,
+  .taller-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-5);
+  }
+
+  .taller-fila {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+
+  .taller-campo {
+    display: flex;
+    flex: 1 1 220px;
+    flex-direction: column;
+    gap: var(--space-1);
+    font-family: var(--font-hand);
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .taller-campo--corto {
+    flex: 0 1 140px;
+  }
+
+  .taller-campo input,
+  .taller-campo textarea,
+  .taller-talla input[type='number'] {
+    padding: 8px 10px;
+    border: 2px solid var(--ink);
+    border-radius: var(--wobble-xs);
+    background-color: var(--paper);
+    color: var(--ink);
+    font: inherit;
+    font-weight: 400;
+  }
+
+  .taller-campo input:focus-visible,
+  .taller-campo textarea:focus-visible,
+  .taller-talla input:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  .taller-ayuda {
+    margin: 0;
+    font-family: var(--font-hand);
+    font-size: var(--text-sm);
+    color: var(--muted);
+  }
+
+  .taller-fallo,
+  .taller-ok {
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--wobble-xs);
+    font-family: var(--font-hand);
+  }
+
+  .taller-fallo {
+    background-color: var(--danger-bg);
+    color: var(--danger-ink);
+  }
+
+  .taller-ok {
+    background-color: var(--ok-bg);
+    color: var(--ok-ink);
+  }
+
+  .taller-acciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .taller-acciones .is-armed {
+    background-color: var(--danger-bg);
+    color: var(--danger-ink);
+  }
+
+  .taller-editor {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+  }
+
+  .taller-editor-cabecera {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-3);
+  }
+
+  .taller-editor-cabecera .taller-subtitulo {
+    margin: 0;
+  }
+
+  .taller-handle {
+    font-size: var(--text-sm);
+    color: var(--muted);
+  }
+
+  .taller-editor-cabecera .btn {
+    margin-left: auto;
+  }
+
+  /* La vista previa: los tres momentos del cartel, uno al lado del otro. */
+  .taller-vista-carteles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: var(--space-6);
+    padding: var(--space-5);
+    background-color: var(--muted-bg);
+    background-image: var(--brick-wall);
+    background-size: 120px 60px;
+    border: 2px solid var(--ink);
+    border-radius: var(--wobble-md);
+  }
+
+  .taller-disenos-lista {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin: 0 0 var(--space-4);
+    padding: 0;
+    list-style: none;
+  }
+
+  .taller-diseno {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3);
+  }
+
+  .taller-diseno-datos {
+    display: flex;
+    flex: 1 1 200px;
+    flex-direction: column;
+    font-family: var(--font-hand);
+    color: var(--ink);
+  }
+
+  .taller-diseno .taller-diseno-form {
+    flex-basis: 100%;
+  }
+
+  .taller-miniatura {
+    width: 64px;
+    height: 64px;
+    object-fit: cover;
+    border: 2px solid var(--ink);
+    border-radius: 4px;
+    background-color: var(--placeholder-bg);
+  }
+
+  .taller-miniatura--vacia {
+    display: inline-block;
+  }
+
+  .taller-tallas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin: 0;
+    padding: var(--space-3);
+    border: 2px dashed var(--line);
+    border-radius: var(--wobble-xs);
+  }
+
+  .taller-tallas legend {
+    padding: 0 var(--space-1);
+    font-family: var(--font-hand);
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .taller-talla {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-family: var(--font-display);
+    color: var(--ink);
+  }
+
+  .taller-talla input[type='number'] {
+    width: 72px;
+  }
+
+  .taller-sin-limite {
+    font-family: var(--font-hand);
+  }
+
+  .taller-buscar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+  }
+
+  .taller-resultados {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin: var(--space-3) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .taller-resultado {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    font-family: var(--font-hand);
+    color: var(--ink);
+  }
+
+  @media (min-width: 1200px) {
+    .taller-rejilla {
+      grid-template-columns: minmax(300px, 380px) 1fr;
+      align-items: start;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .taller-pegador {
+      display: none;
+    }
+  }
+}

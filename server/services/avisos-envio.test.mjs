@@ -126,3 +126,61 @@ describe('createAvisosSender', () => {
     expect(mensaje.headers['List-Unsubscribe']).toBe('<mailto:hola@rocky035.com?subject=baja>');
   });
 });
+
+describe('envío por drop (avisos-de-drop)', () => {
+  async function escenarioDrop() {
+    const store = new MemoryStore();
+    const avisos = createAvisosService({ store, logger: silentLogger });
+    await avisos.register({ product: 'rocky-drop-6', email: 'a@x.es' });
+    await avisos.register({ product: 'rocky-drop-6', email: 'b@x.es' });
+    await avisos.register({ product: 'rocky-el-jefe', email: 'a@x.es' });
+    await avisos.register({ product: 'rocky-el-jefe', email: 'c@x.es' });
+    const enviados = [];
+    const sender = createAvisosSender({
+      avisos,
+      mailer: {
+        sendBatch: vi.fn(async (messages) => {
+          enviados.push(...messages.map((m) => m.to[0]));
+          return {};
+        }),
+      },
+      from: FROM,
+      batchSize: 2,
+      logger: silentLogger,
+    });
+    return { avisos, sender, enviados };
+  }
+
+  it('junta las listas, manda un correo por persona y las borra', async () => {
+    const { avisos, sender, enviados } = await escenarioDrop();
+    const resumen = await sender.sendMany({
+      keys: ['rocky-drop-6', 'rocky-el-jefe'],
+      ...CORREO,
+      dryRun: false,
+    });
+    expect(enviados.sort()).toEqual(['a@x.es', 'b@x.es', 'c@x.es']);
+    expect(resumen).toMatchObject({ total: 3, pending: 3, sent: 3, batches: 2, cleared: true });
+    expect(await avisos.list('rocky-drop-6')).toEqual([]);
+    expect(await avisos.list('rocky-el-jefe')).toEqual([]);
+  });
+
+  it('en simulacro cuenta personas distintas sin enviar ni marcar', async () => {
+    const { avisos, sender, enviados } = await escenarioDrop();
+    const resumen = await sender.sendMany({ keys: ['rocky-drop-6', 'rocky-el-jefe'], ...CORREO });
+    expect(resumen).toMatchObject({ total: 3, pending: 3, sent: 0, dryRun: true });
+    expect(enviados).toEqual([]);
+    expect((await avisos.list('rocky-drop-6')).every((e) => !e.enviado)).toBe(true);
+  });
+
+  it('con keep marca cada lista sin borrarla', async () => {
+    const { avisos, sender } = await escenarioDrop();
+    await sender.sendMany({
+      keys: ['rocky-drop-6', 'rocky-el-jefe'],
+      ...CORREO,
+      dryRun: false,
+      keep: true,
+    });
+    expect((await avisos.list('rocky-el-jefe')).every((e) => e.enviado)).toBe(true);
+    expect(await avisos.list('rocky-drop-6')).toHaveLength(2);
+  });
+});

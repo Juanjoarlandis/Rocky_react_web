@@ -83,5 +83,57 @@ export function createAvisosSender({
       }
       return summary;
     },
+
+    /* El envío de un drop (avisos-de-drop): junta la lista del drop con las de
+       sus diseños, quita los emails repetidos y manda un correo por persona.
+       Cada lote se marca en cada lista que lo tenía antes del siguiente, y al
+       terminar se borran las listas sin pendientes (salvo keep). */
+    async sendMany({ keys, subject, html, text, dryRun = true, keep = false }) {
+      const porEmail = new Map();
+      for (const key of keys) {
+        for (const entrada of await avisos.list(key)) {
+          if (entrada.enviado) continue;
+          if (!porEmail.has(entrada.email)) porEmail.set(entrada.email, new Set());
+          porEmail.get(entrada.email).add(key);
+        }
+      }
+      const pendientes = [...porEmail.keys()];
+      const summary = {
+        keys,
+        total: pendientes.length,
+        pending: pendientes.length,
+        sent: 0,
+        batches: 0,
+        cleared: false,
+        dryRun,
+      };
+      if (dryRun) return summary;
+
+      for (const lote of chunk(pendientes, batchSize)) {
+        const idempotencyKey = `avisos-${sha256Hex(`${keys.join(',')}\n${lote.join('\n')}`).slice(0, 40)}`;
+        await mailer.sendBatch(
+          lote.map((email) => buildMessage(email, { subject, html, text })),
+          { idempotencyKey }
+        );
+        for (const key of keys) {
+          const suyos = lote.filter((email) => porEmail.get(email).has(key));
+          if (suyos.length) await avisos.markSent(key, suyos);
+        }
+        summary.sent += lote.length;
+        summary.batches += 1;
+        log.info('Lote de avisos de drop enviado', { listas: keys.length, lote: lote.length });
+      }
+
+      if (!keep) {
+        let todas = true;
+        for (const key of keys) {
+          const restantes = (await avisos.list(key)).filter((entrada) => !entrada.enviado);
+          if (restantes.length === 0) await avisos.clear(key);
+          else todas = false;
+        }
+        summary.cleared = todas;
+      }
+      return summary;
+    },
   };
 }

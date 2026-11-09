@@ -102,12 +102,13 @@ const DROP_PATCH = {
   poster,
 };
 
+// Un diseño nuevo llega completo, con su foto (taller-de-drops).
 const DESIGN_CREATE = {
   title: rules.string({ max: 80 }),
   description: text(1000),
   price,
   sizes,
-  fileId: rules.optional(rules.string({ max: 80, pattern: MEDIA_ID })),
+  fileId: rules.string({ max: 80, pattern: MEDIA_ID, message: 'El diseño necesita su foto.' }),
 };
 
 const DESIGN_PATCH = {

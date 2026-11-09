@@ -177,6 +177,8 @@ La configuración es progresiva y falla cerrada:
 | Cuenta de cliente | dominio + clave + `SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_ID` + `PUBLIC_ORIGIN` HTTPS |
 | Admin API | dominio + `SHOPIFY_CLIENT_ID` + `SHOPIFY_CLIENT_SECRET` |
 | Webhooks y puntos Crew | dominio + clave + `SHOPIFY_CLIENT_SECRET` + scope Admin `read_orders` |
+| Drops (muro, calendario, venta por fechas) | Admin API |
+| El Taller (`/taller`) | Admin API + `SHOPIFY_HEADLESS_PUBLICATION_ID` + `TALLER_PASSWORD_HASH` + `TALLER_TOTP_SECRET` |
 
 Usa `SHOPIFY_API_VERSION=2026-07`. Para cantidades exactas, activa `SHOPIFY_EXPOSE_QUANTITY=true` y concede el permiso Storefront `unauthenticated_read_product_inventory`; si no, la web sigue usando `availableForSale`. Para una futura lectura Admin de stock, solicita únicamente `read_products`, `read_inventory` y, si se consultan ubicaciones, `read_locations`. No concedas permisos de escritura si el servicio solo va a leer.
 
@@ -195,6 +197,21 @@ pueden asignar a una cuenta. Shopify debe conceder `read_orders` a la aplicació
 para crear y mantener esa suscripción.
 
 `SHOPIFY_CHECKOUT_HOSTS` solo es necesario cuando el checkout usa dominios adicionales al `*.myshopify.com` canónico. Introduce hostnames separados por comas, sin esquema, ruta ni puerto.
+
+## Drops y El Taller
+
+Un drop es una colección de Shopify `rocky-drop-<slug>` con el metacampo JSON
+`rocky.drop` (número, lema, historia, lanzamiento, cierre y estado) y su imagen
+de cartel. El estado público sale de las fechas: anunciado, en la calle, últimas
+horas (48 h antes del cierre) y archivo. El revelado y el cierre son automáticos,
+y el BFF no vende nada que no esté en la calle. La web los pinta en el muro de
+carteles (`/menudrop`), en la portada, en la página de cada drop y en la cinta
+del pie.
+
+El Taller (`/taller`) es el panel de la crew para crearlos, programarlos,
+editarlos y despublicarlos, con sus diseños completos (foto, precio, tallas y
+existencias). Se entra con clave y código de la app (TOTP). Guía, alta de la
+clave y publicación en producción: [`docs/ops/drops.md`](docs/ops/drops.md).
 
 ## Perfil, niveles y Crew Tickets
 

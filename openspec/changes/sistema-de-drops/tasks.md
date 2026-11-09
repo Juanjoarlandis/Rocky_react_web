@@ -89,13 +89,13 @@ Nivel 3. TDD en cada tarea de lógica: prueba en rojo, implementación mínima, 
 
 ## 10. Cliente: el Taller
 
-- [ ] 10.1 SPA `/taller` con carga diferida: entrada (contraseña y código), salida y aviso de «no disponible». Verifica: pruebas de componente con API falsa.
-- [ ] 10.2 Lista y edición de drops: textos, fechas en hora de Madrid, cartel con subida, programar y despublicar, vista previa de los estados con el `Cartel` público y recuento de avisos. Verifica: pruebas de formulario (validación, errores del servidor y vista previa).
-- [ ] 10.3 Diseños del drop: crear con foto, precio y tallas, editar, añadir uno existente y quitar. Verifica: pruebas de formulario.
+- [x] 10.1 SPA `/taller` con carga diferida: entrada (contraseña y código), salida y aviso de «no disponible». Verifica: pruebas de componente con API falsa.
+- [x] 10.2 Lista y edición de drops: textos, fechas en hora de Madrid, cartel con subida, programar y despublicar, vista previa de los estados con el `Cartel` público y recuento de avisos. Verifica: pruebas de formulario (validación, errores del servidor y vista previa).
+- [x] 10.3 Diseños del drop: crear con foto, precio y tallas, editar, añadir uno existente y quitar. Verifica: pruebas de formulario.
 
 ## 11. Avisos por drop
 
-- [ ] 11.1 Envío por drop: `createAvisosSender` con varias listas deduplicadas y `scripts/enviar-avisos.mjs --drop <handle>`, con título y enlace del drop y simulacro por defecto. Verifica: pruebas del envío (email en dos listas y simulacro) y del análisis de argumentos.
+- [x] 11.1 Envío por drop: `createAvisosSender` con varias listas deduplicadas y `scripts/enviar-avisos.mjs --drop <handle>`, con título y enlace del drop y simulacro por defecto. Verifica: pruebas del envío (email en dos listas y simulacro) y del análisis de argumentos.
 
 ## 12. Recursos visuales
 
@@ -119,7 +119,7 @@ Nivel 3. TDD en cada tarea de lógica: prueba en rojo, implementación mínima, 
 
 ## 14. Documentación
 
-- [ ] 14.1 Documentar:
+- [x] 14.1 Documentar:
   - `docs/ops/drops.md`: guía del Taller, alta de la clave, publicación en producción, vuelta atrás y avisos;
   - `.env.example` con las variables nuevas;
   - la sección del README.
