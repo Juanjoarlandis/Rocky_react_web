@@ -12,7 +12,7 @@ import { PLACEHOLDER_IMAGE } from '../../config/commerce.js';
 import { PURCHASE_STATES, purchaseLabel, purchaseState } from '../storefront/availability.js';
 import { designCount } from './designCount.js';
 import { isTornFlipped } from './tornVariant.js';
-import { DROP_STATES } from '../../../shared/drops.mjs';
+import { DROP_STATES, isDropHandle } from '../../../shared/drops.mjs';
 import Cartel from '../drops/Cartel';
 import { fechaLarga, horaDeMadrid } from '../drops/fecha.js';
 // Variante sin los puntos de spray pintados: el chorro se anima aparte.
@@ -67,6 +67,7 @@ function ProductPage({
   canAddToCart = true,
   prioritizeFirstImage = false,
   loading = false,
+  dropsLoading = false,
   drops = EMPTY,
   featured = null,
   serverNow = Date.now,
@@ -105,7 +106,10 @@ function ProductPage({
     : 'ROCKY 035';
   useDocumentTitle(isHome ? '' : pageTitle);
 
-  if (category && !categoryDrop && visibleProducts.length === 0 && !loading) {
+  // Una página de drop espera también a los drops: si no, la de un anunciado
+  // (la que se comparte antes del lanzamiento) diría «Volaron» un instante.
+  const waiting = loading || (dropsLoading && isDropHandle(category ?? ''));
+  if (category && !categoryDrop && visibleProducts.length === 0 && !waiting) {
     return (
       <div className="product-empty">
         {/* Se lo han llevado todo corriendo */}
@@ -186,7 +190,8 @@ function ProductPage({
                 </div>
                 {featuredAnnounced && (
                   <p className="product-page-hero-drop">
-                    Cae el {fechaLarga(featured.launchAt)} a las {horaDeMadrid(featured.launchAt)}
+                    Cae el {fechaLarga(featured.launchAt)} a las {horaDeMadrid(featured.launchAt)},
+                    hora de Madrid
                   </p>
                 )}
               </>

@@ -119,6 +119,84 @@ describe('useDrops', () => {
     expect(result.current.error).not.toBe('');
   });
 
+  it('si falla la recarga al llegar la hora, conserva el muro y sigue reintentando', async () => {
+    const fail = () =>
+      Promise.resolve(
+        new Response('{}', { status: 502, headers: { 'Content-Type': 'application/json' } })
+      );
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementationOnce(() => respond(payload('anunciado')))
+      .mockImplementationOnce(fail)
+      .mockImplementation(() => respond(payload('en-la-calle', SERVER_NOW + 66_000)));
+    const onLaunch = vi.fn();
+    const { result } = renderHook(() => useDrops({ mode: 'shopify', products: [], onLaunch }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(62_000);
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.current.drops).toHaveLength(1);
+    expect(onLaunch).not.toHaveBeenCalled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+    await waitFor(() => expect(result.current.drops[0].state).toBe('en-la-calle'));
+    expect(onLaunch).toHaveBeenCalled();
+    expect(result.current.error).toBe('');
+  });
+
+  it('tras el lanzamiento vuelve a pedir el catálogo varias veces: Shopify tarda en servirlo', async () => {
+    vi.spyOn(globalThis, 'fetch')
+      .mockImplementationOnce(() => respond(payload('anunciado')))
+      .mockImplementation(() => respond(payload('en-la-calle', SERVER_NOW + 61_000)));
+    const onLaunch = vi.fn();
+    const { result } = renderHook(() => useDrops({ mode: 'shopify', products: [], onLaunch }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(62_000);
+    });
+    expect(onLaunch).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(40_000);
+    });
+    expect(onLaunch).toHaveBeenCalledTimes(4);
+  });
+
+  it('al llegar el cierre de un drop a la venta vuelve a pedir drops y catálogo', async () => {
+    const ENDS = new Date(SERVER_NOW + 60_000).toISOString();
+    const live = (state, now) => ({
+      now: new Date(now).toISOString(),
+      featured: null,
+      drops: [
+        { ...payload(state).drops[0], state, launchAt: '2026-11-01T20:00:00+01:00', endsAt: ENDS },
+      ],
+    });
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementationOnce(() => respond(live('ultimas-horas', SERVER_NOW)))
+      .mockImplementation(() => respond(live('archivo', SERVER_NOW + 61_000)));
+    const onLaunch = vi.fn();
+    const { result } = renderHook(() => useDrops({ mode: 'shopify', products: [], onLaunch }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(62_000);
+    });
+    await waitFor(() => expect(result.current.drops[0].state).toBe('archivo'));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(onLaunch).toHaveBeenCalled();
+  });
+
+  it('si la tienda no responde (unavailable) no se inventa drops de demostración', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch');
+    const products = [{ handle: 'rocky-35-red', dropHandle: 'rocky-drop-4' }];
+    const { result } = renderHook(() => useDrops({ mode: 'unavailable', products }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.drops).toEqual([]);
+    expect(result.current.featured).toBe(null);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('mientras se comprueba el modo de la tienda no pide nada', () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch');
     const { result } = renderHook(() => useDrops({ mode: 'checking', products: [] }));

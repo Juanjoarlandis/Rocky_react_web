@@ -18,6 +18,7 @@ export default function Muro({
   products = [],
   serverNow,
   loading = false,
+  error = '',
 }) {
   useDocumentTitle('El muro');
   const pegadorArt = useNightArt(pegador);
@@ -53,7 +54,13 @@ export default function Muro({
             alt=""
             className="muro-vacio-pegador neon-art"
           />
-          <p className="muro-vacio-texto">Todavía no hay nada pegado. El Pegador está en ello.</p>
+          {error ? (
+            <p className="muro-vacio-texto" role="alert">
+              No hemos podido leer el muro. Prueba a recargar en un momento.
+            </p>
+          ) : (
+            <p className="muro-vacio-texto">Todavía no hay nada pegado. El Pegador está en ello.</p>
+          )}
         </div>
       )}
 

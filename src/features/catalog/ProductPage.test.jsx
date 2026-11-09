@@ -617,7 +617,34 @@ describe('ProductPage: drops en la portada y página de drop', () => {
       'href',
       '/products/rocky-drop-6'
     );
-    expect(screen.getByText(/Cae el viernes 13 de noviembre a las 20:00/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Cae el viernes 13 de noviembre a las 20:00, hora de Madrid/)
+    ).toBeInTheDocument();
+  });
+
+  it('mientras llegan los drops, la página de un drop no dice que voló', () => {
+    render(
+      <MemoryRouter initialEntries={['/products/rocky-drop-6']}>
+        <Routes>
+          <Route
+            path="/products/:category"
+            element={
+              <ProductPage
+                products={[]}
+                addToCart={vi.fn()}
+                commerceMode="shopify"
+                canAddToCart
+                drops={[]}
+                featured={null}
+                dropsLoading
+                serverNow={now}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>
+    );
+    expect(screen.queryByText('Nada por aquí')).not.toBeInTheDocument();
   });
 
   it('el catálogo sigue el orden del muro: teaser, en la calle y archivo', () => {

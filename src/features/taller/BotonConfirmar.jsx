@@ -7,6 +7,7 @@ export default function BotonConfirmar({
   etiqueta,
   onConfirmar,
   className = 'btn btn--ghost btn--sm',
+  disabled = false,
 }) {
   const [armado, setArmado] = useState(false);
 
@@ -20,6 +21,7 @@ export default function BotonConfirmar({
     <button
       type="button"
       className={`${className}${armado ? ' is-armed' : ''}`}
+      disabled={disabled}
       onClick={() => {
         if (!armado) return setArmado(true);
         setArmado(false);

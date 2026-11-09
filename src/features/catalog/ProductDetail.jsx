@@ -237,10 +237,18 @@ function ProductDetail({
               </p>
             )}
             {/* Sin precio no hay compra, pero sí recado. Si el diseño es de un
-                drop, el aviso va a la lista del drop (avisos-de-drop). */}
+                drop anunciado, el aviso va a la lista del drop (avisos-de-drop);
+                si el drop ya cayó, su lista se envió y se borró, así que va a la
+                del diseño. */}
             {state === PURCHASE_STATES.NOTIFY && (
               <div id="aviso" ref={avisoRef}>
-                <DropAviso producto={productDrop?.handle ?? String(product.handle ?? product.id)} />
+                <DropAviso
+                  producto={
+                    productDrop?.state === DROP_STATES.ANNOUNCED
+                      ? productDrop.handle
+                      : String(product.handle ?? product.id)
+                  }
+                />
                 {productDrop?.state === DROP_STATES.ANNOUNCED && (
                   <AddToCalendar drop={productDrop} />
                 )}

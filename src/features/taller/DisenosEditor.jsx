@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import * as api from '../../api/taller.js';
 import BotonConfirmar from './BotonConfirmar';
 
@@ -22,13 +22,14 @@ function tallasDe(sizes = []) {
   );
 }
 
-function DisenoForm({ inicial, nombre, boton, exigirFoto, onEnviar }) {
+function DisenoForm({ inicial, nombre, boton, exigirFoto, onEnviar, onFallo }) {
   const [titulo, setTitulo] = useState(inicial?.title ?? '');
   const [descripcion, setDescripcion] = useState(inicial?.description ?? '');
   const [precio, setPrecio] = useState(inicial?.price ?? '');
   const [tallas, setTallas] = useState(() => tallasDe(inicial?.sizes));
   const [foto, setFoto] = useState(null);
   const [estado, setEstado] = useState({ tipo: 'reposo', texto: '' });
+  const fotoRef = useRef(null);
 
   const cambiarTalla = (talla, cambios) =>
     setTallas((actual) => ({ ...actual, [talla]: { ...actual[talla], ...cambios } }));
@@ -42,6 +43,7 @@ function DisenoForm({ inicial, nombre, boton, exigirFoto, onEnviar }) {
       setEstado({ tipo: 'ok', texto: 'Foto subida.' });
     } catch (error) {
       setEstado({ tipo: 'fallo', texto: error.message });
+      onFallo?.(error);
     }
   }
 
@@ -69,9 +71,19 @@ function DisenoForm({ inicial, nombre, boton, exigirFoto, onEnviar }) {
     setEstado({ tipo: 'ocupado', texto: '' });
     try {
       await onEnviar(body);
+      // El de crear se vacía: otro envío crearía un diseño repetido.
+      if (!inicial) {
+        setTitulo('');
+        setDescripcion('');
+        setPrecio('');
+        setTallas(tallasDe());
+        setFoto(null);
+        if (fotoRef.current) fotoRef.current.value = '';
+      }
       setEstado({ tipo: 'ok', texto: 'Guardado.' });
     } catch (error) {
       setEstado({ tipo: 'fallo', texto: error.message });
+      onFallo?.(error);
     }
   }
 
@@ -151,7 +163,12 @@ function DisenoForm({ inicial, nombre, boton, exigirFoto, onEnviar }) {
       </fieldset>
       <label className="taller-campo">
         <span>Foto</span>
-        <input type="file" accept="image/png,image/jpeg,image/webp" onChange={subirFoto} />
+        <input
+          ref={fotoRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          onChange={subirFoto}
+        />
       </label>
       {foto && <img className="taller-miniatura" src={foto.url} alt="" width="80" height="80" />}
       {estado.texto && (
@@ -179,7 +196,7 @@ function resumenTallas(sizes) {
     .join(' · ');
 }
 
-export default function DisenosEditor({ drop, onCambio }) {
+export default function DisenosEditor({ drop, onCambio, onFallo }) {
   const [editando, setEditando] = useState(null);
   const [busqueda, setBusqueda] = useState('');
   const [resultados, setResultados] = useState(null);
@@ -193,6 +210,7 @@ export default function DisenosEditor({ drop, onCambio }) {
       setResultados(products);
     } catch (error) {
       setFallo(error.message);
+      onFallo?.(error);
     }
   }
 
@@ -203,6 +221,7 @@ export default function DisenosEditor({ drop, onCambio }) {
       await onCambio();
     } catch (error) {
       setFallo(error.message);
+      onFallo?.(error);
     }
   }
 
@@ -253,6 +272,7 @@ export default function DisenosEditor({ drop, onCambio }) {
                 inicial={design}
                 nombre={`Editar ${design.title}`}
                 boton="Guardar diseño"
+                onFallo={onFallo}
                 onEnviar={async (body) => {
                   await api.updateDesign(design.id, body);
                   await onCambio();
@@ -267,6 +287,7 @@ export default function DisenosEditor({ drop, onCambio }) {
         nombre="Nuevo diseño"
         boton="Crear diseño"
         exigirFoto
+        onFallo={onFallo}
         onEnviar={async (body) => {
           await api.createDesign(drop.handle, body);
           await onCambio();

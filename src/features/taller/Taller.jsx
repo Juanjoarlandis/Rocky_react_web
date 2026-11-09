@@ -86,7 +86,7 @@ function TallerEntrada({ onEntrar }) {
   );
 }
 
-function NuevoDrop({ onCreado }) {
+function NuevoDrop({ onCreado, onFallo }) {
   const [fallo, setFallo] = useState('');
 
   async function crear(event) {
@@ -104,6 +104,7 @@ function NuevoDrop({ onCreado }) {
       onCreado();
     } catch (error) {
       setFallo(error.message);
+      onFallo?.(error);
     }
   }
 
@@ -145,6 +146,14 @@ function TallerPanel({ onSalir }) {
   const [fallo, setFallo] = useState('');
   const [abierto, setAbierto] = useState(null);
 
+  // Si el permiso caduca (8 h o servidor reiniciado), de vuelta a la entrada.
+  const vigilar = useCallback(
+    (error) => {
+      if (error?.status === 401) onSalir();
+    },
+    [onSalir]
+  );
+
   const cargar = useCallback(async () => {
     try {
       const { drops: lista } = await api.listDrops();
@@ -152,8 +161,9 @@ function TallerPanel({ onSalir }) {
       setFallo('');
     } catch (error) {
       setFallo(error.message);
+      vigilar(error);
     }
-  }, []);
+  }, [vigilar]);
 
   useEffect(() => {
     cargar();
@@ -224,7 +234,7 @@ function TallerPanel({ onSalir }) {
               </li>
             ))}
           </ul>
-          <NuevoDrop onCreado={cargar} />
+          <NuevoDrop onCreado={cargar} onFallo={vigilar} />
         </section>
 
         {drop && (
@@ -233,6 +243,7 @@ function TallerPanel({ onSalir }) {
             drop={drop}
             onCambio={cargar}
             onCerrar={() => setAbierto(null)}
+            onFallo={vigilar}
           />
         )}
       </div>

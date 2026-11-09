@@ -66,6 +66,13 @@ describe('Cartel', () => {
     expect(within(cartel).queryByRole('link', { name: /entrar al drop/i })).toBeNull();
   });
 
+  it('con muchos diseños enseña seis siluetas y cuántos más hay', () => {
+    const { container } = renderCartel({ ...base, designCount: 9 });
+    expect(container.querySelectorAll('.cartel-silueta')).toHaveLength(6);
+    expect(container.querySelector('.cartel-silueta-mas')).toHaveTextContent('+3');
+    expect(screen.getByText('9 diseños bajo llave')).toBeInTheDocument();
+  });
+
   it('la cuenta atrás va con la hora corregida del servidor', () => {
     const { container } = renderCartel(base, { serverNow: () => Date.now() - 10 * 60_000 });
     // Con el servidor 10 minutos por detrás faltan 3 d 7 h 10 min, no 3 d 7 h 0 min.
@@ -166,5 +173,45 @@ describe('Pestañas de aviso del cartel', () => {
     const email = screen.getByRole('textbox', { name: 'Tu email para el aviso del drop' });
     expect(email).toHaveFocus();
     expect(pestanas[0]).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('solo una pestaña entra en el tabulador: las demás siguen ahí para el ratón', () => {
+    renderCartel(base);
+    const pestanas = screen.getAllByRole('button', {
+      name: 'Avísame cuando caiga el ROCKY DROP 6',
+    });
+    expect(pestanas.filter((p) => p.tabIndex === 0)).toHaveLength(1);
+    fireEvent.click(pestanas[0]);
+    // La arrancada desaparece: el turno del tabulador pasa a la siguiente.
+    const enTurno = pestanas.filter((p) => p.tabIndex === 0);
+    expect(enTurno).toHaveLength(1);
+    expect(enTurno[0]).not.toBe(pestanas[0]);
+  });
+
+  it('arrancar otra pestaña con el aviso ya abierto vuelve a llevar el foco al email', () => {
+    renderCartel(base);
+    const pestanas = screen.getAllByRole('button', {
+      name: 'Avísame cuando caiga el ROCKY DROP 6',
+    });
+    fireEvent.click(pestanas[0]);
+    const email = screen.getByRole('textbox', { name: 'Tu email para el aviso del drop' });
+    pestanas[1].focus();
+    fireEvent.click(pestanas[1]);
+    expect(email).toHaveFocus();
+  });
+
+  it('si ya estaba apuntado, el foco va al aviso y no se pierde', () => {
+    window.localStorage.setItem('rocky-aviso-rocky-drop-6', '1');
+    try {
+      renderCartel(base);
+      const [pestana] = screen.getAllByRole('button', {
+        name: 'Avísame cuando caiga el ROCKY DROP 6',
+      });
+      pestana.focus();
+      fireEvent.click(pestana);
+      expect(screen.getByTestId('drop-aviso-listo').closest('.pestanas-aviso')).toHaveFocus();
+    } finally {
+      window.localStorage.removeItem('rocky-aviso-rocky-drop-6');
+    }
   });
 });

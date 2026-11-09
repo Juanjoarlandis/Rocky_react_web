@@ -9,9 +9,10 @@ import { horaMadridAIso, isoAHoraMadrid } from './hora.js';
 const DAY = 24 * 60 * 60 * 1000;
 const HOUR = 60 * 60 * 1000;
 
-/* Tres momentos del mismo cartel para la vista previa: tres días antes del
-   lanzamiento, una hora después y pasado el cierre (si no hay cierre, se
-   supone una semana). Se pintan con el Cartel público, sin tocar la web. */
+/* Los cuatro momentos del mismo cartel para la vista previa: tres días antes
+   del lanzamiento, una hora después, un día antes del cierre (últimas horas) y
+   pasado el cierre (si no hay cierre, se supone una semana). Se pintan con el
+   Cartel público, sin tocar la web. */
 function vistasPrevias(base) {
   const lanzamiento = Date.parse(base.launchAt ?? '') || Date.now() + 3 * DAY;
   const cierre = Date.parse(base.endsAt ?? '') || lanzamiento + 7 * DAY;
@@ -23,25 +24,38 @@ function vistasPrevias(base) {
   return [
     { clave: 'anunciado', drop, ahora: lanzamiento - 3 * DAY },
     { clave: 'en-la-calle', drop, ahora: lanzamiento + HOUR },
+    { clave: 'ultimas-horas', drop, ahora: cierre - DAY },
     { clave: 'archivo', drop, ahora: cierre + HOUR },
   ];
 }
 
-export default function DropEditor({ drop, onCambio, onCerrar }) {
+/* Lo que hay guardado, con la forma del formulario. */
+function guardadoDe(drop) {
   const { config } = drop;
-  const [form, setForm] = useState(() => ({
+  return {
     title: drop.title,
     number: String(config.number),
     tagline: config.tagline,
     story: config.story,
     launchAt: isoAHoraMadrid(config.launchAt),
     endsAt: isoAHoraMadrid(config.endsAt),
-  }));
+  };
+}
+
+export default function DropEditor({ drop, onCambio, onCerrar, onFallo }) {
+  const { config } = drop;
+  const [form, setForm] = useState(() => guardadoDe(drop));
   const [poster, setPoster] = useState(drop.poster);
   const [posterCambiado, setPosterCambiado] = useState(false);
   const [estado, setEstado] = useState({ tipo: 'reposo', texto: '' });
   const programado = config.status === CONFIG_STATUS.SCHEDULED;
   const editorId = `editor-${drop.handle}`;
+  // Programar y despublicar trabajan con lo guardado: con cambios a medias
+  // programarían la fecha vieja mientras la vista previa enseña la nueva.
+  const guardado = guardadoDe(drop);
+  const sinGuardar =
+    posterCambiado || Object.keys(guardado).some((clave) => form[clave] !== guardado[clave]);
+  const ocupado = estado.tipo === 'ocupado';
 
   const campo = (nombre) => ({
     value: form[nombre],
@@ -56,6 +70,7 @@ export default function DropEditor({ drop, onCambio, onCerrar }) {
       await onCambio();
     } catch (error) {
       setEstado({ tipo: 'fallo', texto: error.message });
+      onFallo?.(error);
     }
   }
 
@@ -71,6 +86,7 @@ export default function DropEditor({ drop, onCambio, onCerrar }) {
       setEstado({ tipo: 'ok', texto: 'Cartel subido: guarda para pegarlo.' });
     } catch (error) {
       setEstado({ tipo: 'fallo', texto: error.message });
+      onFallo?.(error);
     }
   }
 
@@ -85,7 +101,10 @@ export default function DropEditor({ drop, onCambio, onCerrar }) {
       endsAt: horaMadridAIso(form.endsAt),
     };
     if (posterCambiado) cambios.poster = poster;
-    return accion(() => api.updateDrop(drop.handle, cambios), 'Guardado.');
+    return accion(async () => {
+      await api.updateDrop(drop.handle, cambios);
+      setPosterCambiado(false);
+    }, 'Guardado.');
   }
 
   const vista = {
@@ -166,40 +185,51 @@ export default function DropEditor({ drop, onCambio, onCerrar }) {
         )}
 
         <div className="taller-acciones">
-          <button
-            type="submit"
-            className="btn btn--primary btn--sm"
-            disabled={estado.tipo === 'ocupado'}
-          >
+          <button type="submit" className="btn btn--primary btn--sm" disabled={ocupado}>
             Guardar
           </button>
           {programado ? (
             <BotonConfirmar
               etiqueta="Despublicar"
+              disabled={ocupado || sinGuardar}
               onConfirmar={() => accion(() => api.unscheduleDrop(drop.handle), 'Despublicado.')}
             />
           ) : (
             <button
               type="button"
               className="btn btn--ghost btn--sm"
+              disabled={ocupado || sinGuardar}
               onClick={() => accion(() => api.scheduleDrop(drop.handle), 'Programado.')}
             >
               Programar el drop
             </button>
           )}
         </div>
+        {sinGuardar && (
+          <p className="taller-ayuda">
+            Guarda los cambios antes de {programado ? 'despublicar' : 'programar'}.
+          </p>
+        )}
       </form>
 
       <section className="taller-vista" aria-label="Vista previa del cartel">
         <h3 className="taller-subtitulo">Vista previa</h3>
-        <div className="taller-vista-carteles">
+        {/* inert: es solo para mirar. Sus pestañas no apuntan avisos de
+            verdad y su enlace no saca del Taller con cambios sin guardar. */}
+        <div className="taller-vista-carteles" inert>
           {vistasPrevias(vista).map(({ clave, drop: previo, ahora }) => (
-            <Cartel key={clave} drop={previo} products={disenos} serverNow={() => ahora} />
+            <Cartel
+              key={clave}
+              drop={previo}
+              products={disenos}
+              serverNow={() => ahora}
+              tituloComo="h4"
+            />
           ))}
         </div>
       </section>
 
-      <DisenosEditor drop={drop} onCambio={onCambio} />
+      <DisenosEditor drop={drop} onCambio={onCambio} onFallo={onFallo} />
     </section>
   );
 }

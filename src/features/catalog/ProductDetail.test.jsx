@@ -279,7 +279,9 @@ describe('ProductDetail', () => {
     expect(screen.queryByRole('link', { name: 'Tienda' })).not.toBeInTheDocument();
   });
 
-  it('el aviso de un diseño de un drop se apunta en la lista del drop', async () => {
+  it('el aviso de un diseño de un drop que ya está en la calle va a la lista del diseño', async () => {
+    // La lista del drop se envía y se borra al caer: apuntarse ahí ya no
+    // traería ningún correo.
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ ok: true, duplicate: false }), {
         status: 201,
@@ -304,6 +306,6 @@ describe('ProductDetail', () => {
     fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.submit(screen.getByTestId('drop-aviso'));
     await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
-    expect(JSON.parse(fetchSpy.mock.calls[0][1].body).producto).toBe('rocky-drop-5');
+    expect(JSON.parse(fetchSpy.mock.calls[0][1].body).producto).toBe(String(product.handle));
   });
 });

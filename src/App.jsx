@@ -97,6 +97,7 @@ function App() {
       canAddToCart={commerce.canAddToCart}
       prioritizeFirstImage={!showSplash}
       loading={commerce.loading}
+      dropsLoading={drops.loading}
       drops={drops.drops}
       featured={drops.featured}
       serverNow={drops.serverNow}
@@ -157,6 +158,7 @@ function App() {
                     products={commerce.products}
                     serverNow={drops.serverNow}
                     loading={drops.loading}
+                    error={drops.error}
                   />
                 }
               />

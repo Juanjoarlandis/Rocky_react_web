@@ -37,7 +37,7 @@ function renderMuro(props = {}) {
 }
 
 describe('El muro', () => {
-  it('pega un cartel por drop en el orden del muro', () => {
+  it('pega un cartel por drop en el orden que le da el servidor', () => {
     renderMuro();
     expect(screen.getByRole('heading', { level: 1, name: 'El muro' })).toBeInTheDocument();
     expect(screen.getAllByRole('article').map((a) => a.getAttribute('data-testid'))).toEqual([
@@ -72,6 +72,12 @@ describe('El muro', () => {
     renderMuro({ drops: [], featured: null });
     expect(screen.getByText(/todavía no hay nada pegado/i)).toBeInTheDocument();
     expect(screen.queryAllByRole('article')).toHaveLength(0);
+  });
+
+  it('si no ha podido leer los drops lo dice, en vez de dar el muro por vacío', () => {
+    renderMuro({ drops: [], featured: null, error: 'Sin conexión.' });
+    expect(screen.getByRole('alert')).toHaveTextContent('No hemos podido leer el muro');
+    expect(screen.queryByText(/Todavía no hay nada pegado/)).not.toBeInTheDocument();
   });
 
   it('mientras carga enseña el aviso de carga', () => {

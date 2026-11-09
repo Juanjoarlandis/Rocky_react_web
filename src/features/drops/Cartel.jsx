@@ -146,6 +146,10 @@ export default function Cartel({
                         <PlaceholderTee compact kicker={`Drop ${drop.number} · sin revelar`} />
                       </li>
                     ))}
+                    {/* Más de seis no caben en la nota: el resto, en una cifra. */}
+                    {drop.designCount > MAX_SILUETAS && (
+                      <li className="cartel-silueta-mas">+{drop.designCount - MAX_SILUETAS}</li>
+                    )}
                   </ul>
                   <p className="cartel-siluetas-texto">
                     {drop.designCount === 1

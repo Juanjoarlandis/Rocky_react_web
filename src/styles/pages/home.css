@@ -338,7 +338,7 @@
     margin: var(--space-5) 0 0;
     font-family: var(--font-hand);
     font-size: var(--text-lg);
-    color: var(--muted);
+    color: var(--ink-soft);
   }
 
   .product-page-hero-drop {

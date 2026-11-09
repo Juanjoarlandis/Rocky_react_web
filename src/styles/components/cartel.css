@@ -173,7 +173,8 @@
     outline-offset: 3px;
     border-radius: 6px;
     background-color: rgba(var(--card-rgb), 0.86);
-    color: var(--accent);
+    /* El rojo más oscuro: el --accent sobre papel no llega a 4,5:1. */
+    color: var(--danger-ink);
     font-family: var(--font-display);
     font-size: clamp(0.95rem, 2.6vw, 1.25rem);
     letter-spacing: 0.06em;
@@ -313,7 +314,7 @@
   .cuenta-casilla small {
     font-family: var(--font-hand);
     font-size: var(--text-2xs);
-    color: var(--muted);
+    color: var(--ink-soft);
   }
 
   .cuenta-casilla--seg {
@@ -357,6 +358,14 @@
 
   .cartel-silueta:nth-child(even) {
     transform: rotate(5deg);
+  }
+
+  .cartel-silueta-mas {
+    align-self: center;
+    margin-left: var(--space-1);
+    font-family: var(--font-display);
+    font-size: var(--text-sm);
+    color: var(--ink);
   }
 
   .cartel-siluetas-texto {
@@ -534,8 +543,10 @@
     color: var(--ink-fixed);
   }
 
+  /* De noche el sello sigue en lima, como el borde. */
   [data-theme='neon'] .cartel-sello {
     background-color: rgba(var(--neon-paper-rgb), 0.82);
+    color: var(--accent);
   }
 
   /* ---------- Movimiento ---------- */

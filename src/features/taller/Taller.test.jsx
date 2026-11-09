@@ -201,15 +201,43 @@ describe('El Taller: drops', () => {
     await waitFor(() => expect(api.unscheduleDrop).toHaveBeenCalledWith('rocky-drop-7'));
   });
 
-  it('enseña la vista previa del cartel en los tres estados', async () => {
+  it('enseña la vista previa del cartel en sus cuatro estados, sin que se pueda tocar', async () => {
     const editor = await abrirDrop();
     const vista = within(editor).getByRole('region', { name: 'Vista previa del cartel' });
-    const carteles = within(vista).getAllByRole('article', { name: 'ROCKY DROP 7' });
-    expect(carteles.map((c) => c.className.match(/cartel--([\w-]+)/)[1])).toEqual([
+    const carteles = vista.querySelectorAll('article');
+    expect([...carteles].map((c) => c.className.match(/cartel--([\w-]+)/)[1])).toEqual([
       'anunciado',
       'en-la-calle',
+      'ultimas-horas',
       'archivo',
     ]);
+    // inert: ni sus pestañas apuntan avisos de verdad ni su enlace saca del Taller.
+    expect(vista.querySelector('.taller-vista-carteles')).toHaveAttribute('inert');
+    expect(vista.querySelector('article h4')).not.toBe(null);
+    expect(vista.querySelector('article h2')).toBe(null);
+  });
+
+  it('con cambios sin guardar no deja programar: programaría la fecha vieja', async () => {
+    const editor = await abrirDrop();
+    const programar = within(editor).getByRole('button', { name: 'Programar el drop' });
+    expect(programar).toBeEnabled();
+    fireEvent.change(within(editor).getByLabelText('Lanzamiento (hora de Madrid)'), {
+      target: { value: '2026-11-14T21:30' },
+    });
+    expect(programar).toBeDisabled();
+    expect(within(editor).getByText(/Guarda los cambios antes de programar/)).toBeInTheDocument();
+  });
+
+  it('si el permiso ha caducado, vuelve a la entrada', async () => {
+    const editor = await abrirDrop();
+    const caducado = new ApiError('Entra en el Taller para seguir.', {
+      status: 401,
+      code: 'TALLER_AUTH_REQUIRED',
+    });
+    api.scheduleDrop.mockRejectedValue(caducado);
+    api.listDrops.mockRejectedValue(caducado);
+    fireEvent.click(within(editor).getByRole('button', { name: 'Programar el drop' }));
+    expect(await screen.findByLabelText('Clave')).toBeInTheDocument();
   });
 
   it('sube el cartel y lo manda al guardar', async () => {
@@ -268,6 +296,29 @@ describe('El Taller: diseños', () => {
         fileId: 'gid://shopify/MediaImage/5',
       },
     ]);
+  });
+
+  it('al crear un diseño el formulario se vacía: un segundo envío no lo duplica', async () => {
+    const editor = await abrirDrop();
+    api.uploadImage.mockResolvedValue({
+      fileId: 'gid://shopify/MediaImage/5',
+      url: 'https://cdn.shopify.com/f.png',
+    });
+    api.createDesign.mockResolvedValue(DESIGN);
+    const form = within(editor).getByRole('form', { name: 'Nuevo diseño' });
+    fireEvent.change(within(form).getByLabelText('Título'), { target: { value: 'En las nubes' } });
+    fireEvent.change(within(form).getByLabelText('Precio (€)'), { target: { value: '34,99' } });
+    fireEvent.click(within(form).getByRole('checkbox', { name: 'Talla M' }));
+    fireEvent.change(within(form).getByLabelText('Foto'), {
+      target: { files: [new File(['x'], 'f.png', { type: 'image/png' })] },
+    });
+    await waitFor(() => expect(api.uploadImage).toHaveBeenCalled());
+    fireEvent.click(within(form).getByRole('button', { name: 'Crear diseño' }));
+    await waitFor(() => expect(api.createDesign).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(within(form).getByLabelText('Título')).toHaveValue(''));
+    expect(within(form).getByLabelText('Precio (€)')).toHaveValue('');
+    fireEvent.click(within(form).getByRole('button', { name: 'Crear diseño' }));
+    expect(api.createDesign).toHaveBeenCalledTimes(1);
   });
 
   it('no crea un diseño sin foto', async () => {
