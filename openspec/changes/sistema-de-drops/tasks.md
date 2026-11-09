@@ -99,7 +99,7 @@ Nivel 3. TDD en cada tarea de lógica: prueba en rojo, implementación mínima, 
 
 ## 12. Recursos visuales
 
-- [ ] 12.1 El Pegador:
+- [x] 12.1 El Pegador:
   - prompt en `prompts-munecos/25-pegador-carteles.md`;
   - generación con OpenAI y las referencias de la casa;
   - maestro en `assets-master`, optimizado a `src/images/optimized/characters/`;
@@ -110,7 +110,7 @@ Nivel 3. TDD en cada tarea de lógica: prueba en rojo, implementación mínima, 
 
 ## 13. Tienda de pruebas
 
-- [ ] 13.1 `scripts/drops-semilla.mjs`, que se niega con cualquier tienda que no sea `rocky035-pruebas`:
+- [x] 13.1 `scripts/drops-semilla.mjs`, que se niega con cualquier tienda que no sea `rocky035-pruebas`:
   - escribe `rocky.drop` en los drops 3 a 6;
   - sube los carteles;
   - publica cada diseño solo en Headless, según su estado (el Drop 6, anunciado para dentro de unos días).
@@ -128,8 +128,8 @@ Nivel 3. TDD en cada tarea de lógica: prueba en rojo, implementación mínima, 
 
 ## 15. Verificación y cierre
 
-- [ ] 15.1 `npm run check` en verde.
-- [ ] 15.2 Recorrido en Chrome contra la tienda de pruebas, de escritorio y móvil:
+- [x] 15.1 `npm run check` en verde.
+- [x] 15.2 Recorrido en Chrome contra la tienda de pruebas, de escritorio y móvil:
   - muro en los cuatro estados;
   - teaser sin nombres en las respuestas;
   - cambio de cartel al llegar a cero;
@@ -138,7 +138,7 @@ Nivel 3. TDD en cada tarea de lógica: prueba en rojo, implementación mínima, 
   - noche y movimiento reducido.
 
   Verifica: script de Playwright con resultado OK y capturas.
-- [ ] 15.3 Revisión de dirección artística con capturas de día y noche a 375 y 1280 px, corrigiendo lo que no encaje.
+- [x] 15.3 Revisión de dirección artística con capturas de día y noche a 375 y 1280 px, corrigiendo lo que no encaje.
 - [ ] 15.4 Revisión independiente (`engineering-review`) y de seguridad (`security-review`); corrección de los bloqueantes, como mucho en dos rondas.
 
 ## Workflow follow-up
