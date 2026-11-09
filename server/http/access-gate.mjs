@@ -3,12 +3,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
+import { createAttemptTracker } from '../lib/attempt-tracker.mjs';
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const stylesheetPath = path.join(currentDirectory, 'access-gate.css');
 const ATTEMPT_LIMIT = 5;
 const ATTEMPT_WINDOW_MS = 15 * 60 * 1_000;
-const MAX_TRACKED_CLIENTS = 10_000;
 
 const MEDIA_SPECS = Object.freeze({
   logo: { relativePath: 'logo512.png' },
@@ -156,46 +156,6 @@ function requestClientKey(req) {
   return req.ip || req.socket.remoteAddress || 'unknown';
 }
 
-function createAttemptTracker(clock) {
-  const clients = new Map();
-
-  function pruneExpired(now) {
-    for (const [key, attempt] of clients) {
-      if (attempt.resetAt <= now) clients.delete(key);
-    }
-  }
-
-  return {
-    consume(key) {
-      const now = clock();
-      if (!clients.has(key) && clients.size >= MAX_TRACKED_CLIENTS) {
-        pruneExpired(now);
-        while (clients.size >= MAX_TRACKED_CLIENTS) {
-          clients.delete(clients.keys().next().value);
-        }
-      }
-
-      const previous = clients.get(key);
-      const attempt =
-        !previous || previous.resetAt <= now
-          ? { count: 0, resetAt: now + ATTEMPT_WINDOW_MS }
-          : previous;
-      attempt.count += 1;
-      clients.delete(key);
-      clients.set(key, attempt);
-
-      return {
-        isLimited: attempt.count > ATTEMPT_LIMIT,
-        retryAfterSeconds: Math.max(1, Math.ceil((attempt.resetAt - now) / 1_000)),
-      };
-    },
-
-    clear(key) {
-      clients.delete(key);
-    },
-  };
-}
-
 export function createAccessGate({
   config,
   sessions,
@@ -205,7 +165,11 @@ export function createAccessGate({
 }) {
   const router = express.Router();
   const media = resolveGateMedia(staticDirectory);
-  const attempts = createAttemptTracker(clock);
+  const attempts = createAttemptTracker({
+    limit: ATTEMPT_LIMIT,
+    windowMs: ATTEMPT_WINDOW_MS,
+    clock,
+  });
 
   router.get('/style.css', (req, res) => {
     setGateHeaders(res);
