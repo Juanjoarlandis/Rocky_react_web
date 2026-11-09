@@ -586,6 +586,34 @@ function caida(engine, time, o = {}) {
   sub(engine, time, { ...o, midi: o.midi ?? 36, glide: 1, decay: o.decay ?? 1.2, drive: 0.3 });
 }
 
+// ---------- Cortes de BARRO ----------
+
+// Un trozo del tema real, tal cual (el único sonido que no se sintetiza).
+// Rampa de 5 ms al entrar y al salir para que no chasquee; repetir el mismo
+// pad corta el anterior con su grupo de choke. Sin tramo cargado, silencio.
+const RAMPA_CORTE = 0.005;
+
+function corte(engine, time, o = {}) {
+  if (!o.buffer) return;
+  const { ctx } = engine;
+  const nivel = o.gain ?? 1;
+  const fin = time + o.buffer.duration;
+  choke(engine, o.choke, time);
+
+  const source = ctx.createBufferSource();
+  source.buffer = o.buffer;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, time);
+  g.gain.linearRampToValueAtTime(nivel, time + RAMPA_CORTE);
+  g.gain.setValueAtTime(nivel, Math.max(time + RAMPA_CORTE, fin - RAMPA_CORTE));
+  g.gain.linearRampToValueAtTime(0.0001, fin);
+  source.connect(g);
+  route(engine, g, o);
+  registerChoke(engine, o.choke, g);
+  source.start(time, 0);
+  source.stop(fin);
+}
+
 const VOCES = {
   bombo,
   caja,
@@ -606,6 +634,7 @@ const VOCES = {
   impacto,
   reversa,
   caida,
+  corte,
 };
 
 // Redoble: la misma voz repetida dentro de un pulso

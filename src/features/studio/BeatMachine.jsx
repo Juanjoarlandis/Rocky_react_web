@@ -3,8 +3,12 @@ import { useSearchParams } from 'react-router';
 import { useMusic } from '../music/MusicContext';
 import { IconPlay, IconPause } from '../../components/icons/PlayerIcons';
 import BeatPads from './BeatPads';
+import Rejilla from './mesa/Rejilla.jsx';
+import Consola from './mesa/Consola.jsx';
+import Publico from './mesa/Publico.jsx';
 import { createEngine } from '../../audio/engine';
 import { applyMix, hitPad, isAudible, trackIndexOf, triggerTrack } from './audio/drumKit';
+import { cargarCortesBarro } from './audio/barro';
 import { useStepSequencer } from './useStepSequencer';
 import {
   BANCOS,
@@ -39,7 +43,8 @@ import { announcePlaying, onOtherPlaying } from './mesaBus.js';
 
 // LA MESA DE BEATS — la caja de ritmos de La Colmena.
 // Secuenciador de 8 pistas con velocidad y swing, 16 pads tocables con el
-// teclado, grabación al vuelo y mezclador. Todo sintetizado: cero samples.
+// teclado, grabación al vuelo y mezclador. Todo sintetizado salvo el banco
+// BARRO, que toca cortes del tema real (audio/barro.js).
 // Aquí sólo vive la interfaz: el transporte está en useStepSequencer y el
 // kit que traduce pistas y pads a voces, en audio/drumKit.
 
@@ -118,12 +123,26 @@ function BeatMachine() {
   const copiedRef = useRef(null);
   useEffect(() => () => clearTimeout(copiedRef.current), []);
   const [activePreset, setActivePreset] = useState(INITIAL_PRESET.id);
+  // El banco BARRO: su audio se carga al elegirlo (reposo → cargando → listo
+  // o fallo). `tramos` es el Map id → AudioBuffer de los cortes.
+  const [barro, setBarro] = useState({ estado: 'reposo', tramos: null });
+  // ¿Sigue montada la mesa cuando acaba la carga? Se pone a true al montar
+  // (en desarrollo React monta, desmonta y vuelve a montar cada efecto).
+  const montadaRef = useRef(false);
+  useEffect(() => {
+    montadaRef.current = true;
+    return () => {
+      montadaRef.current = false;
+    };
+  }, []);
 
   const { pause: pauseRadio } = useMusic();
 
   const engineRef = useRef(null);
   const wrapRef = useRef(null);
   const vuRef = useRef(null);
+  // Los vúmetros de la consola: uno por pista y el maestro al final
+  const metersRef = useRef([]);
   const tapsRef = useRef([]);
   const flashRef = useRef(null);
 
@@ -181,11 +200,19 @@ function BeatMachine() {
     triggerTrack(engineRef.current, index, time, velocity, { tonic: tonicRef.current });
   }, []);
 
-  // El vúmetro se pinta en el mismo bucle que el cabezal
+  // Los vúmetros se pintan en el mismo bucle que el cabezal: el de la
+  // cabecera y los de la consola, con una variable CSS (sin renderizar React).
+  // Los de la consola suben al pico y caen poco a poco, como los de verdad.
+  const caidaRef = useRef([]);
   const paintMeter = useCallback((engine) => {
-    if (vuRef.current) {
-      vuRef.current.style.setProperty('--nivel', engine.level().toFixed(3));
-    }
+    const master = engine.level();
+    vuRef.current?.style.setProperty('--nivel', master.toFixed(3));
+    const levelsNow = [...(engine.levels?.() ?? []), master];
+    metersRef.current.forEach((meter, index) => {
+      const value = Math.max(levelsNow[index] ?? 0, (caidaRef.current[index] ?? 0) * 0.86);
+      caidaRef.current[index] = value;
+      meter?.style.setProperty('--nivel', value.toFixed(3));
+    });
   }, []);
 
   // ---------- Transporte ----------
@@ -211,6 +238,8 @@ function BeatMachine() {
   const stop = useCallback(() => {
     stopSequencer();
     vuRef.current?.style.setProperty('--nivel', '0');
+    metersRef.current.forEach((meter) => meter?.style.setProperty('--nivel', '0'));
+    caidaRef.current = [];
     setRecording(false);
   }, [stopSequencer]);
 
@@ -233,14 +262,43 @@ function BeatMachine() {
     []
   );
 
+  // ---------- BARRO ----------
+
+  const cargarBarro = useCallback(async () => {
+    const engine = ensureEngine();
+    if (!engine) {
+      setBarro({ estado: 'fallo', tramos: null });
+      return;
+    }
+    setBarro({ estado: 'cargando', tramos: null });
+    try {
+      const tramos = await cargarCortesBarro(engine.ctx);
+      if (montadaRef.current) setBarro({ estado: 'listo', tramos });
+    } catch {
+      if (montadaRef.current) setBarro({ estado: 'fallo', tramos: null });
+    }
+  }, [ensureEngine]);
+
+  const elegirBanco = (id) => {
+    setBank(id);
+    if (id === 'barro' && barro.estado === 'reposo') cargarBarro();
+  };
+
+  const barroListo = barro.estado === 'listo';
+
   // ---------- Pads ----------
 
   const strikePad = useCallback(
     (pad) => {
+      // Un corte de BARRO solo suena con su tramo cargado
+      if (pad.corte && !barroListo) return;
       const engine = ensureEngine();
       if (!engine) return;
       const when = engine.ctx.currentTime + 0.015;
-      hitPad(engine, pad, when, { bpm });
+      const golpe = pad.corte
+        ? { ...pad, opts: { ...pad.opts, buffer: barro.tramos.get(pad.corte) } }
+        : pad;
+      hitPad(engine, golpe, when, { bpm });
 
       setActivePad(pad.id);
       clearTimeout(flashRef.current);
@@ -257,7 +315,7 @@ function BeatMachine() {
         });
       }
     },
-    [bpm, ensureEngine, isRunning, stepAt]
+    [barro.tramos, barroListo, bpm, ensureEngine, isRunning, stepAt]
   );
 
   // Teclado: 1234 / QWER / ASDF / ZXCV tocan los pads; espacio arranca
@@ -287,6 +345,14 @@ function BeatMachine() {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [strikePad, pads, togglePlay]);
+
+  // ---------- Mezcla ----------
+  // La rejilla y la consola cambian el mismo estado.
+
+  const toggleMute = (index) => setMutes((prev) => prev.map((m, i) => (i === index ? !m : m)));
+  const toggleSolo = (index) => setSolos((prev) => prev.map((m, i) => (i === index ? !m : m)));
+  const setLevel = (index, value) =>
+    setLevels((prev) => prev.map((n, i) => (i === index ? value : n)));
 
   // ---------- Edición ----------
 
@@ -370,6 +436,8 @@ function BeatMachine() {
         className="doodle mesa-dancer neon-art"
         style={danceStyle}
       />
+
+      <Publico pattern={pattern} mutes={mutes} solos={solos} playing={playing} bpm={bpm} />
 
       <div className="mesa">
         <header className="mesa-cabecera">
@@ -463,7 +531,7 @@ function BeatMachine() {
             <span className="mando-valor">{Math.round(swing * 100)}%</span>
           </label>
 
-          <label className="mesa-mando">
+          <label className="mesa-mando mesa-mando--volumen">
             <span className="mando-nombre">Volumen</span>
             <input
               type="range"
@@ -492,90 +560,18 @@ function BeatMachine() {
           ))}
         </div>
 
-        <div className="mesa-seq">
-          <div className="seq-scroll">
-            <div className="seq-regla" aria-hidden="true">
-              <span className="seq-hueco" />
-              <div className="seq-numeros">
-                {Array.from({ length: STEP_COUNT }, (_, i) => (
-                  <span key={i} className={i % 4 === 0 ? 'fuerte' : ''}>
-                    {i % 4 === 0 ? i / 4 + 1 : '·'}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="seq-rejilla" role="group" aria-label="Secuenciador de 16 pasos">
-              {TRACKS.map((track, index) => (
-                <fieldset className={`seq-fila ${audible(index) ? '' : 'apagada'}`} key={track.id}>
-                  <legend className="sr-only">{track.label}</legend>
-                  <div className="seq-cabeza">
-                    <button
-                      type="button"
-                      className={`pista-nombre ${mutes[index] ? 'muda' : ''}`}
-                      onClick={() => setMutes((prev) => prev.map((m, i) => (i === index ? !m : m)))}
-                      aria-pressed={mutes[index]}
-                      title={`${mutes[index] ? 'Activar' : 'Silenciar'} ${track.label}`}
-                    >
-                      {track.label}
-                    </button>
-                    <button
-                      type="button"
-                      className={`pista-solo ${solos[index] ? 'is-on' : ''}`}
-                      onClick={() => setSolos((prev) => prev.map((s, i) => (i === index ? !s : s)))}
-                      aria-pressed={solos[index]}
-                      aria-label={`Solo de ${track.label}`}
-                    >
-                      S
-                    </button>
-                    <input
-                      className="pista-nivel"
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.05"
-                      value={levels[index]}
-                      onChange={(e) =>
-                        setLevels((prev) =>
-                          prev.map((n, i) => (i === index ? Number(e.target.value) : n))
-                        )
-                      }
-                      aria-label={`Volumen de ${track.label}`}
-                    />
-                  </div>
-
-                  <div className="seq-celdas">
-                    {pattern[index].map((vel, stepIndex) => (
-                      <button
-                        key={stepIndex}
-                        type="button"
-                        className={[
-                          'celda',
-                          vel ? `v${vel}` : '',
-                          track.acento ? 'acento' : '',
-                          stepIndex % 4 === 0 ? 'marca' : '',
-                          stepIndex === uiStep ? 'is-current' : '',
-                        ].join(' ')}
-                        aria-pressed={Boolean(vel)}
-                        aria-label={`${track.label}, paso ${stepIndex + 1}`}
-                        onClick={() => touchCell(index, stepIndex)}
-                        onContextMenu={(e) => {
-                          e.preventDefault();
-                          touchCell(index, stepIndex, 0);
-                        }}
-                      >
-                        <span className="celda-luz" />
-                      </button>
-                    ))}
-                  </div>
-                </fieldset>
-              ))}
-            </div>
-          </div>
-          <p className="seq-pista">
-            Pincha para encender · vuelve a pinchar para acento y fantasma · botón derecho borra
-          </p>
-        </div>
+        <Rejilla
+          pattern={pattern}
+          step={uiStep}
+          mutes={mutes}
+          solos={solos}
+          levels={levels}
+          audible={audible}
+          onMute={toggleMute}
+          onSolo={toggleSolo}
+          onLevel={setLevel}
+          onCell={touchCell}
+        />
 
         <section className="mesa-pads-zona" aria-label="Pads">
           <div className="pads-barra">
@@ -585,7 +581,7 @@ function BeatMachine() {
                   key={b.id}
                   type="button"
                   className={`chip ${bank === b.id ? 'is-on' : ''}`}
-                  onClick={() => setBank(b.id)}
+                  onClick={() => elegirBanco(b.id)}
                   aria-pressed={bank === b.id}
                 >
                   {b.label}
@@ -596,6 +592,7 @@ function BeatMachine() {
               <span>Tono</span>
               <select
                 value={tonality.id}
+                disabled={bank === 'barro'}
                 onChange={(e) =>
                   setTonality(TONALIDADES.find((t) => t.id === e.target.value) || TONALIDADES[0])
                 }
@@ -609,13 +606,52 @@ function BeatMachine() {
             </label>
           </div>
 
-          <BeatPads pads={pads} teclas={PAD_TECLAS} onHit={strikePad} activo={activePad} />
+          {bank === 'barro' && barro.estado === 'cargando' && (
+            <p className="pads-estado" role="status">
+              Cargando BARRO…
+            </p>
+          )}
+          {bank === 'barro' && barro.estado === 'fallo' && (
+            <div className="pads-estado pads-estado--fallo">
+              <p role="alert">No se ha podido cargar BARRO. Comprueba la conexión.</p>
+              <button type="button" className="btn btn--ghost btn--sm" onClick={cargarBarro}>
+                Reintentar
+              </button>
+            </div>
+          )}
+          {bank === 'barro' && recording && (
+            <p className="pads-aviso" role="status">
+              Los cortes de BARRO se tocan en directo: no se graban en la rejilla.
+            </p>
+          )}
+
+          <BeatPads
+            pads={pads}
+            teclas={PAD_TECLAS}
+            onHit={strikePad}
+            activo={activePad}
+            ocupado={bank === 'barro' && barro.estado === 'cargando'}
+            deshabilitado={bank === 'barro' && !barroListo}
+          />
 
           <p className="pads-nota">
             Toca con el teclado: <b>1 2 3 4</b> · <b>Q W E R</b> · <b>A S D F</b> · <b>Z X C V</b>.
             Con <b>REC</b> encendido, lo que toques se graba en la rejilla.
           </p>
         </section>
+
+        <Consola
+          levels={levels}
+          mutes={mutes}
+          solos={solos}
+          volume={volume}
+          audible={audible}
+          onMute={toggleMute}
+          onSolo={toggleSolo}
+          onLevel={setLevel}
+          onVolume={setVolume}
+          metersRef={metersRef}
+        />
 
         <footer className="mesa-pie">
           <div className="mesa-acciones">
@@ -639,8 +675,8 @@ function BeatMachine() {
             />
           </div>
           <p className="mesa-nota">
-            * Sonidos cocinados en el navegador, sin un solo sample. Comparte el enlace y tu beat se
-            abre sonando.
+            * Sonidos cocinados en el navegador, menos los cortes de BARRO, que salen del tema de
+            ASAKO KACO. Comparte el enlace y tu beat se abre sonando.
           </p>
         </footer>
       </div>

@@ -659,6 +659,12 @@
       background-color var(--dur-fast) ease;
   }
 
+  /* Banco aún sin cargar (BARRO): se ven, pero apagados y sin tocar */
+  .pad:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
   .pad-tecla {
     font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
     font-size: var(--text-2xs);
@@ -736,6 +742,31 @@
     font-family: var(--font-hand);
     font-size: var(--text-xs);
     color: rgba(var(--card-rgb), 0.5);
+  }
+
+  /* El banco BARRO cargando, sin cargar o con REC encendido */
+  .pads-estado,
+  .pads-aviso {
+    margin: 0 2px 12px;
+    font-family: var(--font-hand);
+    font-size: var(--text-sm);
+    color: rgba(var(--card-rgb), 0.78);
+  }
+
+  .pads-estado--fallo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .pads-estado--fallo p {
+    margin: 0;
+    color: var(--gold);
+  }
+
+  .pads-aviso {
+    color: var(--gold);
   }
 
   .pads-nota b {
@@ -855,11 +886,235 @@
     }
   }
 
+  /* ---------- La consola ---------- */
+
+  /* Solo en ordenador: por debajo de 1200 px la mezcla vive en las filas. */
+  .consola {
+    display: none;
+  }
+
+  .canal {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 4px 8px;
+    border-radius: 10px;
+  }
+
+  .canal.is-callado {
+    opacity: 0.45;
+  }
+
+  .canal--maestro {
+    border-left: 2px dashed var(--mesa-line);
+  }
+
+  /* Vúmetro de canal: una barra que sube con --nivel (lo pinta la mesa) */
+  .canal-vu {
+    --nivel: 0;
+    position: relative;
+    width: 12px;
+    height: 72px;
+    overflow: hidden;
+    background-color: var(--mesa-screen);
+    border: 2px solid var(--mesa-line);
+    border-radius: 4px;
+  }
+
+  .canal-vu-luz {
+    position: absolute;
+    inset: auto 0 0;
+    height: calc(var(--nivel) * 100%);
+    background-image: linear-gradient(to top, var(--mesa-green), var(--gold) 72%, var(--accent));
+  }
+
+  /* El fader, en vertical con el input nativo (teclado y lector intactos).
+     Donde no se pueda girar se queda en horizontal dentro del canal. */
+  .mesa .canal-fader[type='range'] {
+    flex: none;
+    width: 100%;
+    min-width: 0;
+  }
+
+  @supports (writing-mode: vertical-lr) {
+    .mesa .canal-fader[type='range'] {
+      writing-mode: vertical-lr;
+      direction: rtl;
+      width: 28px;
+      height: 112px;
+    }
+  }
+
+  .canal-botones {
+    display: flex;
+    gap: 4px;
+  }
+
+  .canal-mute,
+  .canal-solo {
+    width: 28px;
+    height: 26px;
+    padding: 0;
+    border: 2px solid var(--mesa-line);
+    border-radius: 6px;
+    background-color: var(--mesa-panel-hi);
+    color: var(--ink-block-text);
+    font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+    font-size: var(--text-xs);
+    cursor: pointer;
+  }
+
+  .canal-mute.is-on {
+    background-color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .canal-solo.is-on {
+    background-color: var(--gold);
+    border-color: var(--gold);
+    color: var(--ink);
+  }
+
+  .canal-nombre {
+    font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+    font-size: var(--text-2xs);
+    color: rgba(var(--card-rgb), 0.62);
+  }
+
+  /* ---------- El público de La Colmena ---------- */
+
+  /* La grada: sentados en el canto de arriba de la mesa, en el hueco que ya
+     tiene para El Freeze. Solo en ordenador. Quien no baila se queda sentado,
+     un poco más abajo y apagado; quien baila cabecea con `al-ritmo`. */
+  .publico {
+    display: none;
+  }
+
+  /* ---------- En ordenador: la mesa a pantalla completa ---------- */
+
+  /* La rejilla y los pads, uno al lado del otro; debajo, la consola. La mesa
+     se sale de la columna de 900 px de La Colmena hasta 1180 px. */
+  @media (min-width: 1200px) {
+    .mesa-wrap {
+      /* 16 celdas y el nombre de la pista caben en su columna sin desplazar */
+      --celda: 26px;
+      --hueco-celda: 5px;
+      --cabeza: 100px;
+      position: relative;
+      margin-inline: calc(50% - min(590px, 50vw - 24px));
+    }
+
+    .mesa {
+      display: grid;
+      grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+      grid-template-areas:
+        'cabecera cabecera'
+        'transporte transporte'
+        'ritmos ritmos'
+        'rejilla pads'
+        'consola consola'
+        'pie pie';
+      column-gap: 20px;
+      row-gap: 14px;
+    }
+
+    .mesa-cabecera {
+      grid-area: cabecera;
+    }
+
+    .mesa-transporte {
+      grid-area: transporte;
+    }
+
+    .mesa-presets {
+      grid-area: ritmos;
+    }
+
+    /* La columna de los pads es más alta: la rejilla se centra en la suya */
+    .mesa-seq {
+      grid-area: rejilla;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .mesa-pads-zona {
+      grid-area: pads;
+    }
+
+    .mesa-pie {
+      grid-area: pie;
+    }
+
+    .consola {
+      grid-area: consola;
+      display: grid;
+      grid-template-columns: repeat(9, minmax(0, 1fr));
+      gap: 6px;
+      padding: 6px 10px;
+      background-color: var(--mesa-panel);
+      border: 2px solid var(--mesa-line);
+      border-radius: 12px;
+    }
+
+    /* La consola se queda con el solo y el volumen de cada pista, y con el
+       volumen general: en la fila y en el transporte sobran. */
+    .pista-solo,
+    .mesa .pista-nivel[type='range'],
+    .mesa-mando--volumen {
+      display: none;
+    }
+
+    .pads-rejilla {
+      max-width: none;
+      gap: 9px;
+    }
+
+    .publico {
+      position: absolute;
+      bottom: calc(100% - 12px);
+      left: 3%;
+      right: 24%;
+      z-index: 3;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      pointer-events: none;
+    }
+
+    .publico-miembro {
+      width: auto;
+      height: 86px;
+      opacity: 0.55;
+      translate: 0 8px;
+      transition:
+        opacity var(--dur-base) ease,
+        translate var(--dur-base) var(--ease-out);
+    }
+
+    .publico-miembro.is-bailando {
+      opacity: 1;
+      translate: 0 0;
+    }
+
+    .pad {
+      aspect-ratio: 1.6 / 1;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .mesa-dancer,
     .lcd-rec.is-on,
     .mesa-rec.is-on .mesa-led {
       animation: none;
+    }
+
+    /* El público no se mueve: quien suena se distingue solo por la opacidad */
+    .publico-miembro,
+    .publico-miembro.is-bailando {
+      translate: none;
+      transition: none;
     }
   }
 }

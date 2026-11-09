@@ -336,15 +336,69 @@ function bancoTeclas(raizMidi) {
   });
 }
 
+// LOS CORTES DE BARRO — 16 trozos del tema de ASAKO KACO para tocar en los
+// pads. Cada uno empieza 10 ms antes de un ataque del audio y dura un compás
+// (frases largas), medio compás, un pulso (graves) o un golpe seco, a unos
+// 138 BPM medidos sobre el audio. Los nombres son provisionales: se eligieron
+// por el análisis (zona, brillo y graves) y quedan para revisarlos de oído.
+// No se afinan con el tono ni se graban en la rejilla: se tocan en directo.
+export const BARRO_DURACION = 113.13;
+
+export const CORTES_BARRO = Object.freeze([
+  { id: 'barro-01', label: 'Intro', inicio: 4.924, duracion: 1.739, tipo: 'aire' },
+  { id: 'barro-02', label: 'Estrofa', inicio: 13.214, duracion: 1.739, tipo: 'aire' },
+  { id: 'barro-03', label: 'Subidón', inicio: 51.294, duracion: 1.739, tipo: 'aire' },
+  { id: 'barro-04', label: 'Final', inicio: 103.203, duracion: 1.739, tipo: 'aire' },
+  { id: 'barro-05', label: 'Frase 1', inicio: 43.202, duracion: 0.87, tipo: 'agudo' },
+  { id: 'barro-06', label: 'Frase 2', inicio: 84.743, duracion: 0.87, tipo: 'agudo' },
+  { id: 'barro-07', label: 'Frase 3', inicio: 90.525, duracion: 0.87, tipo: 'agudo' },
+  { id: 'barro-08', label: 'Frase 4', inicio: 93.973, duracion: 0.87, tipo: 'agudo' },
+  { id: 'barro-09', label: 'Golpe 1', inicio: 75.513, duracion: 0.25, tipo: 'medio' },
+  { id: 'barro-10', label: 'Golpe 2', inicio: 81.295, duracion: 0.25, tipo: 'medio' },
+  { id: 'barro-11', label: 'Golpe 3', inicio: 95.145, duracion: 0.25, tipo: 'medio' },
+  { id: 'barro-12', label: 'Golpe 4', inicio: 99.755, duracion: 0.25, tipo: 'medio' },
+  { id: 'barro-13', label: 'Grave 1', inicio: 6.886, duracion: 0.435, tipo: 'grave' },
+  { id: 'barro-14', label: 'Grave 2', inicio: 25.346, duracion: 0.435, tipo: 'grave' },
+  { id: 'barro-15', label: 'Grave 3', inicio: 49.576, duracion: 0.435, tipo: 'grave' },
+  { id: 'barro-16', label: 'Grave 4', inicio: 109.577, duracion: 0.435, tipo: 'grave' },
+]);
+
+function bancoBarro() {
+  return CORTES_BARRO.map((corte) => ({
+    id: corte.id,
+    label: corte.label,
+    voz: 'corte',
+    corte: corte.id,
+    opts: { choke: corte.id },
+    tipo: corte.tipo,
+  }));
+}
+
+// EL PÚBLICO DE LA COLMENA — el personaje de la crew que baila cada pista.
+// Todos tienen versión de noche y ninguno lleva coreografía propia en otra
+// parte de la web (El Freeze, la Lata, el Curioso, el Recadero…).
+export const PUBLICO = Object.freeze({
+  bombo: 'perro-rocky',
+  caja: 'bombilla-eureka',
+  hat: 'skater-ollie',
+  diana: 'diana-jefe',
+  palmas: 'estrella-apoyado',
+  hatab: 'cruiser-patinando',
+  tom: 'sentado-borde-rojo',
+  sub: 'sentado-borde-blanco',
+});
+
 export const BANCOS = [
   { id: 'kit', label: 'Batería' },
   { id: 'teclas', label: 'Teclas' },
   { id: 'fx', label: 'Efectos' },
+  { id: 'barro', label: 'BARRO' },
 ];
 
 // Los pads del banco activo, ya resueltos con la tonalidad elegida
 export function padsDelBanco(bancoId, raizMidi) {
   if (bancoId === 'teclas') return bancoTeclas(raizMidi);
+  if (bancoId === 'barro') return bancoBarro();
   const lista = bancoId === 'fx' ? BANCO_FX : BANCO_KIT;
   return lista.map((pad) =>
     pad.tonica === undefined ? pad : { ...pad, opts: { ...pad.opts, midi: raizMidi + pad.tonica } }

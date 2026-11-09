@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { redoble, triggerVoice } from '../../../audio/voices';
 import { TRACKS, VELOCIDADES, padsDelBanco } from '../../../data/mesa';
-import { applyMix, hitPad, isAudible, trackIndexOf, triggerTrack } from './drumKit';
+import {
+  applyMix,
+  hitPad,
+  isAudible,
+  pistasQueSuenan,
+  trackIndexOf,
+  triggerTrack,
+} from './drumKit';
 
 // Las voces sintetizan de verdad y en jsdom no hay Web Audio: aquí sólo
 // importa a qué voz, con qué bus y con qué fuerza se llama.
@@ -125,5 +132,42 @@ describe('el kit de la mesa', () => {
     expect(trackIndexOf(kit.find((p) => p.id === 'hatab'))).toBe(5);
     expect(trackIndexOf(kit.find((p) => p.id === 'rim'))).toBe(-1);
     expect(trackIndexOf(undefined)).toBe(-1);
+  });
+});
+
+describe('quién suena (para el público de La Colmena)', () => {
+  const vacio = () => Array.from({ length: 8 }, () => Array(16).fill(0));
+  const nadie = Array(8).fill(false);
+
+  it('una pista suena si tiene algún paso y no está callada', () => {
+    const pattern = vacio();
+    pattern[0][0] = 3;
+    pattern[2][4] = 1;
+    expect(pistasQueSuenan(pattern, { mutes: nadie, solos: nadie })).toEqual([
+      true,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+    ]);
+  });
+
+  it('el mute y el solo de otra pista la callan', () => {
+    const pattern = vacio();
+    pattern[0][0] = 3;
+    pattern[1][4] = 3;
+    const mutes = [...nadie];
+    mutes[0] = true;
+    expect(pistasQueSuenan(pattern, { mutes, solos: nadie }).slice(0, 2)).toEqual([false, true]);
+    const solos = [...nadie];
+    solos[0] = true;
+    expect(pistasQueSuenan(pattern, { mutes: nadie, solos }).slice(0, 2)).toEqual([true, false]);
+  });
+
+  it('sin pasos no suena nada', () => {
+    expect(pistasQueSuenan(vacio(), { mutes: nadie, solos: nadie }).some(Boolean)).toBe(false);
   });
 });

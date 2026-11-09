@@ -13,6 +13,12 @@ export function isAudible(index, { mutes, solos }) {
   return solos.some(Boolean) ? Boolean(solos[index]) : !mutes[index];
 }
 
+// Las pistas que suenan de verdad: con algún paso encendido y audibles con
+// esta mezcla. Es lo que saca a bailar al público de La Colmena.
+export function pistasQueSuenan(pattern, mezcla) {
+  return pattern.map((steps, index) => steps.some(Boolean) && isAudible(index, mezcla));
+}
+
 // El mezclador se refleja en los buses: la pista callada baja a cero
 export function applyMix(engine, { levels, mutes, solos }) {
   if (!engine) return;

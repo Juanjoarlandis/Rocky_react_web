@@ -2,8 +2,8 @@
 //
 // Cadena: voces → bus de pista → mezcla → saturación suave → compresor →
 // maestro → analizador → altavoces. Con envío a una reverb de placa
-// generada a mano (ruido decayendo), porque aquí no entran samples: todo
-// se sintetiza en el navegador.
+// generada a mano (ruido decayendo). Todo se sintetiza en el navegador
+// salvo los cortes de BARRO, que son trozos del tema real.
 
 export const TRACK_IDS = ['bombo', 'caja', 'hat', 'diana', 'palmas', 'hatab', 'tom', 'sub'];
 
@@ -40,6 +40,32 @@ function createImpulse(ctx, seconds = 1.5, decay = 3.2) {
     }
   }
   return impulse;
+}
+
+// 1024 muestras (~21 ms) cubren el fotograma entero entre dos lecturas: con
+// menos, los golpes cortos caen entre ventana y ventana y el vúmetro no los ve.
+const TRACK_METER_SIZE = 1024;
+
+// Pico de un analizador: para una pista de batería, más fiel que la media
+// (un golpe seco se queda en nada si se promedia con su silencio)
+function peakLevel(node, data) {
+  node.getFloatTimeDomainData(data);
+  let peak = 0;
+  for (let i = 0; i < data.length; i += 1) {
+    const value = Math.abs(data[i]);
+    if (value > peak) peak = value;
+  }
+  return Math.min(1, peak * 1.2);
+}
+
+// RMS de un analizador, escalado para que un golpe normal llene el vúmetro
+function rmsLevel(node, data) {
+  node.getFloatTimeDomainData(data);
+  let sum = 0;
+  for (let i = 0; i < data.length; i += 1) {
+    sum += data[i] * data[i];
+  }
+  return Math.min(1, Math.sqrt(sum / data.length) * 2.2);
 }
 
 export function createEngine() {
@@ -84,13 +110,21 @@ export function createEngine() {
   reverbOut.gain.value = 0.5;
   reverbIn.connect(damp).connect(convolver).connect(reverbOut).connect(mix);
 
-  // Un bus por pista: volumen y mute independientes
+  // Un bus por pista: volumen y mute independientes. Cada bus lleva además un
+  // analizador en derivación (no sale a ningún sitio, no cambia el sonido)
+  // para el vúmetro de su canal en la consola; mide después del fader.
   const buses = {};
+  const trackMeters = {};
   TRACK_IDS.forEach((id) => {
     const gain = ctx.createGain();
     gain.gain.value = 0.85;
     gain.connect(mix);
+    const meter = ctx.createAnalyser();
+    meter.fftSize = TRACK_METER_SIZE;
+    meter.smoothingTimeConstant = 0.5;
+    gain.connect(meter);
     buses[id] = gain;
+    trackMeters[id] = meter;
   });
 
   // Bus aparte para los pads melódicos y los efectos
@@ -99,6 +133,7 @@ export function createEngine() {
   padBus.connect(mix);
 
   const meterData = new Float32Array(analyser.fftSize);
+  const trackData = new Float32Array(TRACK_METER_SIZE);
   const chokes = new Map();
 
   return {
@@ -128,12 +163,12 @@ export function createEngine() {
 
     // Nivel RMS del maestro (0..1) para el vúmetro
     level() {
-      analyser.getFloatTimeDomainData(meterData);
-      let sum = 0;
-      for (let i = 0; i < meterData.length; i += 1) {
-        sum += meterData[i] * meterData[i];
-      }
-      return Math.min(1, Math.sqrt(sum / meterData.length) * 2.2);
+      return rmsLevel(analyser, meterData);
+    },
+
+    // Pico de cada pista (0..1), en el orden de TRACK_IDS, para la consola
+    levels() {
+      return TRACK_IDS.map((id) => peakLevel(trackMeters[id], trackData));
     },
 
     resume() {
