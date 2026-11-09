@@ -21,6 +21,7 @@
     position: relative;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-auto-flow: dense;
     gap: var(--space-8) var(--space-7);
     padding: var(--space-7) var(--space-6);
     background-color: var(--muted-bg);
@@ -65,9 +66,28 @@
     color: var(--muted);
   }
 
-  /* En escritorio el archivo se monta encima del hueco anterior: asoma roto
-   por debajo de los carteles nuevos. */
+  /* En escritorio el destacado es el protagonista: ocupa dos columnas y El
+   Pegador tiene la suya, con la brocha sobre el canto del cartel. El archivo
+   se monta encima del hueco anterior y asoma roto por debajo de los nuevos. */
   @media (min-width: 901px) {
+    .muro-hueco--destacado {
+      grid-column: span 2;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(150px, 0.5fr);
+      align-items: start;
+    }
+
+    .muro-hueco--destacado .muro-pegador {
+      position: relative;
+      right: auto;
+      bottom: auto;
+      width: 100%;
+      max-width: 240px;
+      height: auto;
+      margin-top: clamp(150px, 20vw, 300px);
+      margin-left: calc(-1 * var(--space-7));
+    }
+
     .muro-hueco--archivo {
       margin-top: calc(-1 * var(--space-7));
     }

@@ -61,15 +61,23 @@ export default function Muro({
         <div className="muro-pared">
           {drops.map((drop, index) => {
             const archivo = drop.state === DROP_STATES.ARCHIVE;
+            const esDestacado = drop.handle === destacado;
+            const clases = [
+              'muro-hueco doodle-shelf',
+              archivo && 'muro-hueco--archivo',
+              esDestacado && 'muro-hueco--destacado',
+            ]
+              .filter(Boolean)
+              .join(' ');
             return (
               <div
                 key={drop.handle}
-                className={`muro-hueco doodle-shelf${archivo ? ' muro-hueco--archivo' : ''}`}
+                className={clases}
                 // Cada cartel tapa al siguiente: los nuevos quedan encima.
                 style={{ '--capa': drops.length - index }}
               >
                 <Cartel drop={drop} products={products} serverNow={serverNow} />
-                {drop.handle === destacado && (
+                {esDestacado && (
                   <img
                     src={pegadorArt}
                     width="583"

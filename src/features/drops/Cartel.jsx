@@ -126,67 +126,75 @@ export default function Cartel({
         )}
       </div>
 
-      <div className="cartel-pie">
-        <p className="kicker cartel-estado">{ESTADO[estado]}</p>
-        <Titulo id={tituloId} className="cartel-titulo">
-          {drop.title}
-        </Titulo>
-        {drop.tagline && <p className="cartel-lema">{drop.tagline}</p>}
+      <div className="cartel-nota">
+        <div className="cartel-pie">
+          <p className="kicker cartel-estado">{ESTADO[estado]}</p>
+          <Titulo id={tituloId} className="cartel-titulo">
+            {drop.title}
+          </Titulo>
+          {drop.tagline && <p className="cartel-lema">{drop.tagline}</p>}
 
-        {anunciado && (
-          <>
-            <p className="cartel-cuando">{fechaAccesible(drop.launchAt)}</p>
-            <CuentaAtras target={drop.launchAt} serverNow={serverNow} />
-            {drop.designCount > 0 && (
-              <div className="cartel-siluetas">
-                <ul className="cartel-siluetas-lista" aria-hidden="true">
-                  {Array.from({ length: Math.min(drop.designCount, MAX_SILUETAS) }, (_, i) => (
-                    <li key={i} className="cartel-silueta">
-                      <PlaceholderTee compact kicker={`Drop ${drop.number} · sin revelar`} />
-                    </li>
-                  ))}
-                </ul>
-                <p className="cartel-siluetas-texto">
-                  {drop.designCount === 1
-                    ? '1 diseño bajo llave'
-                    : `${drop.designCount} diseños bajo llave`}
-                </p>
-              </div>
-            )}
-            <Pestanas drop={drop} />
-            {cabecera && <AddToCalendar drop={drop} />}
-          </>
-        )}
+          {anunciado && (
+            <>
+              <p className="cartel-cuando">{fechaAccesible(drop.launchAt)}</p>
+              <CuentaAtras target={drop.launchAt} serverNow={serverNow} />
+              {drop.designCount > 0 && (
+                <div className="cartel-siluetas">
+                  <ul className="cartel-siluetas-lista" aria-hidden="true">
+                    {Array.from({ length: Math.min(drop.designCount, MAX_SILUETAS) }, (_, i) => (
+                      <li key={i} className="cartel-silueta">
+                        <PlaceholderTee compact kicker={`Drop ${drop.number} · sin revelar`} />
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="cartel-siluetas-texto">
+                    {drop.designCount === 1
+                      ? '1 diseño bajo llave'
+                      : `${drop.designCount} diseños bajo llave`}
+                  </p>
+                </div>
+              )}
+              {cabecera && <AddToCalendar drop={drop} />}
+            </>
+          )}
 
-        {estado === DROP_STATES.LAST_HOURS && drop.endsAt && (
-          <p className="sticker cartel-ultimas">
-            Últimas horas · {quedan(Date.parse(drop.endsAt) - now)}
-          </p>
-        )}
+          {estado === DROP_STATES.LAST_HOURS && drop.endsAt && (
+            <p className="sticker cartel-ultimas">
+              Últimas horas · {quedan(Date.parse(drop.endsAt) - now)}
+            </p>
+          )}
 
-        {enLaCalle && disenos.length > 0 && !cabecera && (
-          <ul className="cartel-miniaturas">
-            {disenos.slice(0, MAX_MINIATURAS).map((product) => (
-              <li key={product.handle}>
-                <img
-                  src={product.image}
-                  alt={product.imageAlt || product.title}
-                  width="96"
-                  height="96"
-                  loading="lazy"
-                  decoding="async"
-                />
-              </li>
-            ))}
-          </ul>
-        )}
+          {enLaCalle && disenos.length > 0 && !cabecera && (
+            <ul className="cartel-miniaturas">
+              {disenos.slice(0, MAX_MINIATURAS).map((product) => (
+                <li key={product.handle}>
+                  <img
+                    src={product.image}
+                    alt={product.imageAlt || product.title}
+                    width="96"
+                    height="96"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
 
-        {!anunciado && !cabecera && (
-          <Link className="btn btn--ghost btn--sm cartel-entrar" to={ROUTES.category(drop.handle)}>
-            {archivo ? 'Ver el archivo' : 'Entrar al drop'}
-            <span aria-hidden="true"> →</span>
-          </Link>
-        )}
+          {!anunciado && !cabecera && (
+            <Link
+              className="btn btn--ghost btn--sm cartel-entrar"
+              to={ROUTES.category(drop.handle)}
+            >
+              {archivo ? 'Ver el archivo' : 'Entrar al drop'}
+              <span aria-hidden="true"> →</span>
+            </Link>
+          )}
+        </div>
+
+        {/* Las pestañas cuelgan bajo la nota, como en los anuncios de farola: los
+          huecos de las ya arrancadas dejan ver la pared. */}
+        {anunciado && <Pestanas drop={drop} />}
       </div>
     </article>
   );
