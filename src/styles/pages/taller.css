@@ -32,8 +32,11 @@
     height: 120px;
   }
 
+  /* minmax(0, …): sin él la columna mide lo que su contenido más ancho (el
+     campo de archivo, la vista previa) y en móvil se sale de la pantalla. */
   .taller-rejilla {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-6);
   }
 
@@ -106,7 +109,6 @@
 
   .taller-campo {
     display: flex;
-    flex: 1 1 220px;
     flex-direction: column;
     gap: var(--space-1);
     font-family: var(--font-hand);
@@ -114,7 +116,13 @@
     color: var(--ink);
   }
 
-  .taller-campo--corto {
+  /* El reparto de anchos solo vale en filas: en un formulario en columna la
+     base de 220px se aplicaría al alto y dejaría huecos bajo cada campo. */
+  .taller-fila > .taller-campo {
+    flex: 1 1 220px;
+  }
+
+  .taller-fila > .taller-campo--corto {
     flex: 0 1 140px;
   }
 
@@ -202,7 +210,7 @@
   /* La vista previa: los tres momentos del cartel, uno al lado del otro. */
   .taller-vista-carteles {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
     gap: var(--space-6);
     padding: var(--space-5);
     background-color: var(--muted-bg);
@@ -315,7 +323,7 @@
 
   @media (min-width: 1200px) {
     .taller-rejilla {
-      grid-template-columns: minmax(300px, 380px) 1fr;
+      grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
       align-items: start;
     }
   }
