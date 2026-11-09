@@ -211,6 +211,23 @@ describe('CuriousPeeker: apariciones', () => {
     expect(Number(yDespues)).toBe(Number(yAntes) - 120);
   });
 
+  /* El filtro de cantos llega hasta el componente: si el canto del escondite lo
+     pinta una imagen, se asoma por el borde de la pantalla. */
+  it('si el canto de su escondite lo pinta una imagen, se asoma por la pantalla', () => {
+    plantarEscondite();
+    const bloque = document.querySelector('.escondite');
+    bloque.innerHTML = '<img class="foto" alt="">';
+    const foto = bloque.querySelector('.foto');
+    document.elementFromPoint = () => foto;
+    try {
+      render(<CuriousPeeker pathname="/" />);
+      advanceToPeek(FIRST_WAIT);
+      expect(screen.getByTestId('curious-peeker')).toHaveAttribute('data-spot', 'pantalla');
+    } finally {
+      delete document.elementFromPoint;
+    }
+  });
+
   it('se mete dentro cuando su escondite se va de pantalla', () => {
     const escondite = plantarEscondite();
     render(<CuriousPeeker pathname="/" />);

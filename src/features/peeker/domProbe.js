@@ -5,6 +5,7 @@
 import {
   artBox,
   biteEdge,
+  clamp,
   inflate,
   placeAtCorner,
   placeOnEdge,
@@ -38,6 +39,11 @@ const SAFE_GAP = 6;
 // Hasta dónde busca el trazo real del canto y cuánto lo muerde al agarrarse.
 const MAX_PROBE = 34;
 const EDGE_BITE = 2;
+// Lo que no es canto de un componente: si pinta el tramo que tapa al muñeco, se
+// le vería el recorte de la imagen en vez del borde del bloque.
+const MEDIA_SELECTOR = 'img, picture, svg, canvas, video';
+// A qué profundidad del canto se mira qué hay pintado.
+const EDGE_SAMPLE = 4;
 
 /* Zona útil de la pantalla: por debajo de la barra y por encima del borde. */
 export function readViewport() {
@@ -49,8 +55,10 @@ export function readViewport() {
   return { width, height, top, bottom: height - SAFE_GAP };
 }
 
+/* Solo cuenta el color de fondo. Una imagen de fondo (el punteado del cuaderno,
+   un garabato, una textura) se transparenta entre sus trazos, y detrás de eso el
+   recorte del muñeco quedaría en el aire. */
 function hasOwnBackground(style) {
-  if (style.backgroundImage !== 'none') return true;
   const channels = style.backgroundColor.match(/[\d.]+/g);
   return Boolean(channels) && (channels.length < 4 || Number(channels[3]) >= 0.9);
 }
@@ -153,6 +161,42 @@ export function readBlockedZones() {
     .map(({ rect, shadow }) => inflate(rect, shadow));
 }
 
+/* Camina desde el rectángulo del navegador hacia dentro (paso `[dx, dy]`) hasta
+   el trazo pintado del bloque. Devuelve el primer punto del bloque
+   (`{ depth, hit, x, y }`) o null si no llega en MAX_PROBE px. Con
+   `stopAtForeign`, se rinde (`{ foreign: true }`) al topar con algo que no es ni
+   el bloque ni uno de sus contenedores: otra cosa le tapa el canto. */
+function walkToEdge(element, [x0, y0], [dx, dy], { stopAtForeign = false } = {}) {
+  for (let depth = 0; depth <= MAX_PROBE; depth += 1) {
+    const x = Math.round(x0 + dx * depth);
+    const y = Math.round(y0 + dy * depth);
+    const hit = document.elementFromPoint(x, y);
+    if (hit && (hit === element || element.contains(hit))) return { depth, hit, x, y };
+    if (stopAtForeign && hit && !hit.contains(element)) return { foreign: true };
+  }
+  return null;
+}
+
+// Desde qué punto y hacia dónde se camina para cada canto.
+const INWARD = Object.freeze({
+  left: (rect, along) => [
+    [rect.left, along],
+    [1, 0],
+  ],
+  right: (rect, along) => [
+    [rect.right, along],
+    [-1, 0],
+  ],
+  top: (rect, along) => [
+    [along, rect.top],
+    [0, 1],
+  ],
+  bottom: (rect, along) => [
+    [along, rect.bottom],
+    [0, -1],
+  ],
+});
+
 /* Los cantos de ROCKY están dibujados a mano: las tarjetas van giradas y las
    esquinas son irregulares, así que el rectángulo del navegador cae por fuera
    del trazo y el muñeco parecería flotar. Se palpa el trazo pintado de verdad
@@ -160,29 +204,10 @@ export function readBlockedZones() {
 export function probeEdge(element, rect, side, samples) {
   if (typeof document.elementFromPoint !== 'function') return 0;
   let deepest = null;
-
   samples.forEach((along) => {
-    for (let depth = 0; depth <= MAX_PROBE; depth += 1) {
-      const x =
-        side === 'left'
-          ? rect.left + depth
-          : side === 'right'
-            ? rect.right - depth
-            : Math.round(along);
-      const y =
-        side === 'top'
-          ? rect.top + depth
-          : side === 'bottom'
-            ? rect.bottom - depth
-            : Math.round(along);
-      const hit = document.elementFromPoint(Math.round(x), Math.round(y));
-      if (hit && (hit === element || element.contains(hit))) {
-        if (deepest === null || depth > deepest) deepest = depth;
-        return;
-      }
-    }
+    const edge = walkToEdge(element, ...INWARD[side](rect, Math.round(along)));
+    if (edge && (deepest === null || edge.depth > deepest)) deepest = edge.depth;
   });
-
   return deepest ?? 0;
 }
 
@@ -211,6 +236,47 @@ export function measureBite(element, placement) {
     x: probeEdge(element, rect, side, ys) + EDGE_BITE,
     y: 1 - probeEdge(element, rect, 'bottom', xs),
   };
+}
+
+// Por dónde se palpa el tramo del canto que tapa a una colocación.
+function edgeSamples(placement, rect) {
+  if (placement.pose === 'arriba') {
+    return [0.2, 0.4, 0.6, 0.8].map((f) =>
+      INWARD.top(rect, clamp(placement.left + placement.width * f, rect.left + 1, rect.right - 1))
+    );
+  }
+  const side = placement.side === 'izq' ? 'left' : 'right';
+  return [0.25, 0.5, 0.75].map((f) =>
+    INWARD[side](rect, clamp(placement.top + placement.height * f, rect.top + 1, rect.bottom - 1))
+  );
+}
+
+/* ¿El tramo del canto que tapa al muñeco lo pinta el propio bloque? Se busca el
+   trazo hacia dentro, como probeEdge (las tarjetas van giradas y con el borde a
+   mano), y se mira qué hay justo ahí y un poco más adentro. Se veta si es una
+   imagen —la foto de una tarjeta ocupa su canto de arriba— o si otra cosa tapa
+   el canto: el muñeco saldría partido por el recorte de la imagen. Las imágenes
+   del bloque se miran también por geometría, porque las decorativas llevan
+   pointer-events: none y elementFromPoint no las ve. Sin elementFromPoint
+   (jsdom) no veta nada. */
+export function edgeIsPainted(placement, spot) {
+  if (typeof document.elementFromPoint !== 'function' || !spot?.element) return true;
+  const { element, rect } = spot;
+  const media = [...element.querySelectorAll(MEDIA_SELECTOR)]
+    .map((node) => node.getBoundingClientRect())
+    .filter((box) => box.width > 0 && box.height > 0);
+  const onMedia = (x, y) =>
+    media.some((box) => x >= box.left && x <= box.right && y >= box.top && y <= box.bottom);
+
+  return edgeSamples(placement, rect).every(([start, step]) => {
+    const edge = walkToEdge(element, start, step, { stopAtForeign: true });
+    if (!edge || edge.foreign) return false;
+    const x = edge.x + step[0] * EDGE_SAMPLE;
+    const y = edge.y + step[1] * EDGE_SAMPLE;
+    const inner = document.elementFromPoint(Math.round(x), Math.round(y));
+    if (edge.hit.closest(MEDIA_SELECTOR) || inner?.closest(MEDIA_SELECTOR)) return false;
+    return !onMedia(edge.x, edge.y) && !onMedia(x, y);
+  });
 }
 
 /* Vuelve a calcular la colocación desde el rectángulo actual del escondite. */

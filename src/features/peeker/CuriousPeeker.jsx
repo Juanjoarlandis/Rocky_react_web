@@ -7,6 +7,7 @@ import cotillaEsquina from '../../images/optimized/characters/cotilla-esquina-46
 import { POSES, biteEdge, choosePlacement, clamp } from './geometry.js';
 import {
   collectSpots,
+  edgeIsPainted,
   measureBite,
   readBlockedZones,
   readViewport,
@@ -92,6 +93,8 @@ export default function CuriousPeeker({ pathname, disabled = false }) {
         spots: collectSpots(view, scale),
         zones: readBlockedZones(),
         avoidKey: lastKeyRef.current,
+        // Solo por cantos que pinta el propio componente, nunca una imagen.
+        accepts: edgeIsPainted,
       });
 
       // Nada donde esconderse ahora mismo: lo vuelve a intentar más tarde.

@@ -191,8 +191,10 @@ function weightOf(placement, view, fromSpot) {
 }
 
 /* Elige dónde asomarse entre los escondites medidos (`spots`, con su `rect`,
-   su sombra, su `bulk` y si valen `topOnly`) y las zonas vetadas (`zones`). */
-export function choosePlacement({ view, scale, spots, zones, avoidKey }) {
+   su sombra, su `bulk` y si valen `topOnly`) y las zonas vetadas (`zones`).
+   `accepts(placement, spot)` puede vetar una colocación concreta; aquí no se sabe
+   nada del documento, así que quien llama decide (domProbe.edgeIsPainted). */
+export function choosePlacement({ view, scale, spots, zones, avoidKey, accepts = () => true }) {
   const candidates = [];
   // Lo que ocupa cada bloque contando su sombra: es lo que no se puede pisar.
   const bulks = spots.map((spot) => spot.bulk || spot.rect);
@@ -214,6 +216,7 @@ export function choosePlacement({ view, scale, spots, zones, avoidKey }) {
         return overlapRatio(placement, bulk) > MAX_SPOT_OVERLAP;
       });
     if (invades) return;
+    if (spot && !accepts(placement, spot)) return;
 
     candidates.push({
       ...placement,

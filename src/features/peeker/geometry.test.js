@@ -204,3 +204,54 @@ describe('geometría del muñeco: dónde se agarra', () => {
     expect(elegidos.has('franja')).toBe(true);
   });
 });
+
+describe('choosePlacement con filtro de cantos', () => {
+  it('descarta lo que el filtro rechaza y, sin nada válido, se asoma por el borde de la pantalla', () => {
+    const rect = { left: 200, top: 300, width: 400, height: 320, right: 600, bottom: 620 };
+    const spots = [
+      {
+        element: null,
+        rect,
+        shadow: { top: 0, right: 0, bottom: 0, left: 0 },
+        topOnly: false,
+        bulk: rect,
+      },
+    ];
+    for (let i = 0; i < 20; i += 1) {
+      const chosen = choosePlacement({
+        view: VIEW,
+        scale: 1,
+        spots,
+        zones: [],
+        avoidKey: null,
+        accepts: () => false,
+      });
+      expect(chosen.key).toBe('pantalla');
+    }
+  });
+
+  it('el filtro recibe la colocación y su escondite', () => {
+    const rect = { left: 200, top: 300, width: 400, height: 320, right: 600, bottom: 620 };
+    const spot = {
+      element: null,
+      rect,
+      shadow: { top: 0, right: 0, bottom: 0, left: 0 },
+      topOnly: false,
+      bulk: rect,
+    };
+    const seen = [];
+    choosePlacement({
+      view: VIEW,
+      scale: 1,
+      spots: [spot],
+      zones: [],
+      avoidKey: null,
+      accepts: (placement, candidateSpot) => {
+        seen.push([placement.pose, candidateSpot === spot]);
+        return true;
+      },
+    });
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen.every(([, same]) => same)).toBe(true);
+  });
+});
