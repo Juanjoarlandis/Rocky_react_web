@@ -55,10 +55,24 @@ export function hasLaunchDate(drop) {
   return launchWindow(drop) !== null;
 }
 
+const eventUrl = (drop, origin) => `${origin}${drop.path ?? '/'}`;
+
 function eventCopy(drop, origin) {
   return {
     summary: `ROCKY 035 · ${drop.shortTitle}`,
-    description: `Sale el ${drop.shortTitle} de ROCKY 035. Cuando vuelan, vuelan.\n${origin}/`,
+    description: `Sale el ${drop.shortTitle} de ROCKY 035. Cuando vuelan, vuelan.\n${eventUrl(drop, origin)}`,
+  };
+}
+
+/* Un drop público (shared/drops.mjs) tal como lo entiende el calendario: el
+   evento enlaza a la página del drop. */
+export function calendarDrop(drop) {
+  return {
+    handle: drop.handle,
+    shortTitle: `Drop ${drop.number}`,
+    launchAt: drop.launchAt,
+    launchMinutes: 60,
+    path: `/products/${drop.handle}`,
   };
 }
 
@@ -86,7 +100,7 @@ export function dropIcs(drop, { origin, now = new Date() }) {
     `DTEND:${utcStamp(slot.end)}`,
     `SUMMARY:${escapeIcsText(summary)}`,
     `DESCRIPTION:${escapeIcsText(description)}`,
-    `URL:${origin}/`,
+    `URL:${eventUrl(drop, origin)}`,
     ...alarm(DAY_ALARM, `Mañana sale el ${drop.shortTitle} de ROCKY 035`),
     ...alarm(HOUR_ALARM, `En una hora sale el ${drop.shortTitle} de ROCKY 035`),
     'END:VEVENT',

@@ -5,6 +5,7 @@ import previewProducts from '../shared/preview-products.mjs';
 import { createConfig } from './config/app.mjs';
 import { createShopifyConfig } from './config/shopify.mjs';
 import { createStorageConfig } from './config/storage.mjs';
+import { createTallerConfig } from './config/taller.mjs';
 import { createAccessGate } from './http/access-gate.mjs';
 import { errorHandler } from './http/middleware/error-handler.mjs';
 import { exactOriginPolicy, requireTrustedOrigin } from './http/middleware/origin-policy.mjs';
@@ -16,6 +17,7 @@ import { createBeatsRouter } from './http/routes/beats.mjs';
 import { createChatRouter } from './http/routes/chat.mjs';
 import { createCrewRouter } from './http/routes/crew.mjs';
 import { createDropRouter } from './http/routes/drop.mjs';
+import { createDropsRouter } from './http/routes/drops.mjs';
 import { createHealthRouter } from './http/routes/health.mjs';
 import { createAccountRouter } from './http/routes/shopify/account.mjs';
 import { createCartRouter } from './http/routes/shopify/cart.mjs';
@@ -24,14 +26,17 @@ import { createCheckoutRouter } from './http/routes/shopify/checkout.mjs';
 import { createWebhookRouter } from './http/routes/shopify/webhooks.mjs';
 import { mountStaticApp } from './http/static.mjs';
 import { createOpenRouterClient } from './integrations/openrouter/client.mjs';
+import { createAdminClient } from './integrations/shopify/admin.mjs';
 import { createCustomerAccountClient } from './integrations/shopify/customer-account.mjs';
+import { createDropsAdmin } from './integrations/shopify/drops-admin.mjs';
 import { createStorefrontClient } from './integrations/shopify/storefront.mjs';
 import { createLogger, ensureLogger } from './lib/logger.mjs';
 import { createAvisosService } from './services/avisos.mjs';
 import { createBeatsService } from './services/beats.mjs';
 import { createCartOperations } from './services/cart-operations.mjs';
-import { createCatalogCache } from './services/catalog-cache.mjs';
 import { createCrewRewardsService } from './services/crew/rewards.mjs';
+import { createCatalogModel } from './services/drops/catalog.mjs';
+import { createDropsModel } from './services/drops/model.mjs';
 import { createKnownProducts } from './services/known-products.mjs';
 import { createSessionManager } from './services/sessions.mjs';
 import { createStateStore } from './storage/create-store.mjs';
@@ -60,6 +65,21 @@ export function createApp({
   const storefront = shopifyConfig.capabilities.catalog
     ? createStorefrontClient({ config: shopifyConfig, fetchImpl })
     : null;
+  const tallerConfig = createTallerConfig(env, shopifyConfig);
+  // Los drops se leen por la Admin API (design.md, D2). Sin credenciales Admin
+  // la web funciona sin drops: todo es «Tienda».
+  const adminClient = shopifyConfig.capabilities.admin
+    ? createAdminClient({ config: shopifyConfig, fetchImpl })
+    : null;
+  const dropsAdmin = adminClient
+    ? createDropsAdmin({
+        admin: adminClient,
+        publicationId: tallerConfig.publicationId || null,
+        fetchImpl,
+      })
+    : null;
+  const dropsModel = createDropsModel({ dropsAdmin, logger });
+  const catalogModel = storefront ? createCatalogModel({ storefront, dropsModel }) : null;
   const customerAccounts = shopifyConfig.capabilities.customerAccounts
     ? createCustomerAccountClient({ config: shopifyConfig, store: stateStore, fetchImpl, logger })
     : null;
@@ -70,6 +90,9 @@ export function createApp({
         storefront,
         sessions,
         checkoutHosts: shopifyConfig.checkoutHosts,
+        // Sin drops ningún diseño pertenece a uno: el guardián no tiene nada
+        // que decidir y no se gasta una lectura del catálogo por añadido.
+        catalog: dropsAdmin ? catalogModel : null,
       })
     : null;
   const openRouter = createOpenRouterClient({
@@ -78,8 +101,11 @@ export function createApp({
     fetchImpl,
     timeoutMs: config.chat.timeoutMs,
   });
-  const catalogCache = storefront ? createCatalogCache({ storefront }) : null;
-  const knownProducts = createKnownProducts({ catalog: catalogCache, logger });
+  const knownProducts = createKnownProducts({
+    catalog: catalogModel,
+    drops: dropsAdmin ? dropsModel : null,
+    logger,
+  });
   const avisos = createAvisosService({ store: stateStore, knownProducts, logger });
   const beats = createBeatsService({ store: stateStore });
   const requireOrigin = requireTrustedOrigin(config);
@@ -127,7 +153,7 @@ export function createApp({
 
   app.use(express.json({ limit: '16kb', strict: true }));
 
-  app.use('/api/shopify', createCatalogRouter({ config: shopifyConfig, storefront }));
+  app.use('/api/shopify', createCatalogRouter({ config: shopifyConfig, catalog: catalogModel }));
   app.use(
     '/api/shopify',
     createCartRouter({ config: shopifyConfig, sessions, cartOperations, requireOrigin })
@@ -150,7 +176,7 @@ export function createApp({
     createChatRouter({
       config,
       sessions,
-      catalog: catalogCache,
+      catalog: catalogModel,
       demoProducts: previewProducts,
       customerAccounts,
       crewRewards,
@@ -181,7 +207,8 @@ export function createApp({
     })
   );
 
-  app.use('/api/drop', createDropRouter({ config }));
+  app.use('/api/drops', createDropsRouter({ config, drops: dropsModel }));
+  app.use('/api/drop', createDropRouter({ config, drops: dropsModel }));
 
   app.all('/api/*', (req, res) => {
     res.status(404).json({ message: 'Ruta no encontrada.' });

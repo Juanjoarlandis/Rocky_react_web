@@ -3,6 +3,7 @@ import {
   dropIcs,
   escapeIcsText,
   foldIcsLine,
+  calendarDrop,
   googleCalendarUrl,
   hasLaunchDate,
 } from './drop-calendar.mjs';
@@ -52,5 +53,23 @@ describe('El drop en el calendario', () => {
     expect(url.hostname).toBe('calendar.google.com');
     expect(url.searchParams.get('dates')).toBe('20261010T180000Z/20261010T190000Z');
     expect(url.searchParams.get('text')).toBe('ROCKY 035 · Drop 4');
+  });
+
+  it('un drop público se pasa al calendario con su página', () => {
+    const drop = calendarDrop({
+      handle: 'rocky-drop-6',
+      number: 6,
+      launchAt: '2026-11-13T20:00:00+01:00',
+    });
+    expect(drop).toEqual({
+      handle: 'rocky-drop-6',
+      shortTitle: 'Drop 6',
+      launchAt: '2026-11-13T20:00:00+01:00',
+      launchMinutes: 60,
+      path: '/products/rocky-drop-6',
+    });
+    const ics = dropIcs(drop, { origin: ORIGIN, now: new Date('2026-11-09T10:00:00Z') });
+    expect(ics).toContain('URL:https://rocky035.com/products/rocky-drop-6');
+    expect(ics).toContain('SUMMARY:ROCKY 035 · Drop 6');
   });
 });

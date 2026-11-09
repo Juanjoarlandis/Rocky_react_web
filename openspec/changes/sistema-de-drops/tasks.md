@@ -21,7 +21,7 @@ Nivel 3. TDD en cada tarea de lógica: prueba en rojo, implementación mínima, 
 
 ## 3. Shopify Admin y modelos de lectura
 
-- [ ] 3.1 `server/integrations/shopify/drops-admin.mjs` con:
+- [x] 3.1 `server/integrations/shopify/drops-admin.mjs` con:
   - leer colecciones `rocky-drop-*` con metacampo, imagen y productos;
   - crear y actualizar colección y metacampo;
   - añadir y quitar productos;
@@ -32,24 +32,24 @@ Nivel 3. TDD en cada tarea de lógica: prueba en rojo, implementación mínima, 
   - subir imagen (subida segura, `fileCreate` y espera).
 
   Verifica: pruebas con un `fetch` falso que fijan las consultas y el manejo de `userErrors`.
-- [ ] 3.2 `server/services/drops/model.mjs`: modelo de drops con caché de 30 s, una petición en vuelo, última lectura buena durante 10 min e invalidación. Ignora y registra los metacampos rotos. Verifica: pruebas de caché, fallo de Shopify, metacampo roto y diseño en dos drops.
-- [ ] 3.3 `server/services/drops/catalog.mjs`:
+- [x] 3.2 `server/services/drops/model.mjs`: modelo de drops con caché de 30 s, una petición en vuelo, última lectura buena durante 10 min e invalidación. Ignora y registra los metacampos rotos. Verifica: pruebas de caché, fallo de Shopify, metacampo roto y diseño en dos drops.
+- [x] 3.3 `server/services/drops/catalog.mjs`:
   - catálogo completo paginado (hasta 250);
   - drop del modelo para cada producto;
   - `purchasable`;
   - filtro del teaser.
 
   Verifica: pruebas de los requisitos de `catalogo-vivo` (20 productos, `frontpage`, sin drop y teaser sin nombres).
-- [ ] 3.4 `known-products` acepta los handles de drops públicos y deja de depender de los 50 más recientes. Verifica: pruebas de «Drop anunciado con la tienda grande» y «Clave inventada».
+- [x] 3.4 `known-products` acepta los handles de drops públicos y deja de depender de los 50 más recientes. Verifica: pruebas de «Drop anunciado con la tienda grande» y «Clave inventada».
 
 ## 4. Venta blindada
 
-- [ ] 4.1 Guardián en `cart-operations`: añadir, subir cantidad y pagar consultan el catálogo y responden 409 (`DROP_NOT_ON_SALE` y `DROP_CLOSED_IN_CART`); bajar y quitar siguen permitidos. Verifica: pruebas de cada escenario de `venta-de-drops` y las pruebas del carrito existentes en verde.
+- [x] 4.1 Guardián en `cart-operations`: añadir, subir cantidad y pagar consultan el catálogo y responden 409 (`DROP_NOT_ON_SALE` y `DROP_CLOSED_IN_CART`); bajar y quitar siguen permitidos. Verifica: pruebas de cada escenario de `venta-de-drops` y las pruebas del carrito existentes en verde.
 
 ## 5. API pública
 
-- [ ] 5.1 `GET /api/drops` (`{ now, featured, drops }`) y `GET /api/drops/:handle/calendario.ics`; `/api/drop/calendario.ics` sirve el destacado. `/api/shopify/products` devuelve el catálogo completo. Rocky IA usa el catálogo nuevo. Verifica: pruebas de rutas (contrato, teaser sin nombres, 404 del archivo, `.ics` con dos alarmas) y pruebas del chat en verde.
-- [ ] 5.2 Composición en `server/app.mjs` sin romper el modo sin Shopify. Verifica: `server/app.test.mjs` en verde, más una prueba de arranque sin credenciales Admin (drops vacíos y Taller apagado).
+- [x] 5.1 `GET /api/drops` (`{ now, featured, drops }`) y `GET /api/drops/:handle/calendario.ics`; `/api/drop/calendario.ics` sirve el destacado. `/api/shopify/products` devuelve el catálogo completo. Rocky IA usa el catálogo nuevo. Verifica: pruebas de rutas (contrato, teaser sin nombres, 404 del archivo, `.ics` con dos alarmas) y pruebas del chat en verde.
+- [x] 5.2 Composición en `server/app.mjs` sin romper el modo sin Shopify. Verifica: `server/app.test.mjs` en verde, más una prueba de arranque sin credenciales Admin (drops vacíos y Taller apagado).
 
 ## 6. API del Taller
 

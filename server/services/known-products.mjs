@@ -45,7 +45,16 @@ export function loadDemoCatalogHandles(filePath = DEMO_CATALOG_PATH, { logger } 
   return handles;
 }
 
-export function createKnownProducts({ catalog = null, demoCatalogPath, logger } = {}) {
+// Un aviso se acepta para un drop que se puede anunciar o comprar; no para uno
+// cerrado ni para un borrador (avisos-de-drop).
+const NOTIFIABLE_DROP_STATES = new Set(['anunciado', 'en-la-calle', 'ultimas-horas']);
+
+export function createKnownProducts({
+  catalog = null,
+  drops = null,
+  demoCatalogPath,
+  logger,
+} = {}) {
   const staticHandles = new Set([
     ...previewProducts.flatMap((product) => [product.handle, product.dropHandle]),
     ...loadDemoCatalogHandles(demoCatalogPath, { logger }),
@@ -56,6 +65,15 @@ export function createKnownProducts({ catalog = null, demoCatalogPath, logger } 
 
     async includes(handle) {
       if (staticHandles.has(handle)) return true;
+      if (drops) {
+        try {
+          const payload = await drops.publicPayload();
+          const drop = payload.drops.find((candidate) => candidate.handle === handle);
+          if (drop) return NOTIFIABLE_DROP_STATES.has(drop.state);
+        } catch {
+          // Sin modelo de drops se sigue con el catálogo.
+        }
+      }
       if (!catalog) return false;
       try {
         const { products } = await catalog.list();

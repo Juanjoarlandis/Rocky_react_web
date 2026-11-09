@@ -1,4 +1,4 @@
-import { ShopifyGraphqlError, isHttpError } from '../http/errors.mjs';
+import { HttpError, ShopifyGraphqlError, isHttpError } from '../http/errors.mjs';
 import { createKeyedLock } from '../lib/keyed-lock.mjs';
 
 const IDEMPOTENCY_RETENTION_MS = 24 * 60 * 60 * 1_000;
@@ -20,14 +20,42 @@ function validateCheckoutUrl(value, allowedHosts) {
 // Operaciones del carrito ligadas a la sesión: idempotencia por operationId,
 // un candado por sesión para que dos mutaciones no se pisen y comprobación de
 // que la línea pertenece al carrito antes de tocarla.
+//
+// Con `catalog` (el catálogo vivo), además, solo se vende lo que está en la
+// calle (venta-de-drops): no se añade ni se sube la cantidad de un diseño de un
+// drop que no está a la venta, y el pago se para si queda alguna línea así. Lo
+// que el catálogo no conoce lo decide Shopify.
 export function createCartOperations({
   store,
   storefront,
   sessions,
   checkoutHosts,
+  catalog = null,
   clock = () => Date.now(),
 }) {
   const withCartLock = createKeyedLock();
+
+  async function assertOnSale(variantId, context) {
+    if (!catalog) return;
+    const product = await catalog.findByVariant(variantId, context);
+    if (product && !product.purchasable) {
+      throw new HttpError('Este diseño no está a la venta: su drop no está en la calle.', {
+        status: 409,
+        code: 'DROP_NOT_ON_SALE',
+      });
+    }
+  }
+
+  async function closedTitles(lines, context) {
+    if (!catalog) return [];
+    const titles = [];
+    for (const line of lines) {
+      const product = await catalog.findByVariant(line.variant.id, context);
+      if (product && !product.purchasable)
+        titles.push(line.variant.product?.title || product.title);
+    }
+    return [...new Set(titles)];
+  }
 
   async function runIdempotent(session, operationId, action) {
     const idempotencyKey = `${session.key}:${operationId}`;
@@ -85,13 +113,15 @@ export function createCartOperations({
 
   async function requireOwnedLine(cartId, lineId, context) {
     const current = await storefront.getCart(cartId, context);
+    const line = current.cart?.lines.find((candidate) => candidate.id === lineId);
     // Una línea de otro carrito no existe para quien pregunta: 404, no 400.
-    if (!current.cart?.lines.some((line) => line.id === lineId)) {
+    if (!line) {
       throw new ShopifyGraphqlError('La línea no pertenece al carrito.', {
         status: 404,
         code: 'LINE_NOT_FOUND',
       });
     }
+    return line;
   }
 
   return {
@@ -103,6 +133,7 @@ export function createCartOperations({
 
     async addLine(session, { variantId, quantity, operationId }, context) {
       return runIdempotent(session, operationId, async () => {
+        await assertOnSale(variantId, context);
         if (!session.record.cartId) {
           const created = await storefront.createCartForSession({ variantId, quantity }, context);
           await sessions.save(session, { cartId: created.fullCartId });
@@ -115,7 +146,9 @@ export function createCartOperations({
     async updateLine(session, { lineId, quantity, operationId }, context) {
       return runIdempotent(session, operationId, async () => {
         const cartId = requireCartId(session);
-        await requireOwnedLine(cartId, lineId, context);
+        const line = await requireOwnedLine(cartId, lineId, context);
+        // Bajar o quitar siempre se puede; subir, solo si sigue a la venta.
+        if (quantity > (line.quantity ?? 0)) await assertOnSale(line.variant.id, context);
         return storefront.updateLines(cartId, { lineId, quantity }, context);
       });
     },
@@ -133,6 +166,13 @@ export function createCartOperations({
       const current = await storefront.getCart(cartId, context);
       if (!current.cart?.lines.length) {
         throw new ShopifyGraphqlError('El carrito está vacío.', { status: 409 });
+      }
+      const closed = await closedTitles(current.cart.lines, context);
+      if (closed.length) {
+        throw new HttpError(
+          `Quita del carrito lo que ya no se vende para poder pagar: ${closed.join(', ')}.`,
+          { status: 409, code: 'DROP_CLOSED_IN_CART' }
+        );
       }
       return { checkoutUrl: validateCheckoutUrl(current.checkoutUrl, checkoutHosts) };
     },

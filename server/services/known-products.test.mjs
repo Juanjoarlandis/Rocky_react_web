@@ -74,4 +74,31 @@ describe('known product handles', () => {
     catalog.list.mockRejectedValueOnce(new Error('caído'));
     await expect(known.includes('rocky-racing')).resolves.toBe(false);
   });
+
+  it('reconoce los drops anunciados o a la venta aunque sus diseños no estén en el catálogo', async () => {
+    const catalog = { list: vi.fn().mockResolvedValue({ products: [] }) };
+    const drops = {
+      publicPayload: vi.fn().mockResolvedValue({
+        drops: [
+          { handle: 'rocky-drop-6', state: 'anunciado' },
+          { handle: 'rocky-drop-5', state: 'en-la-calle' },
+          { handle: 'rocky-drop-4', state: 'ultimas-horas' },
+          { handle: 'rocky-drop-3', state: 'archivo' },
+        ],
+      }),
+    };
+    const known = createKnownProducts({ catalog, drops });
+
+    await expect(known.includes('rocky-drop-6')).resolves.toBe(true);
+    await expect(known.includes('rocky-drop-5')).resolves.toBe(true);
+    await expect(known.includes('rocky-drop-4')).resolves.toBe(true);
+    await expect(known.includes('rocky-drop-3')).resolves.toBe(false);
+    await expect(known.includes('rocky-drop-inventado')).resolves.toBe(false);
+  });
+
+  it('si el modelo de drops falla, no acepta el drop pero no rompe', async () => {
+    const drops = { publicPayload: vi.fn().mockRejectedValue(new Error('caído')) };
+    const known = createKnownProducts({ catalog: null, drops });
+    await expect(known.includes('rocky-drop-6')).resolves.toBe(false);
+  });
 });

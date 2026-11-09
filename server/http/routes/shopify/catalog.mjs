@@ -7,7 +7,10 @@ const PRODUCTS_QUERY = {
   after: rules.optional(rules.string({ max: 500, code: 'INVALID_QUERY' })),
 };
 
-export function createCatalogRouter({ config, storefront }) {
+// El catálogo completo (catalogo-vivo): el BFF pagina y decora con el drop de
+// cada diseño. `first` y `after` se siguen validando por compatibilidad, pero
+// la respuesta trae siempre todo, con pageInfo.hasNextPage en false.
+export function createCatalogRouter({ config, catalog }) {
   const router = express.Router();
 
   router.get('/status', (req, res) => {
@@ -22,15 +25,10 @@ export function createCatalogRouter({ config, storefront }) {
     '/products',
     validateQuery(PRODUCTS_QUERY),
     asyncRoute(async (req, res) => {
-      if (!storefront) {
+      if (!catalog) {
         return res.status(503).json({ message: 'El catálogo Shopify no está configurado.' });
       }
-      const catalog = await storefront.listProducts({
-        first: req.query.first,
-        after: req.query.after,
-        buyerIp: req.ip,
-      });
-      return res.json(catalog);
+      return res.json(await catalog.list({ buyerIp: req.ip }));
     })
   );
 
