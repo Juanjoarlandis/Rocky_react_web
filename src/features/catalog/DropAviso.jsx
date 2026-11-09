@@ -14,7 +14,7 @@ import { subscribeDropNotice } from '../../api/avisos.js';
    bots — ningún humano lo ve, y el servidor tira a la basura las altas que lo
    traen relleno. */
 
-export default function DropAviso({ producto }) {
+export default function DropAviso({ producto, enfocar = false }) {
   const [estado, setEstado] = useState(() =>
     readStorage(dropNoticeKey(producto)) ? 'listo' : 'reposo'
   );
@@ -23,8 +23,14 @@ export default function DropAviso({ producto }) {
   const [fallo, setFallo] = useState('');
   // La petición en vuelo se cancela si el formulario desaparece
   const requestRef = useRef(null);
+  const emailRef = useRef(null);
 
   useEffect(() => () => requestRef.current?.abort(), []);
+
+  // Al abrirse desde una pestaña del cartel, el foco va directo al email.
+  useEffect(() => {
+    if (enfocar) emailRef.current?.focus();
+  }, [enfocar]);
 
   if (!producto) return null;
 
@@ -97,6 +103,7 @@ export default function DropAviso({ producto }) {
           inputMode="email"
           disabled={estado === 'enviando'}
           className="drop-aviso-email"
+          ref={emailRef}
         />
         <button
           type="submit"

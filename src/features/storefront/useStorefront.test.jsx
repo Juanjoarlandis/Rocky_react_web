@@ -441,4 +441,45 @@ describe('useStorefront', () => {
     expect(result.current.error).toBe('Shopify no ha devuelto un enlace de pago válido.');
     expect(result.current.canAddToCart).toBe(true);
   });
+
+  it('recarga el catálogo vivo cuando lo pide un drop que acaba de caer', async () => {
+    api.getShopifyStatus.mockResolvedValue({
+      mode: 'shopify',
+      capabilities: {
+        catalog: true,
+        cart: false,
+        customerAccounts: false,
+        admin: true,
+        webhooks: false,
+      },
+    });
+    api.listProducts.mockResolvedValueOnce({ products: [] }).mockResolvedValueOnce({
+      products: [
+        {
+          id: 'gid://shopify/Product/9',
+          handle: 'rocky-el-jefe',
+          title: 'El Jefe',
+          image: { url: 'https://cdn.shopify.com/jefe.png', alt: '' },
+          drop: { handle: 'rocky-drop-6', title: 'ROCKY DROP 6', number: 6, state: 'en-la-calle' },
+          purchasable: true,
+          variants: [],
+        },
+      ],
+    });
+    const { result } = renderHook(() => useStorefront({ demoProducts }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.products).toEqual([]);
+
+    await act(() => result.current.refreshCatalog());
+    expect(result.current.products.map((p) => p.handle)).toEqual(['rocky-el-jefe']);
+    expect(api.listProducts).toHaveBeenCalledTimes(2);
+  });
+
+  it('en demo recargar el catálogo no llama a la tienda', async () => {
+    const { result } = renderHook(() => useStorefront({ demoProducts }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(() => result.current.refreshCatalog());
+    expect(api.listProducts).not.toHaveBeenCalled();
+    expect(result.current.products).toEqual(demoProducts);
+  });
 });

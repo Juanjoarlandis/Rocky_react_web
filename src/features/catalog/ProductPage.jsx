@@ -2,19 +2,19 @@ import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import Lightbox from './Lightbox';
 import AddToCartButton from '../cart/AddToCartButton';
-import DropAviso from './DropAviso';
-import AddToCalendar from './AddToCalendar';
 import EyeIcon from '../../components/icons/EyeIcon';
 import PlaceholderTee from './PlaceholderTee';
 import StreetWall from '../../components/StreetWall';
 import { CrosshairSpinner } from '../../components/doodles/CrosshairSpinner';
 import { ProductReticle } from '../../components/doodles/ProductReticle';
 import { TornSticker } from '../../components/doodles/TornSticker';
-import { CURRENT_DROP } from '../../config/campaign.js';
 import { PLACEHOLDER_IMAGE } from '../../config/commerce.js';
 import { PURCHASE_STATES, purchaseLabel, purchaseState } from '../storefront/availability.js';
 import { designCount } from './designCount.js';
 import { isTornFlipped } from './tornVariant.js';
+import { DROP_STATES } from '../../../shared/drops.mjs';
+import Cartel from '../drops/Cartel';
+import { fechaLarga, horaDeMadrid } from '../drops/fecha.js';
 // Variante sin los puntos de spray pintados: el chorro se anima aparte.
 import grafiteroSpray from '../../images/optimized/characters/grafitero-sin-chorro-420.webp';
 import corriendoBolsa from '../../images/optimized/splash/corriendo-bolsa.webp';
@@ -26,50 +26,39 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import '../../styles/pages/home.css';
 import { useNightArt } from '../night/nightArt.js';
 
-/* El catálogo se lee por drops, en el orden en que aparecen: dentro de cada
-   drop van primero los diseños con foto y los que siguen bajo llave se
-   agrupan en un único bloque con su contador y un solo aviso. */
-function groupByDrop(products) {
-  const drops = new Map();
-  products.forEach((product) => {
-    const key = product.dropHandle || product.drop || 'tienda';
-    if (!drops.has(key)) {
-      drops.set(key, { key, title: product.drop, revealed: [], locked: [] });
-    }
-    const group = drops.get(key);
-    (product.image === PLACEHOLDER_IMAGE ? group.locked : group.revealed).push(product);
-  });
+// Cómo se cuenta cada estado en la cabecera de su sección del catálogo.
+const SECCION = Object.freeze({
+  [DROP_STATES.LIVE]: 'Ya en la calle',
+  [DROP_STATES.LAST_HOURS]: 'Últimas horas',
+  [DROP_STATES.ARCHIVE]: 'Voló',
+});
+
+/* El catálogo sigue el orden del muro (muro-de-drops): primero el cartel
+   teaser de cada drop anunciado, después cada drop con sus diseños bajo su
+   cabecera y al final lo que no es de ningún drop. */
+function buildCatalog(products, drops) {
   const items = [];
-  drops.forEach((group) => {
-    group.revealed.forEach((product) => items.push({ kind: 'product', product }));
-    if (group.locked.length) {
-      items.push({ kind: 'locked', key: group.key, title: group.title, products: group.locked });
+  const placed = new Set();
+  drops.forEach((drop) => {
+    if (drop.state === DROP_STATES.ANNOUNCED) {
+      items.push({ kind: 'teaser', drop });
+      return;
     }
+    const own = products.filter((product) => product.dropHandle === drop.handle);
+    if (!own.length) return;
+    items.push({ kind: 'section', drop });
+    own.forEach((product) => {
+      placed.add(product);
+      items.push({ kind: 'product', product });
+    });
+  });
+  products.forEach((product) => {
+    if (!placed.has(product)) items.push({ kind: 'product', product });
   });
   return items;
 }
 
-function LockedDesigns({ dropKey, title, products }) {
-  const count = products.length;
-  return (
-    <article className="paper-card product-card product-card--locked" data-testid="locked-designs">
-      {/* Sin la etiqueta del mockup: el cuerpo ya dice drop, estado y número, y
-          con ella la tarjeta repetía dos veces «N diseños bajo llave». */}
-      <div className="product-media product-media--locked" aria-hidden="true">
-        <PlaceholderTee title={designCount(count)} compact />
-      </div>
-      <div className="product-body">
-        <p className="kicker product-locked-kicker">{title} · sin revelar</p>
-        <h2 className="product-title">{designCount(count)} bajo llave</h2>
-        <p className="product-locked-names">
-          {products.map((product) => product.title).join(' · ')}
-        </p>
-        <DropAviso producto={dropKey} />
-        <AddToCalendar />
-      </div>
-    </article>
-  );
-}
+const EMPTY = Object.freeze([]);
 
 function ProductPage({
   products,
@@ -78,6 +67,9 @@ function ProductPage({
   canAddToCart = true,
   prioritizeFirstImage = false,
   loading = false,
+  drops = EMPTY,
+  featured = null,
+  serverNow = Date.now,
 }) {
   const grafiteroArt = useNightArt(grafiteroSpray);
   const cruiserArt = useNightArt(cruiserPatinando);
@@ -85,19 +77,35 @@ function ProductPage({
   const { category } = useParams();
   const [zoomImage, setZoomImage] = useState(null);
 
+  // De un drop anunciado no se enseña ningún diseño (catalogo-vivo): el
+  // servidor ya no los manda; esto cubre el catálogo de demostración.
+  const shownProducts = useMemo(() => {
+    const hidden = new Set(
+      drops.filter((drop) => drop.state === DROP_STATES.ANNOUNCED).map((drop) => drop.handle)
+    );
+    return products.filter((product) => !hidden.has(product.dropHandle));
+  }, [products, drops]);
+  const categoryDrop = category ? drops.find((drop) => drop.handle === category) : null;
   const visibleProducts = useMemo(
     () =>
       category
-        ? products.filter((product) => product.drop === category || product.dropHandle === category)
-        : products,
-    [products, category]
+        ? shownProducts.filter(
+            (product) => product.drop === category || product.dropHandle === category
+          )
+        : shownProducts,
+    [shownProducts, category]
   );
-  const catalogItems = useMemo(() => groupByDrop(visibleProducts), [visibleProducts]);
+  const catalogItems = useMemo(
+    () => buildCatalog(visibleProducts, category ? EMPTY : drops),
+    [visibleProducts, category, drops]
+  );
   const isHome = !category;
-  const pageTitle = category ? visibleProducts[0]?.drop || category : 'ROCKY 035';
+  const pageTitle = category
+    ? categoryDrop?.title || visibleProducts[0]?.drop || category
+    : 'ROCKY 035';
   useDocumentTitle(isHome ? '' : pageTitle);
 
-  if (category && visibleProducts.length === 0 && !loading) {
+  if (category && !categoryDrop && visibleProducts.length === 0 && !loading) {
     return (
       <div className="product-empty">
         {/* Se lo han llevado todo corriendo */}
@@ -119,70 +127,110 @@ function ProductPage({
     );
   }
 
+  const featuredAnnounced = featured?.state === DROP_STATES.ANNOUNCED;
+
   return (
     <div className="page-container product-page">
-      <div className={`product-page-head${isHome ? ' product-page-head--home' : ''}`}>
-        <div className="product-page-head-copy">
-          <div className="product-page-head-row">
-            <h1 className="page-title no-squiggle">{pageTitle}</h1>
-            {!isHome && <p className="product-count">{designCount(visibleProducts.length)}</p>}
-          </div>
-          {isHome && (
-            <>
-              <p className="product-page-tagline">HECHO DESDE LA COLMENA</p>
-              <div className="product-page-hero-meta">
-                <div className="product-page-hero-count">
-                  <CrosshairSpinner className="product-page-hero-count-mark" />
-                  <p className="product-count">{designCount(visibleProducts.length)}</p>
-                </div>
-                <a href="#productos" className="btn btn--primary product-page-hero-cta">
-                  <span>Ver {CURRENT_DROP.shortTitle}</span>
-                  <span className="product-page-hero-cta-arrow" aria-hidden="true">
-                    →
-                  </span>
-                </a>
-              </div>
-            </>
+      {categoryDrop && (
+        <div className="drop-cabecera">
+          <Cartel
+            drop={categoryDrop}
+            products={products}
+            serverNow={serverNow}
+            cabecera
+            tituloComo="h1"
+          />
+          {categoryDrop.state === DROP_STATES.ANNOUNCED && (
+            <p className="drop-nota">
+              Los diseños se destapan el día del drop. Arranca una pestaña y te avisamos.
+            </p>
+          )}
+          {categoryDrop.state === DROP_STATES.ARCHIVE && (
+            <p className="drop-nota">Este drop ya voló: aquí queda el archivo, sin venta.</p>
           )}
         </div>
-        {/* El grafitero pinta la línea del título con su spray */}
-        <div className="spray-line-wrap" aria-hidden="true">
-          <svg className="spray-line" viewBox="0 0 100 10" preserveAspectRatio="none">
-            <path
-              d="M2 6 Q 10 2 18 6 T 34 6 T 50 6 T 66 6 T 82 6 T 91 5"
-              fill="none"
-              stroke="var(--accent)"
-              strokeWidth="3"
-              strokeLinecap="round"
-              vectorEffect="non-scaling-stroke"
+      )}
+      {!categoryDrop && (
+        <div className={`product-page-head${isHome ? ' product-page-head--home' : ''}`}>
+          <div className="product-page-head-copy">
+            <div className="product-page-head-row">
+              <h1 className="page-title no-squiggle">{pageTitle}</h1>
+              {!isHome && <p className="product-count">{designCount(visibleProducts.length)}</p>}
+            </div>
+            {isHome && (
+              <>
+                <p className="product-page-tagline">HECHO DESDE LA COLMENA</p>
+                <div className="product-page-hero-meta">
+                  <div className="product-page-hero-count">
+                    <CrosshairSpinner className="product-page-hero-count-mark" />
+                    <p className="product-count">{designCount(visibleProducts.length)}</p>
+                  </div>
+                  {featured ? (
+                    <Link
+                      to={ROUTES.category(featured.handle)}
+                      className="btn btn--primary product-page-hero-cta"
+                    >
+                      <span>Ver el Drop {featured.number}</span>
+                      <span className="product-page-hero-cta-arrow" aria-hidden="true">
+                        →
+                      </span>
+                    </Link>
+                  ) : (
+                    <a href="#productos" className="btn btn--primary product-page-hero-cta">
+                      <span>Ver el catálogo</span>
+                      <span className="product-page-hero-cta-arrow" aria-hidden="true">
+                        →
+                      </span>
+                    </a>
+                  )}
+                </div>
+                {featuredAnnounced && (
+                  <p className="product-page-hero-drop">
+                    Cae el {fechaLarga(featured.launchAt)} a las {horaDeMadrid(featured.launchAt)}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+          {/* El grafitero pinta la línea del título con su spray */}
+          <div className="spray-line-wrap" aria-hidden="true">
+            <svg className="spray-line" viewBox="0 0 100 10" preserveAspectRatio="none">
+              <path
+                d="M2 6 Q 10 2 18 6 T 34 6 T 50 6 T 66 6 T 82 6 T 91 5"
+                fill="none"
+                stroke="var(--accent)"
+                strokeWidth="3"
+                strokeLinecap="round"
+                vectorEffect="non-scaling-stroke"
+              />
+            </svg>
+            <img
+              src={grafiteroArt}
+              width="254"
+              height="420"
+              decoding="async"
+              alt=""
+              className="spray-guy neon-art"
             />
-          </svg>
-          <img
-            src={grafiteroArt}
-            width="254"
-            height="420"
-            decoding="async"
-            alt=""
-            className="spray-guy neon-art"
-          />
-          {/* El chorro va aparte para poder moverlo: el personaje usa
+            {/* El chorro va aparte para poder moverlo: el personaje usa
                         la variante sin los puntos pintados encima. */}
-          <span className="spray-chorro">
-            <i />
-            <i />
-            <i />
-          </span>
-          {/* La Cruiser rueda por la línea recién pintada */}
-          <img
-            src={cruiserArt}
-            width="291"
-            height="350"
-            decoding="async"
-            alt=""
-            className="doodle spray-cruiser neon-art"
-          />
+            <span className="spray-chorro">
+              <i />
+              <i />
+              <i />
+            </span>
+            {/* La Cruiser rueda por la línea recién pintada */}
+            <img
+              src={cruiserArt}
+              width="291"
+              height="350"
+              decoding="async"
+              alt=""
+              className="doodle spray-cruiser neon-art"
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       <div
         className={`product-grid${loading ? ' product-grid--loading' : ''}`}
@@ -190,14 +238,32 @@ function ProductPage({
         aria-busy={loading || undefined}
       >
         {catalogItems.map((item, index) => {
-          if (item.kind === 'locked') {
+          if (item.kind === 'teaser') {
             return (
-              <LockedDesigns
-                key={`locked-${item.key}`}
-                dropKey={item.key}
-                title={item.title}
-                products={item.products}
-              />
+              <div
+                key={`teaser-${item.drop.handle}`}
+                className="catalogo-teaser"
+                data-testid={`catalogo-teaser-${item.drop.handle}`}
+              >
+                <Cartel drop={item.drop} products={products} serverNow={serverNow} compacto />
+              </div>
+            );
+          }
+          if (item.kind === 'section') {
+            return (
+              <p
+                key={`seccion-${item.drop.handle}`}
+                className="catalogo-seccion"
+                data-testid={`catalogo-seccion-${item.drop.handle}`}
+              >
+                <span className="catalogo-seccion-titulo">{item.drop.title}</span>
+                <span className="sticker catalogo-seccion-estado">
+                  {SECCION[item.drop.state] ?? ''}
+                </span>
+                <Link className="catalogo-seccion-enlace" to={ROUTES.category(item.drop.handle)}>
+                  Ver el drop <span aria-hidden="true">→</span>
+                </Link>
+              </p>
             );
           }
           const { product } = item;
@@ -230,7 +296,12 @@ function ProductPage({
                 disabled={isPlaceholder}
               >
                 {isPlaceholder ? (
-                  <PlaceholderTee title={product.title} priority={isPriorityImage} />
+                  <PlaceholderTee
+                    title={product.title}
+                    priority={isPriorityImage}
+                    compact
+                    description="sin foto todavía"
+                  />
                 ) : (
                   <img
                     src={product.image}

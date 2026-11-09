@@ -9,9 +9,9 @@
    escale con la foto. Cuándo aparece cada cosa y cómo se mueve está en
    components/product-media.css. Decorativa: los lectores de pantalla siguen
    leyendo el nombre de la foto. */
-const RING =
+export const RING =
   'M51.2 23.5c15.2-.7 26.7 11.1 26.2 27.2-.5 15.7-12.7 27-27.8 26.5-15.2-.5-26.5-12.3-26.2-27.7.3-14.5 11.8-25.5 28.7-26.2';
-const TICKS = 'M50 8v13M50 79v13M8 50h13M79 50h13';
+export const TICKS = 'M50 8v13M50 79v13M8 50h13M79 50h13';
 
 export function ProductReticle() {
   return (

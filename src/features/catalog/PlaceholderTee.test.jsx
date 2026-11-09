@@ -22,4 +22,16 @@ describe('PlaceholderTee', () => {
 
     expect(screen.queryByText(/diseño bajo llave/i)).not.toBeInTheDocument();
   });
+
+  it('no dice de qué drop es salvo que se le diga', () => {
+    const { rerender } = render(<PlaceholderTee title="X" />);
+    expect(screen.queryByText(/drop 4/i)).not.toBeInTheDocument();
+    rerender(<PlaceholderTee title="X" kicker="Drop 6 · sin revelar" />);
+    expect(screen.getByText('Drop 6 · sin revelar')).toBeInTheDocument();
+  });
+
+  it('un producto a la venta sin foto no se presenta como sin revelar', () => {
+    render(<PlaceholderTee title="35 RED" compact description="sin foto todavía" />);
+    expect(screen.getByRole('img', { name: '35 RED — sin foto todavía' })).toBeInTheDocument();
+  });
 });

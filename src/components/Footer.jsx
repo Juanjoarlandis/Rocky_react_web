@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { INSTAGRAM_URL } from '../config/links';
-import { CURRENT_DROP } from '../config/campaign.js';
+import { DROP_STATES } from '../../shared/drops.mjs';
+import { fechaCorta, horaDeMadrid } from '../features/drops/fecha.js';
 import { LEGAL_PAGES, legalPath } from '../config/legal';
 import { REDUCED_MOTION, prefersReducedMotion } from '../utils/media.js';
 import '../styles/components/ticker.css';
@@ -14,34 +15,46 @@ import lataPaseoQuieto from '../images/optimized/characters/lata-spray-walk-seed
 import { useNightArt } from '../features/night/nightArt.js';
 import { useNightMode } from '../features/night/useNightMode.js';
 
-/* El drop sale de la campaña, para que la cinta no anuncie uno ya pasado.
-   «Todo desde cero» sustituye a «Hecho a mano», el mismo cambio que se hizo
-   en el copy del reel (commit 13499fd). */
-const TICKER_ITEMS = [
-  'ROCKY 035',
-  `${CURRENT_DROP.shortTitle} PRÓXIMAMENTE`,
-  'TODO DESDE CERO',
-  'ロッキー・スリーファイブ',
-  'DESDE LA COLMENA',
-  'LA CREW AL COMPLETO',
-  'EDICIONES LIMITADAS',
-  'CUANDO VUELAN, VUELAN',
-];
+/* La cinta anuncia el drop destacado (muro-de-drops): con su fecha si está
+   anunciado, en la calle o en últimas horas si ya ha caído, y nada si no hay
+   ninguno. «Todo desde cero» sustituye a «Hecho a mano», el mismo cambio que se
+   hizo en el copy del reel (commit 13499fd). */
+function dropItem(drop) {
+  if (!drop) return null;
+  if (drop.state === DROP_STATES.ANNOUNCED) {
+    return `DROP ${drop.number} · ${fechaCorta(drop.launchAt)} · ${horaDeMadrid(drop.launchAt)}`;
+  }
+  if (drop.state === DROP_STATES.LAST_HOURS) return `DROP ${drop.number} · ÚLTIMAS HORAS`;
+  return `DROP ${drop.number} EN LA CALLE`;
+}
+
+const tickerItems = (drop) =>
+  [
+    'ROCKY 035',
+    dropItem(drop),
+    'TODO DESDE CERO',
+    'ロッキー・スリーファイブ',
+    'DESDE LA COLMENA',
+    'LA CREW AL COMPLETO',
+    'EDICIONES LIMITADAS',
+    'CUANDO VUELAN, VUELAN',
+  ].filter(Boolean);
 
 // De noche la cinta avisa de que la crew se ha torcido.
-const TICKER_ITEMS_NOCHE = [
-  'DESCONTROL ACTIVADO',
-  'NO MIRES ATRÁS',
-  'LA CREW SE HA TORCIDO',
-  'ロッキー・スリーファイブ',
-  'ILUMINA LAS PAREDES',
-  'NO APAGUES LA LUZ',
-  `${CURRENT_DROP.shortTitle} PRÓXIMAMENTE`,
-  'CUANDO VUELAN, MUERDEN',
-  'DESDE EL FONDO DE LA COLMENA',
-];
+const tickerItemsNoche = (drop) =>
+  [
+    'DESCONTROL ACTIVADO',
+    'NO MIRES ATRÁS',
+    'LA CREW SE HA TORCIDO',
+    'ロッキー・スリーファイブ',
+    'ILUMINA LAS PAREDES',
+    'NO APAGUES LA LUZ',
+    dropItem(drop),
+    'CUANDO VUELAN, MUERDEN',
+    'DESDE EL FONDO DE LA COLMENA',
+  ].filter(Boolean);
 
-const Footer = () => {
+const Footer = ({ featuredDrop = null }) => {
   const guysSittingArt = useNightArt(guysSittingImage);
   // De noche patrulla El Tóxico, con el mismo paseo.
   const paseoArt = useNightArt(lataPaseo);
@@ -73,7 +86,7 @@ const Footer = () => {
     return () => observer.disconnect();
   }, []);
 
-  const tickerText = (night ? TICKER_ITEMS_NOCHE : TICKER_ITEMS)
+  const tickerText = (night ? tickerItemsNoche(featuredDrop) : tickerItems(featuredDrop))
     .map((item) => `${item} ✦ `)
     .join('');
 

@@ -248,3 +248,21 @@
     }
   }
 }
+
+@layer pages {
+  /* La ficha de un diseño de un drop cerrado (catalogo-vivo). */
+  .detail-drop-cerrado {
+    margin: var(--space-3) 0 0;
+    padding: var(--space-2) var(--space-3);
+    border: 2px dashed var(--ink);
+    border-radius: var(--wobble-xs);
+    font-family: var(--font-hand);
+    color: var(--ink-soft);
+  }
+
+  .detail-drop a {
+    color: inherit;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
+  }
+}

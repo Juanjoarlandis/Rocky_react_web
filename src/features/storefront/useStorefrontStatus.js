@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getCart, getCustomerAccount, getShopifyStatus, listProducts } from '../../api/shopify.js';
 import { normalizeCart, normalizeCatalog } from './normalize.js';
 import { errorMessage } from '../../utils/errors.js';
@@ -29,6 +29,20 @@ export function useStorefrontStatus({
   const [products, setProducts] = useState(EMPTY_PRODUCTS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const modeRef = useRef('checking');
+  modeRef.current = mode;
+
+  /* Vuelve a pedir el catálogo vivo: lo usa un drop que acaba de caer, cuyos
+     diseños aparecen ahora. En demo no hay nada que recargar. */
+  const refreshCatalog = useCallback(async () => {
+    if (modeRef.current !== 'shopify') return;
+    try {
+      const catalogResponse = await listProducts();
+      setProducts(normalizeCatalog(catalogResponse.products));
+    } catch (requestError) {
+      setError(`${errorMessage(requestError)} No se pudo recargar el catálogo.`);
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -131,5 +145,5 @@ export function useStorefrontStatus({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [demoProducts]);
 
-  return { mode, capabilities, products, loading, error, setError };
+  return { mode, capabilities, products, loading, error, setError, refreshCatalog };
 }

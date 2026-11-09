@@ -43,20 +43,55 @@ describe('Shopify UI normalization', () => {
     });
   });
 
-  it('files unassigned locked designs under the current drop, not under «Tienda»', () => {
-    const [locked, revealed] = normalizeCatalog([
-      { handle: 'sin-foto', title: 'Sin foto', image: null, drop: null, variants: [] },
+  /* sistema-de-drops (D14, H-019): el drop sale del modelo del servidor; un
+     producto sin foto ya no se esconde «bajo llave» en un drop inventado. */
+  it('toma el drop del modelo y deja en «Tienda» lo que no es de ningún drop', () => {
+    const [enDrop, sinFoto] = normalizeCatalog([
       {
-        handle: 'con-foto',
-        title: 'Con foto',
+        handle: 'rocky-sin-frenos',
+        title: 'Sin frenos',
         image: { url: 'https://cdn.shopify.com/tee.jpg', alt: '' },
+        drop: { handle: 'rocky-drop-5', title: 'ROCKY DROP 5', number: 5, state: 'en-la-calle' },
+        purchasable: true,
+        variants: [],
+      },
+      {
+        handle: 'sin-foto',
+        title: 'Sin foto',
+        image: null,
         drop: null,
+        purchasable: true,
         variants: [],
       },
     ]);
 
-    expect(locked).toMatchObject({ drop: 'ROCKY DROP 4', dropHandle: 'rocky-drop-4' });
-    expect(revealed).toMatchObject({ drop: 'Tienda', dropHandle: 'tienda' });
+    expect(enDrop).toMatchObject({
+      drop: 'ROCKY DROP 5',
+      dropHandle: 'rocky-drop-5',
+      dropNumber: 5,
+      dropState: 'en-la-calle',
+      purchasable: true,
+    });
+    expect(sinFoto).toMatchObject({
+      drop: 'Tienda',
+      dropHandle: 'tienda',
+      dropState: null,
+      purchasable: true,
+    });
+  });
+
+  it('un diseño de un drop cerrado llega marcado como no vendible', () => {
+    const [cerrado] = normalizeCatalog([
+      {
+        handle: 'rocky-congelado',
+        title: 'Congelado',
+        image: { url: 'https://cdn.shopify.com/c.jpg', alt: '' },
+        drop: { handle: 'rocky-drop-3', title: 'ROCKY DROP 3', number: 3, state: 'archivo' },
+        purchasable: false,
+        variants: [],
+      },
+    ]);
+    expect(cerrado).toMatchObject({ dropState: 'archivo', purchasable: false });
   });
 
   it('maps only sanitized cart data and retains Shopify totals as Money values', () => {

@@ -1,0 +1,577 @@
+@layer components {
+  /* EL CARTEL DEL DROP (muro-de-drops) — un cartel de engrudo pegado en la
+   calle. El papel lleva el arte (o un cartel tipográfico si no hay) y debajo
+   va la nota con el estado, el título y lo que toca: cuenta atrás y pestañas
+   si está anunciado, miniaturas si está en la calle, «Voló» si ya cerró. Cada
+   cartel tiene su giro (--giro, por handle). Todo el movimiento vive dentro
+   de prefers-reduced-motion: no-preference, al final. */
+
+  .cartel {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    transform: rotate(var(--giro, 0deg));
+  }
+
+  /* ---------- El papel ---------- */
+
+  .cartel-papel {
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 2 / 3;
+    background-color: var(--card);
+    border: 2px solid var(--ink);
+    border-radius: 3px 2px 4px;
+    box-shadow: var(--shadow-ink);
+  }
+
+  /* Chorretones de engrudo: unas vetas casi invisibles por encima del arte. */
+  .cartel-papel::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(
+      100deg,
+      transparent 0 38px,
+      rgba(var(--white-rgb), 0.07) 38px 41px,
+      transparent 41px 90px
+    );
+    pointer-events: none;
+  }
+
+  .cartel-arte {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  /* Sin arte subido, un cartel de letras: número gigante y firma. */
+  .cartel-tipo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 12%;
+    background-color: var(--card);
+    background-image: var(--notebook-doodles);
+    text-align: center;
+  }
+
+  .cartel-tipo-drop {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 6vw, 3rem);
+    color: var(--ink);
+    letter-spacing: 0.04em;
+  }
+
+  .cartel-tipo-numero {
+    font-family: var(--font-display);
+    font-size: clamp(6rem, 22vw, 10rem);
+    line-height: 0.9;
+    color: var(--accent);
+    text-shadow: 4px 4px 0 var(--ink);
+  }
+
+  .cartel-tipo-firma {
+    margin-top: var(--space-3);
+    font-family: var(--font-hand);
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: var(--ink);
+  }
+
+  /* ---------- Anunciado: precintado con cinta ---------- */
+
+  .cartel-cinta {
+    position: absolute;
+    left: -30%;
+    width: 160%;
+    padding: 6px 0;
+    border-block: 2px solid var(--ink);
+    font-family: var(--font-display);
+    font-size: var(--text-md);
+    letter-spacing: 0.08em;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    box-shadow: 0 3px 0 rgba(var(--ink-rgb), 0.22);
+  }
+
+  .cartel-cinta--a {
+    top: 32%;
+    background-color: var(--ticket);
+    color: var(--ink-fixed);
+    transform: rotate(-16deg);
+  }
+
+  .cartel-cinta--b {
+    top: 54%;
+    background-color: var(--ink-block);
+    color: var(--ink-block-text);
+    transform: rotate(11deg);
+  }
+
+  /* La fecha dentro del punto de mira, en la esquina de abajo. */
+  .date-ring {
+    position: absolute;
+    right: 5%;
+    bottom: 4%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 38%;
+    aspect-ratio: 1;
+    transform: rotate(-6deg);
+  }
+
+  .date-ring::before {
+    content: '';
+    position: absolute;
+    inset: 22%;
+    border-radius: 50%;
+    background-color: var(--card);
+  }
+
+  .date-ring-aro {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .date-ring-dia {
+    position: relative;
+    font-family: var(--font-display);
+    font-size: clamp(1.1rem, 3.2vw, 1.6rem);
+    line-height: 1;
+    color: var(--ink);
+  }
+
+  .date-ring-hora {
+    position: relative;
+    font-family: var(--font-hand);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    color: var(--accent-dark);
+  }
+
+  /* ---------- Sellos de goma ---------- */
+
+  .cartel-sello {
+    position: absolute;
+    top: 7%;
+    right: 6%;
+    padding: 4px 12px;
+    border: 3px solid var(--accent);
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 6px;
+    background-color: rgba(var(--card-rgb), 0.86);
+    color: var(--accent);
+    font-family: var(--font-display);
+    font-size: clamp(0.95rem, 2.6vw, 1.25rem);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    transform: rotate(-12deg);
+  }
+
+  .cartel-sello--volo {
+    top: auto;
+    right: auto;
+    bottom: 12%;
+    left: 10%;
+    padding: 6px 20px;
+    border-color: var(--ink);
+    outline-color: var(--ink);
+    color: var(--ink);
+    font-size: clamp(1.6rem, 5vw, 2.4rem);
+    transform: rotate(9deg);
+  }
+
+  /* ---------- Últimas horas: la esquina se despega ---------- */
+
+  .cartel-esquina {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 26%;
+    aspect-ratio: 1;
+    background-image: linear-gradient(
+      315deg,
+      var(--paper) 0 47%,
+      var(--ink) 47% 50%,
+      var(--muted-bg) 50% 100%
+    );
+    box-shadow: -3px -3px 0 rgba(var(--ink-rgb), 0.16);
+    transform-origin: 100% 100%;
+  }
+
+  .cartel-ultimas {
+    align-self: flex-start;
+    background-color: var(--ticket);
+    color: var(--ink-fixed);
+    font-weight: 700;
+  }
+
+  /* ---------- Archivo: roto y apagado ---------- */
+
+  .cartel--archivo .cartel-papel {
+    clip-path: polygon(
+      0 0,
+      62% 0,
+      66% 4%,
+      71% 1%,
+      100% 0,
+      100% 63%,
+      96% 68%,
+      100% 74%,
+      98% 100%,
+      34% 100%,
+      29% 95%,
+      24% 99%,
+      0 100%
+    );
+  }
+
+  .cartel--archivo .cartel-arte,
+  .cartel--archivo .cartel-tipo {
+    filter: grayscale(0.85) contrast(0.92);
+    opacity: 0.88;
+  }
+
+  /* ---------- La nota de debajo ---------- */
+
+  .cartel-pie {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-4);
+    background-color: var(--card);
+    border: 2px solid var(--ink);
+    border-radius: var(--wobble-sm);
+    box-shadow: var(--shadow-ink-sm);
+    transform: rotate(calc(var(--giro, 0deg) * -0.6));
+  }
+
+  .cartel-estado {
+    margin: 0;
+    color: var(--accent-dark);
+    font-weight: 700;
+  }
+
+  .cartel-titulo {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    line-height: var(--leading-tight);
+    color: var(--ink);
+  }
+
+  .cartel-lema,
+  .cartel-cuando {
+    margin: 0;
+    font-family: var(--font-hand);
+    color: var(--ink-soft);
+  }
+
+  .cartel-cuando {
+    font-size: var(--text-sm);
+  }
+
+  /* ---------- Cuenta atrás a rotulador ---------- */
+
+  .cuenta {
+    display: flex;
+    gap: var(--space-2);
+    margin: var(--space-1) 0 0;
+  }
+
+  .cuenta-casilla {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 2px;
+    padding: 4px 8px;
+    border: 2px solid var(--ink);
+    border-radius: var(--wobble-xs);
+    background-color: var(--paper);
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    line-height: 1;
+    color: var(--ink);
+  }
+
+  .cuenta-casilla small {
+    font-family: var(--font-hand);
+    font-size: var(--text-2xs);
+    color: var(--muted);
+  }
+
+  .cuenta-casilla--seg {
+    color: var(--accent);
+  }
+
+  .cuenta--ya {
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    color: var(--accent);
+  }
+
+  /* ---------- Siluetas de lo que viene ---------- */
+
+  .cartel-siluetas {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .cartel-siluetas-lista {
+    display: flex;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .cartel-silueta {
+    width: 38px;
+    margin-left: -10px;
+    border: 2px solid var(--ink);
+    border-radius: 4px;
+    overflow: hidden;
+    background-color: var(--placeholder-bg);
+    transform: rotate(-4deg);
+  }
+
+  .cartel-silueta:first-child {
+    margin-left: 0;
+  }
+
+  .cartel-silueta:nth-child(even) {
+    transform: rotate(5deg);
+  }
+
+  .cartel-siluetas-texto {
+    margin: 0;
+    font-family: var(--font-hand);
+    font-size: var(--text-sm);
+    color: var(--ink-soft);
+  }
+
+  /* ---------- Pestañas recortables «AVÍSAME» ---------- */
+
+  .pestanas-tira {
+    display: flex;
+    margin: var(--space-2) calc(-1 * var(--space-4)) 0;
+    padding: 0;
+    border-top: 2px dashed var(--ink);
+    list-style: none;
+  }
+
+  .pestanas-tira > li {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .pestana {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 92px;
+    padding: 6px 0;
+    border: 0;
+    border-right: 1.5px dashed var(--line);
+    background-color: var(--card);
+    color: var(--ink);
+    font-family: var(--font-hand);
+    font-size: var(--text-2xs);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    writing-mode: vertical-rl;
+    cursor: pointer;
+  }
+
+  .pestana:hover {
+    background-color: var(--postit);
+  }
+
+  .pestana:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: -3px;
+  }
+
+  .pestana.is-torn {
+    visibility: hidden;
+  }
+
+  /* Las que ya se llevó alguien: un resto de papel arriba y el muro debajo. */
+  .pestana-hueco {
+    height: 92px;
+    background-image: linear-gradient(var(--card) 0 10px, transparent 10px);
+  }
+
+  .pestanas-aviso:not([hidden]) {
+    margin-top: var(--space-2);
+  }
+
+  .pestanas-aviso .drop-aviso {
+    margin-top: 0;
+  }
+
+  /* ---------- Miniaturas de lo que hay en la calle ---------- */
+
+  .cartel-miniaturas {
+    display: flex;
+    gap: var(--space-2);
+    margin: var(--space-1) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .cartel-miniaturas img {
+    display: block;
+    width: 64px;
+    height: 64px;
+    object-fit: cover;
+    border: 2px solid var(--ink);
+    border-radius: 4px;
+    background-color: var(--placeholder-bg);
+    transform: rotate(-3deg);
+  }
+
+  .cartel-miniaturas li:nth-child(even) img {
+    transform: rotate(4deg);
+  }
+
+  .cartel-entrar {
+    align-self: flex-start;
+    margin-top: var(--space-1);
+  }
+
+  /* ---------- Variantes ---------- */
+
+  /* La cabecera de la página del drop: papel y nota en paralelo. */
+  .cartel--cabecera .cartel-titulo {
+    font-size: var(--text-display);
+  }
+
+  /* La portada: más pequeño y sin la nota tan cargada. */
+  .cartel--compacto .cartel-titulo {
+    font-size: var(--text-lg);
+  }
+
+  @media (min-width: 641px) {
+    .cartel--compacto,
+    .cartel--cabecera {
+      flex-direction: row;
+      align-items: flex-start;
+      gap: var(--space-6);
+    }
+
+    .cartel--compacto .cartel-papel {
+      flex: 0 0 38%;
+    }
+
+    .cartel--cabecera .cartel-papel {
+      flex: 0 0 40%;
+    }
+
+    .cartel--compacto .cartel-pie,
+    .cartel--cabecera .cartel-pie {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .cuenta-casilla {
+      padding: 3px 6px;
+      font-size: var(--text-lg);
+    }
+
+    .pestana {
+      height: 80px;
+    }
+  }
+
+  /* ---------- Noche ---------- */
+
+  [data-theme='neon'] .cartel-papel {
+    box-shadow:
+      var(--shadow-ink),
+      0 0 26px rgba(var(--uv-violet-rgb), 0.3);
+  }
+
+  [data-theme='neon'] .cartel-arte {
+    filter: brightness(0.88) saturate(1.15);
+  }
+
+  [data-theme='neon'] .cartel-cinta--a {
+    background-color: var(--uv-lime);
+    color: var(--ink-fixed);
+  }
+
+  [data-theme='neon'] .cartel-sello {
+    background-color: rgba(var(--neon-paper-rgb), 0.82);
+  }
+
+  /* ---------- Movimiento ---------- */
+
+  @media (prefers-reduced-motion: no-preference) {
+    .pestana {
+      transition: background-color var(--dur-fast) var(--ease-out);
+    }
+
+    /* La pestaña arrancada cae girando antes de desaparecer. */
+    .pestana.is-torn {
+      visibility: visible;
+      animation: pestana-cae 0.7s cubic-bezier(0.3, 0.1, 0.6, 1) forwards;
+    }
+
+    /* La esquina se levanta un pelín cada tanto, como si soplara aire. */
+    .cartel-esquina {
+      animation: esquina-aire 4.5s ease-in-out infinite;
+    }
+
+    .cartel-cinta--a,
+    .cartel-cinta--b {
+      transition: transform var(--dur-slow) var(--ease-bounce);
+    }
+
+    .cartel--anunciado:hover .cartel-cinta--a {
+      transform: rotate(-14deg) translateY(-3px);
+    }
+
+    .cartel--anunciado:hover .cartel-cinta--b {
+      transform: rotate(9deg) translateY(3px);
+    }
+  }
+
+  @keyframes pestana-cae {
+    0% {
+      transform: translateY(0) rotate(0deg);
+      opacity: 1;
+    }
+
+    100% {
+      transform: translateY(140px) rotate(28deg);
+      opacity: 0;
+      visibility: hidden;
+    }
+  }
+
+  @keyframes esquina-aire {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+
+    50% {
+      transform: scale(1.12);
+    }
+  }
+}

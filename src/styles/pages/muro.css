@@ -1,0 +1,108 @@
+@layer pages {
+  /* EL MURO (muro-de-drops): una pared de ladrillo a rotulador con los
+   carteles pegados. Los nuevos tapan a los viejos (--capa), el archivo se
+   solapa por detrás y El Pegador está junto al destacado. */
+  .muro {
+    --container: var(--container-wide);
+    padding-top: 48px;
+    padding-bottom: 96px;
+  }
+
+  .muro-cabecera {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-4);
+    margin-bottom: var(--space-7);
+  }
+
+  .muro-pared {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: var(--space-8) var(--space-7);
+    padding: var(--space-7) var(--space-6);
+    background-color: var(--muted-bg);
+    background-image: var(--brick-wall);
+    background-size: 120px 60px;
+    border: 2px solid var(--ink);
+    border-radius: var(--wobble-lg);
+    box-shadow: inset 0 0 0 6px rgba(var(--ink-rgb), 0.04);
+  }
+
+  .muro-hueco {
+    position: relative;
+    z-index: var(--capa, 1);
+  }
+
+  /* El Pegador, a la derecha del cartel, con la brocha sobre el canto. */
+  .muro-pegador {
+    right: -22%;
+    bottom: 34%;
+    height: clamp(150px, 44%, 260px);
+    z-index: 2;
+  }
+
+  .muro-vacio {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-8) var(--space-4);
+    text-align: center;
+  }
+
+  .muro-vacio-pegador {
+    width: auto;
+    height: 220px;
+  }
+
+  .muro-vacio-texto {
+    margin: 0;
+    font-family: var(--font-hand);
+    font-size: var(--text-lg);
+    color: var(--muted);
+  }
+
+  /* En escritorio el archivo se monta encima del hueco anterior: asoma roto
+   por debajo de los carteles nuevos. */
+  @media (min-width: 901px) {
+    .muro-hueco--archivo {
+      margin-top: calc(-1 * var(--space-7));
+    }
+
+    .muro-hueco--archivo + .muro-hueco--archivo {
+      margin-left: calc(-1 * var(--space-7));
+    }
+  }
+
+  @media (max-width: 640px) {
+    .muro-pared {
+      padding: var(--space-6) var(--space-4);
+      gap: var(--space-7);
+    }
+
+    /* En móvil no cabe a un lado: se asoma por encima del cartel. */
+    .muro-pegador {
+      right: -6px;
+      bottom: auto;
+      top: -96px;
+      height: 120px;
+    }
+
+    .muro-hueco:has(.muro-pegador) {
+      margin-top: 72px;
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .muro-hueco {
+      transition: transform var(--dur-base) var(--ease-out);
+    }
+
+    .muro-hueco:hover {
+      transform: translateY(-4px);
+    }
+  }
+}

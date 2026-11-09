@@ -217,4 +217,93 @@ describe('ProductDetail', () => {
     expect(scroll).toHaveBeenCalledWith({ block: 'center', behavior: 'instant' });
     delete HTMLElement.prototype.scrollIntoView;
   });
+
+  const dropDe = (handle, number, state) => ({
+    handle,
+    number,
+    title: `ROCKY DROP ${number}`,
+    state,
+    launchAt: '2026-11-01T19:00:00Z',
+    endsAt: state === 'archivo' ? '2026-11-05T19:00:00Z' : null,
+  });
+
+  function renderFicha(item, drops = []) {
+    return render(
+      <MemoryRouter initialEntries={[`/product/${item.handle}`]}>
+        <Routes>
+          <Route
+            path="/product/:productId"
+            element={
+              <ProductDetail
+                products={[item]}
+                addToCart={vi.fn()}
+                commerceMode="shopify"
+                canAddToCart
+                drops={drops}
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>
+    );
+  }
+
+  it('el drop de la ficha enlaza a su página', () => {
+    renderFicha(
+      { ...product, drop: 'ROCKY DROP 5', dropHandle: 'rocky-drop-5', dropState: 'en-la-calle' },
+      [dropDe('rocky-drop-5', 5, 'en-la-calle')]
+    );
+    expect(screen.getByRole('link', { name: 'ROCKY DROP 5' })).toHaveAttribute(
+      'href',
+      '/products/rocky-drop-5'
+    );
+  });
+
+  it('un diseño del archivo avisa de que el drop ya voló y no se compra', () => {
+    renderFicha(
+      {
+        ...product,
+        drop: 'ROCKY DROP 3',
+        dropHandle: 'rocky-drop-3',
+        dropState: 'archivo',
+        purchasable: false,
+      },
+      [dropDe('rocky-drop-3', 3, 'archivo')]
+    );
+    expect(screen.getByText(/este drop ya voló/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Drop cerrado' })).toBeDisabled();
+  });
+
+  it('un diseño sin drop no enlaza a ningún drop', () => {
+    renderFicha({ ...product, drop: 'Tienda', dropHandle: 'tienda' });
+    expect(screen.queryByRole('link', { name: 'Tienda' })).not.toBeInTheDocument();
+  });
+
+  it('el aviso de un diseño de un drop se apunta en la lista del drop', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ ok: true, duplicate: false }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+    renderFicha(
+      {
+        ...product,
+        drop: 'ROCKY DROP 5',
+        dropHandle: 'rocky-drop-5',
+        dropState: 'en-la-calle',
+        price: null,
+        variants: [],
+        defaultVariantId: null,
+      },
+      [dropDe('rocky-drop-5', 5, 'en-la-calle')]
+    );
+    fireEvent.change(screen.getByRole('textbox', { name: 'Tu email para el aviso del drop' }), {
+      target: { value: 'a@ejemplo.es' },
+    });
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.submit(screen.getByTestId('drop-aviso'));
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
+    expect(JSON.parse(fetchSpy.mock.calls[0][1].body).producto).toBe('rocky-drop-5');
+  });
 });

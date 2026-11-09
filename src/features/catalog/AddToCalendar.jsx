@@ -1,29 +1,27 @@
-import { CURRENT_DROP } from '../../config/campaign.js';
-import { googleCalendarUrl, hasLaunchDate } from '../../../shared/drop-calendar.mjs';
+import { calendarDrop, googleCalendarUrl, hasLaunchDate } from '../../../shared/drop-calendar.mjs';
+import { dropCalendarUrl } from '../../api/drops.js';
+import { fechaLarga, horaDeMadrid } from '../drops/fecha.js';
 import '../../styles/components/add-to-calendar.css';
 
 /* Apúntate la fecha: el .ics sirve para Apple, Outlook y casi cualquier
    calendario (con aviso un día y una hora antes) y Google tiene su enlace.
-   Sin fecha en la campaña, no se enseña nada. */
-export default function AddToCalendar({ drop = CURRENT_DROP }) {
-  if (!hasLaunchDate(drop)) return null;
-  const when = new Date(drop.launchAt).toLocaleString('es-ES', {
-    timeZone: 'Europe/Madrid',
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-  const google = googleCalendarUrl(drop, { origin: window.location.origin });
+   Recibe un drop público (shared/drops.mjs); sin fecha no enseña nada. */
+export default function AddToCalendar({ drop }) {
+  if (!drop || !hasLaunchDate(drop)) return null;
+  const event = calendarDrop(drop);
+  const google = googleCalendarUrl(event, { origin: window.location.origin });
 
   return (
     <div className="calendario">
       <p className="calendario-cuando">
-        Sale el <b>{when}</b>.
+        Sale el{' '}
+        <b>
+          {fechaLarga(drop.launchAt)} a las {horaDeMadrid(drop.launchAt)}
+        </b>{' '}
+        (hora de Madrid).
       </p>
       <div className="calendario-botones">
-        <a className="btn btn--ghost btn--sm" href="/api/drop/calendario.ics" download>
+        <a className="btn btn--ghost btn--sm" href={dropCalendarUrl(drop.handle)} download>
           Añadir al calendario
         </a>
         <a

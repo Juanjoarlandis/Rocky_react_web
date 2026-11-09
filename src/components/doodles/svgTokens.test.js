@@ -16,6 +16,8 @@ const SVG_SOURCES = [
   'src/components/doodles/EpCover.jsx',
   'src/components/doodles/ProductReticle.jsx',
   'src/components/doodles/TornSticker.jsx',
+  'src/components/doodles/DateRing.jsx',
+  'src/features/drops/Cartel.jsx',
 ];
 
 const HEX_COLOR = /#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})\b/i;

@@ -123,4 +123,34 @@ describe('Footer: patrulla de El Lata', () => {
       expect.stringContaining('lata-spray-walk-seedance-224.webp')
     );
   });
+
+  it('la cinta anuncia el drop destacado con su fecha, sin drop fijo', () => {
+    const anunciado = {
+      handle: 'rocky-drop-6',
+      number: 6,
+      state: 'anunciado',
+      launchAt: '2026-11-13T19:00:00Z',
+    };
+    const { container, rerender } = render(
+      <MemoryRouter>
+        <Footer featuredDrop={anunciado} />
+      </MemoryRouter>
+    );
+    expect(container.querySelector('.ticker').textContent).toContain('DROP 6 · 13·11 · 20:00');
+    expect(container.querySelector('.ticker').textContent).not.toContain('DROP 4');
+
+    rerender(
+      <MemoryRouter>
+        <Footer featuredDrop={{ ...anunciado, state: 'en-la-calle' }} />
+      </MemoryRouter>
+    );
+    expect(container.querySelector('.ticker').textContent).toContain('DROP 6 EN LA CALLE');
+
+    rerender(
+      <MemoryRouter>
+        <Footer featuredDrop={null} />
+      </MemoryRouter>
+    );
+    expect(container.querySelector('.ticker').textContent).not.toMatch(/DROP \d/);
+  });
 });

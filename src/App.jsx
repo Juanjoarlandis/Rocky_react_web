@@ -17,6 +17,7 @@ import demoCatalog from './data/demoCatalog.json';
 import previewProducts from '../shared/preview-products.mjs';
 import { normalizeDemoCatalog } from './features/storefront/normalize';
 import { useStorefront } from './features/storefront/useStorefront';
+import { useDrops } from './features/drops/useDrops.js';
 import { STORAGE_KEYS } from './config/storageKeys.js';
 import { readStorage, writeStorage } from './utils/storage.js';
 import { ROUTES } from './config/routes.js';
@@ -25,7 +26,7 @@ import { ROUTES } from './config/routes.js';
 const ProductDetail = React.lazy(() => import('./features/catalog/ProductDetail'));
 const Cart = React.lazy(() => import('./features/cart/Cart'));
 const ChatComponent = React.lazy(() => import('./features/chat/ChatComponent'));
-const MenuDrop = React.lazy(() => import('./features/catalog/MenuDrop'));
+const Muro = React.lazy(() => import('./features/drops/Muro'));
 const Studio = React.lazy(() => import('./features/studio/Studio'));
 const Crew = React.lazy(() => import('./features/crew/Crew'));
 const CrewProfile = React.lazy(() => import('./features/crew/CrewProfile'));
@@ -40,6 +41,13 @@ function App() {
   );
   const commerce = useStorefront({
     demoProducts: DEMO_CATALOG,
+  });
+  // Los drops (calendario-de-drops): al caer uno se recarga el catálogo, que
+  // es cuando sus diseños empiezan a salir.
+  const drops = useDrops({
+    mode: commerce.mode,
+    products: commerce.products,
+    onLaunch: commerce.refreshCatalog,
   });
   const [carreras, setCarreras] = useState(0);
   const location = useLocation();
@@ -87,6 +95,9 @@ function App() {
       canAddToCart={commerce.canAddToCart}
       prioritizeFirstImage={!showSplash}
       loading={commerce.loading}
+      drops={drops.drops}
+      featured={drops.featured}
+      serverNow={drops.serverNow}
     />
   );
 
@@ -135,7 +146,18 @@ function App() {
                   cubre la lista con y sin categoría, y / es la portada. */}
               <Route path="/" element={catalogPage} />
               <Route path="/products/:category?" element={catalogPage} />
-              <Route path="/menudrop" element={<MenuDrop products={commerce.products} />} />
+              <Route
+                path="/menudrop"
+                element={
+                  <Muro
+                    drops={drops.drops}
+                    featured={drops.featured}
+                    products={commerce.products}
+                    serverNow={drops.serverNow}
+                    loading={drops.loading}
+                  />
+                }
+              />
               <Route
                 path="/cart"
                 element={
@@ -167,6 +189,7 @@ function App() {
                     addToCart={addToCart}
                     commerceMode={commerce.mode}
                     canAddToCart={commerce.canAddToCart}
+                    drops={drops.drops}
                   />
                 }
               />
@@ -200,7 +223,7 @@ function App() {
             </Routes>
           </Suspense>
         </main>
-        {!esChat && <Footer />}
+        {!esChat && <Footer featuredDrop={drops.featured} />}
       </div>
     </MusicProvider>
   );

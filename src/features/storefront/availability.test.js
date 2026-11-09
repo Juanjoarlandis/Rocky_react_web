@@ -59,4 +59,22 @@ describe('regla de compra única', () => {
     expect(canAddProduct(product, variant, { mode: 'demo' })).toBe(true);
     expect(purchaseLabel(PURCHASE_STATES.NOTIFY)).toBe('Avísame');
   });
+
+  it('un diseño de un drop que no está a la venta sale como drop cerrado', () => {
+    const closed = { ...product, purchasable: false };
+    for (const mode of ['demo', 'shopify']) {
+      expect(purchaseState(closed, variant, { mode, cartEnabled: true })).toBe(
+        PURCHASE_STATES.DROP_CLOSED
+      );
+    }
+    expect(purchaseLabel(PURCHASE_STATES.DROP_CLOSED)).toBe('Drop cerrado');
+    expect(canAddProduct(closed, variant, { mode: 'shopify', cartEnabled: true })).toBe(false);
+  });
+
+  it('el drop cerrado manda sobre el agotado', () => {
+    const closed = { ...product, purchasable: false, availableForSale: false };
+    expect(
+      purchaseState(closed, { ...variant, availableForSale: false }, { mode: 'shopify' })
+    ).toBe(PURCHASE_STATES.DROP_CLOSED);
+  });
 });

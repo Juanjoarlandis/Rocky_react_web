@@ -21,7 +21,7 @@ export function useStorefront({ demoProducts = EMPTY_PRODUCTS } = {}) {
     onCart,
     onAccount: customer.applyAccount,
   });
-  const { mode, capabilities, products, loading, error, setError } = status;
+  const { mode, capabilities, products, loading, error, setError, refreshCatalog } = status;
 
   const cart = useCart({ mode, cartEnabled: capabilities.cart, onError: setError });
   seedCartRef.current = cart.applyNormalizedCart;
@@ -73,6 +73,7 @@ export function useStorefront({ demoProducts = EMPTY_PRODUCTS } = {}) {
       checkout,
       logout,
       updateCrewAvatar,
+      refreshCatalog,
     }),
     [
       mode,
@@ -96,6 +97,7 @@ export function useStorefront({ demoProducts = EMPTY_PRODUCTS } = {}) {
       checkout,
       logout,
       updateCrewAvatar,
+      refreshCatalog,
     ]
   );
 }

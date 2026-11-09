@@ -1,5 +1,4 @@
 import { PLACEHOLDER_IMAGE as PRODUCT_PLACEHOLDER } from '../../config/commerce.js';
-import { CURRENT_DROP } from '../../config/campaign.js';
 import { productImageSize } from '../../data/productImages.js';
 
 /* «35 RED» → «35-red», «ROCKY DROP 4» → «rocky-drop-4»: los handles del
@@ -17,21 +16,19 @@ function firstSellableVariant(variants) {
   return variants.find((variant) => variant.availableForSale) || variants[0] || null;
 }
 
-/* Sin colección en Shopify, un diseño sin foto es del drop en curso: es el que
-   anuncian la portada y la etiqueta del mockup («Drop 4 · sin revelar»). Si no
-   se asignara, la tarjeta decía «Tienda · sin revelar» encima de esa etiqueta y
-   la página de drops listaba un drop llamado «Tienda». */
-function dropOf(product, image) {
-  if (product.drop?.title) {
+/* El drop de cada diseño lo decide el servidor con el modelo de drops
+   (catalogo-vivo): { handle, title, number, state } o null. Lo que no es de
+   ningún drop va a «Tienda»; un producto sin foto ya no se esconde bajo llave. */
+function dropOf(product) {
+  if (product.drop?.handle) {
     return {
       title: product.drop.title,
-      handle: product.drop.handle || slugify(product.drop.title),
+      handle: product.drop.handle,
+      number: product.drop.number ?? null,
+      state: product.drop.state ?? null,
     };
   }
-  if (image === PRODUCT_PLACEHOLDER) {
-    return { title: CURRENT_DROP.title, handle: CURRENT_DROP.handle };
-  }
-  return { title: 'Tienda', handle: 'tienda' };
+  return { title: 'Tienda', handle: 'tienda', number: null, state: null };
 }
 
 export function normalizeCatalog(products = []) {
@@ -39,7 +36,7 @@ export function normalizeCatalog(products = []) {
     const variants = Array.isArray(product.variants) ? product.variants : [];
     const defaultVariant = firstSellableVariant(variants);
     const image = product.image?.url || defaultVariant?.image?.url || PRODUCT_PLACEHOLDER;
-    const drop = dropOf(product, image);
+    const drop = dropOf(product);
     return {
       id: product.handle,
       handle: product.handle,
@@ -51,6 +48,9 @@ export function normalizeCatalog(products = []) {
       imageAlt: product.image?.alt || defaultVariant?.image?.alt || product.title,
       drop: drop.title,
       dropHandle: drop.handle,
+      dropNumber: drop.number,
+      dropState: drop.state,
+      purchasable: product.purchasable !== false,
       variants,
       defaultVariantId: defaultVariant?.id || null,
       price: defaultVariant?.price || null,

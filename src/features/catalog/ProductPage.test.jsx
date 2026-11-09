@@ -48,7 +48,8 @@ describe('ProductPage preview drops', () => {
 
     const heading = screen.getByRole('heading', { level: 1, name: 'ROCKY 035' });
     const tagline = screen.getByText('HECHO DESDE LA COLMENA');
-    const catalogLink = screen.getByRole('link', { name: 'Ver Drop 4' });
+    // Sin drop destacado la portada no anuncia ninguno: salta al catálogo.
+    const catalogLink = screen.getByRole('link', { name: 'Ver el catálogo' });
     const productGrid = container.querySelector('.product-grid');
 
     expect(catalogLink).toHaveAttribute('href', '#productos');
@@ -98,7 +99,7 @@ describe('ProductPage preview drops', () => {
     expect(screen.getAllByRole('button', { name: 'Vista previa' })).toHaveLength(2);
     expect(screen.queryByRole('button', { name: /añadir al carrito/i })).not.toBeInTheDocument();
     expect(screen.queryByText('HECHO DESDE LA COLMENA')).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Ver Drop 4' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Ver el catálogo' })).not.toBeInTheDocument();
   });
 });
 
@@ -139,19 +140,55 @@ describe('ProductPage catalog grouping', () => {
     ...previewProducts,
   ];
 
-  it('muestra primero los diseños con foto y agrupa los que siguen bajo llave con un solo aviso', () => {
+  /* sistema-de-drops: del drop anunciado solo sale su cartel teaser, sin
+     nombres; un producto sin foto se ve como uno más (H-019). */
+  const teaserDrop = {
+    handle: 'rocky-drop-4',
+    number: 4,
+    title: 'ROCKY DROP 4',
+    tagline: 'Lo que viene',
+    story: '',
+    poster: null,
+    launchAt: '2099-01-01T19:00:00Z',
+    endsAt: null,
+    state: 'anunciado',
+    designCount: 4,
+    designs: null,
+    soldOut: false,
+  };
+
+  it('del drop anunciado enseña su cartel teaser y ningún diseño suyo', () => {
+    render(
+      <MemoryRouter>
+        <ProductPage
+          products={demoProducts}
+          addToCart={vi.fn()}
+          commerceMode="demo"
+          drops={[teaserDrop]}
+          featured={teaserDrop}
+          serverNow={() => Date.now()}
+        />
+      </MemoryRouter>
+    );
+
+    const teaser = screen.getByRole('article', { name: 'ROCKY DROP 4' });
+    expect(teaser).toHaveClass('cartel--compacto');
+    expect(screen.queryByText(/35 RED|35 WHITE|Dots|RockyRacing/)).not.toBeInTheDocument();
+    expect(screen.getByText('4 diseños bajo llave')).toBeInTheDocument();
+    // Los conceptos de otro drop siguen saliendo.
+    expect(screen.getByRole('heading', { level: 2, name: 'Night Runner' })).toBeInTheDocument();
+  });
+
+  it('un producto sin foto sale como una tarjeta más, sin esconderse bajo llave', () => {
     render(
       <MemoryRouter>
         <ProductPage products={demoProducts} addToCart={vi.fn()} commerceMode="demo" />
       </MemoryRouter>
     );
 
-    const cards = document.querySelectorAll('.product-grid > .product-card');
-    expect(cards[0]).toHaveTextContent('RockyRacing');
-    expect(cards[1]).toHaveAttribute('data-testid', 'locked-designs');
-    expect(screen.getByRole('heading', { name: '3 diseños bajo llave' })).toBeInTheDocument();
-    expect(screen.getByText('35 RED · 35 WHITE · Dots')).toBeInTheDocument();
-    expect(screen.getAllByTestId('drop-aviso')).toHaveLength(1);
+    expect(screen.queryByTestId('locked-designs')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: '35 RED' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /35 RED — sin foto todavía/ })).toBeInTheDocument();
   });
 
   it('sin precio conocido ofrece «Avísame» en vez de «Añadir al carrito», en cualquier modo', () => {
@@ -162,10 +199,9 @@ describe('ProductPage catalog grouping', () => {
     );
 
     expect(screen.queryByRole('button', { name: /añadir al carrito/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Avísame' })).toHaveAttribute(
-      'href',
-      '/product/rockyracing#aviso'
-    );
+    expect(
+      screen.getAllByRole('link', { name: 'Avísame' }).map((link) => link.getAttribute('href'))
+    ).toContain('/product/rockyracing#aviso');
     expect(screen.getAllByRole('button', { name: 'Vista previa' })).toHaveLength(
       previewProducts.length
     );
@@ -286,7 +322,7 @@ describe('ProductPage card anatomy', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('ROCKY 035');
     expect(screen.getByText('HECHO DESDE LA COLMENA')).toBeInTheDocument();
     expect(screen.getByText(`${previewProducts.length} diseños`)).toBeInTheDocument();
-    const cta = screen.getByRole('link', { name: 'Ver Drop 4' });
+    const cta = screen.getByRole('link', { name: 'Ver el catálogo' });
     expect(cta).toHaveAttribute('href', '#productos');
     expect(document.getElementById('productos')).not.toBeNull();
     expect(document.title).toBe('ROCKY 035');
@@ -492,5 +528,142 @@ describe('ProductPage: pegatina arrancada', () => {
     );
     // Ninguna regla suelta levanta todas las tarjetas (las bajo llave tienen la suya).
     expect(productPageCss).not.toMatch(/^\s*\.product-card:hover \{/m);
+  });
+});
+
+describe('ProductPage: drops en la portada y página de drop', () => {
+  const now = () => Date.parse('2026-11-10T12:00:00Z');
+  const live = {
+    handle: 'rocky-drop-5',
+    number: 5,
+    title: 'ROCKY DROP 5',
+    tagline: 'Recién salido',
+    story: 'Cuando vuelan, vuelan.',
+    poster: null,
+    launchAt: '2026-11-01T19:00:00Z',
+    endsAt: null,
+    state: 'en-la-calle',
+    designCount: 1,
+    designs: ['rocky-airwave'],
+    soldOut: false,
+  };
+  const announced = {
+    ...live,
+    handle: 'rocky-drop-6',
+    number: 6,
+    title: 'ROCKY DROP 6',
+    launchAt: '2026-11-13T19:00:00Z',
+    state: 'anunciado',
+    designs: null,
+  };
+  const archive = {
+    ...live,
+    handle: 'rocky-drop-3',
+    number: 3,
+    title: 'ROCKY DROP 3',
+    launchAt: '2026-09-01T19:00:00Z',
+    endsAt: '2026-09-08T19:00:00Z',
+    state: 'archivo',
+    designs: ['rocky-congelado'],
+  };
+  const airwave = {
+    ...forSale,
+    drop: 'ROCKY DROP 5',
+    dropHandle: 'rocky-drop-5',
+    dropState: 'en-la-calle',
+    purchasable: true,
+  };
+  const congelado = {
+    ...forSale,
+    id: 'rocky-congelado',
+    handle: 'rocky-congelado',
+    title: 'Congelado',
+    drop: 'ROCKY DROP 3',
+    dropHandle: 'rocky-drop-3',
+    dropState: 'archivo',
+    purchasable: false,
+  };
+  const drops = [announced, live, archive];
+
+  function renderAt(path) {
+    return render(
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          {['/', '/products/:category'].map((routePath) => (
+            <Route
+              key={routePath}
+              path={routePath}
+              element={
+                <ProductPage
+                  products={[airwave, congelado]}
+                  addToCart={vi.fn()}
+                  commerceMode="shopify"
+                  canAddToCart
+                  drops={drops}
+                  featured={announced}
+                  serverNow={now}
+                />
+              }
+            />
+          ))}
+        </Routes>
+      </MemoryRouter>
+    );
+  }
+
+  it('la portada anuncia el drop destacado y lleva a su página', () => {
+    renderAt('/');
+    expect(screen.getByRole('link', { name: /Ver el Drop 6/ })).toHaveAttribute(
+      'href',
+      '/products/rocky-drop-6'
+    );
+    expect(screen.getByText(/Cae el viernes 13 de noviembre a las 20:00/)).toBeInTheDocument();
+  });
+
+  it('el catálogo sigue el orden del muro: teaser, en la calle y archivo', () => {
+    const { container } = renderAt('/');
+    const order = [...container.querySelectorAll('.product-grid > *')].map(
+      (node) => node.getAttribute('data-testid') || node.querySelector('h2')?.textContent
+    );
+    expect(order).toEqual([
+      'catalogo-teaser-rocky-drop-6',
+      'catalogo-seccion-rocky-drop-5',
+      'Airwave',
+      'catalogo-seccion-rocky-drop-3',
+      'Congelado',
+    ]);
+  });
+
+  it('un diseño del archivo no se puede comprar', () => {
+    renderAt('/');
+    const card = screen
+      .getByRole('heading', { level: 2, name: 'Congelado' })
+      .closest('.product-card');
+    expect(within(card).getByRole('button', { name: 'Drop cerrado' })).toBeDisabled();
+  });
+
+  it('la página de un drop anunciado enseña su cartel con aviso y calendario, sin vaciarse', () => {
+    renderAt('/products/rocky-drop-6');
+    const cartel = screen.getByRole('article', { name: 'ROCKY DROP 6' });
+    expect(cartel).toHaveClass('cartel--cabecera');
+    expect(screen.getByRole('link', { name: 'Añadir al calendario' })).toHaveAttribute(
+      'href',
+      '/api/drops/rocky-drop-6/calendario.ics'
+    );
+    expect(screen.getByText(/se destapan el día del drop/i)).toBeInTheDocument();
+    expect(screen.queryByText('Nada por aquí')).not.toBeInTheDocument();
+  });
+
+  it('la página de un drop en la calle lleva su cartel y sus diseños', () => {
+    renderAt('/products/rocky-drop-5');
+    expect(screen.getByRole('article', { name: 'ROCKY DROP 5' })).toHaveClass('cartel--cabecera');
+    expect(screen.getByRole('heading', { level: 2, name: 'Airwave' })).toBeInTheDocument();
+    expect(document.title).toContain('ROCKY DROP 5');
+  });
+
+  it('la página del archivo avisa de que el drop ya voló', () => {
+    renderAt('/products/rocky-drop-3');
+    expect(screen.getByText(/este drop ya voló/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Drop cerrado' })).toBeDisabled();
   });
 });

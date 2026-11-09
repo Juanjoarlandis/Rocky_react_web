@@ -17,6 +17,8 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { prefersReducedMotion } from '../../utils/media.js';
 import '../../styles/pages/product-detail.css';
 import { useNightArt } from '../night/nightArt.js';
+import { DROP_STATES } from '../../../shared/drops.mjs';
+import { ROUTES } from '../../config/routes.js';
 
 function ProductDetail({
   products,
@@ -25,6 +27,7 @@ function ProductDetail({
   canAddToCart = true,
   loading = false,
   catalogError = '',
+  drops = [],
 }) {
   const vigiaArt = useNightArt(sentadoBordeBlanco);
   const { productId } = useParams();
@@ -35,6 +38,8 @@ function ProductDetail({
   const product = products.find(
     (candidate) => String(candidate.handle ?? candidate.id) === String(productId)
   );
+  // Su drop, si es de alguno: el título enlaza a su página.
+  const productDrop = product ? drops.find((drop) => drop.handle === product.dropHandle) : null;
   useDocumentTitle(
     product?.title ||
       (loading
@@ -116,7 +121,13 @@ function ProductDetail({
 
       <div className="detail-grid">
         <header className="detail-heading">
-          <p className="kicker detail-drop">{product.drop}</p>
+          <p className="kicker detail-drop">
+            {productDrop ? (
+              <Link to={ROUTES.category(productDrop.handle)}>{product.drop}</Link>
+            ) : (
+              product.drop
+            )}
+          </p>
           <h1 className="detail-title squiggle-underline">{product.title}</h1>
         </header>
 
@@ -139,7 +150,7 @@ function ProductDetail({
             disabled={isPlaceholder}
           >
             {isPlaceholder ? (
-              <PlaceholderTee title={product.title} />
+              <PlaceholderTee title={product.title} compact description="sin foto todavía" />
             ) : (
               <img
                 src={product.image}
@@ -220,12 +231,19 @@ function ProductDetail({
                 unavailableLabel={purchaseLabel(state)}
               />
             )}
-            {/* Sin precio no hay compra, pero sí recado: el aviso
-                            usa la misma identidad con la que se llegó aquí. */}
+            {state === PURCHASE_STATES.DROP_CLOSED && (
+              <p className="detail-drop-cerrado">
+                Este drop ya voló: este diseño se queda en el archivo, sin venta.
+              </p>
+            )}
+            {/* Sin precio no hay compra, pero sí recado. Si el diseño es de un
+                drop, el aviso va a la lista del drop (avisos-de-drop). */}
             {state === PURCHASE_STATES.NOTIFY && (
               <div id="aviso" ref={avisoRef}>
-                <DropAviso producto={String(product.handle ?? product.id)} />
-                <AddToCalendar />
+                <DropAviso producto={productDrop?.handle ?? String(product.handle ?? product.id)} />
+                {productDrop?.state === DROP_STATES.ANNOUNCED && (
+                  <AddToCalendar drop={productDrop} />
+                )}
               </div>
             )}
           </div>

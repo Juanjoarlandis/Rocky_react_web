@@ -289,6 +289,65 @@
     gap: 28px;
   }
 
+  /* ---------- Drops en el catálogo (muro-de-drops) ----------
+   El teaser del drop anunciado ocupa la fila entera; cada drop abre su
+   sección con su nombre, su estado y el enlace a su página. */
+  .catalogo-teaser,
+  .catalogo-seccion {
+    grid-column: 1 / -1;
+  }
+
+  .catalogo-teaser {
+    margin-bottom: var(--space-4);
+  }
+
+  .catalogo-seccion {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-4);
+    margin: var(--space-4) 0 0;
+    padding-bottom: var(--space-2);
+    border-bottom: 2px dashed var(--line);
+  }
+
+  .catalogo-seccion-titulo {
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    color: var(--ink);
+  }
+
+  .catalogo-seccion-estado {
+    font-size: var(--text-sm);
+  }
+
+  .catalogo-seccion-enlace {
+    margin-left: auto;
+    font-family: var(--font-hand);
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  /* La página de un drop: su cartel hace de cabecera. */
+  .drop-cabecera {
+    margin-bottom: var(--space-7);
+  }
+
+  .drop-nota {
+    max-width: var(--container-text);
+    margin: var(--space-5) 0 0;
+    font-family: var(--font-hand);
+    font-size: var(--text-lg);
+    color: var(--muted);
+  }
+
+  .product-page-hero-drop {
+    margin: var(--space-3) 0 0;
+    font-family: var(--font-hand);
+    font-size: var(--text-md);
+    color: var(--ink-soft);
+  }
+
   .product-grid[id] {
     scroll-margin-top: clamp(104px, 16vw, 176px);
   }

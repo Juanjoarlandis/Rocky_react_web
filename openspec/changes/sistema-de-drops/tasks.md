@@ -66,26 +66,26 @@ Nivel 3. TDD en cada tarea de lógica: prueba en rojo, implementación mínima, 
 
 ## 7. Cliente: datos
 
-- [ ] 7.1 Datos de drops en el cliente:
+- [x] 7.1 Datos de drops en el cliente:
   - `src/api/drops.js` y `useDrops` (reloj corregido con `now`, nueva petición al llegar a cero y reintentos a 5 y 15 s);
   - `normalize`, que toma el drop del producto y `purchasable`;
   - `availability`, con un estado cerrado.
 
   Verifica: pruebas de `useDrops` con reloj falso, y de `normalize` y `availability`.
-- [ ] 7.2 Retirar `CURRENT_DROP` (`shared/campaign.mjs`, `src/config/campaign.js`) y sus usos, y que «sin foto» deje de ser «bajo llave». Verifica: `rg CURRENT_DROP` sin resultados y pruebas de catálogo y ficha en verde.
+- [x] 7.2 Retirar `CURRENT_DROP` (`shared/campaign.mjs`, `src/config/campaign.js`) y sus usos, y que «sin foto» deje de ser «bajo llave». Verifica: `rg CURRENT_DROP` sin resultados y pruebas de catálogo y ficha en verde.
 
 ## 8. Cliente: el muro
 
-- [ ] 8.1 `Cartel` con sus estados (anunciado, en la calle, últimas horas, archivo y sin imagen) y `CuentaAtras` (texto accesible con la fecha de Madrid; la cuenta visual, oculta a lectores de pantalla). Verifica: pruebas de componente de cada estado, el teaser sin nombres y la cuenta con el reloj corregido.
-- [ ] 8.2 `Pestanas` recortables que abren el `DropAviso` del drop, con el foco en el email, accesibles por teclado y sin animación con movimiento reducido. Verifica: pruebas de teclado y foco, y de la clave del aviso.
-- [ ] 8.3 Página del muro en `/menudrop`: orden, solapes del archivo, El Pegador, noche, móvil y estilos en `src/styles/pages/muro.css` (solo tokens). Verifica: pruebas de orden y Stylelint en verde.
+- [x] 8.1 `Cartel` con sus estados (anunciado, en la calle, últimas horas, archivo y sin imagen) y `CuentaAtras` (texto accesible con la fecha de Madrid; la cuenta visual, oculta a lectores de pantalla). Verifica: pruebas de componente de cada estado, el teaser sin nombres y la cuenta con el reloj corregido.
+- [x] 8.2 `Pestanas` recortables que abren el `DropAviso` del drop, con el foco en el email, accesibles por teclado y sin animación con movimiento reducido. Verifica: pruebas de teclado y foco, y de la clave del aviso.
+- [x] 8.3 Página del muro en `/menudrop`: orden, solapes del archivo, El Pegador, noche, móvil y estilos en `src/styles/pages/muro.css` (solo tokens). Verifica: pruebas de orden y Stylelint en verde.
 
 ## 9. Cliente: portada, drop, ficha y pie
 
-- [ ] 9.1 Portada con el drop destacado (cuenta atrás o enlace) y el catálogo en el orden del muro, con el teaser como cartel. Verifica: pruebas de `ProductPage` y de la portada con anunciado, sin destacado y en demo.
-- [ ] 9.2 Página `/products/:handle` con el cartel de cabecera y su contenido según el estado. Verifica: pruebas de cada estado.
-- [ ] 9.3 Ficha con enlace a su drop, «este drop ya voló» sin compra en el archivo, agotado como siempre y avisos por drop. `PlaceholderTee` con el drop correcto. Verifica: pruebas de `ProductDetail`.
-- [ ] 9.4 Cinta del pie con el destacado y su fecha o estado. Verifica: pruebas del pie.
+- [x] 9.1 Portada con el drop destacado (cuenta atrás o enlace) y el catálogo en el orden del muro, con el teaser como cartel. Verifica: pruebas de `ProductPage` y de la portada con anunciado, sin destacado y en demo.
+- [x] 9.2 Página `/products/:handle` con el cartel de cabecera y su contenido según el estado. Verifica: pruebas de cada estado.
+- [x] 9.3 Ficha con enlace a su drop, «este drop ya voló» sin compra en el archivo, agotado como siempre y avisos por drop. `PlaceholderTee` con el drop correcto. Verifica: pruebas de `ProductDetail`.
+- [x] 9.4 Cinta del pie con el destacado y su fecha o estado. Verifica: pruebas del pie.
 
 ## 10. Cliente: el Taller
 
@@ -106,7 +106,7 @@ Nivel 3. TDD en cada tarea de lógica: prueba en rojo, implementación mínima, 
   - integrado en el muro.
 
   Verifica: revisión de arte (estilo, paleta, recorte transparente, día y noche).
-- [ ] 12.2 Carteles de los 4 drops de prueba, generados en el estilo de la casa y guardados en `assets-master/carteles-prueba/`. Verifica: revisión de arte de la paleta y de que ningún cartel del anunciado revele diseños.
+- [x] 12.2 Carteles de los 4 drops de prueba, generados en el estilo de la casa y guardados en `assets-master/carteles-prueba/`. Verifica: revisión de arte de la paleta y de que ningún cartel del anunciado revele diseños.
 
 ## 13. Tienda de pruebas
 
