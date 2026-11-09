@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mira, Tipp-Ex y pegatina · ROCKY 035</title>
+    <!-- Prototipo de aprobación del cambio OpenSpec `punto-de-mira-tippex-y-pegatinas`.
+         Usa las hojas reales de la web (tokens, fuentes, base, botones, tarjeta y foto),
+         así que lo que se ve aquí es lo que se verá en la tienda. Ábrelo servido desde la
+         raíz del repo (por ejemplo `npx serve .` o el Vite de desarrollo en
+         /docs/design/…). -->
+    <link rel="stylesheet" href="../../src/styles/index.css" />
+    <link rel="stylesheet" href="../../src/styles/components/product-media.css" />
+    <link rel="stylesheet" href="../../src/styles/pages/home.css" />
+    <style>
+      /* ---------- Página del prototipo (no va a la web) ---------- */
+      .preview-head p {
+        max-width: 62ch;
+      }
+
+      .preview-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin: 18px 0 8px;
+        font-family: var(--font-hand);
+      }
+
+      .preview-section {
+        margin-top: 48px;
+      }
+
+      .preview-section h2 {
+        font-family: var(--font-display);
+        letter-spacing: 0.02em;
+        margin: 0 0 6px;
+      }
+
+      .preview-section > p {
+        margin: 0 0 22px;
+        max-width: 62ch;
+      }
+
+      .preview-grid {
+        max-width: 860px;
+      }
+
+      /* ================================================================
+         IDEA 2 · PUNTO DE MIRA — irá a components/product-media.css
+         ================================================================ */
+      .mira {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+        pointer-events: none;
+      }
+
+      .mira path,
+      .mira circle {
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      /* Cada trazo va dos veces: debajo, un halo del color de la tarjeta para que
+         la tinta se lea sobre camisetas negras; encima, la tinta. */
+      .mira .halo {
+        stroke: var(--card);
+        stroke-width: 5;
+      }
+
+      .mira-aro .tinta {
+        stroke: var(--ink);
+        stroke-width: 2.4;
+      }
+
+      .mira-marcas .tinta {
+        stroke: var(--accent);
+        stroke-width: 2.4;
+      }
+
+      .mira-centro {
+        fill: var(--ink);
+      }
+
+      .mira-apunta {
+        opacity: 0;
+        transform: scale(1.3) rotate(-14deg);
+        transform-box: fill-box;
+        transform-origin: center;
+        transition:
+          opacity var(--dur-base) ease,
+          transform var(--dur-slow) var(--ease-bounce);
+      }
+
+      .product-media:hover .mira-apunta,
+      .product-media:focus-visible .mira-apunta {
+        opacity: 1;
+        transform: none;
+      }
+
+      /* El impacto: mientras el botón dice «Añadido ✓», la mira se cierra del todo
+         y deja una pegatina roja en la esquina de la foto. */
+      .mira-impacto {
+        transform: scale(0);
+        transform-box: fill-box;
+        transform-origin: center;
+      }
+
+      .mira-impacto .sombra {
+        fill: var(--ink);
+      }
+
+      .mira-impacto .punto {
+        fill: var(--accent);
+        stroke: var(--ink);
+        stroke-width: 2.4;
+      }
+
+      .product-card:has(.btn--added) .mira-apunta {
+        opacity: 1;
+        transform: scale(0.78);
+      }
+
+      .product-card:has(.btn--added) .mira-impacto {
+        transform: none;
+        transition: transform var(--dur-slow) var(--ease-bounce);
+      }
+
+      /* ================================================================
+         IDEA 7 · PEGATINA ARRANCADA — irá a pages/home.css
+         ================================================================ */
+      .pegatina-rota {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+
+      .pegatina-rota .papel {
+        fill: var(--card);
+      }
+
+      .pegatina-rota .borde {
+        fill: none;
+        stroke: var(--ink);
+        stroke-width: 2;
+        stroke-linejoin: round;
+        vector-effect: non-scaling-stroke;
+      }
+
+      .pegatina-rotulo {
+        position: absolute;
+        right: 9%;
+        bottom: 12%;
+        font-family: var(--font-display);
+        font-size: clamp(1.1rem, 6cqi, 1.9rem);
+        color: var(--accent);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        transform: rotate(-9deg);
+        pointer-events: none;
+      }
+
+      .product-card.is-sold-out .product-media {
+        container-type: inline-size;
+      }
+
+      /* Pegada a la farola: no se levanta ni hace zoom. */
+      .product-card.is-sold-out:hover {
+        transform: rotate(-0.5deg);
+        box-shadow: var(--shadow-ink);
+      }
+
+      .product-card.is-sold-out:hover .product-image {
+        transform: none;
+      }
+
+      /* ================================================================
+         IDEA 5 · ROTULADOR Y TIPP-EX — irá a components/descontrol.css
+         ================================================================ */
+      .capa-modo {
+        position: fixed;
+        inset: 0;
+        z-index: var(--z-splash);
+        pointer-events: none;
+      }
+
+      .capa-modo svg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      .trazo {
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-dasharray: 1;
+        stroke-dashoffset: 1;
+      }
+
+      /* Encender: el rotulador tapa la pantalla en el primer 35 % de los 1,4 s del
+         rótulo; después se enciende el rótulo y todo se va como hoy. */
+      .capa-modo--rotulador {
+        display: grid;
+        place-items: center;
+        padding: 0 var(--space-4);
+        animation: apagon 1.4s ease-in forwards;
+      }
+
+      .capa-modo--rotulador .trazo {
+        stroke: rgb(var(--black-rgb));
+        animation: dibuja 1.4s linear forwards;
+      }
+
+      .capa-modo--rotulador span {
+        position: relative;
+        font-family: var(--font-display);
+        font-size: clamp(2.4rem, 9vw, 6rem);
+        line-height: 0.95;
+        text-align: center;
+        text-transform: uppercase;
+        color: var(--uv-lime);
+        text-shadow:
+          0 0 12px rgba(var(--uv-lime-rgb), 0.9),
+          0 0 40px rgba(var(--uv-lime-rgb), 0.5),
+          0 0 90px rgba(var(--uv-violet-rgb), 0.55);
+        animation: rotulo-tras-trazos 1.4s linear forwards;
+      }
+
+      @keyframes dibuja {
+        0% {
+          stroke-dashoffset: 1;
+        }
+
+        35%,
+        100% {
+          stroke-dashoffset: 0;
+        }
+      }
+
+      @keyframes rotulo-tras-trazos {
+        0%,
+        36% {
+          opacity: 0;
+        }
+
+        40% {
+          opacity: 1;
+        }
+
+        44% {
+          opacity: 0.2;
+        }
+
+        48%,
+        100% {
+          opacity: 1;
+        }
+      }
+
+      /* Apagar: la noche (siempre el papel de noche, aunque el tema ya sea de día)
+         se tapa con brochazos de corrector y la capa se funde con el papel crema. */
+      .capa-modo--tippex {
+        background-color: rgb(var(--neon-paper-rgb));
+        animation: funde 0.7s ease-in forwards;
+      }
+
+      .capa-modo--tippex .trazo {
+        stroke: var(--white);
+        animation: corrige 0.7s cubic-bezier(0.5, 0, 0.6, 1) forwards;
+      }
+
+      @keyframes corrige {
+        0% {
+          stroke-dashoffset: 1;
+        }
+
+        70%,
+        100% {
+          stroke-dashoffset: 0;
+        }
+      }
+
+      @keyframes funde {
+        0%,
+        70% {
+          opacity: 1;
+        }
+
+        100% {
+          opacity: 0;
+        }
+      }
+
+      html.is-reduced .capa-modo {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page-container">
+      <header class="preview-head">
+        <h1 class="page-title">Mira, Tipp-Ex y pegatina</h1>
+        <p>
+          Prototipo para aprobar las ideas 2, 5 y 7 de dirección artística, con las hojas reales de
+          la web. Nada de esto está todavía en la tienda.
+        </p>
+        <div class="preview-controls">
+          <button type="button" class="btn btn--primary btn--sm" id="encender">
+            Encender el descontrol
+          </button>
+          <button type="button" class="btn btn--primary btn--sm" id="apagar">
+            Apagar el descontrol
+          </button>
+          <button type="button" class="btn btn--ghost btn--sm" id="tema">
+            Día / noche sin transición
+          </button>
+          <label><input type="checkbox" id="reducido" /> Movimiento reducido</label>
+        </div>
+      </header>
+
+      <section class="preview-section" aria-labelledby="t-mira">
+        <h2 id="t-mira">2 · Punto de mira</h2>
+        <p>
+          Pasa el puntero por la foto o llega con Tab: la mira se cierra sobre la camiseta. «Añadir
+          al carrito» marca el impacto con una pegatina roja mientras dura «Añadido ✓».
+        </p>
+        <div class="product-grid preview-grid" id="grid-mira"></div>
+      </section>
+
+      <section class="preview-section" aria-labelledby="t-agotado">
+        <h2 id="t-agotado">7 · Pegatina arrancada</h2>
+        <p>
+          Un producto agotado se queda pegado a la farola, medio rascado. Su foto sigue abriéndose
+          entera en grande; el botón dice «Agotado» como hasta ahora.
+        </p>
+        <div class="product-grid preview-grid" id="grid-agotado"></div>
+      </section>
+
+      <section class="preview-section" aria-labelledby="t-modo">
+        <h2 id="t-modo">5 · Rotulador y Tipp-Ex</h2>
+        <p>
+          Usa «Encender el descontrol» y «Apagar el descontrol» de arriba. Al encender, el rotulador
+          tapa la pantalla y se enciende el rótulo (1,4 s, como hoy). Al apagar, el corrector borra
+          la noche (0,7 s).
+        </p>
+      </section>
+    </main>
+
+    <template id="mira">
+      <svg class="mira" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+        <g class="mira-apunta">
+          <g class="mira-aro">
+            <path
+              class="halo"
+              d="M50.7 34.3c9-.4 15.8 6.6 15.5 16.1-.3 9.3-7.5 16-16.5 15.7-9-.3-15.7-7.3-15.5-16.4.2-8.6 7-15.1 17-15.5"
+            />
+            <path
+              class="tinta"
+              d="M50.7 34.3c9-.4 15.8 6.6 15.5 16.1-.3 9.3-7.5 16-16.5 15.7-9-.3-15.7-7.3-15.5-16.4.2-8.6 7-15.1 17-15.5"
+            />
+          </g>
+          <g class="mira-marcas">
+            <path class="halo" d="M50 24v7M50 69v7M24 50h7M69 50h7" />
+            <path class="tinta" d="M50 24v7M50 69v7M24 50h7M69 50h7" />
+          </g>
+          <circle class="mira-centro" cx="50" cy="50" r="2" />
+        </g>
+        <g class="mira-impacto">
+          <circle class="sombra" cx="86.5" cy="15.5" r="8" />
+          <circle class="punto" cx="84.5" cy="13.5" r="8" />
+        </g>
+      </svg>
+    </template>
+
+    <template id="rota">
+      <svg
+        class="pegatina-rota"
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <path
+          class="papel"
+          d="M100 33 96.5 36.8 94 35.2 89.8 40.6 87.5 39.1 86 41 81.2 44.9 78.4 43.2 74.9 48.8 72 47.6 70.8 49.9 66.1 52.7 64 51 59.5 56.4 58 55.5 53.2 59.8 50.4 58.2 47.9 62.6 43 63.4 41.2 61.9 37.6 66.8 33.5 67.4 31.9 66 28.2 71.1 24.7 70.2 22.9 73.6 18.1 74.9 16.4 73.5 12.8 78.4 9.3 77.6 7.2 81.3 3.1 82.4 0 81V100H100Z"
+        />
+        <path
+          class="borde"
+          d="M100 33 96.5 36.8 94 35.2 89.8 40.6 87.5 39.1 86 41 81.2 44.9 78.4 43.2 74.9 48.8 72 47.6 70.8 49.9 66.1 52.7 64 51 59.5 56.4 58 55.5 53.2 59.8 50.4 58.2 47.9 62.6 43 63.4 41.2 61.9 37.6 66.8 33.5 67.4 31.9 66 28.2 71.1 24.7 70.2 22.9 73.6 18.1 74.9 16.4 73.5 12.8 78.4 9.3 77.6 7.2 81.3 3.1 82.4 0 81"
+        />
+      </svg>
+      <span class="pegatina-rotulo" aria-hidden="true">Agotado</span>
+    </template>
+
+    <script>
+      const productos = [
+        {
+          titulo: 'Rocky Airwave',
+          foto: '../../public/products/rocky-airwave.webp',
+          precio: '29,00 €',
+        },
+        {
+          titulo: 'Rocky Marea 035',
+          foto: '../../public/products/rocky-marea-035.webp',
+          precio: '29,00 €',
+        },
+        {
+          titulo: 'Rocky Night Runner',
+          foto: '../../public/products/rocky-night-runner.webp',
+          precio: '32,00 €',
+        },
+      ];
+
+      function tarjeta({ titulo, foto, precio }, { agotado = false } = {}) {
+        const article = document.createElement('article');
+        article.className = `paper-card product-card${agotado ? ' is-sold-out' : ''}`;
+        article.innerHTML = `
+          <button type="button" class="product-media" aria-label="Ver ${titulo} en grande">
+            <img src="${foto}" width="1254" height="1254" alt="${titulo}" class="product-image" />
+          </button>
+          <div class="product-body">
+            <h3 class="product-title">${titulo}</h3>
+            <p class="product-price">${precio}</p>
+            <div class="product-actions">
+              <a class="btn btn--ghost btn--sm btn--block" href="#">Detalles</a>
+              <div class="add-to-cart-control">
+                <button type="button" class="btn btn--primary btn--sm btn--block" ${agotado ? 'disabled' : ''}>
+                  ${agotado ? 'Agotado' : 'Añadir al carrito'}
+                </button>
+              </div>
+            </div>
+          </div>`;
+        const media = article.querySelector('.product-media');
+        media.append(document.getElementById('mira').content.cloneNode(true));
+        if (agotado) media.append(document.getElementById('rota').content.cloneNode(true));
+        const comprar = article.querySelector('.add-to-cart-control .btn');
+        comprar.addEventListener('click', () => {
+          comprar.classList.add('btn--added');
+          comprar.textContent = 'Añadido ✓';
+          setTimeout(() => {
+            comprar.classList.remove('btn--added');
+            comprar.textContent = 'Añadir al carrito';
+          }, 1200);
+        });
+        return article;
+      }
+
+      const gridMira = document.getElementById('grid-mira');
+      productos.forEach((p) => gridMira.append(tarjeta(p)));
+      const gridAgotado = document.getElementById('grid-agotado');
+      gridAgotado.append(tarjeta(productos[1]), tarjeta(productos[0], { agotado: true }));
+
+      const html = document.documentElement;
+      const ponNoche = (noche) => {
+        if (noche) html.dataset.theme = 'neon';
+        else delete html.dataset.theme;
+      };
+
+      /* El garabato se calcula para la pantalla que hay: pasadas de ida y vuelta,
+         en diagonal y algo combadas, como quien tapa una hoja con rotulador. Los
+         giros caen fuera de la pantalla. */
+      function garabato(w, h) {
+        const pasadas = Math.max(5, Math.ceil(h / 150) + 1);
+        const paso = h / (pasadas - 1);
+        const caida = paso * 0.6;
+        const grosor = paso * 1.5;
+        // Los giros quedan fuera de la pantalla aunque el trazo sea muy grueso.
+        const izq = -grosor;
+        const der = w + grosor;
+        let y = -paso * 0.35;
+        let d = `M${izq.toFixed(1)} ${y.toFixed(1)}`;
+        for (let i = 0; i < pasadas + 1; i += 1) {
+          const ida = i % 2 === 0;
+          const xFin = ida ? der : izq;
+          const comba = (ida ? -1 : 1) * paso * 0.18;
+          d += ` Q${(w / 2).toFixed(1)} ${(y + caida / 2 + comba).toFixed(1)} ${xFin.toFixed(1)} ${(y + caida).toFixed(1)}`;
+          y += paso;
+          d += ` L${xFin.toFixed(1)} ${y.toFixed(1)}`;
+        }
+        return { d, grosor };
+      }
+
+      function capa(tipo, duracion, texto) {
+        const div = document.createElement('div');
+        div.className = `capa-modo capa-modo--${tipo}`;
+        div.setAttribute('aria-hidden', 'true');
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        const { d, grosor } = garabato(w, h);
+        div.innerHTML = `<svg viewBox="0 0 ${w} ${h}" aria-hidden="true"><path class="trazo" pathLength="1" stroke-width="${grosor.toFixed(1)}" d="${d}"/></svg>`;
+        if (texto) {
+          const span = document.createElement('span');
+          span.textContent = texto;
+          div.append(span);
+        }
+        document.body.append(div);
+        setTimeout(() => div.remove(), duracion);
+      }
+
+      document.getElementById('encender').addEventListener('click', () => {
+        document.querySelectorAll('.capa-modo').forEach((c) => c.remove());
+        ponNoche(true);
+        capa('rotulador', 1400, 'Descontrol activado');
+      });
+      document.getElementById('apagar').addEventListener('click', () => {
+        document.querySelectorAll('.capa-modo').forEach((c) => c.remove());
+        ponNoche(false);
+        capa('tippex', 700);
+      });
+      document
+        .getElementById('tema')
+        .addEventListener('click', () => ponNoche(html.dataset.theme !== 'neon'));
+      document
+        .getElementById('reducido')
+        .addEventListener('change', (e) => html.classList.toggle('is-reduced', e.target.checked));
+    </script>
+  </body>
+</html>
