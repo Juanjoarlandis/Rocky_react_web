@@ -45,7 +45,7 @@ tener un tope de pintura: al pasarlo, SHALL borrarse primero lo más antiguo.
 
 #### Scenario: Pared llena
 - **WHEN** una pared llega a su tope y alguien pinta un trazo nuevo
-- **THEN** el trazo se guarda y desaparecen los trazos más antiguos hasta volver por debajo del tope
+- **THEN** el trazo se guarda y desaparecen los trazos más antiguos hasta que la pared vuelve a caber en su tope
 
 ### Requirement: Firmas generadas, sin texto libre
 Cada visitante SHALL pintar con una firma que genera el servidor con palabras de la crew y un
@@ -95,6 +95,20 @@ en castellano, sin guardarse.
 #### Scenario: Trazo deforme
 - **WHEN** llega un trazo con un color fuera de la paleta o coordenadas fuera de rango
 - **THEN** se rechaza con 400 y no se guarda
+
+### Requirement: Los topes no se pueden inflar
+Cada trazo SHALL contar al menos un mínimo de puntos en los topes. El registro de firmas SHALL
+tener un tope y olvidar a quien ya no tiene nada pintado. Las paredes de las secciones y de
+las páginas legales SHALL NOT borrarse para hacer sitio: solo las de producto compiten por el
+tope de paredes.
+
+#### Scenario: Paredes inventadas
+- **WHEN** alguien pinta en decenas de páginas de producto inventadas hasta pasar el tope de paredes
+- **THEN** solo se van paredes de producto; las de las secciones y las legales siguen intactas
+
+#### Scenario: Trazos de un punto
+- **WHEN** alguien manda cientos de trazos de un solo punto a la misma pared
+- **THEN** cada uno cuenta el mínimo, la pared se llena antes y se van los más antiguos
 
 ### Requirement: Si la pared común no está, el spray sigue
 Si la pared compartida está apagada o el servidor no responde, el spray SHALL funcionar como

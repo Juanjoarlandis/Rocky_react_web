@@ -6,6 +6,7 @@ import { createConfig } from './config/app.mjs';
 import { createShopifyConfig } from './config/shopify.mjs';
 import { createStorageConfig } from './config/storage.mjs';
 import { createTallerConfig } from './config/taller.mjs';
+import { createWallConfig } from './config/pared.mjs';
 import { createAccessGate } from './http/access-gate.mjs';
 import { errorHandler } from './http/middleware/error-handler.mjs';
 import { exactOriginPolicy, requireTrustedOrigin } from './http/middleware/origin-policy.mjs';
@@ -20,6 +21,7 @@ import { createDropRouter } from './http/routes/drop.mjs';
 import { createDropsRouter } from './http/routes/drops.mjs';
 import { createHealthRouter } from './http/routes/health.mjs';
 import { createTallerRouter } from './http/routes/taller.mjs';
+import { createWallRouter } from './http/routes/pared.mjs';
 import { createAccountRouter } from './http/routes/shopify/account.mjs';
 import { createCartRouter } from './http/routes/shopify/cart.mjs';
 import { createCatalogRouter } from './http/routes/shopify/catalog.mjs';
@@ -39,6 +41,7 @@ import { createCrewRewardsService } from './services/crew/rewards.mjs';
 import { createCatalogModel } from './services/drops/catalog.mjs';
 import { createDropsModel } from './services/drops/model.mjs';
 import { createTallerService } from './services/drops/taller.mjs';
+import { createWallService } from './services/pared/servicio.mjs';
 import { createKnownProducts } from './services/known-products.mjs';
 import { createSessionManager } from './services/sessions.mjs';
 import { createTallerAuth } from './services/taller-auth.mjs';
@@ -127,11 +130,24 @@ export function createApp({
     : null;
   if (!taller) logger.info('Taller apagado', { reason: tallerConfig.reason });
   const requireOrigin = requireTrustedOrigin(config);
+  // La pared compartida del modo neón: apagada sin SHARED_WALL_ENABLED, y
+  // también sin El Taller, que es donde se modera (se deniega por defecto).
+  const paredConfig = createWallConfig(env, storageConfig);
+  if (paredConfig.enabled && !taller) {
+    logger.warn('Pared apagada', {
+      reason: 'La pared compartida necesita El Taller para moderarse.',
+    });
+  }
+  const pared = createWallService({
+    config: { ...paredConfig, enabled: paredConfig.enabled && Boolean(taller) },
+    logger,
+  });
 
   const app = express();
   app.locals.config = config;
   app.locals.store = stateStore;
   app.locals.logger = logger;
+  app.locals.pared = pared;
 
   app.disable('x-powered-by');
   // Query strings planas: nada de objetos anidados (?a[b]=c) que luego haya
@@ -225,8 +241,9 @@ export function createApp({
     })
   );
 
+  app.use('/api/pared', createWallRouter({ pared, sessions, requireOrigin }));
   app.use('/api/drops', createDropsRouter({ config, drops: dropsModel }));
-  app.use('/api/taller', createTallerRouter({ taller, requireOrigin, logger }));
+  app.use('/api/taller', createTallerRouter({ taller, pared, requireOrigin, logger }));
   app.use('/api/drop', createDropRouter({ config, drops: dropsModel }));
 
   app.all('/api/*', (req, res) => {

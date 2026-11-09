@@ -5,6 +5,8 @@ import { ensureLogger } from '../../lib/logger.mjs';
 import { asyncRoute } from '../middleware/async-route.mjs';
 import { createFixedWindowRateLimiter } from '../middleware/rate-limit.mjs';
 import { rules, validateBody, validateQuery, ValidationError } from '../middleware/validate.mjs';
+import { SIGNATURE_RULE, WALL_FIELDS } from './pared.mjs';
+import { paredDe } from '../../services/pared/validacion.mjs';
 
 // La API del Taller (taller-de-drops). Apagado, todo es 404. Encendido:
 //   /session          entrar (POST), estado (GET) y salir (DELETE)
@@ -139,7 +141,7 @@ function productId(value) {
   return value;
 }
 
-export function createTallerRouter({ taller, requireOrigin, logger }) {
+export function createTallerRouter({ taller, pared = null, requireOrigin, logger }) {
   const router = express.Router();
   const log = ensureLogger(logger);
 
@@ -195,6 +197,92 @@ export function createTallerRouter({ taller, requireOrigin, logger }) {
 
   // Por encima de la entrada: aunque sea el panel de la crew, nada sin freno.
   router.use(createFixedWindowRateLimiter({ max: 240, windowMs: 60_000 }));
+
+  // ---------- La pared compartida (moderacion-de-la-pared) ----------
+  if (pared) {
+    const muro = (body) => paredDe(body.pagina, body.ancho);
+    const hecho = (action, target) => log.info('Taller', { action, target, result: 'ok' });
+
+    // Nada de la pared antes de leer su fichero: lo hecho sobre el modelo
+    // provisional se perdería al cargar.
+    router.use(
+      '/pared',
+      asyncRoute(async (req, res, next) => {
+        await pared.listo;
+        next();
+      })
+    );
+
+    router.get(
+      '/pared',
+      auth.requireTaller,
+      asyncRoute(async (req, res) => {
+        await pared.listo;
+        return res.json({ estado: pared.estado(), paredes: pared.resumen() });
+      })
+    );
+
+    router.get(
+      '/pared/detalle',
+      auth.requireTaller,
+      validateQuery(WALL_FIELDS),
+      asyncRoute(async (req, res) => res.json(pared.detalle(muro(req.query))))
+    );
+
+    for (const [ruta, action, metodo] of [
+      ['/pared/ocultar', 'pared-ocultar', 'ocultar'],
+      ['/pared/mostrar', 'pared-mostrar', 'mostrar'],
+      ['/pared/borrar-firma', 'pared-borrar-firma', 'borrarFirma'],
+    ]) {
+      router.post(
+        ruta,
+        validateBody({ ...WALL_FIELDS, firma: SIGNATURE_RULE }),
+        ...mutation(
+          action,
+          (req) => `${muro(req.body)}|${req.body.firma}`,
+          async (req, res, target) => {
+            pared[metodo](muro(req.body), req.body.firma);
+            hecho(action, target);
+            return res.json({ ok: true });
+          }
+        )
+      );
+    }
+
+    router.post(
+      '/pared/limpiar',
+      validateBody(WALL_FIELDS),
+      ...mutation(
+        'pared-limpiar',
+        (req) => muro(req.body),
+        async (req, res, target) => {
+          pared.limpiar(target);
+          hecho('pared-limpiar', target);
+          return res.json({ ok: true });
+        }
+      )
+    );
+
+    router.put(
+      '/pared/estado',
+      validateBody({ encendida: rules.boolean() }),
+      ...mutation(
+        'pared-interruptor',
+        (req) => (req.body.encendida ? 'encendida' : 'apagada'),
+        async (req, res, target) => {
+          if (!pared.estado().configurada) {
+            throw new HttpError('La pared compartida no está configurada en este servidor.', {
+              status: 409,
+              code: 'WALL_NOT_CONFIGURED',
+            });
+          }
+          await pared.encender(req.body.encendida);
+          hecho('pared-interruptor', target);
+          return res.json({ estado: pared.estado() });
+        }
+      )
+    );
+  }
 
   router.get(
     '/drops',

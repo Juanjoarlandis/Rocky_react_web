@@ -164,3 +164,87 @@ export function strokeBounds(stroke, centerX = 0) {
   const pad = NOZZLE * 2.4;
   return { minX: minX - pad, minY: minY - pad, maxX: maxX + pad, maxY: maxY + pad };
 }
+
+// ---------- La pared compartida: firmas ----------
+
+// Caja de todo lo que ha pintado una firma: la unión de sus trazos.
+function cajasPorFirma(strokes, centerX) {
+  const cajas = new Map();
+  for (const stroke of strokes) {
+    if (!stroke.firma) continue;
+    const caja = strokeBounds(stroke, centerX);
+    const previa = cajas.get(stroke.firma);
+    // Se vuelve a meter al final: el orden es el del último trazo de cada
+    // firma, así «las más recientes» y «la de encima» son de verdad las últimas.
+    cajas.delete(stroke.firma);
+    cajas.set(
+      stroke.firma,
+      previa
+        ? {
+            minX: Math.min(previa.minX, caja.minX),
+            minY: Math.min(previa.minY, caja.minY),
+            maxX: Math.max(previa.maxX, caja.maxX),
+            maxY: Math.max(previa.maxY, caja.maxY),
+            c: stroke.c,
+          }
+        : { ...caja, c: stroke.c }
+    );
+  }
+  return cajas;
+}
+
+// Dónde va cada firma: pegada abajo a la derecha de lo suyo, con el color de
+// su último trazo. Map firma → { x, y, c }, en el orden en que pintaron.
+// Alto de una línea de firma (letra de 15 px y un poco de aire) y ancho
+// aproximado de cada letra: bastan para que dos tags no se monten.
+export const TAG_LINE = 18;
+const TAG_CHAR = 9;
+// Topes para que una pared con cientos de firmas en el mismo sitio no cuelgue
+// el navegador al repintar: solo se rotulan las más recientes, y cada una baja
+// como mucho unas líneas (si sigue pisando, se queda ahí).
+const MAX_FIRMAS = 150;
+const MAX_BAJADAS = 8;
+
+export function posicionesDeFirmas(strokes, centerX) {
+  const sitios = new Map();
+  const puestas = [];
+  const cajas = [...cajasPorFirma(strokes, centerX)].slice(-MAX_FIRMAS);
+  for (const [firma, caja] of cajas) {
+    const x = caja.maxX - NOZZLE;
+    const ancho = firma.length * TAG_CHAR;
+    let y = caja.maxY - NOZZLE;
+    // Si caería encima de otra firma ya puesta, baja una línea hasta que cabe:
+    // dos pintadas en el mismo sitio no dejan un borrón ilegible.
+    const pisa = () =>
+      puestas.some(
+        (otra) => x < otra.x + otra.ancho && otra.x < x + ancho && Math.abs(otra.y - y) < TAG_LINE
+      );
+    for (let bajadas = 0; bajadas < MAX_BAJADAS && pisa(); bajadas += 1) y += TAG_LINE;
+    puestas.push({ x, y, ancho });
+    sitios.set(firma, { x, y, c: caja.c });
+  }
+  return sitios;
+}
+
+// La firma cuya pintada cubre un punto (para reportarla señalándola); la más
+// reciente si hay varias, o null.
+export function firmaEn(strokes, centerX, { x, y }) {
+  let encontrada = null;
+  for (const [firma, caja] of cajasPorFirma(strokes, centerX)) {
+    if (x >= caja.minX && x <= caja.maxX && y >= caja.minY && y <= caja.maxY) encontrada = firma;
+  }
+  return encontrada;
+}
+
+// La firma, pequeña y con un brillo de su color, como un tag a rotulador.
+export function drawTag(ctx, text, x, y, color, font) {
+  ctx.save();
+  ctx.font = `15px ${font}`;
+  ctx.textBaseline = 'top';
+  ctx.globalAlpha = 0.92;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 6;
+  ctx.fillStyle = color;
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}

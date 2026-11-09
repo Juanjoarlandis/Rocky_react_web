@@ -33,11 +33,16 @@
   }
 
   /* minmax(0, …): sin él la columna mide lo que su contenido más ancho (el
-     campo de archivo, la vista previa) y en móvil se sale de la pantalla. */
+     campo de archivo, la vista previa) y en móvil se sale de la pantalla.
+     Con :not([hidden]): un display de autor taparía el hidden de la pestaña
+     «La pared» y se verían los drops debajo. */
   .taller-rejilla {
-    display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-6);
+  }
+
+  .taller-rejilla:not([hidden]) {
+    display: grid;
   }
 
   .taller-subtitulo {
@@ -319,6 +324,68 @@
     gap: var(--space-3);
     font-family: var(--font-hand);
     color: var(--ink);
+  }
+
+  /* ---------- Secciones y la pared compartida ---------- */
+
+  .taller-vistas {
+    display: flex;
+    gap: var(--space-2);
+    margin-bottom: var(--space-5);
+  }
+
+  .taller-pared-estado {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+  }
+
+  .taller-paredes,
+  .taller-firmas {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-4);
+    padding: 0;
+    list-style: none;
+  }
+
+  .taller-pared-fila {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-1);
+    width: 100%;
+    text-align: left;
+  }
+
+  .taller-pared-detalle {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding: var(--space-5);
+  }
+
+  .taller-pared-vista {
+    width: 100%;
+    max-width: 640px;
+    height: auto;
+    border: 2px dashed var(--line);
+    border-radius: var(--wobble-xs);
+    background-color: var(--paper);
+  }
+
+  .taller-firmas li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+  }
+
+  .taller-firmas li.is-oculta {
+    opacity: 0.6;
   }
 
   @media (min-width: 1200px) {

@@ -21,6 +21,15 @@ datos personales.
 - **WHEN** el mismo visitante reporta otra vez la misma firma en la misma pared
 - **THEN** su reporte no cuenta de nuevo
 
+### Requirement: Un visitante es su sesión y su red
+Para contar reportes, un visitante SHALL ser su sesión y también la red desde la que llega
+(una IPv4, o una IPv6 por su /64): varias sesiones nuevas desde la misma red cuentan como un
+solo reporte. La red SHALL NOT guardarse: solo se recuerda en memoria, con la sal de la pared.
+
+#### Scenario: Muchas sesiones desde la misma red
+- **WHEN** alguien manda tres reportes sin cookie, cada uno con una sesión nueva, desde la misma red
+- **THEN** cuentan como un solo reporte y la firma no se oculta
+
 ### Requirement: Lo muy reportado se oculta solo
 Cuando lo de una firma en una pared reciba 3 reportes de visitantes distintos, SHALL ocultarse
 para todos al momento, a la espera de que alguien de la crew lo revise. Quien lo pintó SHALL

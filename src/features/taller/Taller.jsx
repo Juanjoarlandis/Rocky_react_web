@@ -7,6 +7,7 @@ import pegador from '../../images/optimized/characters/pegador-carteles-600.webp
 import { fechaLarga, horaDeMadrid } from '../drops/fecha.js';
 import { useNightArt } from '../night/nightArt.js';
 import DropEditor from './DropEditor';
+import ParedTaller from './ParedTaller';
 import '../../styles/pages/taller.css';
 
 // EL TALLER (taller-de-drops): el panel de la crew para programar, configurar,
@@ -145,6 +146,7 @@ function TallerPanel({ onSalir }) {
   const [drops, setDrops] = useState(null);
   const [fallo, setFallo] = useState('');
   const [abierto, setAbierto] = useState(null);
+  const [vista, setVista] = useState('drops');
 
   // Si el permiso caduca (8 h o servidor reiniciado), de vuelta a la entrada.
   const vigilar = useCallback(
@@ -201,7 +203,26 @@ function TallerPanel({ onSalir }) {
         </p>
       )}
 
-      <div className="taller-rejilla">
+      <div className="taller-vistas" role="group" aria-label="Secciones del Taller">
+        {[
+          ['drops', 'Drops'],
+          ['pared', 'La pared'],
+        ].map(([id, nombre]) => (
+          <button
+            key={id}
+            type="button"
+            className={`chip${vista === id ? ' is-on' : ''}`}
+            aria-pressed={vista === id}
+            onClick={() => setVista(id)}
+          >
+            {nombre}
+          </button>
+        ))}
+      </div>
+
+      {vista === 'pared' && <ParedTaller onFallo={vigilar} />}
+
+      <div className="taller-rejilla" hidden={vista !== 'drops'}>
         <section aria-label="Drops" className="taller-lista">
           <h2 className="taller-subtitulo">Drops</h2>
           {drops === null && !fallo && (

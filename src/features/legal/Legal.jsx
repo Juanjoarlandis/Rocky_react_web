@@ -120,6 +120,18 @@ function Privacidad() {
           retirar pidiéndonos que lo quitemos.
         </li>
         <li>
+          <strong>Pared del modo neón.</strong> Lo que pintas con el spray en el modo neón se guarda
+          en nuestro servidor y lo ve cualquiera que visite esa página. Va firmado con una firma que
+          genera el servidor con palabras de la crew y un número (por ejemplo «LUNA-7»): no la
+          escribes tú y no lleva tu nombre. Para saber qué es tuyo, poder borrarlo y limitar lo que
+          se pinta usamos un identificador derivado de tu cookie de sesión; la pared no guarda tu
+          IP, tu email ni tu cuenta. Para que cada visitante cuente una sola vez al reportar, el
+          servidor recuerda solo en memoria, y nunca en disco, una huella cifrada de la red desde la
+          que llegas, que se olvida al reiniciarse. Lo que reciba varios reportes se oculta hasta
+          que la crew lo revisa. Base legal: interés legítimo en ofrecer una pared colaborativa y
+          mantenerla limpia.
+        </li>
+        <li>
           <strong>Seguridad.</strong> El servidor guarda registros técnicos (dirección IP, fecha,
           ruta y código de respuesta) sin cuerpos de mensajes ni emails, para prevenir abusos y
           fallos. Base legal: interés legítimo en la seguridad del servicio.
@@ -143,6 +155,10 @@ function Privacidad() {
           Beats del ranking: mientras sigan publicados o hasta que nos pidas quitarlos. La lista
           guarda como mucho 1.000; cuando se llena, salen primero los ocultados por reportes y los
           más antiguos con menos «me mola».
+        </li>
+        <li>
+          Pintadas de la pared: hasta que otras las tapan (cada pared tiene un tope y, al llenarse,
+          salen las más antiguas), las borras tú desde el spray o la crew limpia la pared.
         </li>
         <li>Registros técnicos: un plazo breve, el necesario para diagnosticar incidencias.</li>
       </ul>
@@ -168,13 +184,15 @@ function Cookies() {
       <ul>
         <li>
           <strong>Cookie de sesión propia.</strong> Técnica y cifrada. Recuerda tu carrito, tus «me
-          mola» del ranking y, si inicias sesión, tu cuenta. Sin ella no se puede comprar. Caduca al
-          cerrar la sesión o tras un periodo de inactividad.
+          mola» del ranking, tu firma de la pared del modo neón y, si inicias sesión, tu cuenta. Sin
+          ella no se puede comprar. Caduca al cerrar la sesión o tras un periodo de inactividad.
         </li>
         <li>
           <strong>Almacenamiento local del navegador.</strong> Guardamos preferencias que no salen
-          de tu dispositivo: si ya has visto la intro, si te has apuntado a un aviso y el apodo que
-          usas en el ranking. No permiten identificarte.
+          de tu dispositivo: si ya has visto la intro, si te has apuntado a un aviso, el apodo que
+          usas en el ranking y lo que pintas con el spray cuando no va a la pared común (si está
+          apagada o no se ha podido subir) o lo pintaste antes de que existiera. No permiten
+          identificarte.
         </li>
         <li>
           <strong>Shopify.</strong> Al pasar al pago entras en el checkout de Shopify, que usa sus

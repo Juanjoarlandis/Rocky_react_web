@@ -20,6 +20,13 @@ vi.mock('../../api/taller.js', () => ({
   removeDesign: vi.fn(),
   searchProducts: vi.fn(),
   uploadImage: vi.fn(),
+  listarParedes: vi.fn(),
+  detallePared: vi.fn(),
+  ocultarFirma: vi.fn(),
+  mostrarFirma: vi.fn(),
+  borrarFirma: vi.fn(),
+  limpiarPared: vi.fn(),
+  interruptorPared: vi.fn(),
 }));
 
 const DESIGN = {
@@ -389,5 +396,119 @@ describe('El Taller: diseños', () => {
     await waitFor(() =>
       expect(api.removeDesign).toHaveBeenCalledWith('rocky-drop-7', 'gid://shopify/Product/1')
     );
+  });
+});
+
+describe('El Taller: la pared', () => {
+  const ESTADO = { configurada: true, encendida: true, corrupta: false };
+  const PAREDES = [
+    {
+      pared: '/crew|ancha',
+      trazos: 3,
+      puntos: 40,
+      firmas: 2,
+      reportes: 3,
+      ocultas: 1,
+      actualizada: '2026-11-10T12:00:00.000Z',
+    },
+  ];
+  const DETALLE = {
+    pared: '/crew|ancha',
+    version: 4,
+    strokes: [{ id: 'a', c: 0, s: 1, p: [0, 10, 4, 12], d: [], firma: 'LUNA-7', oculta: true }],
+    firmas: [
+      { firma: 'LUNA-7', trazos: 2, reportes: 3, oculta: true },
+      { firma: 'TELE-2', trazos: 1, reportes: 0, oculta: false },
+    ],
+  };
+
+  async function abrirPared(estado = ESTADO) {
+    await entrarAlPanel();
+    api.listarParedes.mockResolvedValue({ estado, paredes: estado.configurada ? PAREDES : [] });
+    api.detallePared.mockResolvedValue(DETALLE);
+    fireEvent.click(screen.getByRole('button', { name: 'La pared' }));
+    return screen.findByRole('region', { name: 'La pared compartida' });
+  }
+
+  it('lista las paredes con sus reportes y el estado del interruptor', async () => {
+    const seccion = await abrirPared();
+    expect(await within(seccion).findByText(/encendida/i)).toBeInTheDocument();
+    expect(within(seccion).getByRole('button', { name: /\/crew · ancha/ })).toHaveTextContent(
+      /3 reportes/
+    );
+  });
+
+  it('abre una pared y oculta, muestra o borra lo de una firma', async () => {
+    const seccion = await abrirPared();
+    fireEvent.click(await within(seccion).findByRole('button', { name: /\/crew · ancha/ }));
+    const luna = await within(seccion).findByRole('listitem', { name: 'LUNA-7' });
+    api.mostrarFirma.mockResolvedValue({ ok: true });
+    fireEvent.click(within(luna).getByRole('button', { name: 'Mostrar' }));
+    await waitFor(() =>
+      expect(api.mostrarFirma).toHaveBeenCalledWith({
+        pagina: '/crew',
+        ancho: 'ancha',
+        firma: 'LUNA-7',
+      })
+    );
+    const tele = within(seccion).getByRole('listitem', { name: 'TELE-2' });
+    api.ocultarFirma.mockResolvedValue({ ok: true });
+    fireEvent.click(within(tele).getByRole('button', { name: 'Ocultar' }));
+    await waitFor(() => expect(api.ocultarFirma).toHaveBeenCalled());
+    api.borrarFirma.mockResolvedValue({ ok: true });
+    fireEvent.click(within(tele).getByRole('button', { name: 'Borrar lo suyo' }));
+    expect(api.borrarFirma).not.toHaveBeenCalled();
+    fireEvent.click(within(tele).getByRole('button', { name: '¿Seguro? Pulsa otra vez' }));
+    await waitFor(() =>
+      expect(api.borrarFirma).toHaveBeenCalledWith({
+        pagina: '/crew',
+        ancho: 'ancha',
+        firma: 'TELE-2',
+      })
+    );
+  });
+
+  it('limpia una pared entera con dos pulsaciones', async () => {
+    const seccion = await abrirPared();
+    fireEvent.click(await within(seccion).findByRole('button', { name: /\/crew · ancha/ }));
+    await within(seccion).findByRole('listitem', { name: 'LUNA-7' });
+    api.limpiarPared.mockResolvedValue({ ok: true });
+    fireEvent.click(within(seccion).getByRole('button', { name: 'Limpiar la pared' }));
+    fireEvent.click(within(seccion).getByRole('button', { name: '¿Seguro? Pulsa otra vez' }));
+    await waitFor(() =>
+      expect(api.limpiarPared).toHaveBeenCalledWith({ pagina: '/crew', ancho: 'ancha' })
+    );
+  });
+
+  it('al limpiar no vuelve a abrir la pared borrada y dice que está limpia', async () => {
+    const seccion = await abrirPared();
+    fireEvent.click(await within(seccion).findByRole('button', { name: /\/crew · ancha/ }));
+    await within(seccion).findByRole('listitem', { name: 'LUNA-7' });
+    const consultas = api.detallePared.mock.calls.length;
+    // Como el servidor: una pared limpia deja de existir.
+    api.limpiarPared.mockResolvedValue({ ok: true });
+    api.listarParedes.mockResolvedValue({ estado: ESTADO, paredes: [] });
+    api.detallePared.mockRejectedValue(
+      Object.assign(new Error('Esa pared no existe.'), { status: 404 })
+    );
+    fireEvent.click(within(seccion).getByRole('button', { name: 'Limpiar la pared' }));
+    fireEvent.click(within(seccion).getByRole('button', { name: '¿Seguro? Pulsa otra vez' }));
+    expect(await within(seccion).findByText('Nadie ha pintado todavía.')).toBeInTheDocument();
+    expect(within(seccion).getByText('Pared limpia.')).toBeInTheDocument();
+    expect(within(seccion).queryByRole('alert')).not.toBeInTheDocument();
+    expect(api.detallePared).toHaveBeenCalledTimes(consultas);
+  });
+
+  it('el interruptor apaga la pared', async () => {
+    const seccion = await abrirPared();
+    api.interruptorPared.mockResolvedValue({ estado: { ...ESTADO, encendida: false } });
+    fireEvent.click(await within(seccion).findByRole('button', { name: 'Apagar la pared' }));
+    await waitFor(() => expect(api.interruptorPared).toHaveBeenCalledWith(false));
+  });
+
+  it('sin configurar lo dice y no ofrece interruptor', async () => {
+    const seccion = await abrirPared({ configurada: false, encendida: true, corrupta: false });
+    expect(await within(seccion).findByText(/apagada por configuración/i)).toBeInTheDocument();
+    expect(within(seccion).queryByRole('button', { name: /la pared$/ })).not.toBeInTheDocument();
   });
 });

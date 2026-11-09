@@ -40,6 +40,15 @@ describe('Páginas legales', () => {
     expect(screen.getByText(/Shopify \(tienda, pagos y cuentas de cliente\)/)).toBeInTheDocument();
   });
 
+  it('la privacidad explica la pared compartida del modo neón', () => {
+    renderLegal('/legal/privacidad');
+    const pared = screen.getByText('Pared del modo neón.').closest('li');
+    expect(pared).toHaveTextContent(/lo ve cualquiera que visite esa página/);
+    expect(pared).toHaveTextContent(/firma que genera el servidor/);
+    expect(pared).toHaveTextContent(/no guarda tu IP/);
+    expect(screen.getByText(/Pintadas de la pared: hasta que otras las tapan/)).toBeInTheDocument();
+  });
+
   it('una página legal que no existe cae en el 404', () => {
     renderLegal('/legal/inventada');
     expect(screen.getByText('Te has salido del mapa')).toBeInTheDocument();

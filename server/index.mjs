@@ -36,8 +36,14 @@ export async function startServer() {
 
   const shutdown = (signal) => {
     logger.info('Closing HTTP server', { signal });
+    // La pared guarda en disco con retraso: lo pendiente se escribe al salir,
+    // después de cerrar, para que no se cuele ningún cambio tras el volcado.
     server.close((error) => {
-      process.exitCode = error ? 1 : 0;
+      Promise.resolve(app.locals.pared?.volcar())
+        .catch((flushError) => logger.error('Wall flush failed', describeError(flushError)))
+        .finally(() => {
+          process.exitCode = error ? 1 : 0;
+        });
     });
     setTimeout(() => {
       process.exitCode = 1;

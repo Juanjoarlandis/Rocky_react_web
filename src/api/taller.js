@@ -1,4 +1,5 @@
 import { ApiError, DEFAULT_ERROR_MESSAGE, NETWORK_ERROR_MESSAGE, requestJson } from './http.js';
+import { consultaPared } from './pared.js';
 
 // La API del Taller (taller-de-drops). Todo con la cookie de la sesión; las
 // mutaciones las firma el navegador con su Origin.
@@ -64,3 +65,18 @@ export async function uploadImage(file, alt = '') {
   }
   return data;
 }
+
+// ---------- La pared compartida (moderacion-de-la-pared) ----------
+
+export const listarParedes = () => requestJson(`${ROOT}/pared`);
+export const detallePared = (pared) => requestJson(`${ROOT}/pared/detalle?${consultaPared(pared)}`);
+export const ocultarFirma = (body) =>
+  requestJson(`${ROOT}/pared/ocultar`, { method: 'POST', body });
+export const mostrarFirma = (body) =>
+  requestJson(`${ROOT}/pared/mostrar`, { method: 'POST', body });
+export const borrarFirma = (body) =>
+  requestJson(`${ROOT}/pared/borrar-firma`, { method: 'POST', body });
+export const limpiarPared = (body) =>
+  requestJson(`${ROOT}/pared/limpiar`, { method: 'POST', body });
+export const interruptorPared = (encendida) =>
+  requestJson(`${ROOT}/pared/estado`, { method: 'PUT', body: { encendida } });

@@ -6,6 +6,8 @@ export const STORAGE_KEYS = Object.freeze({
   beatTable: 'rocky-mesa-beats',
   preloadReload: 'rocky-preload-reload',
   spray: 'rocky-spray',
+  // Ya se avisó de que la pared compartida la ve todo el mundo.
+  paredAviso: 'rocky-pared-aviso',
   // El apodo con el que publicas en el ranking de beats, para no reescribirlo.
   beatsAlias: 'rocky-beats-apodo',
   // Sólo en el navegador de quien administra: la llave para quitar beats.

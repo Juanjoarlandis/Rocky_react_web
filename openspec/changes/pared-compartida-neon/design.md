@@ -53,15 +53,18 @@ Lo que existe hoy:
 
 - **Autores**, aparte: `{ [a]: firma }`.
   - `a` son 16 caracteres del SHA-256 de la sesión con una sal fija del proceso guardada en el fichero, como `voterKeyOf` en los beats.
-  - La firma se genera una vez por sesión (palabra de la crew, guion y número de 1 a 99) y se guarda en el registro de la sesión.
+  - La firma se genera una vez por sesión (palabra de la crew, guion y número de 1 a 99; si esos están muy gastados, de 1 a 9999) y siempre cumple el patrón `FIRMA_RE` que validan las rutas.
+  - El registro tiene un tope (20 000 autores). Quien no tiene nada en ninguna pared (ni trazos, ni ocultos, ni reportes) y lleva un día sin pintar se olvida, y su próxima pintada estrena firma. Con el tope lleno y nadie a quien olvidar, un autor nuevo recibe 503 `WALL_FULL`.
 - **Topes** (constantes con pruebas):
   - por trazo, 600 puntos y 40 chorretones;
   - `|dx|` ≤ 1600 y 0 ≤ y ≤ 40 000;
   - `c` dentro de la paleta y `s` entero sin signo de 32 bits;
   - por pared, 12 000 puntos en la ancha y 6000 en la estrecha (lo que pinta el móvil). Al pasarlo, se quitan los trazos más antiguos;
   - por autor, pared y día, 4000 puntos;
-  - como mucho 60 paredes. Si hace falta una nueva, se borra la que lleva más tiempo sin pintarse.
-- **Rutas válidas:** las secciones fijas del enrutador (`/`, `/menudrop`, `/estudio`, `/crew`, `/mi-crew`, `/rockyIA`, `/cart` y `/legal/<página>`), más `/product/<handle>` y `/products/<handle>` con el patrón de handle del servidor. `/taller` queda fuera.
+  - cada trazo cuenta como mínimo 20 puntos en esos dos topes, para que miles de trazos de un punto no inflen el fichero (como mucho 600 trazos por pared ancha);
+  - como mucho 60 paredes de producto. Si hace falta una nueva, se borra la de producto que lleva más tiempo sin pintarse. Las secciones y las legales (22 paredes) no cuentan y nunca se borran.
+  - el contador diario se guarda por día y se descarta entero al cambiar de día.
+- **Rutas válidas:** las secciones fijas del enrutador (`/`, `/menudrop`, `/estudio`, `/crew`, `/mi-crew`, `/rockyIA`, `/cart` y las cuatro `/legal/<página>` que existen, en lista cerrada), más `/product/<handle>` y `/products/<handle>` con el patrón de handle del servidor. `/taller` queda fuera.
 
 ### D3 · Contrato HTTP público (`/api/pared`)
 Todo va con `Cache-Control: no-store` y errores `{ message, code }` en castellano. Las mutaciones llevan `requireOrigin`, se validan con `validate.mjs` antes de abrir sesión y tienen límite por cliente (`client-key`, IPv6 por /64).
@@ -108,13 +111,20 @@ El cuerpo de `POST /trazos` no acepta ningún campo de firma: el servidor la ign
 
 ### D7 · Privacidad
 - No se guardan IP ni datos personales: los límites viven en memoria y el autor es una clave derivada de la sesión.
+- Para que un reporte cuente por visitante y no por sesión, el modelo recuerda en memoria la red de quien reporta (clave de cliente: IPv4, o IPv6 por su /64) como SHA-256 con la sal de la pared. No va al fichero; tras un reinicio se olvida, y lo único que se pierde es que esa red podría volver a reportar una vez.
+- Hasta que se ha leído `pared.enc` la pared no está activa: lo que llegara antes se perdería al cargar.
+- `SHARED_WALL_PATH` no puede ser el fichero del estado (se pisarían con la misma clave).
 - La política de privacidad (`Legal.jsx`) añade que las pintadas de la pared son públicas, anónimas y van firmadas con un tag generado. Se quedan hasta que las tapan, las borra su autor o las limpia la crew.
 
 ## Risks / Trade-offs
 
 - **[Riesgo] Dibujos ofensivos visibles hasta que se reportan.** → Hoy la web está tras la puerta de acceso. Con 3 reportes se ocultan solos, El Taller limpia y el interruptor apaga al momento. Antes de quitar la puerta conviene decidir si se pasa a moderación previa: queda anotado en `docs/ops/`.
-- **[Riesgo] La SD de la Raspberry.** → Un fichero propio, una escritura por minuto como mucho, tamaño acotado (unos 4 MB en el peor caso) y arranque tolerante a un fichero corrupto (D1).
-- **[Riesgo] Spam con muchas sesiones.** → El límite es por cliente (IPv6 por /64), no por sesión, y hay tope por autor, pared y día.
+- **[Riesgo] La SD de la Raspberry.** → Un fichero propio, una escritura por minuto como mucho, tamaño acotado (con el coste mínimo por trazo, unos 600 trazos por pared ancha, 82 paredes y 20 000 autores como mucho: medido en la revisión, 14 MB de JSON y unos 19 MB de fichero en el peor caso, con 69 ms para volcarlo en un portátil) y arranque tolerante a un fichero corrupto (D1).
+- **[Riesgo] Spam con muchas sesiones.** → El límite es por cliente (IPv6 por /64), no por sesión, y hay tope por autor, pared y día. Los reportes cuentan por red, no por sesión (revisión de seguridad).
+- **[Riesgo] Muchas firmas en el mismo sitio.** → El cliente rotula como mucho las 150 firmas más recientes de una pared y cada una baja como mucho 8 líneas para no pisar otra: el repintado no se dispara aunque alguien apile cientos.
+- **[Compromiso] Reportes y CGNAT.** Contar los reportes por red hace que varias personas detrás de la misma IP (el CGNAT de las operadoras móviles, una oficina) cuenten como un solo visitante: ocultar algo cuesta más, nunca menos. La crew sigue pudiendo ocultar desde El Taller.
+- **[Riesgo residual al quitar la puerta] Llenar el registro de firmas.** Sin la puerta de acceso, cada POST sin cookie crea sesión y firma nuevas: con unas 14 peticiones por minuto desde varias redes se puede llenar el tope de 20 000 firmas y dejar sin pintar a quien llegue nuevo (503 `WALL_FULL`). Antes de abrir la web hay que limitar las firmas nuevas por red y día (anotado en `docs/ops/pared.md`).
+- **[Riesgo residual] Paredes de producto inventadas.** → Los handles de producto no se comprueban contra el catálogo: alguien puede crear muchas paredes de productos que no existen y desalojar otras de producto. Las secciones y las legales no se tocan, y el límite por cliente lo frena.
 - **[Riesgo] Pintar muchos trazos en móvil cuesta.** → La pared estrecha tiene la mitad de tope, y el lienzo ya baja de resolución si hace falta.
 - **[Compromiso] Hasta 60 s de pintura perdida si se cae el proceso.** Es aceptable para pintadas.
 - **[Compromiso] Sondeo cada 20 s en vez de tiempo real.** Las respuestas 304 cuestan muy poco y no hay conexiones abiertas en la Raspberry.

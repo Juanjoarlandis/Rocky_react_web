@@ -121,6 +121,52 @@
     color: var(--danger);
   }
 
+  .spray-tool--mini {
+    min-height: 32px;
+    padding: 0 var(--space-2);
+    font-size: var(--text-xs);
+  }
+
+  /* Reportar una pintada: la confirmación en línea, sin diálogos */
+  .spray-reporte {
+    display: flex;
+    gap: var(--space-2);
+    flex-basis: 100%;
+    justify-content: center;
+  }
+
+  /* La lista de firmas de la pared: la forma accesible de reportar */
+  .spray-firmas {
+    flex-basis: 100%;
+    font-family: var(--font-hand);
+    font-size: var(--text-xs);
+    color: var(--muted);
+  }
+
+  .spray-firmas summary {
+    cursor: pointer;
+    text-align: center;
+  }
+
+  .spray-firmas ul {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-2) var(--space-3);
+    max-height: 120px;
+    margin: var(--space-2) 0 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+  }
+
+  .spray-firmas li {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--ink);
+  }
+
   .spray-tool--photo {
     border-color: var(--uv-lime);
     background-color: var(--uv-lime);
