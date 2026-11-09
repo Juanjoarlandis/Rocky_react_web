@@ -7,31 +7,42 @@ rotulador para entrar, corrector para salir.
 
 ## ADDED Requirements
 
-### Requirement: Encender el descontrol tapa la pantalla con rotulador
-Al encender el descontrol con la bombilla, antes de encenderse el rótulo «Descontrol
-activado», unos trazos gruesos de rotulador negro SHALL cubrir la pantalla. La duración
-total del rótulo SHALL seguir siendo la misma (1,4 s), de modo que el momento en que se
-avisa para ir a la portada no cambie. Llegar a la web ya de noche SHALL NOT mostrar los
-trazos.
+### Requirement: Encender el descontrol tapa la hoja de día con rotulador
+Al encender el descontrol con la bombilla, la capa SHALL empezar como la hoja de día
+(papel y punteado del cuaderno) y unas pasadas de rotulador de tinta SHALL taparla antes
+de encenderse el rótulo «Descontrol activado». La duración total del rótulo SHALL seguir
+siendo de 1,4 s. Llegar a la web ya de noche SHALL NOT mostrar los trazos.
 
 #### Scenario: Encender
 - **WHEN** se pulsa «Activar el descontrol»
-- **THEN** los trazos cubren la pantalla en el primer medio segundo, después se enciende el rótulo y a los 1,4 s todo desaparece
+- **THEN** la tinta tapa el papel de día en menos de 0,4 s, después se enciende el rótulo y a los 1,4 s todo desaparece
 
 #### Scenario: Llegar de noche
 - **WHEN** se carga la web con el descontrol ya puesto
 - **THEN** no hay trazos ni rótulo
 
+### Requirement: El trazo es de rotulador también en móvil
+El grosor de las pasadas SHALL NOT pasar del 40 % del lado corto de la pantalla, para que
+en móvil se lea como rotulador y no como un telón, y las pasadas SHALL tapar la pantalla
+entera sin dejar franjas.
+
+#### Scenario: Móvil vertical
+- **WHEN** se enciende el descontrol en una pantalla de 390 × 844
+- **THEN** cada pasada mide como mucho 156 px de grosor y la pantalla queda tapada entera
+
 ### Requirement: Apagar el descontrol lo borra con corrector
 Al apagar el descontrol con la bombilla, una capa del color de la noche SHALL cubrir la
-pantalla y unos brochazos de corrector SHALL irla borrando hasta dejar ver el día, en
-0,7 s. Al terminar, la capa SHALL desaparecer del DOM. La capa SHALL NOT recibir clics ni
-foco. Si se vuelve a encender durante el borrado, el borrado SHALL desaparecer y empezar
-el encendido.
+pantalla y unos brochazos de corrector SHALL abrirle agujeros por los que se vea el día de
+verdad, con el borde blanco del corrector, hasta destaparlo entero en 0,7 s. Al terminar,
+la capa SHALL desaparecer del DOM. La capa SHALL NOT recibir clics ni foco.
 
 #### Scenario: Apagar
 - **WHEN** con el descontrol puesto se pulsa «Apagar el descontrol»
-- **THEN** la noche se borra a brochazos en 0,7 s y queda el día
+- **THEN** la noche se abre a brochazos, se ve el día por los agujeros y en 0,7 s queda el día entero
+
+### Requirement: Volver a encender a mitad del borrado
+Si se vuelve a encender durante el borrado, el borrado SHALL desaparecer y SHALL empezar
+el encendido.
 
 #### Scenario: Volver a encender a mitad
 - **WHEN** se apaga y se vuelve a encender antes de que termine el borrado

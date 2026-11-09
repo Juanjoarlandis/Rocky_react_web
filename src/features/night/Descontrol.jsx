@@ -3,10 +3,16 @@ import { useNightMode } from './useNightMode.js';
 import { graffitiFor } from './graffiti.js';
 import { subscribeTorch } from './torch.js';
 import Spray from './spray/Spray.jsx';
+import ModeStroke from './ModeStroke.jsx';
 import { prefersReducedMotion } from '../../utils/media.js';
 import '../../styles/components/descontrol.css';
 
 const FLASH_MS = 1400;
+// El rotulador termina de tapar la pantalla a los 392 ms (descontrol.css): a
+// partir de ahí se puede cambiar de página sin que se vea.
+const INK_COVERED_MS = 450;
+// Lo que tarda el corrector en borrar la noche al apagar (descontrol.css).
+const TIPPEX_MS = 700;
 // La altura se redondea: las imágenes que cargan tarde no deben repintar la
 // pared a cada píxel.
 const HEIGHT_STEP = 200;
@@ -173,13 +179,16 @@ function NightScene({ pathname }) {
 }
 
 /* El modo descontrol: la escena de luz negra mientras dure la noche y, al
-   encenderlo con la bombilla (no al llegar ya de noche), un apagón en el
-   que se enciende el rótulo. Cuando el rótulo termina (o al momento, con
-   movimiento reducido) avisa con `onActivated`: App lleva a la portada. */
+   encenderlo con la bombilla (no al llegar ya de noche), un apagón a
+   rotulador en el que se enciende el rótulo. Con la pantalla ya tapada por la
+   tinta (o al momento, con movimiento reducido) avisa con `onActivated`: App
+   lleva a la portada, y al retirarse el rótulo ya asoma ella, sin volver a
+   ver la página de partida. Al apagarlo, el corrector borra la noche. */
 export default function Descontrol({ pathname, disabled = false, onActivated }) {
   const night = useNightMode();
   const wasNight = useRef(night);
   const [flash, setFlash] = useState(false);
+  const [tippex, setTippex] = useState(false);
   // La última versión del aviso, sin reiniciar el temporizador en cada render.
   const onActivatedRef = useRef(onActivated);
   useEffect(() => {
@@ -188,23 +197,36 @@ export default function Descontrol({ pathname, disabled = false, onActivated }) 
 
   useEffect(() => {
     const turnedOn = night && !wasNight.current;
+    const turnedOff = !night && wasNight.current;
     wasNight.current = night;
     if (!night) setFlash(false);
+    // Volver a encender a mitad del borrado se lleva el corrector por delante.
+    if (night) setTippex(false);
+    if (turnedOff && !prefersReducedMotion()) setTippex(true);
     if (!turnedOn) return;
     if (prefersReducedMotion()) onActivatedRef.current?.();
     else setFlash(true);
   }, [night]);
 
-  // El apagón se retira solo al acabar y entonces avisa; si se apaga el
-  // descontrol a mitad, se va con él (el efecto de arriba lo quita) sin avisar.
+  // Con la pantalla tapada avisa, y el apagón se retira solo al acabar. Si se
+  // apaga el descontrol antes de que la tinta tape la pantalla, se va con él
+  // (el efecto de arriba lo quita) sin avisar.
   useEffect(() => {
     if (!flash) return undefined;
-    const timer = window.setTimeout(() => {
-      setFlash(false);
-      onActivatedRef.current?.();
-    }, FLASH_MS);
-    return () => window.clearTimeout(timer);
+    const covered = window.setTimeout(() => onActivatedRef.current?.(), INK_COVERED_MS);
+    const done = window.setTimeout(() => setFlash(false), FLASH_MS);
+    return () => {
+      window.clearTimeout(covered);
+      window.clearTimeout(done);
+    };
   }, [flash]);
+
+  // El corrector se retira solo al terminar de borrar.
+  useEffect(() => {
+    if (!tippex) return undefined;
+    const timer = window.setTimeout(() => setTippex(false), TIPPEX_MS);
+    return () => window.clearTimeout(timer);
+  }, [tippex]);
 
   if (disabled) return null;
 
@@ -213,7 +235,13 @@ export default function Descontrol({ pathname, disabled = false, onActivated }) 
       {night && <NightScene pathname={pathname} />}
       {flash && (
         <div className="descontrol-flash" aria-hidden="true" data-testid="descontrol-flash">
+          <ModeStroke variant="marker" />
           <span>Descontrol activado</span>
+        </div>
+      )}
+      {tippex && (
+        <div className="descontrol-tippex" aria-hidden="true" data-testid="descontrol-tippex">
+          <ModeStroke variant="tippex" />
         </div>
       )}
     </>

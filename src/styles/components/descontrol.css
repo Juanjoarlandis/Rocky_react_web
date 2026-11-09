@@ -192,8 +192,11 @@
   }
 
   /* ---------- El apagón ----------
-     Al pulsar la bombilla se va la luz y el rótulo se enciende a trompicones
-     antes de que la luz negra se asiente. Sólo al encender, nunca al llegar. */
+     El tema ya es de noche al pulsar la bombilla, así que la capa empieza
+     siendo la hoja de día (papel y punteado del cuaderno, que no cambian con
+     el tema). Las pasadas de rotulador de tinta la tapan en el primer 28 % de
+     los 1,4 s y sobre ellas el rótulo se enciende a trompicones antes de que la
+     luz negra se asiente. Sólo al encender, nunca al llegar. */
   .descontrol-flash {
     position: fixed;
     inset: 0;
@@ -201,12 +204,15 @@
     display: grid;
     place-items: center;
     padding: 0 var(--space-4);
-    background-color: rgba(var(--black-rgb), 0.97);
+    background-color: rgb(var(--paper-rgb));
+    background-image: radial-gradient(circle, rgba(var(--ink-rgb), 0.07) 1.2px, transparent 1.2px);
+    background-size: var(--dot-grid-size);
     pointer-events: none;
     animation: apagon 1.4s ease-in forwards;
   }
 
   .descontrol-flash span {
+    position: relative;
     font-family: var(--font-display);
     font-size: clamp(2.4rem, 9vw, 6rem);
     line-height: 0.95;
@@ -222,7 +228,7 @@
 
   @keyframes apagon {
     0%,
-    62% {
+    66% {
       opacity: 1;
     }
 
@@ -233,35 +239,126 @@
 
   @keyframes rotulo-enciende {
     0%,
-    8% {
+    29% {
       opacity: 0;
     }
 
-    10% {
+    32% {
       opacity: 1;
     }
 
-    14% {
+    36% {
       opacity: 0.12;
     }
 
-    20% {
+    41% {
       opacity: 1;
     }
 
-    23% {
+    44% {
       opacity: 0.3;
     }
 
-    28%,
-    70% {
+    49%,
+    72% {
       opacity: 1;
       scale: 1;
     }
 
+    88%,
     100% {
       opacity: 0;
       scale: 1.06;
+    }
+  }
+
+  /* ---------- Rotulador y corrector ----------
+     El garabato (features/night/scribble.js) se dibuja con stroke-dashoffset
+     sobre pathLength="1": rotulador negro al encender, corrector al apagar. */
+  .mode-stroke {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .mode-stroke path {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+  }
+
+  /* Empieza con un poco de tinta ya puesta: el primer trazo no sale de la nada. */
+  .mode-stroke--marker path {
+    stroke: rgb(var(--ink-rgb));
+    animation: mode-stroke-marker 1.4s linear forwards;
+  }
+
+  @keyframes mode-stroke-marker {
+    0% {
+      stroke-dashoffset: 0.97;
+    }
+
+    28%,
+    100% {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  /* Al apagar, el tema ya es de día. La noche es un rectángulo con máscara:
+     los brochazos le abren agujeros por los que se ve el día de verdad, y el
+     borde blanco que asoma alrededor es el corrector. Al final un fundido
+     corto limpia las juntas. */
+  .descontrol-tippex {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-splash);
+    pointer-events: none;
+    animation: descontrol-tippex-fade 0.7s ease-out forwards;
+  }
+
+  .mode-stroke-night {
+    fill: rgb(var(--neon-paper-rgb));
+  }
+
+  .mode-stroke-hole {
+    stroke: black;
+  }
+
+  .mode-stroke-rim {
+    stroke: var(--white);
+  }
+
+  /* Filo de tinta entre el corrector y el día que asoma. */
+  .mode-stroke-edge {
+    stroke: rgb(var(--ink-rgb));
+  }
+
+  .mode-stroke--tippex path {
+    animation: mode-stroke-tippex 0.7s cubic-bezier(0.5, 0, 0.6, 1) forwards;
+  }
+
+  @keyframes mode-stroke-tippex {
+    0% {
+      stroke-dashoffset: 1;
+    }
+
+    70%,
+    100% {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  @keyframes descontrol-tippex-fade {
+    0%,
+    91% {
+      opacity: 1;
+    }
+
+    100% {
+      opacity: 0;
     }
   }
 }

@@ -3,6 +3,7 @@ import { useLocation, useParams, Link } from 'react-router';
 import Lightbox from './Lightbox';
 import AddToCartButton from '../cart/AddToCartButton';
 import EyeIcon from '../../components/icons/EyeIcon';
+import { ProductReticle } from '../../components/doodles/ProductReticle';
 import PlaceholderTee from './PlaceholderTee';
 import DropAviso from './DropAviso';
 import AddToCalendar from './AddToCalendar';
@@ -100,6 +101,12 @@ function ProductDetail({
     mode: commerceMode,
     cartEnabled: canAddToCart,
   });
+  // Agotado del todo (su variante por defecto, la primera vendible, no está a la
+  // venta), igual que en el catálogo: a eso no se apunta.
+  const defaultVariant = variants.find((variant) => variant.id === product.defaultVariantId);
+  const productSoldOut =
+    purchaseState(product, defaultVariant, { mode: commerceMode, cartEnabled: canAddToCart }) ===
+    PURCHASE_STATES.SOLD_OUT;
 
   return (
     <div className="page-container detail">
@@ -142,6 +149,7 @@ function ProductDetail({
                 className="detail-image"
               />
             )}
+            {!isPlaceholder && !productSoldOut && <ProductReticle />}
             {!isPlaceholder && (
               <span className="product-zoom" aria-hidden="true">
                 <EyeIcon />

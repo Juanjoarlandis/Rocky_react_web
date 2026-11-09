@@ -118,6 +118,59 @@ describe('ProductDetail', () => {
     expect(screen.getAllByRole('heading', { name: 'Rocky Tee' })).toHaveLength(1);
   });
 
+  it('la ficha de un producto agotado no lleva mira', () => {
+    const agotado = {
+      ...product,
+      availableForSale: false,
+      variants: product.variants.map((v) => ({ ...v, availableForSale: false })),
+    };
+    render(
+      <MemoryRouter initialEntries={['/product/rocky-tee']}>
+        <Routes>
+          <Route
+            path="/product/:productId"
+            element={
+              <ProductDetail
+                products={[agotado]}
+                addToCart={vi.fn()}
+                commerceMode="shopify"
+                canAddToCart
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>
+    );
+    const media = screen.getByRole('button', { name: /ver rocky tee en grande/i });
+    expect(media.querySelector('.product-reticle')).toBeNull();
+  });
+
+  it('la foto de la ficha lleva la mira decorativa y conserva su nombre', () => {
+    render(
+      <MemoryRouter initialEntries={['/product/rocky-tee']}>
+        <Routes>
+          <Route
+            path="/product/:productId"
+            element={
+              <ProductDetail
+                products={[product]}
+                addToCart={vi.fn().mockResolvedValue(null)}
+                commerceMode="shopify"
+                canAddToCart
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>
+    );
+    const media = screen.getByRole('button', { name: /ver rocky tee en grande/i });
+    const reticle = media.querySelector('svg.product-reticle');
+    expect(reticle).not.toBeNull();
+    expect(reticle).toHaveAttribute('aria-hidden', 'true');
+    // El papel roto es solo del catálogo: la foto grande de la ficha se ve entera.
+    expect(media.querySelector('.torn-sticker')).toBeNull();
+  });
+
   it('sin precio ofrece «Avísame» y lleva el foco al formulario del drop', () => {
     vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: true });
     const scroll = vi.fn();

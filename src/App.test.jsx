@@ -72,7 +72,7 @@ function renderEn(path) {
   );
 }
 
-test('encender el descontrol fuera de la portada lleva a ella cuando termina el rótulo', async () => {
+test('encender el descontrol fuera de la portada lleva a ella bajo la tinta, antes de que se retire el rótulo', async () => {
   renderEn('/legal/privacidad');
   fireEvent.click(screen.getAllByRole('button', { name: 'Activar el descontrol' })[0]);
   expect(await screen.findByTestId('descontrol-flash')).toHaveTextContent('Descontrol activado');
@@ -80,7 +80,11 @@ test('encender el descontrol fuera de la portada lleva a ella cuando termina el 
   await waitFor(() => expect(screen.getByTestId('ruta')).toHaveTextContent(/^\/$/), {
     timeout: 3000,
   });
-  expect(screen.queryByTestId('descontrol-flash')).not.toBeInTheDocument();
+  // El rótulo sigue encima: al retirarse ya asoma la portada.
+  expect(screen.getByTestId('descontrol-flash')).toBeInTheDocument();
+  await waitFor(() => expect(screen.queryByTestId('descontrol-flash')).not.toBeInTheDocument(), {
+    timeout: 3000,
+  });
 });
 
 test('encender el descontrol en la portada no añade historial', async () => {

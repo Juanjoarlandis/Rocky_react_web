@@ -320,13 +320,87 @@
     transform: rotate(0.3deg);
   }
 
-  .product-card:hover {
+  /* Un agotado no se levanta: se queda pegado a la farola. */
+  .product-card:not(:where(.is-sold-out)):hover {
     transform: rotate(0deg) translate(-3px, -3px);
     box-shadow: var(--shadow-ink-lg);
   }
 
-  .product-card:hover .product-image {
+  .product-card:not(:where(.is-sold-out)):hover .product-image {
     transform: scale(1.04) rotate(-0.5deg);
+  }
+
+  /* ---------- La pegatina arrancada (idea 7 de dirección artística) ----------
+     El papel roto y su borde, en components/doodles/TornSticker.jsx. El rótulo
+     se escala con la foto (unidades de contenedor) y la lupa sube a la esquina
+     que sigue siendo foto para no pisarlo. */
+  .torn-sticker {
+    position: absolute;
+    inset: 0;
+    container-type: inline-size;
+    pointer-events: none;
+  }
+
+  .torn-sticker-paper {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Más pequeño que el nombre del producto (--text-md) y en el rojo oscuro
+     (AA sobre el papel). */
+  .torn-sticker-label {
+    position: absolute;
+    right: 7%;
+    bottom: 10%;
+    font-family: var(--font-display);
+    font-size: clamp(0.8rem, 6cqi, var(--text-base));
+    letter-spacing: 0.04em;
+    line-height: 1;
+    text-transform: uppercase;
+    color: var(--accent-dark);
+    transform: rotate(-9deg);
+  }
+
+  /* La lupa sube a la esquina de foto que queda lejos del desgarro. */
+  .product-card.is-sold-out .product-zoom {
+    top: 10px;
+    left: 10px;
+    right: auto;
+    bottom: auto;
+  }
+
+  /* La mitad de los productos llevan el desgarro en espejo (la variante sale
+     de su handle, features/catalog/tornVariant.js): un drop agotado no es un
+     muro de pegatinas idénticas, tampoco en una columna de móvil. */
+  .product-card--flip .torn-sticker-paper {
+    scale: -1 1;
+  }
+
+  .product-card--flip .torn-sticker-label {
+    right: auto;
+    left: 7%;
+    transform: rotate(9deg);
+  }
+
+  .product-card--flip.is-sold-out .product-zoom {
+    left: auto;
+    right: 10px;
+  }
+
+  /* El anillo de foco de la foto: overflow: hidden de la tarjeta lo recortaba
+     por fuera, y por dentro lo tapaban la mira, la lupa y el papel roto. Es el
+     último hijo pintado, un ::after encima de todo, del rojo de la marca. */
+  .product-card .product-media:focus-visible {
+    outline: none;
+  }
+
+  .product-media:focus-visible::after {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border: 3px solid var(--accent);
+    pointer-events: none;
   }
 
   .product-body {

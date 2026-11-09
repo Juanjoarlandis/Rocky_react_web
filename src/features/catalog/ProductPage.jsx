@@ -8,10 +8,13 @@ import EyeIcon from '../../components/icons/EyeIcon';
 import PlaceholderTee from './PlaceholderTee';
 import StreetWall from '../../components/StreetWall';
 import { CrosshairSpinner } from '../../components/doodles/CrosshairSpinner';
+import { ProductReticle } from '../../components/doodles/ProductReticle';
+import { TornSticker } from '../../components/doodles/TornSticker';
 import { CURRENT_DROP } from '../../config/campaign.js';
 import { PLACEHOLDER_IMAGE } from '../../config/commerce.js';
 import { PURCHASE_STATES, purchaseLabel, purchaseState } from '../storefront/availability.js';
 import { designCount } from './designCount.js';
+import { isTornFlipped } from './tornVariant.js';
 // Variante sin los puntos de spray pintados: el chorro se anima aparte.
 import grafiteroSpray from '../../images/optimized/characters/grafitero-sin-chorro-420.webp';
 import corriendoBolsa from '../../images/optimized/splash/corriendo-bolsa.webp';
@@ -210,8 +213,15 @@ function ProductPage({
             mode: commerceMode,
             cartEnabled: canAddToCart,
           });
+          // Agotado: la pegatina se queda medio arrancada en la farola.
+          const soldOut = state === PURCHASE_STATES.SOLD_OUT;
+          // Cada agotado lleva siempre la misma variante del desgarro (normal o en espejo).
+          const tornFlip = soldOut && isTornFlipped(productPath);
           return (
-            <article key={productPath} className="paper-card product-card">
+            <article
+              key={productPath}
+              className={`paper-card product-card${soldOut ? ' is-sold-out' : ''}${tornFlip ? ' product-card--flip' : ''}`}
+            >
               <button
                 type="button"
                 className="product-media"
@@ -233,6 +243,9 @@ function ProductPage({
                     fetchPriority={isPriorityImage ? 'high' : undefined}
                   />
                 )}
+                {!isPlaceholder && soldOut && <TornSticker />}
+                {/* A lo agotado no se apunta: no se puede comprar. */}
+                {!isPlaceholder && !soldOut && <ProductReticle />}
                 {!isPlaceholder && (
                   <span className="product-zoom" aria-hidden="true">
                     <EyeIcon />
