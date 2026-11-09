@@ -15,6 +15,8 @@ export default [
       '.data/**',
       'output/**',
       'public/theme-init.js',
+      // Worktrees de otras sesiones de Claude Code (con su propio dist/): no son de este árbol.
+      '.claude/worktrees/**',
     ],
   },
   js.configs.recommended,
