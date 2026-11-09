@@ -1,6 +1,7 @@
+import { PRODUCT_VARIANT_ID as SAFE_VARIANT_ID } from '../../integrations/shopify/storefront.mjs';
+
 const MAX_CHAT_PRODUCTS = 3;
 const SAFE_HANDLE = /^[a-z0-9][a-z0-9-]*$/;
-const SAFE_VARIANT_ID = /^gid:\/\/shopify\/ProductVariant\/[A-Za-z0-9]+$/;
 const SAFE_DEMO_IMAGE = /^\/products\/[a-z0-9][a-z0-9-]*\.(?:avif|jpe?g|png|webp)$/;
 const COMMERCE_TERMS = new Set([
   'agotada',

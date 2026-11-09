@@ -139,7 +139,7 @@ Nivel 3. TDD en cada tarea de lógica: prueba en rojo, implementación mínima, 
 
   Verifica: script de Playwright con resultado OK y capturas.
 - [x] 15.3 Revisión de dirección artística con capturas de día y noche a 375 y 1280 px, corrigiendo lo que no encaje.
-- [ ] 15.4 Revisión independiente (`engineering-review`) y de seguridad (`security-review`); corrección de los bloqueantes, como mucho en dos rondas.
+- [x] 15.4 Revisión independiente (`engineering-review`) y de seguridad (`security-review`); corrección de los bloqueantes, como mucho en dos rondas.
 
 ## Workflow follow-up
 

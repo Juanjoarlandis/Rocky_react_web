@@ -215,7 +215,7 @@ describe('Storefront client', () => {
       'gid://shopify/ProductVariant/101a',
       'gid://shopify/ProductVariant/abc',
       'gid://shopify/ProductVariant/0',
-      'gid://shopify/ProductVariant/123456789012345678901',
+      'gid://shopify/ProductVariant/18446744073709551717',
     ]) {
       await expect(
         client.addLines('gid://shopify/Cart/t?key=k', { variantId, quantity: 1 })
@@ -223,5 +223,6 @@ describe('Storefront client', () => {
     }
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(PRODUCT_VARIANT_ID.test('gid://shopify/ProductVariant/65158825574777')).toBe(true);
+    expect(PRODUCT_VARIANT_ID.test('gid://shopify/ProductVariant/9223372036854775807')).toBe(true);
   });
 });

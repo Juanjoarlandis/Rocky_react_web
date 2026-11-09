@@ -241,6 +241,27 @@ describe('drops en la app entera', () => {
     expect(live.status).toBe(200);
   });
 
+  it('un id de variante disfrazado (0101, 101a) no llega ni al guardián ni a Shopify', async () => {
+    const { base } = await start(WITH_ADMIN);
+    const numero = variantOf('rocky-congelado').split('/').pop();
+    for (const [disfraz, operationId] of [
+      [`0${numero}`, 'operation-disfraz-1'],
+      [`${numero}a`, 'operation-disfraz-2'],
+    ]) {
+      const response = await fetch(`${base}/api/shopify/cart/lines`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Origin: 'https://rocky.test' },
+        body: JSON.stringify({
+          variantId: `gid://shopify/ProductVariant/${disfraz}`,
+          quantity: 1,
+          operationId,
+        }),
+      });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ code: 'INVALID_VARIANT' });
+    }
+  });
+
   it('el calendario heredado sirve el destacado y el nuevo el de cada drop', async () => {
     const { base } = await start(WITH_ADMIN);
     expect((await fetch(`${base}/api/drop/calendario.ics`)).status).toBe(200);
