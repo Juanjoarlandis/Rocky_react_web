@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from './app.mjs';
+import { hashPassword } from './lib/password-hash.mjs';
+import { base32Decode, totpAt } from './lib/totp.mjs';
 import { MemoryStore } from './storage/memory-store.mjs';
 
 // La app entera con una Shopify falsa: Admin API (drops) y Storefront
@@ -251,5 +253,42 @@ describe('drops en la app entera', () => {
     expect(products).toHaveLength(4);
     expect(products.every((p) => p.drop === null && p.purchasable)).toBe(true);
     expect(fetchImpl.mock.calls.some(([url]) => String(url).includes('/admin/'))).toBe(false);
+  });
+
+  it('sin la configuración del Taller, /api/taller responde 404', async () => {
+    const { base } = await start(WITH_ADMIN);
+    const response = await fetch(`${base}/api/taller/session`);
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ code: 'TALLER_DISABLED' });
+  });
+
+  it('con el Taller configurado se entra con clave y código y se listan los drops', async () => {
+    const secret = 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ';
+    const { base } = await start({
+      ...WITH_ADMIN,
+      TALLER_PASSWORD_HASH: await hashPassword('clave del taller de la app', {
+        N: 1024,
+        r: 8,
+        p: 1,
+      }),
+      TALLER_TOTP_SECRET: secret,
+      SHOPIFY_HEADLESS_PUBLICATION_ID: 'gid://shopify/Publication/1',
+    });
+    expect((await fetch(`${base}/api/taller/drops`)).status).toBe(401);
+    const login = await fetch(`${base}/api/taller/session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: 'https://rocky.test' },
+      body: JSON.stringify({
+        password: 'clave del taller de la app',
+        code: totpAt(base32Decode(secret), Date.now()),
+      }),
+    });
+    expect(login.status).toBe(200);
+    const cookie = login.headers.get('set-cookie').split(';')[0];
+    const drops = await fetch(`${base}/api/taller/drops`, { headers: { Cookie: cookie } });
+    expect(drops.status).toBe(200);
+    const { drops: list } = await drops.json();
+    expect(list.map((d) => d.handle)).toEqual(['rocky-drop-6', 'rocky-drop-5', 'rocky-drop-3']);
+    expect(list[0].designs[0].handle).toBe('rocky-el-jefe');
   });
 });

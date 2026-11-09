@@ -258,6 +258,17 @@ describe('escritura de drops y diseños', () => {
     });
   });
 
+  it('busca un producto por su handle', async () => {
+    const admin = fakeAdmin({
+      RockyDesignByHandle: ({ handle }) => ({
+        productByIdentifier: handle === 'rocky-el-jefe' ? productNode() : null,
+      }),
+    });
+    const drops = createDropsAdmin({ admin, publicationId: PUBLICATION });
+    expect((await drops.findProductByHandle('rocky-el-jefe')).id).toBe('gid://shopify/Product/1');
+    expect(await drops.findProductByHandle('rocky-nadie')).toBe(null);
+  });
+
   it('la búsqueda no deja colar sintaxis de Shopify', async () => {
     expect(sanitizeSearch('jefe" OR status:draft (')).toBe('jefe OR status draft');
     const admin = fakeAdmin({

@@ -19,6 +19,7 @@ import { createCrewRouter } from './http/routes/crew.mjs';
 import { createDropRouter } from './http/routes/drop.mjs';
 import { createDropsRouter } from './http/routes/drops.mjs';
 import { createHealthRouter } from './http/routes/health.mjs';
+import { createTallerRouter } from './http/routes/taller.mjs';
 import { createAccountRouter } from './http/routes/shopify/account.mjs';
 import { createCartRouter } from './http/routes/shopify/cart.mjs';
 import { createCatalogRouter } from './http/routes/shopify/catalog.mjs';
@@ -37,8 +38,10 @@ import { createCartOperations } from './services/cart-operations.mjs';
 import { createCrewRewardsService } from './services/crew/rewards.mjs';
 import { createCatalogModel } from './services/drops/catalog.mjs';
 import { createDropsModel } from './services/drops/model.mjs';
+import { createTallerService } from './services/drops/taller.mjs';
 import { createKnownProducts } from './services/known-products.mjs';
 import { createSessionManager } from './services/sessions.mjs';
+import { createTallerAuth } from './services/taller-auth.mjs';
 import { createStateStore } from './storage/create-store.mjs';
 
 const distDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../dist');
@@ -108,6 +111,21 @@ export function createApp({
   });
   const avisos = createAvisosService({ store: stateStore, knownProducts, logger });
   const beats = createBeatsService({ store: stateStore });
+  // El Taller (taller-de-drops): apagado si falta alguna pieza; el arranque
+  // dice cuál, sin secretos.
+  const taller = tallerConfig.enabled
+    ? {
+        auth: createTallerAuth({ config: tallerConfig, sessions, logger }),
+        service: createTallerService({
+          dropsAdmin,
+          dropsModel,
+          catalog: catalogModel,
+          avisos,
+          logger,
+        }),
+      }
+    : null;
+  if (!taller) logger.info('Taller apagado', { reason: tallerConfig.reason });
   const requireOrigin = requireTrustedOrigin(config);
 
   const app = express();
@@ -208,6 +226,7 @@ export function createApp({
   );
 
   app.use('/api/drops', createDropsRouter({ config, drops: dropsModel }));
+  app.use('/api/taller', createTallerRouter({ taller, requireOrigin, logger }));
   app.use('/api/drop', createDropRouter({ config, drops: dropsModel }));
 
   app.all('/api/*', (req, res) => {

@@ -107,7 +107,7 @@ Ver `proposal.md` (Why) y las especificaciones del cambio. Estado de partida com
   - el registro guarda `tallerGrant`, un secreto del proceso como el de la puerta, y `tallerExpiresAt` a 8 h;
   - reiniciar el servidor cierra las sesiones del Taller, que es lo esperable.
 - **Intentos.** El contador sale de la puerta a `server/lib/attempt-tracker.mjs`: 5 por IP cada 15 min.
-- **Origen.** Todas las rutas del Taller llevan `requireOrigin`, también las de lectura, y van con `no-store`.
+- **Origen.** Las rutas del Taller que cambian algo llevan `requireOrigin`; las de lectura no, porque un `GET` del mismo origen no manda `Origin`. Las protegen la cookie SameSite, la política de origen exacta, que rechaza los orígenes ajenos, y el CORS sin credenciales. Todas van con `no-store`.
 - **Alternativas descartadas:**
   - Login de personal de Shopify (OAuth de app incrustada): mucho más complejo y no encaja con una SPA propia.
   - Passkeys: dependencia nueva.

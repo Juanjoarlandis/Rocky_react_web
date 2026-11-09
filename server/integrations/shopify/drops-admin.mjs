@@ -113,6 +113,12 @@ const PRODUCT_BY_ID = `
   query RockyDesign($id: ID!, $publicationId: ID!) { product(id: $id) { ${PRODUCT_FIELDS} } }
 `;
 
+const PRODUCT_BY_HANDLE = `
+  query RockyDesignByHandle($handle: String!, $publicationId: ID!) {
+    productByIdentifier(identifier: { handle: $handle }) { ${PRODUCT_FIELDS} }
+  }
+`;
+
 const SEARCH_PRODUCTS = `
   query RockyDesignSearch($query: String!, $publicationId: ID!) {
     products(first: 20, query: $query, sortKey: UPDATED_AT, reverse: true) {
@@ -354,6 +360,12 @@ export function createDropsAdmin({
     async getProduct(id) {
       const data = await admin.query(PRODUCT_BY_ID, { id, publicationId });
       return data.product ? mapAdminProduct(data.product) : null;
+    },
+
+    /* Para no pisar un producto con el mismo handle al crear un diseño. */
+    async findProductByHandle(handle) {
+      const data = await admin.query(PRODUCT_BY_HANDLE, { handle, publicationId });
+      return data.productByIdentifier ? mapAdminProduct(data.productByIdentifier) : null;
     },
 
     async searchProducts(term) {

@@ -53,16 +53,16 @@ Nivel 3. TDD en cada tarea de lógica: prueba en rojo, implementación mínima, 
 
 ## 6. API del Taller
 
-- [ ] 6.1 Sesión del Taller: `POST`, `GET` y `DELETE /api/taller/session` con contraseña y TOTP, límite de intentos, rotación de sesión, permiso de 8 h, `no-store` y origen exacto. Verifica: pruebas de cada escenario de entrada, límite, caducidad y salida, más la ausencia de secretos en el log.
-- [ ] 6.2 Drops en el Taller:
+- [x] 6.1 Sesión del Taller: `POST`, `GET` y `DELETE /api/taller/session` con contraseña y TOTP, límite de intentos, rotación de sesión, permiso de 8 h, `no-store` y origen exacto. Verifica: pruebas de cada escenario de entrada, límite, caducidad y salida, más la ausencia de secretos en el log.
+- [x] 6.2 Drops en el Taller:
   - listar con avisos contados;
   - crear (slug fijo) y editar con validación;
   - programar (publicación con fecha, rechazo si está vacío) y despublicar;
   - registro de cada acción.
 
   Verifica: pruebas con Shopify falso de cada escenario de `taller-de-drops` sobre drops.
-- [ ] 6.3 Diseños en el Taller: crear completo (título, descripción, precio, tallas y existencias, foto), editar, añadir uno existente (409 si ya está en otro drop), quitar y buscar productos. Verifica: pruebas con Shopify falso.
-- [ ] 6.4 Imágenes: `PUT /api/taller/images`, binario de hasta 8 MB, bytes mágicos PNG, JPEG o WebP, y 413 o 415. Verifica: pruebas con un HTML disfrazado, una imagen grande y una buena.
+- [x] 6.3 Diseños en el Taller: crear completo (título, descripción, precio, tallas y existencias, foto), editar, añadir uno existente (409 si ya está en otro drop), quitar y buscar productos. Verifica: pruebas con Shopify falso.
+- [x] 6.4 Imágenes: `PUT /api/taller/images`, binario de hasta 8 MB, bytes mágicos PNG, JPEG o WebP, y 413 o 415. Verifica: pruebas con un HTML disfrazado, una imagen grande y una buena.
 
 ## 7. Cliente: datos
 
