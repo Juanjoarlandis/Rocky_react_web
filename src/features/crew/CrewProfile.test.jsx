@@ -201,11 +201,13 @@ describe('CrewProfile', () => {
     expect(screen.getByRole('heading', { name: 'Del Barrio' })).toBeInTheDocument();
     expect(screen.getByText(/120 \/ 300 XP/i)).toBeInTheDocument();
     expect(screen.getByText(/10 Crew Tickets/i)).toBeInTheDocument();
-    expect(onAvatarChange).toHaveBeenLastCalledWith('skater-head');
+    // El aviso de avatar sale de un useEffect: React 19 lo ejecuta en una tarea
+    // posterior al commit que pinta el carnet, así que hay que esperarlo.
+    await waitFor(() => expect(onAvatarChange).toHaveBeenLastCalledWith('skater-head'));
 
     await user.click(screen.getByRole('button', { name: /equipar el dormido/i }));
     await waitFor(() => expect(api.equipCrewReward).toHaveBeenCalledWith('dormido-head'));
-    expect(onAvatarChange).toHaveBeenLastCalledWith('dormido-head');
+    await waitFor(() => expect(onAvatarChange).toHaveBeenLastCalledWith('dormido-head'));
 
     await user.click(screen.getByRole('button', { name: /canjear marco trazo rojo/i }));
     await waitFor(() =>
