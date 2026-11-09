@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isDropHandle } from '../../shared/drops.mjs';
 import previewProducts from '../../shared/preview-products.mjs';
 import { ensureLogger } from '../lib/logger.mjs';
 
@@ -64,6 +65,17 @@ export function createKnownProducts({
     staticHandles,
 
     async includes(handle) {
+      // Con Shopify, para un drop manda su estado real: el rocky-drop-4 de la
+      // demo no abre la lista si en la tienda está en borrador o cerrado.
+      if (drops && isDropHandle(handle)) {
+        try {
+          const payload = await drops.publicPayload();
+          const drop = payload.drops.find((candidate) => candidate.handle === handle);
+          return Boolean(drop && NOTIFIABLE_DROP_STATES.has(drop.state));
+        } catch {
+          // Sin modelo de drops se sigue con lo estático y el catálogo.
+        }
+      }
       if (staticHandles.has(handle)) return true;
       if (drops) {
         try {

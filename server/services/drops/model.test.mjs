@@ -174,7 +174,9 @@ describe('modelo de drops', () => {
     expect(dropsAdmin.listDrops).toHaveBeenCalledTimes(3);
   });
 
-  it('si Shopify falla, sirve la última lectura buena 10 minutos y después nada', async () => {
+  it('si Shopify falla, sirve la última lectura buena sin caducar, aunque se haya invalidado', async () => {
+    // El estado se calcula con la hora de cada consulta: una lectura vieja
+    // sigue cerrando el drop a su hora y el guardián de la venta no se abre.
     let now = NOW;
     let fail = false;
     const log = logger();
@@ -198,9 +200,90 @@ describe('modelo de drops', () => {
     fail = true;
     now += 60_000;
     expect(await model.sources()).toHaveLength(1);
-    now += 10 * 60_000;
+    now += 24 * 60 * 60_000;
+    expect(await model.sources()).toHaveLength(1);
+    model.invalidate();
+    expect(await model.sources()).toHaveLength(1);
+    expect(log.warn).toHaveBeenCalledWith(
+      'Drops servidos de la última lectura buena',
+      expect.any(Object)
+    );
+  });
+
+  it('sin ninguna lectura buena y con Shopify caído, no hay drops y queda en el log', async () => {
+    const log = logger();
+    const model = createDropsModel({
+      dropsAdmin: { listDrops: vi.fn(async () => Promise.reject(new Error('caído'))) },
+      clock: () => NOW,
+      logger: log,
+    });
     expect(await model.sources()).toEqual([]);
     expect(log.error).toHaveBeenCalled();
+  });
+
+  it('una lectura que empezó antes de invalidar no se guarda como fresca', async () => {
+    let release;
+    let calls = 0;
+    const drop = (handle) => ({
+      id: handle,
+      handle,
+      title: handle,
+      poster: null,
+      rawConfig: config(),
+      products: [],
+    });
+    const dropsAdmin = {
+      listDrops: vi.fn(() => {
+        calls += 1;
+        if (calls === 1) {
+          // La lectura pública vieja: tarda y no trae el drop nuevo.
+          return new Promise((resolve) => {
+            release = () => resolve([drop('rocky-drop-5')]);
+          });
+        }
+        return Promise.resolve([drop('rocky-drop-5'), drop('rocky-drop-7')]);
+      }),
+    };
+    const model = createDropsModel({ dropsAdmin, clock: () => NOW });
+    const vieja = model.sources();
+    model.invalidate(); // el Taller acaba de crear rocky-drop-7
+    const tras = model.sources({ strict: true });
+    release();
+    expect((await vieja).map((s) => s.handle)).toEqual(['rocky-drop-5']);
+    expect((await tras).map((s) => s.handle)).toEqual(['rocky-drop-5', 'rocky-drop-7']);
+    expect((await model.sources()).map((s) => s.handle)).toEqual(['rocky-drop-5', 'rocky-drop-7']);
+  });
+
+  it('una colección rocky-drop-* sin metacampo no ensucia el log; uno roto sí', async () => {
+    const log = logger();
+    const model = createDropsModel({
+      dropsAdmin: admin([
+        {
+          id: 'a',
+          handle: 'rocky-drop-4',
+          title: 'D4',
+          poster: null,
+          rawConfig: null,
+          products: [],
+        },
+        {
+          id: 'b',
+          handle: 'rocky-drop-9',
+          title: 'D9',
+          poster: null,
+          rawConfig: '{',
+          products: [],
+        },
+      ]),
+      clock: () => NOW,
+      logger: log,
+    });
+    expect(await model.sources()).toEqual([]);
+    expect(log.warn).toHaveBeenCalledTimes(1);
+    expect(log.warn).toHaveBeenCalledWith(
+      'Colección de drop con configuración no válida',
+      expect.objectContaining({ handle: 'rocky-drop-9' })
+    );
   });
 
   it('en modo estricto (el Taller) el fallo de Shopify sube', async () => {

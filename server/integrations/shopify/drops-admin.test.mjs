@@ -241,18 +241,48 @@ describe('escritura de drops y diseños', () => {
     });
   });
 
-  it('publica en el canal Headless con fecha y despublica de él', async () => {
+  it('publica solo en el canal Headless y despublica de todos los canales', async () => {
+    // Un diseño que siguiera en la tienda online u otro canal se podría ver o
+    // comprar sin pasar por el BFF: se saca de todos (venta-de-drops).
     const admin = fakeAdmin({
+      RockyPublications: () => ({
+        publications: {
+          nodes: [{ id: PUBLICATION }, { id: 'gid://shopify/Publication/2' }],
+        },
+      }),
       RockyPublish: () => ({ publishablePublish: { userErrors: [] } }),
       RockyUnpublish: () => ({ publishableUnpublish: { userErrors: [] } }),
     });
     const drops = createDropsAdmin({ admin, publicationId: PUBLICATION });
     await drops.publish('gid://shopify/Product/1', '2026-11-13T19:00:00.000Z');
     await drops.unpublish('gid://shopify/Product/1');
-    expect(admin.calls[0].variables.input).toEqual([
+    await drops.unpublish('gid://shopify/Product/2');
+    const publish = admin.calls.find((c) => c.name === 'RockyPublish');
+    expect(publish.variables.input).toEqual([
       { publicationId: PUBLICATION, publishDate: '2026-11-13T19:00:00.000Z' },
     ]);
-    expect(admin.calls[1].variables.input).toEqual([{ publicationId: PUBLICATION }]);
+    const unpublish = admin.calls.filter((c) => c.name === 'RockyUnpublish');
+    expect(unpublish[0].variables.input).toEqual([
+      { publicationId: PUBLICATION },
+      { publicationId: 'gid://shopify/Publication/2' },
+    ]);
+    // La lista de canales se pide una vez.
+    expect(admin.calls.filter((c) => c.name === 'RockyPublications')).toHaveLength(1);
+  });
+
+  it('busca una colección por handle, sea o no un drop válido', async () => {
+    const admin = fakeAdmin({
+      RockyCollectionByHandle: ({ handle }) => ({
+        collectionByIdentifier:
+          handle === 'rocky-drop-4' ? { id: 'gid://shopify/Collection/4', handle } : null,
+      }),
+    });
+    const drops = createDropsAdmin({ admin, publicationId: PUBLICATION });
+    expect(await drops.findCollectionByHandle('rocky-drop-4')).toEqual({
+      id: 'gid://shopify/Collection/4',
+      handle: 'rocky-drop-4',
+    });
+    expect(await drops.findCollectionByHandle('rocky-drop-9')).toBe(null);
   });
 
   it('ajusta existencias comparando con lo que había', async () => {

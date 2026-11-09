@@ -111,6 +111,10 @@ function memoryShopify() {
         }
       }
     }),
+    findCollectionByHandle: vi.fn(async (handle) => {
+      const found = [...collections.values()].find((c) => c.handle === handle);
+      return found ? { id: found.id, handle: found.handle } : null;
+    }),
     publish: vi.fn(async (id, date = null) => published.set(id, date)),
     unpublish: vi.fn(async (id) => published.delete(id)),
     searchProducts: vi.fn(async () => [...products.values()].map(view)),
@@ -291,6 +295,32 @@ describe('el Taller: drops', () => {
     expect(ctx.published.get(design.id)).toBe('2026-11-14T19:00:00.000Z');
   });
 
+  it('si Shopify falla al reprogramar, la fecha no se guarda y se puede reintentar', async () => {
+    const ctx = setup();
+    const design = await dropWithDesign(ctx);
+    await ctx.taller.schedule('rocky-drop-7');
+    ctx.catalog.invalidate.mockClear();
+    ctx.admin.publish.mockRejectedValueOnce(new Error('Shopify caído'));
+    await expect(
+      ctx.taller.updateDrop('rocky-drop-7', { launchAt: '2026-11-14T20:00:00+01:00' })
+    ).rejects.toThrow('Shopify caído');
+    const [collection] = ctx.collections.values();
+    expect(JSON.parse(collection.config).launchAt).toBe(FUTURE);
+    expect(ctx.catalog.invalidate).toHaveBeenCalled();
+    await ctx.taller.updateDrop('rocky-drop-7', { launchAt: '2026-11-14T20:00:00+01:00' });
+    expect(ctx.published.get(design.id)).toBe('2026-11-14T19:00:00.000Z');
+    expect(JSON.parse(collection.config).launchAt).toBe('2026-11-14T20:00:00+01:00');
+  });
+
+  it('si Shopify falla al programar, el drop sigue en borrador', async () => {
+    const ctx = setup();
+    await dropWithDesign(ctx);
+    ctx.admin.publish.mockRejectedValueOnce(new Error('Shopify caído'));
+    await expect(ctx.taller.schedule('rocky-drop-7')).rejects.toThrow('Shopify caído');
+    const [collection] = ctx.collections.values();
+    expect(JSON.parse(collection.config).status).toBe('borrador');
+  });
+
   it('si la fecha ya pasó, publica al momento', async () => {
     const ctx = setup();
     const design = await dropWithDesign(ctx);
@@ -416,6 +446,39 @@ describe('el Taller: diseños', () => {
       variants: [],
       descriptionHtml: '',
     });
+    await ctx.taller.addExistingDesign('rocky-drop-8', 'suelto');
+    const drop8 = [...ctx.collections.values()].find((c) => c.handle === 'rocky-drop-8');
+    expect(drop8.productIds).toEqual(['suelto']);
+  });
+
+  it('una colección rocky-drop-* antigua sin metacampo no es un drop ni bloquea el Taller', async () => {
+    const ctx = setup();
+    ctx.products.set('suelto', {
+      id: 'suelto',
+      handle: 'rocky-viejo',
+      title: 'Viejo',
+      variants: [],
+      descriptionHtml: '',
+    });
+    ctx.collections.set('vieja', {
+      id: 'vieja',
+      handle: 'rocky-drop-4',
+      title: 'Drop 4 de antes',
+      config: null,
+      poster: null,
+      productIds: ['suelto'],
+    });
+    // Su handle está cogido en Shopify: crear encima daría rocky-drop-4-1.
+    await expect(
+      ctx.taller.createDrop({ title: 'ROCKY DROP 4', number: 4, slug: '4' })
+    ).rejects.toMatchObject({ status: 409, code: 'DROP_HANDLE_TAKEN' });
+    // Sus productos no son de ningún drop: ni se editan como diseño ni chocan.
+    await expect(ctx.taller.updateDesign('suelto', { price: '10' })).rejects.toMatchObject({
+      code: 'DESIGN_NOT_IN_DROP',
+    });
+    const [found] = await ctx.taller.searchProducts('viejo');
+    expect(found.drop).toBe(null);
+    await ctx.taller.createDrop({ title: 'ROCKY DROP 8', number: 8, slug: '8' });
     await ctx.taller.addExistingDesign('rocky-drop-8', 'suelto');
     const drop8 = [...ctx.collections.values()].find((c) => c.handle === 'rocky-drop-8');
     expect(drop8.productIds).toEqual(['suelto']);

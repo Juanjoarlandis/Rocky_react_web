@@ -169,10 +169,15 @@ export function createTallerService({
     });
   }
 
+  /* Los handles de los drops válidos. Una colección `rocky-drop-*` sin
+     metacampo (de antes del sistema de drops) no es un drop y no cuenta. */
+  const dropHandles = async () => new Set((await sources()).map((source) => source.handle));
+
   async function requireDropDesign(productId) {
     const product = await dropsAdmin.getProduct(productId);
     if (!product) throw notFound('Ese diseño no existe.', 'DESIGN_NOT_FOUND');
-    if (!product.collections.some(isDropHandle)) {
+    const valid = await dropHandles();
+    if (!product.collections.some((collection) => valid.has(collection))) {
       throw new HttpError('Ese producto no es de ningún drop.', {
         status: 409,
         code: 'DESIGN_NOT_IN_DROP',
@@ -229,12 +234,27 @@ export function createTallerService({
           code: 'DROP_NUMBER_TAKEN',
         });
       }
-      await dropsAdmin.createCollection({
+      // Una colección con ese handle, aunque no sea un drop válido: Shopify
+      // crearía la nueva con un sufijo y el Taller perdería la pista.
+      if (await dropsAdmin.findCollectionByHandle(handle)) {
+        throw new HttpError(
+          'Ya hay una colección con ese handle en Shopify. Elige otro slug o adopta la colección con su metacampo (docs/ops/drops.md).',
+          { status: 409, code: 'DROP_HANDLE_TAKEN' }
+        );
+      }
+      const created = await dropsAdmin.createCollection({
         handle,
         title,
         configJson: JSON.stringify(parsed.config),
       });
       refresh();
+      if (created?.handle && created.handle !== handle) {
+        log.error('Drop creado con otro handle', { requested: handle, created: created.handle });
+        throw new HttpError('Shopify ha creado el drop con otro handle. Revísalo en Shopify.', {
+          status: 409,
+          code: 'DROP_HANDLE_TAKEN',
+        });
+      }
       audit('crear', handle);
       return { handle };
     },
@@ -260,24 +280,30 @@ export function createTallerService({
         }
       }
 
-      if (patch.title !== undefined || patch.poster !== undefined) {
-        await dropsAdmin.updateCollection({
-          id: source.id,
-          title: patch.title,
-          poster: patch.poster,
-        });
+      try {
+        if (patch.title !== undefined || patch.poster !== undefined) {
+          await dropsAdmin.updateCollection({
+            id: source.id,
+            title: patch.title,
+            poster: patch.poster,
+          });
+        }
+        // Primero la publicación y después la configuración: si algo falla a
+        // medias, la fecha guardada sigue siendo la vieja y repetir el cambio
+        // vuelve a sincronizarlo todo.
+        const moved = config.launchAt !== source.config.launchAt;
+        if (config.status === CONFIG_STATUS.SCHEDULED && moved) {
+          await syncPublication(
+            source.products.map((product) => product.id),
+            config
+          );
+        }
+        if (JSON.stringify(config) !== JSON.stringify(source.config)) {
+          await dropsAdmin.setConfig({ id: source.id, configJson: JSON.stringify(config) });
+        }
+      } finally {
+        refresh();
       }
-      if (JSON.stringify(config) !== JSON.stringify(source.config)) {
-        await dropsAdmin.setConfig({ id: source.id, configJson: JSON.stringify(config) });
-      }
-      const moved = config.launchAt !== source.config.launchAt;
-      if (config.status === CONFIG_STATUS.SCHEDULED && moved) {
-        await syncPublication(
-          source.products.map((product) => product.id),
-          config
-        );
-      }
-      refresh();
       audit('editar', handle);
       return { handle };
     },
@@ -292,12 +318,17 @@ export function createTallerService({
       }
       const parsed = parseDropConfig({ ...source.config, status: CONFIG_STATUS.SCHEDULED });
       if (!parsed.ok) throw invalid(parsed.error);
-      await dropsAdmin.setConfig({ id: source.id, configJson: JSON.stringify(parsed.config) });
-      await syncPublication(
-        source.products.map((product) => product.id),
-        parsed.config
-      );
-      refresh();
+      // Se publica antes de marcarlo programado: si falla a medias, sigue en
+      // borrador y «Programar» se puede repetir.
+      try {
+        await syncPublication(
+          source.products.map((product) => product.id),
+          parsed.config
+        );
+        await dropsAdmin.setConfig({ id: source.id, configJson: JSON.stringify(parsed.config) });
+      } finally {
+        refresh();
+      }
       audit('programar', handle);
       return { handle };
     },
@@ -305,9 +336,14 @@ export function createTallerService({
     async unschedule(handle) {
       const source = await requireDrop(handle);
       const config = { ...source.config, status: CONFIG_STATUS.DRAFT };
-      await dropsAdmin.setConfig({ id: source.id, configJson: JSON.stringify(config) });
-      for (const product of source.products) await dropsAdmin.unpublish(product.id);
-      refresh();
+      // Igual que al programar: primero Shopify, así un fallo a medias deja el
+      // drop programado y «Despublicar» se puede repetir.
+      try {
+        for (const product of source.products) await dropsAdmin.unpublish(product.id);
+        await dropsAdmin.setConfig({ id: source.id, configJson: JSON.stringify(config) });
+      } finally {
+        refresh();
+      }
       audit('despublicar', handle);
       return { handle };
     },
@@ -373,7 +409,8 @@ export function createTallerService({
       const source = await requireDrop(handle);
       const product = await dropsAdmin.getProduct(productId);
       if (!product) throw notFound('Ese diseño no existe.', 'DESIGN_NOT_FOUND');
-      if (product.collections.some((other) => isDropHandle(other) && other !== handle)) {
+      const valid = await dropHandles();
+      if (product.collections.some((other) => other !== handle && valid.has(other))) {
         throw new HttpError('Ese diseño ya está en otro drop.', {
           status: 409,
           code: 'DESIGN_IN_OTHER_DROP',
@@ -404,12 +441,13 @@ export function createTallerService({
     },
 
     async searchProducts(term) {
+      const valid = await dropHandles();
       return (await dropsAdmin.searchProducts(term)).map((product) => ({
         id: product.id,
         handle: product.handle,
         title: product.title,
         image: product.image ?? null,
-        drop: product.collections.find(isDropHandle) ?? null,
+        drop: product.collections.find((collection) => valid.has(collection)) ?? null,
       }));
     },
 

@@ -16,7 +16,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { CONFIG_STATUS, DROP_CONFIG_VERSION, parseDropConfig } from '../shared/drops.mjs';
 import { createShopifyConfig } from '../server/config/shopify.mjs';
 import { createConfig } from '../server/config/app.mjs';
@@ -155,7 +155,7 @@ async function main() {
   if (!aplicar) console.log('Nada escrito. Repite con --aplicar.');
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((error) => {
     process.stderr.write(`${error.message}\n`);
     process.exit(1);

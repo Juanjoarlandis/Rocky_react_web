@@ -40,6 +40,7 @@ const productFields = (withPublication) => `
    Se recorren todas las colecciones y se filtran por handle aquí. */
 const COLLECTIONS_PAGE_SIZE = 100;
 const MAX_COLLECTION_PAGES = 20;
+const PRODUCT_READS_AT_ONCE = 4;
 
 const LIST_DROPS = `
   query RockyDrops($after: String) {
@@ -154,6 +155,16 @@ const UNPUBLISH = `
   }
 `;
 
+const PUBLICATIONS = `
+  query RockyPublications { publications(first: 50) { nodes { id } } }
+`;
+
+const COLLECTION_BY_HANDLE = `
+  query RockyCollectionByHandle($handle: String!) {
+    collectionByIdentifier(identifier: { handle: $handle }) { id handle }
+  }
+`;
+
 const STAGED_UPLOAD = `
   mutation RockyStaged($input: [StagedUploadInput!]!) {
     stagedUploadsCreate(input: $input) {
@@ -265,6 +276,17 @@ export function createDropsAdmin({
     return locationId;
   }
 
+  let publicationIds = null;
+  async function allPublications() {
+    if (!publicationIds) {
+      const data = await admin.query(PUBLICATIONS);
+      const ids = (data.publications?.nodes ?? []).map((node) => node.id);
+      if (publicationId && !ids.includes(publicationId)) ids.push(publicationId);
+      publicationIds = ids;
+    }
+    return publicationIds;
+  }
+
   return {
     publicationId,
 
@@ -282,18 +304,27 @@ export function createDropsAdmin({
         if (!info?.hasNextPage || !info.endCursor) break;
         after = info.endCursor;
       }
+      // Los productos se piden de PRODUCT_READS_AT_ONCE en
+      // PRODUCT_READS_AT_ONCE: en serie, cada colección más del archivo
+      // alargaría la espera del guardián del carrito; todas a la vez podrían
+      // agotar el cupo de la Admin API.
       const drops = [];
-      for (const collection of collections) {
-        drops.push({
-          id: collection.id,
-          handle: collection.handle,
-          title: collection.title,
-          poster: collection.image
-            ? { url: collection.image.url, alt: collection.image.altText || '' }
-            : null,
-          rawConfig: collection.metafield?.value ?? null,
-          products: await productsOf(collection.id),
-        });
+      for (let start = 0; start < collections.length; start += PRODUCT_READS_AT_ONCE) {
+        const batch = collections.slice(start, start + PRODUCT_READS_AT_ONCE);
+        drops.push(
+          ...(await Promise.all(
+            batch.map(async (collection) => ({
+              id: collection.id,
+              handle: collection.handle,
+              title: collection.title,
+              poster: collection.image
+                ? { url: collection.image.url, alt: collection.image.altText || '' }
+                : null,
+              rawConfig: collection.metafield?.value ?? null,
+              products: await productsOf(collection.id),
+            }))
+          ))
+        );
       }
       return drops;
     },
@@ -415,9 +446,21 @@ export function createDropsAdmin({
       assertAccepted(data.publishablePublish, 'publishablePublish');
     },
 
+    /* Despublica de todos los canales, no solo de Headless: un diseño que
+       siguiera en la tienda online u otro canal se podría ver o comprar sin
+       pasar por el BFF. Publicar, en cambio, es solo en Headless. */
     async unpublish(productId) {
-      const data = await admin.query(UNPUBLISH, { id: productId, input: [{ publicationId }] });
+      const input = (await allPublications()).map((id) => ({ publicationId: id }));
+      if (!input.length) return;
+      const data = await admin.query(UNPUBLISH, { id: productId, input });
       assertAccepted(data.publishableUnpublish, 'publishableUnpublish');
+    },
+
+    /* Cualquier colección con ese handle, sea o no un drop válido: Shopify
+       añadiría un sufijo al crear otra con el mismo. */
+    async findCollectionByHandle(handle) {
+      const data = await admin.query(COLLECTION_BY_HANDLE, { handle });
+      return data.collectionByIdentifier ?? null;
     },
 
     /* Sube una imagen ya validada: subida segura, fileCreate y espera a que

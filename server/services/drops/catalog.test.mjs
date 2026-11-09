@@ -156,6 +156,102 @@ describe('catálogo vivo', () => {
     expect(storefront.listProducts).toHaveBeenCalledTimes(2);
   });
 
+  it('un fallo de la Storefront no se cachea: la siguiente consulta vuelve a pedir', async () => {
+    let fail = true;
+    const storefront = {
+      listProducts: vi.fn(async () => {
+        if (fail) throw new Error('caída');
+        return { products: [product('x')], pageInfo: { hasNextPage: false, endCursor: null } };
+      }),
+    };
+    const catalog = createCatalogModel({ storefront, dropsModel: dropsWith([]), clock: () => NOW });
+    await expect(catalog.list()).rejects.toThrow('caída');
+    fail = false;
+    expect((await catalog.list()).products).toHaveLength(1);
+    expect(storefront.listProducts).toHaveBeenCalledTimes(2);
+  });
+
+  it('una lectura que empezó antes de invalidar no se guarda como fresca', async () => {
+    let release;
+    let calls = 0;
+    const storefront = {
+      listProducts: vi.fn(() => {
+        calls += 1;
+        const products = calls === 1 ? [product('viejo')] : [product('viejo'), product('nuevo')];
+        const page = { products, pageInfo: { hasNextPage: false, endCursor: null } };
+        if (calls > 1) return Promise.resolve(page);
+        return new Promise((resolve) => {
+          release = () => resolve(page);
+        });
+      }),
+    };
+    const catalog = createCatalogModel({ storefront, dropsModel: dropsWith([]), clock: () => NOW });
+    const vieja = catalog.list();
+    catalog.invalidate();
+    const tras = catalog.list();
+    release();
+    expect((await vieja).products.map((p) => p.handle)).toEqual(['viejo']);
+    expect((await tras).products.map((p) => p.handle)).toEqual(['viejo', 'nuevo']);
+    expect((await catalog.list()).products.map((p) => p.handle)).toEqual(['viejo', 'nuevo']);
+  });
+
+  it('al caer un drop, la lectura de antes de su hora se da por vieja y se relee a menudo un rato', async () => {
+    const launch = Date.parse('2026-11-20T20:00:00+01:00');
+    let now = launch - 10_000;
+    const drops = dropsWith([
+      source('rocky-drop-7', 7, '2026-11-20T20:00:00+01:00', null, ['rocky-nuevo']),
+    ]);
+    let pages = [[product('rocky-viejo')]];
+    const storefront = {
+      listProducts: vi.fn(async () => ({
+        products: pages[0],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      })),
+    };
+    const catalog = createCatalogModel({ storefront, dropsModel: drops, clock: () => now });
+    await catalog.list();
+    // Shopify todavía no lo sirve en el primer segundo...
+    now = launch + 1_000;
+    await catalog.list();
+    expect(storefront.listProducts).toHaveBeenCalledTimes(2);
+    // ...y a los pocos segundos sí: no hay que esperar los 30 s.
+    pages = [[product('rocky-viejo'), product('rocky-nuevo')]];
+    now = launch + 7_000;
+    const { products } = await catalog.list();
+    expect(products.map((p) => p.handle)).toContain('rocky-nuevo');
+    expect(storefront.listProducts).toHaveBeenCalledTimes(3);
+    // Pasado el rato del lanzamiento vuelve a cachear 30 s.
+    now = launch + 5 * 60_000;
+    await catalog.list();
+    now += 10_000;
+    await catalog.list();
+    expect(storefront.listProducts).toHaveBeenCalledTimes(4);
+  });
+
+  it('el guardián encuentra por el modelo de drops una variante que no está en el catálogo leído', async () => {
+    const archivo = {
+      ...source('rocky-drop-3', 3, '2026-09-01T20:00:00+02:00', '2026-09-10T20:00:00+02:00', [
+        'rocky-viejo',
+      ]),
+    };
+    archivo.products = [
+      {
+        handle: 'rocky-viejo',
+        title: 'Viejo',
+        availableForSale: true,
+        variants: [{ id: 'gid://shopify/ProductVariant/999' }],
+      },
+    ];
+    const catalog = createCatalogModel({
+      storefront: storefrontWith([[product('x')]]),
+      dropsModel: dropsWith([archivo]),
+      clock: () => NOW,
+    });
+    const found = await catalog.findByVariant('gid://shopify/ProductVariant/999');
+    expect(found).toMatchObject({ handle: 'rocky-viejo', purchasable: false });
+    expect(found.drop).toMatchObject({ handle: 'rocky-drop-3', state: DROP_STATES.ARCHIVE });
+  });
+
   it('cachea 30 s con una sola petición en vuelo', async () => {
     let now = NOW;
     const storefront = storefrontWith([[product('x')]]);

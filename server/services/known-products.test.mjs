@@ -101,4 +101,20 @@ describe('known product handles', () => {
     const known = createKnownProducts({ catalog: null, drops });
     await expect(known.includes('rocky-drop-6')).resolves.toBe(false);
   });
+
+  it('con Shopify manda el modelo de drops: el rocky-drop-4 de la demo no vale si allí está cerrado', async () => {
+    const drops = {
+      publicPayload: vi.fn().mockResolvedValue({
+        drops: [{ handle: 'rocky-drop-4', state: 'archivo' }],
+      }),
+    };
+    const known = createKnownProducts({ catalog: null, drops });
+    expect(known.staticHandles.has('rocky-drop-4')).toBe(true);
+    await expect(known.includes('rocky-drop-4')).resolves.toBe(false);
+    const sinDrop = createKnownProducts({
+      catalog: null,
+      drops: { publicPayload: vi.fn().mockResolvedValue({ drops: [] }) },
+    });
+    await expect(sinDrop.includes('rocky-drop-4')).resolves.toBe(false);
+  });
 });

@@ -2,13 +2,16 @@ import { featuredDrop, parseDropConfig, publicDrop, sortForWall } from '../../..
 import { ensureLogger } from '../../lib/logger.mjs';
 
 // El modelo de drops: las colecciones `rocky-drop-*` leídas por la Admin API,
-// validadas y cacheadas (design.md, D2). Una sola petición en vuelo, 30 s de
-// vida y, si Shopify se cae, la última lectura buena durante 10 minutos; pasado
-// eso la web se queda sin drops (y sigue vendiendo lo publicado). El Taller lee
-// en modo estricto: ahí un fallo tiene que verse.
+// validadas y cacheadas (design.md, D2). Una sola petición en vuelo y 30 s de
+// vida. Si Shopify se cae, sirve la última lectura buena sin caducar: el estado
+// se calcula con la hora de cada consulta, así que una lectura vieja sigue
+// cerrando los drops a su hora y el guardián de la venta no se abre. El Taller
+// lee en modo estricto: ahí un fallo tiene que verse.
+//
+// invalidate() sube una generación: una lectura que empezó antes no se guarda
+// como fresca ni la reutiliza quien llega después.
 
 const DEFAULT_TTL_MS = 30_000;
-const DEFAULT_STALE_MS = 10 * 60_000;
 
 const launchTime = (source) => Date.parse(source.config.launchAt ?? '') || 0;
 
@@ -16,17 +19,21 @@ export function createDropsModel({
   dropsAdmin,
   clock = () => Date.now(),
   ttlMs = DEFAULT_TTL_MS,
-  staleMs = DEFAULT_STALE_MS,
   logger,
 }) {
   const log = ensureLogger(logger);
   let cached = null;
+  let lastGood = null;
   let pending = null;
+  let generation = 0;
 
   function validate(raw) {
     const sources = [];
     for (const collection of raw) {
-      const parsed = parseDropConfig(collection.rawConfig ?? '');
+      // Sin metacampo no es un drop (una colección antigua): se ignora sin
+      // ruido. Un metacampo roto sí se avisa.
+      if (collection.rawConfig === null || collection.rawConfig === undefined) continue;
+      const parsed = parseDropConfig(collection.rawConfig);
       if (!parsed.ok) {
         // Solo el handle y el campo: el contenido del metacampo no va al log.
         log.warn('Colección de drop con configuración no válida', {
@@ -75,27 +82,33 @@ export function createDropsModel({
     });
   }
 
-  async function refresh() {
+  async function refresh(startedAt) {
     const value = validate(await dropsAdmin.listDrops());
-    cached = { value, fetchedAt: clock() };
+    const read = { value, fetchedAt: clock() };
+    if (startedAt === generation) {
+      cached = read;
+      lastGood = read;
+    }
     return value;
   }
 
   async function sources({ strict = false } = {}) {
     if (!dropsAdmin) return [];
     if (cached && clock() - cached.fetchedAt < ttlMs) return cached.value;
-    if (!pending) {
-      pending = refresh().finally(() => {
-        pending = null;
+    if (!pending || pending.generation !== generation) {
+      const startedAt = generation;
+      const promise = refresh(startedAt).finally(() => {
+        if (pending?.promise === promise) pending = null;
       });
+      pending = { promise, generation: startedAt };
     }
     try {
-      return await pending;
+      return await pending.promise;
     } catch (error) {
       if (strict) throw error;
-      if (cached && clock() - cached.fetchedAt < staleMs) {
+      if (lastGood) {
         log.warn('Drops servidos de la última lectura buena', { reason: error?.code || 'error' });
-        return cached.value;
+        return lastGood.value;
       }
       log.error('No se han podido leer los drops de Shopify', { reason: error?.code || 'error' });
       return [];
@@ -106,6 +119,7 @@ export function createDropsModel({
     sources,
 
     invalidate() {
+      generation += 1;
       cached = null;
     },
 

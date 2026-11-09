@@ -7,7 +7,10 @@ import { DROP_STATES, isOnSale, publicDrop } from '../../../shared/drops.mjs';
 // no los sirve antes de su hora, esto cubre un producto publicado a mano.
 //
 // El estado se recalcula en cada consulta con la hora de ese momento; solo los
-// datos de Shopify se cachean.
+// datos de Shopify se cachean. Al caer un drop, la lectura de antes de su hora
+// se da por vieja y durante un par de minutos se relee cada 5 s: Shopify tarda
+// un poco en servir lo que publica con fecha. invalidate() sube una generación
+// para que una lectura que empezó antes no se guarde como fresca.
 
 const PAGE_SIZE = 50;
 const MAX_PAGES = 5;
@@ -16,6 +19,8 @@ const DEFAULT_TTL_MS = 30_000;
 // bot con ids inventados haría releer el catálogo entero en cada petición.
 const MIN_FORCED_REFRESH_MS = 5_000;
 const HIDDEN = new Set([DROP_STATES.ANNOUNCED, DROP_STATES.DRAFT]);
+const LAUNCH_WINDOW_MS = 2 * 60_000;
+const LAUNCH_TTL_MS = 5_000;
 
 export function createCatalogModel({
   storefront,
@@ -25,6 +30,7 @@ export function createCatalogModel({
 }) {
   let cached = null;
   let pending = null;
+  let generation = 0;
 
   async function fetchAll(buyerIp) {
     const products = [];
@@ -38,21 +44,37 @@ export function createCatalogModel({
     return products;
   }
 
+  /* Cuánto vale la lectura guardada: nada si un drop cayó después de leerla;
+     poco justo después de un lanzamiento; si no, el TTL normal. */
+  async function ttlFor(fetchedAt, now) {
+    let ttl = ttlMs;
+    for (const source of await dropsModel.sources()) {
+      const launch = Date.parse(source.config.launchAt ?? '');
+      if (!Number.isFinite(launch) || launch > now) continue;
+      if (launch > fetchedAt) return 0;
+      if (now - launch < LAUNCH_WINDOW_MS) ttl = Math.min(ttl, LAUNCH_TTL_MS);
+    }
+    return ttl;
+  }
+
   async function raw({ buyerIp, force = false } = {}) {
-    const age = cached ? clock() - cached.fetchedAt : Infinity;
-    const fresh = force ? age < MIN_FORCED_REFRESH_MS : age < ttlMs;
-    if (fresh) return cached.products;
-    if (!pending) {
-      pending = fetchAll(buyerIp)
+    const now = clock();
+    const age = cached ? now - cached.fetchedAt : Infinity;
+    const limit = force ? MIN_FORCED_REFRESH_MS : cached ? await ttlFor(cached.fetchedAt, now) : 0;
+    if (cached && age < limit) return cached.products;
+    if (!pending || pending.generation !== generation) {
+      const startedAt = generation;
+      const promise = fetchAll(buyerIp)
         .then((products) => {
-          cached = { products, fetchedAt: clock() };
+          if (startedAt === generation) cached = { products, fetchedAt: clock() };
           return products;
         })
         .finally(() => {
-          pending = null;
+          if (pending?.promise === promise) pending = null;
         });
+      pending = { promise, generation: startedAt };
     }
-    return pending;
+    return pending.promise;
   }
 
   async function decorate(products) {
@@ -72,6 +94,24 @@ export function createCatalogModel({
       const drop = owners.get(product.handle) ?? null;
       return { ...product, drop, purchasable: drop ? isOnSale(drop.state) : true };
     });
+  }
+
+  async function fromDropsModel(variantId) {
+    const now = new Date(clock());
+    for (const source of await dropsModel.sources()) {
+      const design = source.products.find((candidate) =>
+        (candidate.variants ?? []).some((variant) => variant.id === variantId)
+      );
+      if (!design) continue;
+      const state = publicDrop(source, now)?.state ?? DROP_STATES.DRAFT;
+      return {
+        handle: design.handle,
+        title: design.title,
+        drop: { handle: source.handle, title: source.title, number: source.config.number, state },
+        purchasable: isOnSale(state),
+      };
+    }
+    return null;
   }
 
   const isVisible = (product) => !product.drop || !HIDDEN.has(product.drop.state);
@@ -99,7 +139,9 @@ export function createCatalogModel({
         products = await decorate(await raw({ buyerIp, force: true }));
         found = products.find((product) => hasVariant(product, variantId));
       }
-      return found ?? null;
+      // Más allá de los 250 productos leídos: el modelo de drops conoce las
+      // variantes de cada diseño, así que el guardián no se queda ciego.
+      return found ?? (await fromDropsModel(variantId));
     },
 
     async findByHandle(handle, { buyerIp } = {}) {
@@ -108,6 +150,7 @@ export function createCatalogModel({
     },
 
     invalidate() {
+      generation += 1;
       cached = null;
     },
   };
