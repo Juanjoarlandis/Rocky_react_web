@@ -1,7 +1,9 @@
 // Genera la entrada del Taller: una clave, su hash scrypt y un secreto TOTP.
 //
 //   npm run taller:clave                 → inventa una clave fuerte
-//   echo "mi clave" | npm run taller:clave -- --stdin   → usa la tuya (≥ 12 caracteres)
+//   read -rs CLAVE; printf '%s' "$CLAVE" | npm run taller:clave -- --stdin
+//                                         → usa la tuya (≥ 12 caracteres) sin
+//                                           dejarla en el historial de la shell
 //
 // Imprime UNA vez la clave (guárdala en el gestor de contraseñas), las dos
 // variables para el entorno del servidor y la URI otpauth:// para dar de alta

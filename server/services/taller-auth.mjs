@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { HttpError } from '../http/errors.mjs';
 import { createAttemptTracker } from '../lib/attempt-tracker.mjs';
+import { clientKey } from '../lib/client-key.mjs';
 import { ensureLogger } from '../lib/logger.mjs';
 import { verifyPassword } from '../lib/password-hash.mjs';
 import { createTotpVerifier } from '../lib/totp.mjs';
@@ -13,12 +14,20 @@ import { createTotpVerifier } from '../lib/totp.mjs';
 // El código solo se comprueba si la clave es buena: quien prueba claves no
 // puede gastar el código del dueño. El log no lleva ni claves, ni códigos, ni
 // la IP.
+//
+// Más defensas: las IPv6 cuentan por su /64; diez códigos malos con la clave
+// buena en una hora (alguien tiene la clave y prueba códigos desde muchas IP)
+// cierran la entrada una hora para todos; y no se calculan más de dos scrypt a
+// la vez, para que una avalancha de intentos no frene el resto del servidor.
 
 const ATTEMPT_LIMIT = 5;
 const ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
 // Lo que la sesión conserva al rotar: el carrito, la cuenta y la puerta.
 const PRESERVE = ['cartId', 'customerTokenId', 'siteAccessGrant', 'siteAccessExpiresAt'];
 const FAILED_MESSAGE = 'La clave o el código no valen.';
+const CODE_FAILURE_LIMIT = 10;
+const CODE_FAILURE_WINDOW_MS = 60 * 60 * 1000;
+const MAX_CONCURRENT_CHECKS = 2;
 
 export function createTallerAuth({
   config,
@@ -34,6 +43,28 @@ export function createTallerAuth({
     windowMs: ATTEMPT_WINDOW_MS,
     clock,
   });
+  let codeFailures = [];
+  let lockedUntil = 0;
+  let checking = 0;
+
+  function tooMany(res, retryAfterMs) {
+    res.setHeader('Retry-After', String(Math.max(1, Math.ceil(retryAfterMs / 1000))));
+    return new HttpError('Demasiados intentos. Espera un poco y vuelve a probar.', {
+      status: 429,
+      code: 'TALLER_TOO_MANY_ATTEMPTS',
+    });
+  }
+
+  function recordCodeFailure() {
+    const now = clock();
+    codeFailures = codeFailures.filter((at) => now - at < CODE_FAILURE_WINDOW_MS);
+    codeFailures.push(now);
+    if (codeFailures.length >= CODE_FAILURE_LIMIT) {
+      lockedUntil = now + CODE_FAILURE_WINDOW_MS;
+      codeFailures = [];
+      log.error('Entrada al Taller cerrada: demasiados códigos malos con la clave buena', {});
+    }
+  }
 
   function grantOf(record) {
     const active =
@@ -54,20 +85,34 @@ export function createTallerAuth({
     status,
 
     async login(req, res, { password, code }) {
-      const key = req.ip || 'unknown';
+      if (clock() < lockedUntil) {
+        log.warn('Entrada al Taller limitada', {});
+        throw tooMany(res, lockedUntil - clock());
+      }
+      const key = clientKey(req.ip);
       const limit = attempts.consume(key);
       if (limit.isLimited) {
-        res.setHeader('Retry-After', String(limit.retryAfterSeconds));
         log.warn('Entrada al Taller limitada', {});
-        throw new HttpError('Demasiados intentos. Espera un poco y vuelve a probar.', {
+        throw tooMany(res, limit.retryAfterSeconds * 1000);
+      }
+      if (checking >= MAX_CONCURRENT_CHECKS) {
+        res.setHeader('Retry-After', '2');
+        throw new HttpError('El Taller está ocupado. Vuelve a probar en un momento.', {
           status: 429,
-          code: 'TALLER_TOO_MANY_ATTEMPTS',
+          code: 'TALLER_BUSY',
         });
       }
 
-      const passwordOk = await verifyPassword(password, config.passwordHash);
+      checking += 1;
+      let passwordOk;
+      try {
+        passwordOk = await verifyPassword(password, config.passwordHash);
+      } finally {
+        checking -= 1;
+      }
       const codeOk = passwordOk && totp.verify(code);
       if (!codeOk) {
+        if (passwordOk) recordCodeFailure();
         log.warn('Entrada al Taller fallida', {});
         throw new HttpError(FAILED_MESSAGE, { status: 401, code: 'TALLER_LOGIN_FAILED' });
       }

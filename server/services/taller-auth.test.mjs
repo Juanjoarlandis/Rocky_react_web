@@ -120,6 +120,62 @@ describe('entrada al Taller', () => {
     expect(Number(res.headers['Retry-After'])).toBeGreaterThan(0);
   });
 
+  it('las IPv6 de un mismo /64 cuentan como un solo cliente', async () => {
+    const { auth } = await setup();
+    for (let i = 1; i <= 5; i += 1) {
+      const b = browser(`2001:db8:1:2::${i.toString(16)}`);
+      await expect(
+        auth.login(b.req(), b.res(), { password: 'mala clave numero uno', code: '000000' })
+      ).rejects.toMatchObject({ status: 401 });
+    }
+    const otra = browser('2001:db8:1:2:ffff::9');
+    await expect(
+      auth.login(otra.req(), otra.res(), { password: 'mala clave numero uno', code: '000000' })
+    ).rejects.toMatchObject({ status: 429, code: 'TALLER_TOO_MANY_ATTEMPTS' });
+    // Otro /64 sigue pudiendo entrar.
+    const lejos = browser('2001:db8:1:3::1');
+    await expect(
+      auth.login(lejos.req(), lejos.res(), { password: 'mala clave numero uno', code: '000000' })
+    ).rejects.toMatchObject({ status: 401 });
+  });
+
+  it('diez códigos malos con la clave buena cierran la entrada una hora, desde cualquier IP', async () => {
+    const { auth, logger, now, advance } = await setup();
+    for (let i = 0; i < 10; i += 1) {
+      const b = browser(`198.51.100.${i + 1}`);
+      await expect(
+        auth.login(b.req(), b.res(), { password: PASSWORD, code: '000000' })
+      ).rejects.toMatchObject({ status: 401 });
+    }
+    const dueño = browser('203.0.113.99');
+    await expect(
+      auth.login(dueño.req(), dueño.res(), { password: PASSWORD, code: code(now()) })
+    ).rejects.toMatchObject({ status: 429, code: 'TALLER_TOO_MANY_ATTEMPTS' });
+    expect(logger.error).toHaveBeenCalledWith(
+      'Entrada al Taller cerrada: demasiados códigos malos con la clave buena',
+      {}
+    );
+    advance(61 * 60 * 1000);
+    await expect(
+      auth.login(dueño.req(), dueño.res(), { password: PASSWORD, code: code(now()) })
+    ).resolves.toMatchObject({ active: true });
+  });
+
+  it('no calcula más de dos claves a la vez: el resto responde 429 sin hacer scrypt', async () => {
+    const { auth } = await setup();
+    const peticiones = Array.from({ length: 6 }, (_, i) => {
+      const b = browser(`192.0.2.${i + 1}`);
+      return auth
+        .login(b.req(), b.res(), { password: 'mala clave numero uno', code: '000000' })
+        .catch((error) => error);
+    });
+    const resultados = await Promise.all(peticiones);
+    const ocupado = resultados.filter((error) => error.code === 'TALLER_BUSY');
+    expect(ocupado.length).toBe(4);
+    expect(ocupado[0].status).toBe(429);
+    expect(resultados.filter((error) => error.code === 'TALLER_LOGIN_FAILED')).toHaveLength(2);
+  });
+
   it('el permiso caduca a las 8 horas', async () => {
     const { auth, advance, now } = await setup();
     const b = browser();
