@@ -203,9 +203,14 @@ function sanitizeProduct(product) {
   const title = safeText(product?.title, 120);
   if (!SAFE_HANDLE.test(handle) || !title) return null;
 
+  // Un diseño de un drop que no está en la calle no se vende, tenga o no
+  // existencias en Shopify (catalogo-vivo): ni la tarjeta ni el contexto lo
+  // ofrecen como disponible.
+  const closed = product.purchasable === false;
   const variants = (Array.isArray(product.variants) ? product.variants : [])
     .map(sanitizeVariant)
-    .filter(Boolean);
+    .filter(Boolean)
+    .map((variant) => (closed ? { ...variant, availableForSale: false } : variant));
   if (variants.length === 0) return null;
 
   const defaultVariant = variants.find((variant) => variant.availableForSale) || variants[0];
@@ -216,6 +221,7 @@ function sanitizeProduct(product) {
     image: safeImage(product.image) || defaultVariant.image,
     price: defaultVariant.price,
     availableForSale: variants.some((variant) => variant.availableForSale),
+    ...(closed ? { dropClosed: true } : {}),
     variants,
   };
 }
@@ -375,12 +381,18 @@ export function buildCommerceContext(products) {
     drop: product.drop,
     availability: product.isPreview
       ? 'vista previa sin stock real'
-      : product.availableForSale
-        ? 'disponible'
-        : 'agotado',
+      : product.dropClosed
+        ? 'drop cerrado: ya no se vende'
+        : product.availableForSale
+          ? 'disponible'
+          : 'agotado',
     variants: product.variants.map((variant) => ({
       name: variant.label,
-      availability: variant.availableForSale ? 'disponible' : 'agotada',
+      availability: product.dropClosed
+        ? 'drop cerrado'
+        : variant.availableForSale
+          ? 'disponible'
+          : 'agotada',
     })),
   }));
 

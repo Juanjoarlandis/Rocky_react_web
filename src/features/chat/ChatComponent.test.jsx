@@ -158,6 +158,57 @@ describe('Rocky IA shopping experience', () => {
     );
   });
 
+  it('un diseño de un drop cerrado dice «Drop cerrado» y no deja añadirlo', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            message: 'La Congelado ya voló.',
+            products: [
+              {
+                handle: 'rocky-congelado',
+                title: 'Congelado',
+                drop: 'ROCKY DROP 3',
+                image: null,
+                price: { amount: '34.99', currencyCode: 'EUR' },
+                availableForSale: false,
+                dropClosed: true,
+                variants: [
+                  {
+                    id: 'gid://shopify/ProductVariant/31',
+                    label: 'M',
+                    availableForSale: false,
+                    quantityAvailable: null,
+                    price: { amount: '34.99', currencyCode: 'EUR' },
+                    image: null,
+                  },
+                ],
+              },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      )
+    );
+
+    render(
+      <MemoryRouter>
+        <ChatComponent addToCart={vi.fn()} commerceMode="shopify" canAddToCart />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /ver camisetas disponibles/i }));
+
+    expect(await screen.findByText('Drop cerrado')).toBeInTheDocument();
+    expect(screen.queryByText('Disponible')).not.toBeInTheDocument();
+    const compra = screen
+      .getAllByRole('button')
+      .filter((button) => button.classList.contains('chat-product-add'));
+    expect(compra).toHaveLength(1);
+    expect(compra[0]).toBeDisabled();
+  });
+
   it('never exposes a preview concept as a Shopify add-to-cart action', async () => {
     const addToCart = vi.fn();
     vi.stubGlobal(

@@ -10,8 +10,9 @@ function firstAvailableVariant(variants) {
   return variants.find((variant) => variant.availableForSale) || variants[0] || null;
 }
 
-function stockLabel(variant, isPreview) {
+function stockLabel(variant, isPreview, dropClosed) {
   if (isPreview) return 'Vista previa';
+  if (dropClosed) return 'Drop cerrado';
   if (!variant?.availableForSale) return 'Agotada';
   if (variant.quantityAvailable === 1) return 'Última unidad';
   if (variant.quantityAvailable > 1) return `${variant.quantityAvailable} unidades`;
@@ -79,7 +80,7 @@ function ChatProductCard({ product, addToCart, commerceMode = 'demo', canAddToCa
                   : 'is-sold-out'
             }
           >
-            {stockLabel(selectedVariant, product.isPreview)}
+            {stockLabel(selectedVariant, product.isPreview, product.dropClosed)}
           </span>
         </div>
 

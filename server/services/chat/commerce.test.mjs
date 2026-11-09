@@ -178,6 +178,23 @@ describe('Rocky IA commerce context', () => {
     });
   });
 
+  it('un diseño de un drop cerrado no se ofrece como disponible (catalogo-vivo)', () => {
+    const cerrado = {
+      ...products[0],
+      handle: 'rocky-congelado',
+      title: 'Congelado',
+      drop: { handle: 'rocky-drop-3', title: 'ROCKY DROP 3', number: 3, state: 'archivo' },
+      purchasable: false,
+      variants: products[0].variants.map((variant) => ({ ...variant, availableForSale: true })),
+    };
+    const [selected] = selectCatalogChatProducts('¿Queda la Congelado?', [cerrado], [], 1);
+    expect(selected).toMatchObject({ handle: 'rocky-congelado', availableForSale: false });
+    expect(selected.variants.every((variant) => !variant.availableForSale)).toBe(true);
+    const context = buildCommerceContext([selected]);
+    expect(context).toContain('drop cerrado');
+    expect(context).not.toContain('"disponible"');
+  });
+
   it('builds a fact-only context that directs numeric details to the cards', () => {
     const selected = selectCatalogChatProducts('Muéstrame camisetas', products, [], 2);
     const context = buildCommerceContext(selected);
