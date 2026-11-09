@@ -35,9 +35,16 @@ const productFields = (withPublication) => `
   }
 `;
 
+/* Sin el parámetro query: el buscador de Shopify tarda segundos en ver una
+   colección recién creada y el Taller la perdería justo después de crearla.
+   Se recorren todas las colecciones y se filtran por handle aquí. */
+const COLLECTIONS_PAGE_SIZE = 100;
+const MAX_COLLECTION_PAGES = 20;
+
 const LIST_DROPS = `
-  query RockyDrops {
-    collections(first: 50, query: "handle:rocky-drop-*") {
+  query RockyDrops($after: String) {
+    collections(first: ${COLLECTIONS_PAGE_SIZE}, after: $after) {
+      pageInfo { hasNextPage endCursor }
       nodes {
         id
         handle
@@ -264,10 +271,17 @@ export function createDropsAdmin({
     /* Todas las colecciones de drop, con su metacampo crudo y sus productos.
        La validación del metacampo la hace quien lee. */
     async listDrops() {
-      const data = await admin.query(LIST_DROPS);
-      const collections = (data.collections?.nodes ?? []).filter((node) =>
-        isDropHandle(node.handle)
-      );
+      const collections = [];
+      let after = null;
+      for (let page = 0; page < MAX_COLLECTION_PAGES; page += 1) {
+        const data = await admin.query(LIST_DROPS, { after });
+        collections.push(
+          ...(data.collections?.nodes ?? []).filter((node) => isDropHandle(node.handle))
+        );
+        const info = data.collections?.pageInfo;
+        if (!info?.hasNextPage || !info.endCursor) break;
+        after = info.endCursor;
+      }
       const drops = [];
       for (const collection of collections) {
         drops.push({

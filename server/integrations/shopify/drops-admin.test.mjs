@@ -91,6 +91,25 @@ describe('lectura de drops por la Admin API', () => {
     );
   });
 
+  it('lee las colecciones sin el buscador (que tarda en ver las nuevas) y recorre todas las páginas', async () => {
+    const page = (handle, hasNextPage, endCursor) => ({
+      collections: {
+        pageInfo: { hasNextPage, endCursor },
+        nodes: [{ id: `c-${handle}`, handle, title: handle, image: null, metafield: null }],
+      },
+    });
+    const admin = fakeAdmin({
+      RockyDrops: ({ after }) =>
+        after === 'p2' ? page('rocky-drop-7', false, null) : page('rocky-drop-6', true, 'p2'),
+      RockyDropProducts: () => ({ collection: { products: { nodes: [] } } }),
+    });
+    const drops = await createDropsAdmin({ admin, publicationId: null }).listDrops();
+    expect(drops.map((drop) => drop.handle)).toEqual(['rocky-drop-6', 'rocky-drop-7']);
+    const listCalls = admin.calls.filter((c) => c.name === 'RockyDrops');
+    expect(listCalls.map((c) => c.variables.after)).toEqual([null, 'p2']);
+    expect(admin.query.mock.calls[0][0]).not.toMatch(/query:\s*"/);
+  });
+
   it('sin id de publicación lista igual, sin preguntar por el canal Headless', async () => {
     const admin = fakeAdmin({
       RockyDrops: () => ({
