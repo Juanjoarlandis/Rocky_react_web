@@ -691,6 +691,56 @@ Cada cifra de «Ahora» es el intervalo de dos tandas completas de la traza.
 - El lienzo del spray (hasta 12 Mpx) solo existe con el bote en la mano o con trazos que
   enseñar, y su código solo se descarga de noche.
 
+### Tras `seo-y-cache`
+
+Medido el 2026-11-10 con `fase4/estados-y-cabeceras.mjs.txt` (instancia local con
+`PUBLIC_ORIGIN=https://rocky035.com`), `fase4/metadatos-al-navegar.mjs.txt` (Chrome sobre
+el build) y `fase4/lh-seo.mjs.txt`.
+
+| Petición | Antes | Ahora |
+| --- | --- | --- |
+| `/`, `/cart`, `/legal/privacidad` | 200 sin `Link` | 200 con `Link: <https://rocky035.com/…>; rel="canonical"` |
+| `/product/rocky-racing?utm_source=x` | 200 sin `Link` | 200; canónica sin el parámetro |
+| `/crew/` | 200 sin `Link` | 200; canónica `/crew` |
+| `/products` | 301 a `/products/`, sin cabeceras de caché | 200; canónica la portada |
+| `/loquesea`, `/legal/loquesea` | 200 `text/html` | 404 `text/html` con `X-Robots-Tag: noindex` |
+| `/sitemap.xml`, `/music/no-existe.m4a` | 200 `text/html` | 404 `text/plain`, `no-store`, `noindex` |
+| Puerta: `/access-gate/style.css` | `no-store` | `private, max-age=3600`; borde `no-store` |
+| Puerta: `/access-gate/media/…` (lista cerrada) | `no-store` | `private, max-age=86400`; borde `no-store` |
+| Puerta: su HTML, sus respuestas y lo que no está en la lista | `no-store` | igual |
+
+- Lighthouse en móvil con el origen público de producción: SEO 100 en las nueve páginas
+  que existen y buenas prácticas 100 salvo `/estudio` (77, como en la línea base: cookies
+  de terceros del reproductor incrustado). `/no-existe` ya no se puede auditar: Lighthouse
+  aborta ante un documento con 404.
+- El JavaScript inicial queda en 99,8 kB con este cambio dentro (límite 100 kB): el margen
+  es de 0,2 kB. Lo siguiente que entre en la carga inicial tendrá que sacar algo.
+
+### Tras `despliegue-ligero`
+
+Medido el 2026-11-10 en el equipo de publicación (x86-64, sin emulación), con Docker de
+verdad.
+
+| Métrica | Línea base | Ahora | Presupuesto |
+| --- | ---: | ---: | ---: |
+| Dónde se construye la imagen | en la Raspberry | en el equipo que publica | fuera de ella |
+| `node_modules` dentro de la imagen | 16,2 MB | 4,9 MB | ≤ 5 MB |
+| Imagen (x86-64) | 257 MB | 246 MB | — |
+| Construir la imagen ARM64 desde x86-64, con la caché de capas | — | 22 s | — |
+| Fichero de la imagen que viaja (`docker save` + gzip) | — | 103 MB | — |
+| Ficheros de la imagen cuya huella se compara en producción | comparación a mano | 1.193 (todo `/app` y el binario de Node) | — |
+| Límite de memoria del contenedor | ninguno | 192 MB, sin intercambio | — |
+| Tanda de carga con ese límite: fallos · pico | — | 0 · 73 MB | 0 fallos |
+| Almacén de 5.000 sesiones, 200 altas y un `docker exec` de exportación: pico | OOM con 128 MB | 130,9 MB, sin OOM | no muere |
+
+- El `dist/` de la imagen ARM64 construida aquí coincide por `sha256` con un build limpio
+  del mismo árbol (402 ficheros, 0 diferencias) y la imagen no lleva ningún `*.node`.
+- La identidad de la imagen no se puede comparar por su identificador: el Docker de este
+  equipo (almacén clásico) y el de la Raspberry (containerd) le dan uno distinto. Se
+  comparan sus capas y su arranque.
+- **Pendiente**: el primer uso real contra la Raspberry (simulacro, preparación,
+  promoción y medida en producción).
+
 ### Orden de los cambios
 
 Cada uno es un cambio OpenSpec en `openspec/changes/`, propuesto el 2026-11-10.
