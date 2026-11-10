@@ -14,7 +14,7 @@ const ALLOWED_READS = [
   /^sudo -n true 2>\/dev\/null && echo si \|\| echo no$/,
   /^test -d \/opt\/rocky035\/releases\/[\w-]+ && echo si \|\| echo no$/,
   /^docker image inspect rocky035:[\w-]+ >\/dev\/null 2>&1 && echo si \|\| echo no$/,
-  /^if \[ -e \/opt\/rocky035\/releases\/[\w-]+\/(anterior\.txt|release\.json) \]; then cat \/opt\/rocky035\/releases\/[\w-]+\/(anterior\.txt|release\.json); else echo __NO_EXISTE__; fi$/,
+  /^if \[ -e \/opt\/rocky035\/releases\/[\w-]+\/(anterior\.txt|release\.json|imagen-verificada\.txt) \]; then cat \/opt\/rocky035\/releases\/[\w-]+\/(anterior\.txt|release\.json|imagen-verificada\.txt); else echo __NO_EXISTE__; fi$/,
   /^cat \/opt\/rocky035\/releases\/[\w-]+\/promover-\d{8}T\d{6}Z\.log$/,
 ];
 
@@ -26,6 +26,8 @@ function fakeRemote({
   imageExists = true,
   sudo = true,
   result = 'ok',
+  // Lo que dejó `preparar` al verificar la imagen (despliegue-ligero); null = sin marca.
+  verified = `sha256:${'ab'.repeat(32)} arm64 1500\n`,
 } = {}) {
   const calls = [];
   return {
@@ -41,6 +43,8 @@ function fakeRemote({
         if (anteriorUnreadable) throw new Error('cat: anterior.txt: Permiso denegado');
         return anterior === null ? '__NO_EXISTE__\n' : anterior;
       }
+      if (command.includes('imagen-verificada.txt'))
+        return verified === null ? '__NO_EXISTE__\n' : verified;
       if (command.includes('release.json'))
         return manifest === null ? '__NO_EXISTE__\n' : JSON.stringify(manifest);
       if (command.startsWith('test -d')) return releaseExists ? 'si\n' : 'no\n';
@@ -131,6 +135,31 @@ describe('promover una release', () => {
     ).rejects.toThrow(/imagen/);
   });
 
+  it('se niega a promover una release cuya imagen no se verificó al prepararla', async () => {
+    const remote = fakeRemote({ verified: null });
+    await expect(
+      promoteRelease({ release: NEXT, apply: true, now: NOW }, { remote, ...io })
+    ).rejects.toThrow(/no está verificada/);
+    // Tampoco en simulacro se da por buena
+    await expect(
+      promoteRelease({ release: NEXT, now: NOW }, { remote: fakeRemote({ verified: null }), ...io })
+    ).rejects.toThrow(/no está verificada/);
+    expect(changing(remote)).toEqual([]);
+  });
+
+  it('una marca que no tiene la forma esperada tampoco vale', async () => {
+    const remote = fakeRemote({ verified: 'verificada a mano\n' });
+    await expect(
+      promoteRelease({ release: NEXT, apply: true, now: NOW }, { remote, ...io })
+    ).rejects.toThrow(/no está verificada/);
+    expect(changing(remote)).toEqual([]);
+  });
+
+  it('el script que genera exige la marca como precondición', async () => {
+    const plan = await promoteRelease({ release: NEXT, now: NOW }, { remote: fakeRemote(), ...io });
+    expect(plan.script).toContain('imagen-verificada.txt');
+  });
+
   it('rechaza un identificador o una raíz no válidos sin contactar con la Raspberry', async () => {
     const remote = fakeRemote();
     await expect(
@@ -154,6 +183,14 @@ describe('revertir a la release anterior', () => {
     expect(plan.previous).toBe(CURRENT);
     expect(plan.warnings).toEqual([]);
     expect(changing(remote)).toEqual([]);
+  });
+
+  it('volver a una release anterior no exige marca: las de antes de este proceso no la tienen', async () => {
+    const remote = fakeRemote({ anterior: `${BASE}\n`, verified: null });
+    const plan = await revertRelease({ apply: true, now: NOW }, { remote, ...io });
+    expect(plan.release).toBe(BASE);
+    expect(plan.script).not.toContain('imagen-verificada.txt');
+    expect(remote.calls.some((call) => call.command.includes('imagen-verificada.txt'))).toBe(false);
   });
 
   it('sin anterior.txt, usa la release de partida de release.json y lo avisa', async () => {

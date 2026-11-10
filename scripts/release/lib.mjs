@@ -187,3 +187,160 @@ export function buildReleaseManifest({
     fileCount,
   };
 }
+
+/* Los paquetes que `npm ci --omit=dev` instala según package-lock.json (todo lo
+   que no está marcado `dev`), con su ruta bajo node_modules como nombre. */
+export function productionPackages(lock) {
+  return Object.entries(lock?.packages ?? {})
+    .filter(([location, entry]) => location !== '' && !entry.dev)
+    .map(([location, entry]) => ({
+      name: location.replace(/^node_modules\//, ''),
+      version: entry.version,
+      entry,
+    }));
+}
+
+const NATIVE_SIGNS = [
+  ['os', 'os'],
+  ['cpu', 'cpu'],
+  ['hasInstallScript', 'script de instalación'],
+  ['gypfile', 'binding nativo'],
+];
+
+/* Paquetes de producción que no son JavaScript puro: declaran sistema o
+   procesador, o compilan al instalarse. La imagen se construye en la
+   plataforma del operador y se copia tal cual a la de producción
+   (despliegue-ligero), así que uno de estos la rompería en silencio. Devuelve
+   «nombre@versión (motivo)», ordenado; vacío si todo es JavaScript. */
+export function nativePackages(lock) {
+  return productionPackages(lock)
+    .flatMap(({ name, version, entry }) => {
+      const sign = NATIVE_SIGNS.find(([key]) => entry[key]);
+      return sign ? [`${name}@${version} (${sign[1]})`] : [];
+    })
+    .sort();
+}
+
+// Lo que dice `uname -m` en producción → la arquitectura de Docker para la imagen.
+const DOCKER_ARCH = Object.freeze({
+  aarch64: 'arm64',
+  arm64: 'arm64',
+  x86_64: 'amd64',
+  amd64: 'amd64',
+});
+
+export function dockerArch(machine) {
+  const arch = DOCKER_ARCH[String(machine).trim()];
+  if (!arch) {
+    throw new Error(
+      `No se reconoce la arquitectura de la máquina de producción («${String(machine).trim()}»): se esperaba aarch64 o x86_64.`
+    );
+  }
+  return arch;
+}
+
+const IMAGE_ID = /^sha256:[0-9a-f]{64}$/;
+
+export function validateImageId(id) {
+  const value = String(id).trim();
+  if (!IMAGE_ID.test(value)) throw new Error(`Identificador de imagen no válido: ${value}`);
+  return value;
+}
+
+/* Lo que identifica a una imagen igual en cualquier Docker: sus capas (todo su
+   sistema de ficheros) y cómo arranca (entrada, orden, entorno, usuario,
+   carpeta y sonda). El `.Id` no sirve para comparar entre máquinas: un Docker
+   con el almacén clásico da el resumen de la configuración y uno con el de
+   containerd, el del manifiesto. */
+const FINGERPRINT_FIELDS = Object.freeze([
+  '.RootFS.Layers',
+  '.Config.Entrypoint',
+  '.Config.Cmd',
+  '.Config.Env',
+  '.Config.User',
+  '.Config.WorkingDir',
+  '.Config.Healthcheck',
+]);
+
+/* Plantilla de `docker image inspect --format`, fija (no lleva nada
+   interpolado): una línea con la arquitectura y el identificador y una línea
+   de JSON por cada campo de la huella. */
+export const IMAGE_INSPECT_FORMAT = [
+  '{{.Architecture}} {{.Id}}',
+  ...FINGERPRINT_FIELDS.map((field) => `{{json ${field}}}`),
+].join('{{"\\n"}}');
+
+// JSON con las claves ordenadas: Docker no garantiza su orden entre versiones,
+// ni siquiera entre dos plantillas en la misma máquina.
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+/* Lee la salida de `docker image inspect --format IMAGE_INSPECT_FORMAT`:
+   arquitectura, identificador y la huella de la imagen en forma canónica,
+   comparable entre máquinas. Una salida que no tiene esa forma es un error. */
+export function parseImageInspect(text) {
+  const lines = String(text).trim().split('\n');
+  const [architecture = '', id = '', ...rest] = (lines[0] ?? '').split(' ');
+  if (rest.length || lines.length !== FINGERPRINT_FIELDS.length + 1) {
+    throw new Error('No se reconoce la respuesta de docker image inspect.');
+  }
+  let fields;
+  try {
+    fields = lines.slice(1).map((line) => JSON.parse(line));
+  } catch {
+    throw new Error('No se reconoce la respuesta de docker image inspect.');
+  }
+  if (!Array.isArray(fields[0]) || fields[0].length === 0) {
+    throw new Error(
+      'No se reconoce la respuesta de docker image inspect: la imagen no tiene capas.'
+    );
+  }
+  return { architecture, id: validateImageId(id), fingerprint: canonicalJson(fields) };
+}
+
+// Nombre del fichero que deja `preparar` en la carpeta de una release verificada.
+export const VERIFIED_MARK = 'imagen-verificada.txt';
+
+// «<id de imagen> <arquitectura> <n.º de ficheros>»: lo que se comprobó.
+export function verifiedMark({ image, architecture, files }) {
+  if (!Number.isInteger(files) || files < 1) throw new Error('Número de ficheros no válido.');
+  return `${validateImageId(image)} ${dockerArch(architecture)} ${files}`;
+}
+
+/* Lee la salida de `sha256sum` («<huella>  <ruta>») a un mapa ruta → huella.
+   Una línea que no tiene esa forma es un error: no se ignora nada. */
+export function parseSha256Sums(text) {
+  const sums = new Map();
+  for (const line of String(text).split('\n')) {
+    if (!line) continue;
+    const match = /^([0-9a-f]{64}) [ *](.+)$/.exec(line);
+    if (!match) throw new Error(`Línea de huellas no reconocida: ${line.slice(0, 120)}`);
+    sums.set(match[2], match[1]);
+  }
+  return sums;
+}
+
+/* Compara las huellas de los ficheros de una imagen (las calculadas al
+   construirla y las leídas en producción). Devuelve las diferencias, cada una
+   con el nombre del fichero; vacío si son idénticas. */
+export function diffSha256Sums(expectedText, actualText) {
+  const expected = parseSha256Sums(expectedText);
+  const actual = parseSha256Sums(actualText);
+  const differences = [];
+  for (const [file, hash] of expected) {
+    if (!actual.has(file)) differences.push(`falta ${file}`);
+    else if (actual.get(file) !== hash) differences.push(`no coincide ${file}`);
+  }
+  for (const file of actual.keys()) {
+    if (!expected.has(file)) differences.push(`sobra ${file}`);
+  }
+  return differences.sort();
+}

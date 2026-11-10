@@ -18,4 +18,13 @@ services:
     security_opt:
       - no-new-privileges:true
     pids_limit: 256
+    # Tope de memoria del contenedor, sin intercambio (el mismo valor en los
+    # dos): si el servidor se desboca no se lleva a los demás servicios de la
+    # máquina, y no machaca la tarjeta. 192 MB es casi el doble del pico
+    # medido bajo carga y deja sitio al segundo Node de un `docker exec`
+    # (exportar o enviar avisos). Se cambia sin reconstruir con
+    # ROCKY_MEM_LIMIT en el selector de la release (compose.env), que la
+    # promoción conserva.
+    mem_limit: ${ROCKY_MEM_LIMIT:-192m}
+    memswap_limit: ${ROCKY_MEM_LIMIT:-192m}
     stop_grace_period: 20s

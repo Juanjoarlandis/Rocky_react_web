@@ -45,8 +45,8 @@ fichero de la imagen en producción.
 
 ### Requirement: Solo se promueve una imagen verificada en producción
 Tras cargar la imagen, SHALL comprobarse en la máquina de producción que su
-arquitectura es la de esa máquina y que las huellas de los ficheros de la aplicación
-dentro de la imagen coinciden con las calculadas al construirla. Promover una release
+arquitectura es la de esa máquina y que las huellas de los ficheros de la aplicación y
+del binario de Node dentro de la imagen coinciden con las calculadas al construirla. Promover una release
 cuya imagen no ha superado esa comprobación SHALL rechazarse sin tocar nada.
 
 #### Scenario: Imagen correcta

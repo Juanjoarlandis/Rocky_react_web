@@ -99,6 +99,20 @@ de promoción exigen esa marca como precondición.
   ficheros que en la Raspberry se leen distintos de como se escribieron.
 - La marca vive en la carpeta de la release, no en `release.json`, para no cambiar el
   requisito de sus siete campos.
+- *Ampliado tras la revisión independiente*: además de `/app` se compara la huella de
+  `/usr/local/bin/node`. No es de la aplicación, pero es lo que la ejecuta y es
+  exactamente el fichero que la Raspberry leyó dañado el 10 de noviembre; `docker load`
+  reutiliza la capa base que ya está allí, así que sin esto una copia dañada pasaría.
+  El resto de la imagen base no se compara.
+- Tras arrancar, el script de promoción comprueba que el contenedor corre la imagen de
+  la marca (Compose arranca por etiqueta) y vuelve atrás si no.
+- *Corregido al implementar*: «la misma imagen» no se puede comprobar por su
+  identificador. El Docker del operador (almacén clásico) y el de la Raspberry (almacén
+  de containerd) dan identificadores distintos a la misma imagen. Se compara una huella
+  que no depende del almacén: las capas (todo el sistema de ficheros) y el arranque
+  (entrada, orden, entorno, usuario, carpeta y sonda). La marca guarda el identificador
+  que la imagen tiene en producción, y el script de promoción exige que la etiqueta siga
+  apuntando a él.
 - Las releases anteriores a este cambio no tienen marca: `revertir` no la exige.
 
 ### D4. Camino de respaldo explícito
@@ -106,8 +120,14 @@ de promoción exigen esa marca como precondición.
 `preparar` acepta una opción para construir en la Raspberry como hoy. Avisa en la
 salida, y después ejecuta la misma verificación de D3 contra una build local.
 
-- *Por qué*: si un día el equipo del operador no puede construir, publicar no queda
-  bloqueado; y el código ya existe y está probado.
+- *Por qué*: si un día la imagen construida en el equipo del operador no se puede enviar
+  o cargar, publicar no queda bloqueado; y el código ya existe y está probado.
+- *Limitación*: el equipo del operador tiene que poder construir igualmente, porque de su
+  build salen las huellas con las que se compara. Si no puede construir en absoluto, no
+  hay verificación y por tanto no hay release promovible: no se añade un tercer camino
+  sin verificar.
+- Para que las dos builds den las mismas huellas, la imagen ya no lleva la caché de las
+  pruebas (`node_modules/.vite`), que cambia en cada build.
 
 ### D5. React a `devDependencies`
 

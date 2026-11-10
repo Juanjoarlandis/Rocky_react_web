@@ -12,6 +12,14 @@ updates:
     commit-message:
       prefix: 'Actualiza'
     groups:
+      # El cliente: son del build (devDependencies) y la imagen de producción no
+      # los lleva, así que `npm audit --omit=dev` ya no los cubre. Los audita el
+      # `npm audit` completo del CI, y aquí se actualizan juntos.
+      cliente:
+        patterns:
+          - 'react'
+          - 'react-dom'
+          - 'react-router'
       herramientas:
         patterns:
           - 'eslint*'

@@ -35,6 +35,28 @@ describe('plantilla de promoción (texto)', () => {
     );
   });
 
+  it('exige, antes de cualquier cambio, que la imagen sea la que se verificó al preparar la release', () => {
+    expect(script).toContain('mark="$release/imagen-verificada.txt"');
+    expect(script).toMatch(/\[ -f "\$mark" \] && \[ ! -L "\$mark" \] \|\| fail_pre/);
+    expect(script).toContain(`docker image inspect "$image" --format '{{.Id}}'`);
+    expect(script.indexOf('imagen-verificada.txt')).toBeLessThan(
+      script.indexOf('mkdir -p "$backups"')
+    );
+  });
+
+  it('para volver a una release anterior no exige la marca', () => {
+    const revert = renderPromoteScript({ ...base, requireVerified: false });
+    expect(revert).not.toContain('imagen-verificada.txt');
+    expect(revert).toContain('docker image inspect "$image" >/dev/null || fail_pre');
+  });
+
+  it('el selector nuevo conserva el límite de memoria que ya tuviera, y solo si tiene forma de límite', () => {
+    expect(script).toContain(
+      `mem_limit=$(grep -E '^ROCKY_MEM_LIMIT=[0-9]+[bkmgBKMG]?$' "$selector" | tail -n 1 || true)`
+    );
+    expect(script).toMatch(/\[ -z "\$mem_limit" \] \|\| printf '%s\\n' "\$mem_limit"/);
+  });
+
   it('nombra las copias por operación para no pisar las de otras promociones', () => {
     expect(script).toContain(`backup=/opt/rocky035/compose.env.pre-${RELEASE}-${STAMP}`);
     expect(script).toContain(`backups=/var/backups/rocky035/deploy-${RELEASE}-${STAMP}`);

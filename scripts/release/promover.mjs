@@ -11,6 +11,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+  VERIFIED_MARK,
   formatReleaseTimestamp,
   imageTag,
   parseArgs,
@@ -120,6 +121,14 @@ export async function promoteRelease(
   ) {
     throw new Error(`La imagen ${imageTag(release)} no está construida en la Raspberry.`);
   }
+  // Solo se promueve una imagen que `preparar` verificó en la Raspberry (su arquitectura y
+  // las huellas de sus ficheros). El script lo vuelve a exigir, con la identidad de la imagen.
+  const mark = await readOptional(remote, `${base}/releases/${release}/${VERIFIED_MARK}`);
+  if (!mark || !/^sha256:[0-9a-f]{64} (?:arm64|amd64) \d+\n?$/.test(mark)) {
+    throw new Error(
+      `La imagen de ${release} no está verificada (falta ${VERIFIED_MARK} o no es válida): prepárala con release:preparar. No se ha cambiado nada.`
+    );
+  }
   const stamp = formatReleaseTimestamp(now);
   const script = renderPromoteScript({ release, previous: current, project, stamp, root: base });
   const plan = { release, previous: current, project, script, warnings, applied: apply };
@@ -154,7 +163,16 @@ export async function revertRelease(
     );
   const release = validateReleaseId(target);
   const stamp = formatReleaseTimestamp(now);
-  const script = renderPromoteScript({ release, previous: current, project, stamp, root: base });
+  // Volver atrás no exige la marca de verificación: la release anterior ya estuvo en
+  // producción, y las de antes de despliegue-ligero no la tienen.
+  const script = renderPromoteScript({
+    release,
+    previous: current,
+    project,
+    stamp,
+    root: base,
+    requireVerified: false,
+  });
   const plan = { release, previous: current, project, script, warnings, applied: apply };
   if (!apply) return plan;
   announce(io, plan);

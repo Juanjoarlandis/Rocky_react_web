@@ -357,9 +357,15 @@ Tareas de operación:
 ### Publicar una release
 
 Las releases se preparan, se promueven y se revierten con órdenes del repo, en simulacro
-por defecto. Solo se publica un commit que esté en GitHub; la promoción espera a que el
-contenedor esté sano y vuelve atrás sola si no lo está. Detalle, requisitos y qué hacer si
-algo falla en [`docs/ops/publicar.md`](docs/ops/publicar.md).
+por defecto. Solo se publica un commit que esté en GitHub. La imagen se construye en el
+equipo desde el que se publica, para la arquitectura de producción y sin emulación (hace
+falta Docker con `buildx`); viaja con su huella y solo se puede promover si en producción
+es de su arquitectura y lleva dentro los mismos ficheros que al construirla. La promoción
+espera a que el contenedor esté sano y vuelve atrás sola si no lo está. El contenedor
+corre con un tope de memoria de 192 MB (`ROCKY_MEM_LIMIT` en el selector de la release lo
+cambia). Detalle, requisitos y qué hacer si algo falla en
+[`docs/ops/publicar.md`](docs/ops/publicar.md); la caché de borde, en
+[`docs/ops/cloudflare.md`](docs/ops/cloudflare.md).
 
 ```bash
 npm run release:preparar -- --etiqueta <nombre> [--aplicar]

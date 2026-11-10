@@ -8,9 +8,13 @@
 // - cerrojo contra promociones simultáneas;
 // - la release sustituida se anota en `anterior.txt`, que es lo que usa `revertir`;
 // - códigos de salida y una marca final legibles por quien sigue el log:
-//   2 = precondición (no se ha tocado nada), 1 = vuelta atrás hecha, 3 = vuelta atrás fallida.
+//   2 = precondición (no se ha tocado nada), 1 = vuelta atrás hecha, 3 = vuelta atrás fallida;
+// - (despliegue-ligero) solo se promueve una imagen que `preparar` verificó en esta máquina:
+//   la marca de la release tiene que existir y nombrar la imagen que hoy lleva esa etiqueta.
+//   Volver a una release anterior no lo exige: las de antes de ese cambio no tienen marca;
+// - el selector nuevo conserva el límite de memoria (ROCKY_MEM_LIMIT) que ya tuviera.
 // Todo valor que se interpola pasa antes por una validación estricta.
-import { imageTag, safePath, validateReleaseId, validateStamp } from './lib.mjs';
+import { VERIFIED_MARK, imageTag, safePath, validateReleaseId, validateStamp } from './lib.mjs';
 
 const PROJECT = /^[a-z0-9][a-z0-9_-]*$/;
 const OWNER = /^(?:root:root|\d+:\d+)$/;
@@ -26,6 +30,7 @@ export function renderPromoteScript({
   backupsRoot = '/var/backups/rocky035',
   waitTimeout = 90,
   owner = 'root:root',
+  requireVerified = true,
 }) {
   validateReleaseId(release);
   validateReleaseId(previous);
@@ -72,7 +77,14 @@ flock -n 9 || fail_pre 'hay otra promoción en curso'
 [ "$(readlink -f ${base}/current)" = "$previous" ] || fail_pre "la release activa no es $previous"
 [ "$(docker inspect rocky035 --format '{{.Config.Image}}')" = "$previous_image" ] || fail_pre "el contenedor no ejecuta $previous_image"
 docker image inspect "$image" >/dev/null || fail_pre "no existe la imagen $image"
-[ -f ${state} ] && [ ! -L ${state} ] || fail_pre 'el estado cifrado no es un fichero normal'
+${
+  requireVerified
+    ? `mark="$release/${VERIFIED_MARK}"
+[ -f "$mark" ] && [ ! -L "$mark" ] || fail_pre "la imagen de \${release##*/} no está verificada (falta ${VERIFIED_MARK}): prepárala con release:preparar"
+[ "$(cut -d' ' -f1 "$mark")" = "$(docker image inspect "$image" --format '{{.Id}}')" ] || fail_pre "la imagen $image no es la que se verificó al preparar la release"
+`
+    : ''
+}[ -f ${state} ] && [ ! -L ${state} ] || fail_pre 'el estado cifrado no es un fichero normal'
 
 mkdir -p "$backups"
 chmod 700 "$backups"
@@ -105,13 +117,27 @@ done
 docker ps --format '{{.Names}} {{.ID}} {{.State}}' | awk '$1 != "rocky035"' | sort > "$release/services-before.txt"
 docker stop --time 20 rocky035 >/dev/null
 cp --preserve=mode ${state} "$backups/pre-activation-state.enc"
-(umask 077 && printf 'ROCKY_IMAGE=%s\\nCOMPOSE_PROJECT_NAME=%s\\n' "$image" "$project" > "$selector.next")
+# El límite de memoria del contenedor, si el selector lo fijaba, se conserva.
+mem_limit=$(grep -E '^ROCKY_MEM_LIMIT=[0-9]+[bkmgBKMG]?$' "$selector" | tail -n 1 || true)
+if [ -z "$mem_limit" ] && grep -q '^ROCKY_MEM_LIMIT=' "$selector"; then
+  echo 'Aviso: el ROCKY_MEM_LIMIT del selector no tiene la forma <número>[b|k|m|g] y no se conserva: el contenedor arranca con el límite por defecto.' >&2
+fi
+(umask 077 && { printf 'ROCKY_IMAGE=%s\\nCOMPOSE_PROJECT_NAME=%s\\n' "$image" "$project"; [ -z "$mem_limit" ] || printf '%s\\n' "$mem_limit"; } > "$selector.next")
 chown ${owner} "$selector.next"
 chmod 600 "$selector.next"
 mv -f "$selector.next" "$selector"
 set_current "$release"
 ${up('$release')}
-trap - ERR INT TERM HUP
+${
+  requireVerified
+    ? `# Compose arranca por etiqueta: lo que corre tiene que ser la imagen que se verificó.
+if [ "$(docker inspect rocky035 --format '{{.Image}}')" != "$(cut -d' ' -f1 "$mark")" ]; then
+  echo 'Lo que ha arrancado no es la imagen verificada de la release.' >&2
+  false
+fi
+`
+    : ''
+}trap - ERR INT TERM HUP
 printf '%s\\n' "\${previous##*/}" > "$release/anterior.txt"
 # Los lee el usuario de despliegue (revertir), que no es root.
 chmod 644 "$release/anterior.txt" "$release/services-before.txt"

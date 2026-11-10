@@ -1,6 +1,7 @@
 // Ejecuta de verdad el script de promoción con bash, un `docker` falso en el PATH y una
 // raíz, un estado y unas copias en una carpeta temporal. Prueba la vuelta atrás.
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -17,8 +18,14 @@ const FAKE_DOCKER = `#!/usr/bin/env bash
 set -u
 case "$1 $2" in
   "inspect rocky035")
-    if [[ "$*" == *Active=* ]]; then echo "Active=$(cat "$FAKE/image") Health=healthy"; else cat "$FAKE/image"; fi ;;
-  "image inspect") grep -qxF "$3" "$FAKE/images" ;;
+    if [[ "$*" == *Active=* ]]; then echo "Active=$(cat "$FAKE/image") Health=healthy"
+    elif [[ "$*" == *'{{.Image}}'* ]]; then
+      # La imagen que de verdad corre: la del selector, salvo que $FAKE/swap diga otra
+      if [ -f "$FAKE/swap" ]; then cat "$FAKE/swap"; else echo "sha256:$(printf '%s' "$(cat "$FAKE/image")" | sha256sum | cut -d' ' -f1)"; fi
+    else cat "$FAKE/image"; fi ;;
+  "image inspect")
+    grep -qxF "$3" "$FAKE/images" || exit 1
+    if [[ "$*" == *.Id* ]]; then echo "sha256:$(printf '%s' "$3" | sha256sum | cut -d' ' -f1)"; fi ;;
   "ps --format") echo "otro abc running" ;;
   "stop --time") echo parado > "$FAKE/estado" ;;
   "compose --env-file")
@@ -49,10 +56,21 @@ function setup(active = A) {
   );
   fs.writeFileSync(path.join(fake, 'bad'), `rocky035:${BAD}\n`);
   fs.writeFileSync(path.join(tmp, 'state.enc'), 'estado');
+  // Las tres releases pasaron la verificación de `preparar` (despliegue-ligero).
+  for (const r of [A, B, BAD]) verify(r);
 }
 
-function promote(release, previous, stamp = '20261108T120000Z') {
+// La identidad que el docker falso da a la imagen de una release.
+const imageIdOf = (release) =>
+  `sha256:${createHash('sha256').update(`rocky035:${release}`).digest('hex')}`;
+const markOf = (release) => path.join(root, 'releases', release, 'imagen-verificada.txt');
+function verify(release, id = imageIdOf(release)) {
+  fs.writeFileSync(markOf(release), `${id} arm64 1500\n`);
+}
+
+function promote(release, previous, stamp = '20261108T120000Z', extra = {}) {
   const script = renderPromoteScript({
+    ...extra,
     release,
     previous,
     project: 'prueba',
@@ -164,5 +182,93 @@ describe('script de promoción ejecutado', () => {
       ])
     );
     expect(fs.readdirSync(path.join(tmp, 'backups'))).toHaveLength(3);
+  });
+
+  /* despliegue-ligero: solo se promueve una imagen que `preparar` verificó en
+     esta máquina. */
+  it('release sin marca de verificación: código 2 sin tocar nada', () => {
+    setup(A);
+    fs.rmSync(markOf(B));
+    const before = selector();
+    const r = promote(B, A);
+    expect(r.status).toBe(2);
+    expect(r.stdout).toContain(`${END_MARK}precondicion`);
+    expect(r.stderr).toContain('no está verificada');
+    expect(current()).toBe(A);
+    expect(active()).toBe(`rocky035:${A}`);
+    expect(selector()).toBe(before);
+    expect(fs.existsSync(path.join(tmp, 'backups'))).toBe(false);
+  });
+
+  it('la imagen ya no es la que se verificó (misma etiqueta, otra imagen): código 2 sin tocar nada', () => {
+    setup(A);
+    verify(B, `sha256:${'0'.repeat(64)}`);
+    const r = promote(B, A);
+    expect(r.status).toBe(2);
+    expect(r.stderr).toContain('no es la que se verificó');
+    expect(current()).toBe(A);
+    expect(fs.existsSync(path.join(tmp, 'backups'))).toBe(false);
+  });
+
+  it('una marca que es un enlace simbólico no vale', () => {
+    setup(A);
+    fs.rmSync(markOf(B));
+    fs.symlinkSync(markOf(A), markOf(B));
+    expect(promote(B, A).status).toBe(2);
+    expect(current()).toBe(A);
+  });
+
+  it('volver a una release anterior sin marca sigue funcionando', () => {
+    setup(B);
+    fs.rmSync(markOf(A));
+    const r = promote(A, B, '20261108T120000Z', { requireVerified: false });
+    expect(r.status, r.stderr).toBe(0);
+    expect(current()).toBe(A);
+    expect(active()).toBe(`rocky035:${A}`);
+  });
+
+  it('el límite de memoria del selector sobrevive a la promoción; lo que no tiene forma de límite, no', () => {
+    setup(A);
+    fs.appendFileSync(path.join(root, 'compose.env'), 'ROCKY_MEM_LIMIT=256m\nOTRA_COSA=1\n');
+    expect(promote(B, A).status).toBe(0);
+    expect(selector()).toBe(
+      `ROCKY_IMAGE=rocky035:${B}\nCOMPOSE_PROJECT_NAME=prueba\nROCKY_MEM_LIMIT=256m\n`
+    );
+
+    fs.writeFileSync(
+      path.join(root, 'compose.env'),
+      `ROCKY_IMAGE=rocky035:${B}\nCOMPOSE_PROJECT_NAME=prueba\nROCKY_MEM_LIMIT=256m; reboot\n`
+    );
+    expect(promote(A, B, '20261108T130000Z').status).toBe(0);
+    expect(selector()).toBe(`ROCKY_IMAGE=rocky035:${A}\nCOMPOSE_PROJECT_NAME=prueba\n`);
+  });
+
+  it('si la release nueva no arranca, la vuelta atrás devuelve el selector con su límite', () => {
+    setup(B);
+    fs.appendFileSync(path.join(root, 'compose.env'), 'ROCKY_MEM_LIMIT=256m\n');
+    const before = selector();
+    expect(promote(BAD, B).status).toBe(1);
+    expect(selector()).toBe(before);
+  });
+
+  it('si lo que arranca no es la imagen verificada (etiqueta cambiada entre comprobar y arrancar), vuelve atrás', () => {
+    setup(A);
+    // El contenedor arranca, pero con otra imagen que la de la marca
+    fs.writeFileSync(path.join(fake, 'swap'), `sha256:${'5'.repeat(64)}\n`);
+    const r = promote(B, A);
+    expect(r.status).toBe(1);
+    expect(r.stdout).toContain(`${END_MARK}vuelta-atras`);
+    expect(r.stderr).toContain('no es la imagen verificada');
+    expect(current()).toBe(A);
+    expect(selector()).toContain(`rocky035:${A}`);
+  });
+
+  it('un límite de memoria que no tiene forma de límite se descarta, y el log lo dice', () => {
+    setup(A);
+    fs.appendFileSync(path.join(root, 'compose.env'), 'ROCKY_MEM_LIMIT=1.5g\n');
+    const r = promote(B, A);
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.stderr).toMatch(/ROCKY_MEM_LIMIT.*no se conserva/);
+    expect(selector()).toBe(`ROCKY_IMAGE=rocky035:${B}\nCOMPOSE_PROJECT_NAME=prueba\n`);
   });
 });

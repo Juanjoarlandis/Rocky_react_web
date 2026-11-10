@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  IMAGE_INSPECT_FORMAT,
+  VERIFIED_MARK,
   buildReleaseManifest,
   buildSha256Sums,
   contentHash,
+  diffSha256Sums,
+  dockerArch,
   filterReleaseFiles,
   findForbiddenFiles,
   formatReleaseTimestamp,
@@ -10,11 +14,15 @@ import {
   isExcluded,
   parseArgs,
   parseDockerignore,
+  parseImageInspect,
+  parseSha256Sums,
   releaseId,
   safePath,
+  validateImageId,
   validateLabel,
   validateReleaseId,
   validateStamp,
+  verifiedMark,
 } from './lib.mjs';
 
 const DOCKERIGNORE = [
@@ -269,5 +277,151 @@ describe('argumentos de las órdenes', () => {
   it('rechaza una opción sin valor', () => {
     expect(() => parseArgs(['--etiqueta'], spec)).toThrow(/valor/);
     expect(() => parseArgs(['--etiqueta', '--aplicar'], spec)).toThrow(/valor/);
+  });
+});
+
+describe('arquitectura e identidad de la imagen', () => {
+  it('traduce lo que dice uname -m a la arquitectura de Docker', () => {
+    expect(dockerArch('aarch64\n')).toBe('arm64');
+    expect(dockerArch('x86_64')).toBe('amd64');
+    expect(dockerArch('arm64')).toBe('arm64');
+  });
+
+  it.each(['riscv64', 'armv7l', '', 'aarch64; reboot', '$(reboot)'])(
+    'no acepta «%s» como arquitectura',
+    (machine) => {
+      expect(() => dockerArch(machine)).toThrow(/arquitectura/);
+    }
+  );
+
+  it('solo acepta identificadores de imagen con forma de sha256', () => {
+    const id = `sha256:${'a1'.repeat(32)}`;
+    expect(validateImageId(`${id}\n`)).toBe(id);
+    for (const bad of ['', 'rocky035:latest', `${id}; rm -rf /`, `sha256:${'g'.repeat(64)}`]) {
+      expect(() => validateImageId(bad)).toThrow(/no válido/);
+    }
+  });
+
+  it('la marca de verificación dice imagen, arquitectura y número de ficheros, y nada más', () => {
+    const image = `sha256:${'a1'.repeat(32)}`;
+    expect(VERIFIED_MARK).toBe('imagen-verificada.txt');
+    expect(verifiedMark({ image, architecture: 'arm64', files: 1500 })).toBe(`${image} arm64 1500`);
+    expect(() => verifiedMark({ image, architecture: 'arm64', files: 0 })).toThrow();
+    expect(() => verifiedMark({ image, architecture: "arm64'; reboot", files: 3 })).toThrow();
+    expect(() =>
+      verifiedMark({ image: "x' > /etc/passwd", architecture: 'arm64', files: 3 })
+    ).toThrow();
+  });
+});
+
+describe('huellas del contenido de la imagen', () => {
+  const a = 'a'.repeat(64);
+  const b = 'b'.repeat(64);
+
+  it('lee la salida de sha256sum, también en modo binario y con espacios en la ruta', () => {
+    const sums = parseSha256Sums(`${a}  ./dist/index.html\n${b} *./dist/con espacio.js\n`);
+    expect([...sums]).toEqual([
+      ['./dist/index.html', a],
+      ['./dist/con espacio.js', b],
+    ]);
+  });
+
+  it('una línea que no es una huella es un error, no se ignora', () => {
+    expect(() => parseSha256Sums(`${a}  ./x\nsha256sum: ./y: Permiso denegado\n`)).toThrow(
+      /no reconocida/
+    );
+  });
+
+  it('idénticas: sin diferencias, sea cual sea el orden', () => {
+    expect(diffSha256Sums(`${a}  ./x\n${b}  ./y\n`, `${b}  ./y\n${a}  ./x`)).toEqual([]);
+  });
+
+  it('nombra lo que no coincide, lo que falta y lo que sobra', () => {
+    expect(
+      diffSha256Sums(`${a}  ./x\n${b}  ./y\n${a}  ./z`, `${b}  ./x\n${a}  ./z\n${a}  ./w`)
+    ).toEqual(['falta ./y', 'no coincide ./x', 'sobra ./w']);
+  });
+});
+
+describe('huella de una imagen', () => {
+  const id = `sha256:${'a1'.repeat(32)}`;
+  const lines = (overrides = {}) => {
+    const image = {
+      layers: [`sha256:${'c1'.repeat(32)}`],
+      entrypoint: null,
+      cmd: ['node', 'server/index.mjs'],
+      env: ['A=1 con espacios'],
+      user: 'node',
+      workdir: '/app',
+      healthcheck: { Test: ['CMD', 'bash'], Interval: 30 },
+      ...overrides,
+    };
+    return [
+      `arm64 ${id}`,
+      ...[
+        image.layers,
+        image.entrypoint,
+        image.cmd,
+        image.env,
+        image.user,
+        image.workdir,
+        image.healthcheck,
+      ].map((field) => JSON.stringify(field)),
+    ].join('\n');
+  };
+
+  it('la plantilla es fija: una línea de arquitectura e identificador y una de JSON por campo', () => {
+    expect(IMAGE_INSPECT_FORMAT.split('{{"\\n"}}')).toEqual([
+      '{{.Architecture}} {{.Id}}',
+      '{{json .RootFS.Layers}}',
+      '{{json .Config.Entrypoint}}',
+      '{{json .Config.Cmd}}',
+      '{{json .Config.Env}}',
+      '{{json .Config.User}}',
+      '{{json .Config.WorkingDir}}',
+      '{{json .Config.Healthcheck}}',
+    ]);
+    // Va entre comillas simples en una orden de shell: no puede llevar ninguna
+    expect(IMAGE_INSPECT_FORMAT).not.toContain("'");
+  });
+
+  it('lee arquitectura, identificador y huella', () => {
+    const parsed = parseImageInspect(`${lines()}\n`);
+    expect(parsed.architecture).toBe('arm64');
+    expect(parsed.id).toBe(id);
+    expect(parsed.fingerprint).toContain('server/index.mjs');
+  });
+
+  it('la huella no depende del orden en que Docker escriba las claves', () => {
+    const reordered = lines({ healthcheck: { Interval: 30, Test: ['CMD', 'bash'] } });
+    expect(parseImageInspect(reordered).fingerprint).toBe(parseImageInspect(lines()).fingerprint);
+  });
+
+  it.each([
+    ['otra capa', { layers: [`sha256:${'c9'.repeat(32)}`] }],
+    ['otro orden de capas', { layers: [`sha256:${'c2'.repeat(32)}`, `sha256:${'c1'.repeat(32)}`] }],
+    ['otra orden', { cmd: ['sh'] }],
+    ['otro usuario', { user: 'root' }],
+    ['una entrada', { entrypoint: ['sh', '-c'] }],
+  ])('sí cambia con %s', (_what, change) => {
+    expect(parseImageInspect(lines(change)).fingerprint).not.toBe(
+      parseImageInspect(
+        lines({ layers: [`sha256:${'c1'.repeat(32)}`, `sha256:${'c2'.repeat(32)}`] })
+      ).fingerprint
+    );
+    expect(parseImageInspect(lines(change)).fingerprint).not.toBe(
+      parseImageInspect(lines()).fingerprint
+    );
+  });
+
+  it.each([
+    ['vacía', ''],
+    ['sin identificador válido', lines().replace(id, 'rocky035:latest')],
+    ['con una línea de menos', lines().split('\n').slice(0, 7).join('\n')],
+    ['con una línea que no es JSON', lines().replace('"node"', 'node')],
+    ['sin capas', lines({ layers: [] })],
+    ['con algo más en la primera línea', lines().replace(`arm64 ${id}`, `arm64 ${id} extra`)],
+  ])('una respuesta %s es un error', (_what, text) => {
+    expect(() => parseImageInspect(text)).toThrow(/no se reconoce|no válido/i);
   });
 });

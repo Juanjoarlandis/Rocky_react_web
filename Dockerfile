@@ -1,6 +1,12 @@
 # syntax=docker/dockerfile:1
 
-FROM node:24.19.0-bookworm-slim@sha256:3638d9a6fe4030bd716be989438248074489337ba3275657f93595428be4fc03 AS build
+# La etapa de build corre en la plataforma de quien construye, no en la de
+# destino: instala, prueba y compila sin emulación aunque la imagen sea para
+# otra arquitectura (se publica desde un x86-64 para una Raspberry ARM64). Vale
+# porque lo que produce es JavaScript y ficheros estáticos, y porque la etapa de
+# runtime no ejecuta nada: solo copia. scripts/release/imagen.test.mjs falla si
+# deja de ser cierto (un RUN en runtime o una dependencia nativa en producción).
+FROM --platform=$BUILDPLATFORM node:24.19.0-bookworm-slim@sha256:3638d9a6fe4030bd716be989438248074489337ba3275657f93595428be4fc03 AS build
 
 WORKDIR /app
 
@@ -15,7 +21,10 @@ COPY shared ./shared
 COPY src ./src
 
 RUN npm run test:run && npm run build
-RUN npm prune --omit=dev
+# Fuera las dependencias de desarrollo y la caché de las pruebas, que cambia en
+# cada build (duraciones): con ella dentro, dos builds del mismo commit nunca
+# darían las mismas huellas.
+RUN npm prune --omit=dev && rm -rf node_modules/.vite
 
 FROM node:24.19.0-bookworm-slim@sha256:3638d9a6fe4030bd716be989438248074489337ba3275657f93595428be4fc03 AS runtime
 
