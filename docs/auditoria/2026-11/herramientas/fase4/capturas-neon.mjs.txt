@@ -1,0 +1,42 @@
+// node neon-cap.mjs <snapshot> <etiqueta> <puerto>
+process.env.ROCKY_REPO = process.argv[2];
+const { startInstance } = await import('./instancia.mjs');
+const { chromium } = await import(process.env.ROCKY_PLAYWRIGHT);
+import fs from 'node:fs';
+const tag = process.argv[3];
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+fs.mkdirSync('neon-cap', { recursive: true });
+const inst = await startInstance(Number(process.argv[4]), { SHOPIFY_RATE_LIMIT_MAX: '1000' });
+try {
+  for (const [name, ctx] of Object.entries({ escritorio: { viewport: { width: 1440, height: 900 } }, movil: { viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } })) {
+    for (const ruta of ['/', '/crew']) {
+      const browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost'] });
+      const context = await browser.newContext({ ...ctx, locale: 'es-ES', bypassCSP: true });
+      await context.addInitScript(() => sessionStorage.setItem('rocky-splash-seen', '1'));
+      const page = await context.newPage();
+      await page.goto(inst.origin + ruta, { waitUntil: 'load' });
+      await wait(2500);
+      const bulb = page.getByRole('button', { name: 'Activar el descontrol' }).first();
+      if (!(await bulb.isVisible())) await page.getByRole('button', { name: 'Abrir el menú' }).click();
+      await page.getByRole('button', { name: 'Activar el descontrol' }).last().click();
+      await wait(5000);
+      if (ruta !== '/') { await page.goto(inst.origin + ruta, { waitUntil: 'load' }); await wait(3000); }
+      await page.evaluate(() => document.querySelector('audio')?.pause());
+      await page.addStyleTag({ content: '*,*::before,*::after{animation:none !important;transition:none !important} .ticker,.curious-peeker,.cart-runner,.mini-player{visibility:hidden !important}' });
+      const slug = `${tag}-${name}-${ruta === '/' ? 'portada' : ruta.slice(1)}`;
+      const at = name === 'movil' ? [120, 300] : [420, 380];
+      if (name === 'movil') await page.touchscreen.tap(...at).catch(() => {}); 
+      await page.mouse.move(...at);
+      await page.evaluate(([x, y]) => window.dispatchEvent(new PointerEvent('pointermove', { clientX: x, clientY: y })), at);
+      await wait(600);
+      await page.screenshot({ path: `neon-cap/${slug}-A.png` });
+      await page.evaluate(() => window.scrollTo(0, (document.documentElement.scrollHeight - innerHeight) * 0.5));
+      await wait(800);
+      await page.screenshot({ path: `neon-cap/${slug}-B.png` });
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      await wait(1500);
+      await page.screenshot({ path: `neon-cap/${slug}-C.png` });
+      await browser.close();
+    }
+  }
+} finally { inst.stop(); }

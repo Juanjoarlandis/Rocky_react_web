@@ -173,8 +173,10 @@
     min-height: 5px;
     border-radius: 2px;
     background-color: var(--mesa-green);
-    /* Siempre se intuyen los segmentos; se encienden al llegar el nivel */
-    opacity: max(0.14, calc((var(--nivel) - var(--umbral)) * 60));
+    /* Siempre se intuyen los segmentos; se encienden al llegar el nivel. El
+     tope es 0,999 y no 1: cada vez que una barra cruzaba la opacidad 1 el
+     navegador rehacía el layout (17 veces por segundo con la mesa sonando). */
+    opacity: min(0.999, max(0.14, calc((var(--nivel) - var(--umbral)) * 60)));
   }
 
   .mesa-vu i:nth-child(n + 7) {
@@ -496,9 +498,9 @@
     border-radius: 7px;
     background-color: rgba(var(--card-rgb), 0.05);
     cursor: pointer;
-    transition:
-      transform 0.08s ease,
-      border-color var(--dur-fast) ease;
+    /* El borde no lleva transición aquí: el cabezal lo cambia en dieciséis
+     celdas a cada paso, y esa transición recalculaba estilos sin parar. */
+    transition: transform 0.08s ease;
   }
 
   /* Marca de cada pulso: los cuatro cuadros fuertes */
@@ -510,6 +512,9 @@
   .celda:hover {
     transform: translateY(-2px);
     border-color: var(--gold);
+    transition:
+      transform 0.08s ease,
+      border-color var(--dur-fast) ease;
   }
 
   .celda-luz {

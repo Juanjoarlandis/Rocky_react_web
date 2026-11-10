@@ -1,0 +1,36 @@
+process.env.ROCKY_REPO = process.argv[2];
+const { startInstance } = await import('./instancia.mjs');
+const { chromium } = await import(process.env.ROCKY_PLAYWRIGHT);
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const inst = await startInstance(3293, { SHOPIFY_RATE_LIMIT_MAX: '1000' });
+try {
+  const browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost', '--autoplay-policy=no-user-gesture-required'] });
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'es-ES', bypassCSP: true });
+  await context.addInitScript(() => sessionStorage.setItem('rocky-splash-seen', '1'));
+  const page = await context.newPage();
+  await page.goto(`${inst.origin}/`, { waitUntil: 'load' });
+  await wait(2500);
+  await browser.startTracing(page, { categories: ['blink.animations', 'devtools.timeline', 'disabled-by-default-devtools.timeline', 'cc', 'benchmark'] });
+  await page.getByRole('button', { name: 'Activar el descontrol' }).last().click();
+  await wait(8000);
+  const buf = await browser.stopTracing();
+  const events = JSON.parse(buf.toString()).traceEvents;
+  const byId = new Map();
+  for (const e of events) {
+    if (e.name !== 'Animation') continue;
+    const id = e.id2?.local ?? e.id;
+    const rec = byId.get(id) ?? {};
+    const d = e.args?.data ?? {};
+    if (d.name || d.displayName) rec.name = d.name || d.displayName, rec.node = d.nodeName;
+    if (d.compositeFailed !== undefined) rec.fail = d.compositeFailed, rec.props = d.unsupportedProperties;
+    if (d.state) rec.state = d.state;
+    byId.set(id, rec);
+  }
+  for (const rec of byId.values()) if (/tubo|encendido|lata|ticker/.test(rec.name || '')) console.log(JSON.stringify(rec));
+  const names = {};
+  for (const e of events) if (e.cat?.includes('devtools.timeline') && ['UpdateLayoutTree', 'ScheduleStyleRecalculation', 'Animation', 'Paint', 'PrePaint'].includes(e.name)) names[e.name] = (names[e.name] || 0) + 1;
+  console.log(names);
+  if (0) { } const inval = [].concat(events.slice(0,0)).filter((e) => e.name === 'ScheduleStyleRecalculation' || e.name === 'StyleRecalcInvalidationTracking' || e.name === 'StyleInvalidatorInvalidationTracking').slice(-6);
+  for (const e of inval) console.log(JSON.stringify(e.args).slice(0, 400));
+  await browser.close();
+} finally { inst.stop(); }

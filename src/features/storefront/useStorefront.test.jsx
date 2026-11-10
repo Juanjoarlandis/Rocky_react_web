@@ -483,3 +483,43 @@ describe('useStorefront', () => {
     expect(result.current.products).toEqual(demoProducts);
   });
 });
+
+describe('catálogo demo cargado aparte', () => {
+  const demoStatus = {
+    mode: 'demo',
+    capabilities: {
+      catalog: false,
+      cart: false,
+      customerAccounts: false,
+      admin: false,
+      webhooks: false,
+    },
+  };
+
+  it('en modo demo pide el catálogo de muestra a su cargador', async () => {
+    api.getShopifyStatus.mockResolvedValue(demoStatus);
+    const loadDemoProducts = vi.fn(async () => demoProducts);
+
+    const { result } = renderHook(() => useStorefront({ demoProducts: loadDemoProducts }));
+
+    await waitFor(() => expect(result.current.mode).toBe('demo'));
+    expect(loadDemoProducts).toHaveBeenCalledTimes(1);
+    expect(result.current.products).toEqual(demoProducts);
+    expect(result.current.loading).toBe(false);
+  });
+
+  it('con Shopify no lo pide nunca', async () => {
+    api.getShopifyStatus.mockResolvedValue({
+      mode: 'shopify',
+      capabilities: { ...demoStatus.capabilities, catalog: true },
+    });
+    api.listProducts.mockResolvedValue({ products: [] });
+    const loadDemoProducts = vi.fn(async () => demoProducts);
+
+    const { result } = renderHook(() => useStorefront({ demoProducts: loadDemoProducts }));
+
+    await waitFor(() => expect(result.current.mode).toBe('shopify'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(loadDemoProducts).not.toHaveBeenCalled();
+  });
+});

@@ -1,11 +1,10 @@
 import ProductPhoto from '../../components/ProductPhoto.jsx';
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import Lightbox from './Lightbox';
+import { lazyPiece } from '../../utils/pieces.jsx';
 import AddToCartButton from '../cart/AddToCartButton';
 import EyeIcon from '../../components/icons/EyeIcon';
 import PlaceholderTee from './PlaceholderTee';
-import StreetWall from '../../components/StreetWall';
 import { CrosshairSpinner } from '../../components/doodles/CrosshairSpinner';
 import { ProductReticle } from '../../components/doodles/ProductReticle';
 import { TornSticker } from '../../components/doodles/TornSticker';
@@ -27,6 +26,14 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import '../../styles/pages/home.css';
 import { useNightArt } from '../night/nightArt.js';
 
+// Tarjetas que caben en la primera fila de la rejilla en escritorio.
+const FIRST_ROW = 4;
+
+// «La banda» va al final de la portada, por debajo del pliegue.
+const StreetWall = lazyPiece(() => import('../../components/StreetWall'));
+// La foto a lo grande solo hace falta cuando alguien la abre.
+const Lightbox = lazyPiece(() => import('./Lightbox'));
+
 // Cómo se cuenta cada estado en la cabecera de su sección del catálogo.
 const SECCION = Object.freeze({
   [DROP_STATES.LIVE]: 'Ya en la calle',
@@ -40,6 +47,13 @@ const SECCION = Object.freeze({
 function buildCatalog(products, drops) {
   const items = [];
   const placed = new Set();
+  // `ordinal` cuenta solo productos: decide qué fotos se piden desde el
+  // principio, haya o no carteles y cabeceras por delante.
+  let ordinal = 0;
+  const addProduct = (product) => {
+    items.push({ kind: 'product', product, ordinal });
+    ordinal += 1;
+  };
   drops.forEach((drop) => {
     if (drop.state === DROP_STATES.ANNOUNCED) {
       items.push({ kind: 'teaser', drop });
@@ -50,11 +64,11 @@ function buildCatalog(products, drops) {
     items.push({ kind: 'section', drop });
     own.forEach((product) => {
       placed.add(product);
-      items.push({ kind: 'product', product });
+      addProduct(product);
     });
   });
   products.forEach((product) => {
-    if (!placed.has(product)) items.push({ kind: 'product', product });
+    if (!placed.has(product)) addProduct(product);
   });
   return items;
 }
@@ -66,7 +80,6 @@ function ProductPage({
   addToCart,
   commerceMode = 'demo',
   canAddToCart = true,
-  prioritizeFirstImage = false,
   loading = false,
   dropsLoading = false,
   drops = EMPTY,
@@ -97,9 +110,13 @@ function ProductPage({
         : shownProducts,
     [shownProducts, category]
   );
+  // El catálogo se pinta de una vez, con sus productos y sus drops: si los
+  // productos llegan antes, el cartel de un drop anunciado entraría después
+  // por encima y empujaría las tarjetas.
+  const busy = loading || dropsLoading;
   const catalogItems = useMemo(
-    () => buildCatalog(visibleProducts, category ? EMPTY : drops),
-    [visibleProducts, category, drops]
+    () => (dropsLoading ? EMPTY : buildCatalog(visibleProducts, category ? EMPTY : drops)),
+    [visibleProducts, category, drops, dropsLoading]
   );
   const isHome = !category;
   const pageTitle = category
@@ -239,11 +256,11 @@ function ProductPage({
       )}
 
       <div
-        className={`product-grid${loading ? ' product-grid--loading' : ''}`}
+        className={`product-grid${busy ? ' product-grid--loading' : ''}`}
         id={isHome ? 'productos' : undefined}
-        aria-busy={loading || undefined}
+        aria-busy={busy || undefined}
       >
-        {catalogItems.map((item, index) => {
+        {catalogItems.map((item) => {
           if (item.kind === 'teaser') {
             return (
               <div
@@ -274,7 +291,11 @@ function ProductPage({
           }
           const { product } = item;
           const isPlaceholder = product.image === PLACEHOLDER_IMAGE;
-          const isPriorityImage = prioritizeFirstImage && index === 0;
+          // La primera fila se pide desde el principio, haya intro o no: con
+          // las variantes pequeñas son unos kB por foto y una de ellas suele
+          // ser lo más grande de la primera pantalla.
+          const isPriorityImage = item.ordinal === 0;
+          const isFirstRow = item.ordinal < FIRST_ROW;
           const price = formatPrice(product.price);
           const productPath = product.handle ?? product.id;
           const variantId = product.defaultVariantId || null;
@@ -319,6 +340,7 @@ function ProductPage({
                     alt={product.imageAlt || product.title}
                     className="product-image"
                     priority={isPriorityImage}
+                    eager={isFirstRow}
                   />
                 )}
                 {!isPlaceholder && soldOut && <TornSticker />}

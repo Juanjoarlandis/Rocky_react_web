@@ -3,19 +3,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { CREW } from '../../data/crew.js';
 import { useNightArtResolver } from '../night/nightArt.js';
 import { prefersReducedMotion } from '../../utils/media.js';
+import { SECRET, listenForSecret } from './secret.js';
 import '../../styles/components/estampida.css';
 
-export const SECRET = '035';
+export { SECRET };
 // Quién corre: toda la crew menos el banco de los fundadores, que no se
 // levanta ni para esto.
 const RUNNERS = CREW.filter((member) => member.id !== 'fundadores');
-
-function isEditable(target) {
-  return (
-    target instanceof HTMLElement &&
-    (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
-  );
-}
 
 /* Cada corredor con su carril, su tamaño, su ritmo y su salida. Sale al
    azar en cada estampida: nunca pasa igual dos veces. */
@@ -58,10 +52,9 @@ function lifetimeOf(runners) {
    de texto) y la crew entera cruza la pantalla corriendo. De noche corren sus
    versiones malvadas. Con movimiento reducido no corren: aparecen en fila y
    se desvanecen. */
-export default function Estampida({ disabled = false }) {
+export default function Estampida({ disabled = false, listen = true, launchSignal = 0 }) {
   const [runners, setRunners] = useState(null);
   const [still, setStill] = useState(false);
-  const typed = useRef('');
   const launching = useRef(false);
   const mounted = useRef(true);
   const artFor = useNightArtResolver();
@@ -86,24 +79,21 @@ export default function Estampida({ disabled = false }) {
     );
   }, [artFor]);
 
+  // Con `listen`, la propia pieza escucha la secuencia. En la aplicación la
+  // escucha App (la pieza se carga aparte) y avisa subiendo `launchSignal`.
   useEffect(() => {
-    if (disabled) return undefined;
-    const onKeyDown = (event) => {
-      if (event.ctrlKey || event.metaKey || event.altKey) return;
-      if (isEditable(event.target)) {
-        typed.current = '';
-        return;
-      }
-      if (event.key.length !== 1) return;
-      typed.current = (typed.current + event.key).slice(-SECRET.length);
-      if (typed.current === SECRET) {
-        typed.current = '';
-        launch();
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [disabled, launch]);
+    if (disabled || !listen) return undefined;
+    return listenForSecret(launch);
+  }, [disabled, listen, launch]);
+
+  // Cada señal se atiende una vez: `launch` cambia de identidad con el tema
+  // (el arte de noche) y eso no es teclear «035» otra vez.
+  const servedSignal = useRef(0);
+  useEffect(() => {
+    if (disabled || launchSignal <= servedSignal.current) return;
+    servedSignal.current = launchSignal;
+    launch();
+  }, [disabled, launchSignal, launch]);
 
   useEffect(() => {
     if (!runners) return undefined;

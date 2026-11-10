@@ -94,6 +94,81 @@ describe('El spray con la pared compartida', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Coge el spray' }));
   }
 
+  describe('el lienzo solo existe cuando se pinta', () => {
+    it('de noche, sin coger el bote y sin trazos, no hay lienzo', async () => {
+      const fetchMock = servidor({ encendida: false });
+      render(<Spray pathname="/crew" />);
+      await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+      expect(screen.queryByTestId('spray-wall')).not.toBeInTheDocument();
+    });
+
+    it('con trazos propios guardados en el navegador sí lo hay', async () => {
+      localStorage.setItem(
+        'rocky-spray',
+        JSON.stringify({
+          v: 1,
+          pages: { '/crew': { t: 1, strokes: [{ c: 0, s: 1, p: [0, 5], d: [] }] } },
+        })
+      );
+      servidor({ encendida: false });
+      render(<Spray pathname="/crew" />);
+      expect(await screen.findByTestId('spray-wall')).toBeInTheDocument();
+    });
+
+    it('con trazos de la pared compartida sí lo hay, y se pintan', async () => {
+      servidor();
+      render(<Spray pathname="/crew" />);
+      expect(await screen.findByTestId('spray-wall')).toBeInTheDocument();
+      expect(HTMLCanvasElement.prototype.getContext).toHaveBeenCalled();
+    });
+
+    it('al coger el bote aparece y al soltarlo sin nada pintado se libera', async () => {
+      const fetchMock = servidor({ encendida: false });
+      render(<Spray pathname="/crew" />);
+      await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+      await cogerSpray();
+      expect(screen.getByTestId('spray-wall')).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: 'Soltar el spray' }));
+      expect(screen.queryByTestId('spray-wall')).not.toBeInTheDocument();
+    });
+
+    it('con un trazo todavía subiendo a la pared común, soltar el bote no quita el lienzo', async () => {
+      let responder;
+      const fetchMock = vi.fn((url, options = {}) => {
+        const metodo = options.method ?? 'GET';
+        if (metodo === 'GET') return respuesta({ ...PARED, strokes: [], firmas: [] });
+        return new Promise((resolve) => {
+          responder = () =>
+            resolve(
+              new Response(JSON.stringify({ id: 'bbbbbbbbbbb', firma: 'LUNA-7', version: 2 }), {
+                status: 201,
+                headers: { 'Content-Type': 'application/json' },
+              })
+            );
+        });
+      });
+      vi.stubGlobal('fetch', fetchMock);
+      render(<Spray pathname="/crew" />);
+      await cogerSpray();
+      await screen.findByText(/lo verá todo el que pase de noche/);
+      pintar();
+      await userEvent.click(screen.getByRole('button', { name: 'Soltar el spray' }));
+      // Página sin trazos y bote soltado: lo único que hay es el trazo en vuelo
+      expect(screen.getByTestId('spray-wall')).toBeInTheDocument();
+      await act(async () => responder());
+    });
+
+    it('al soltar el bote con algo pintado el lienzo se queda', async () => {
+      servidor({ encendida: false });
+      render(<Spray pathname="/crew" />);
+      await cogerSpray();
+      await screen.findByText(/no se comparte/);
+      pintar();
+      await userEvent.click(screen.getByRole('button', { name: 'Soltar el spray' }));
+      expect(screen.getByTestId('spray-wall')).toBeInTheDocument();
+    });
+  });
+
   it('la primera vez avisa de que lo verá todo el que pase de noche', async () => {
     servidor();
     render(<Spray pathname="/crew" />);

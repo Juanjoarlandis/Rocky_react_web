@@ -31,6 +31,18 @@ const ARTE = Object.freeze({
   'sentado-borde-blanco': sentadoBordeBlanco,
 });
 
+// Medidas del dibujo de cada uno, para que reserve su sitio antes de cargar.
+const MEDIDAS = Object.freeze({
+  'perro-rocky': [770, 1076],
+  'bombilla-eureka': [849, 1529],
+  'skater-ollie': [912, 1098],
+  'diana-jefe': [852, 1481],
+  'estrella-apoyado': [784, 1598],
+  'cruiser-patinando': [940, 1131],
+  'sentado-borde-rojo': [720, 1187],
+  'sentado-borde-blanco': [717, 1186],
+});
+
 // Fases repartidas para que no cabeceen en formación
 const fase = (index) => ((index * 0.37) % 1).toFixed(2);
 
@@ -57,6 +69,8 @@ export default function Publico({ pattern, mutes, solos, playing, bpm }) {
           <span key={pista} className={sitio}>
             <img
               {...artSources(arte(ARTE[personaje]), 80)}
+              width={MEDIDAS[personaje][0]}
+              height={MEDIDAS[personaje][1]}
               alt=""
               loading="lazy"
               decoding="async"

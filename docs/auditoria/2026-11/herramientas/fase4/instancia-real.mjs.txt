@@ -1,0 +1,25 @@
+// Como instancia.mjs, pero con la configuración real del proyecto (tienda de pruebas):
+// el servidor carga el .env del repo por su cuenta (enlace simbólico en la copia);
+// aquí no se lee. Solo se fijan puerto, orígenes, puerta de acceso y almacén temporal.
+import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+export async function startInstance(repo, port, env = {}) {
+  const origin = `http://localhost:${port}`;
+  fs.rmSync(path.join(repo, '.env'), { force: true });
+  fs.symlinkSync(process.env.ROCKY_ENV, path.join(repo, '.env'));
+  const data = fs.mkdtempSync(path.join(path.dirname(repo), 'estado-'));
+  const child = spawn(process.execPath, ['server/index.mjs'], {
+    cwd: repo,
+    env: { PATH: process.env.PATH, HOME: process.env.HOME, PORT: String(port), PUBLIC_ORIGIN: origin, API_ALLOWED_ORIGINS: origin, SITE_ACCESS_ENABLED: 'false', STATE_STORE_PATH: path.join(data, 'estado.enc'), SHARED_WALL_PATH: path.join(data, 'pared.json'), NODE_ENV: 'development', SHOPIFY_RATE_LIMIT_MAX: '1000', ...env },
+    stdio: ['ignore', 'ignore', 'ignore'],
+  });
+  const stop = () => { child.kill('SIGTERM'); fs.rmSync(path.join(repo, '.env'), { force: true }); };
+  for (let i = 0; i < 80; i += 1) {
+    try { if ((await fetch(`${origin}/api/health`)).ok) return { origin, stop }; } catch { /* arrancando */ }
+    if (child.exitCode !== null) break;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  stop();
+  throw new Error('la instancia real no arranca');
+}

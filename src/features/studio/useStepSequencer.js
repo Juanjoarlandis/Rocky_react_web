@@ -1,5 +1,28 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { STEP_COUNT } from '../../utils/beatCodec';
+
+/* El paso que suena, fuera de React: quien lo pinta (el cabezal de la rejilla,
+   el karaoke de la barra) se suscribe, y avanzar un paso no vuelve a pintar a
+   quien tiene el transporte. -1 es «parado». */
+export function createStepStore() {
+  let step = -1;
+  const listeners = new Set();
+  return {
+    get: () => step,
+    set(next) {
+      if (next === step) return;
+      step = next;
+      listeners.forEach((listener) => listener(step));
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  };
+}
+
+const NEVER = () => () => {};
+const STOPPED = () => -1;
 
 // EL SECUENCIADOR — el transporte de la mesa, sin saber qué suena.
 //
@@ -13,7 +36,10 @@ const SCHEDULE_AHEAD = 0.12;
 
 /* Recibe el patrón, el tempo y el swing en vivo, el disparador
    `trigger(trackIndex, when, velocity)` y un `onFrame(engine)` opcional para
-   pintar algo más a cada frame (el vúmetro). El motor se le da al arrancar. */
+   pintar algo más a cada frame (el vúmetro). El motor se le da al arrancar.
+   El paso que suena está en `steps` (createStepStore); `step` lo devuelve
+   además como estado, salvo con `trackStep: false`, que es como lo usa la
+   mesa para no pintarse entera a cada paso. */
 export function useStepSequencer({
   pattern,
   bpm,
@@ -21,9 +47,14 @@ export function useStepSequencer({
   trigger,
   onFrame,
   stepCount = STEP_COUNT,
+  trackStep = true,
 }) {
   const [playing, setPlaying] = useState(false);
-  const [step, setStep] = useState(-1);
+  const [steps] = useState(createStepStore);
+  const step = useSyncExternalStore(
+    trackStep ? steps.subscribe : NEVER,
+    trackStep ? steps.get : STOPPED
+  );
   const seqRef = useRef({
     engine: null,
     timer: null,
@@ -72,11 +103,11 @@ export function useStepSequencer({
       while (seq.queue.length && seq.queue[0].when <= now) {
         latest = seq.queue.shift().step;
       }
-      if (latest !== null) setStep(latest);
+      if (latest !== null) steps.set(latest);
       liveRef.current.onFrame?.(engine);
     }
     seq.raf = requestAnimationFrame(paint);
-  }, []);
+  }, [steps]);
 
   const start = useCallback(
     (engine) => {
@@ -103,8 +134,8 @@ export function useStepSequencer({
     seq.raf = null;
     seq.queue = [];
     setPlaying(false);
-    setStep(-1);
-  }, []);
+    steps.set(-1);
+  }, [steps]);
 
   const isRunning = useCallback(() => seqRef.current.timer !== null, []);
 
@@ -131,7 +162,7 @@ export function useStepSequencer({
     []
   );
 
-  return { playing, step, start, stop, isRunning, stepAt, stepDuration };
+  return { playing, step, steps, start, stop, isRunning, stepAt, stepDuration };
 }
 
 export default useStepSequencer;

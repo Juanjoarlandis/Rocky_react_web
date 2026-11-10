@@ -1,14 +1,26 @@
 import { StrictMode } from 'react';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, beforeEach, vi } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import BeatMachine from './BeatMachine.jsx';
+import Rejilla from './mesa/Rejilla.jsx';
+import Consola from './mesa/Consola.jsx';
+import BeatPads from './BeatPads.jsx';
 import { MusicProvider } from '../music/MusicContext.jsx';
 import { CORTES_BARRO, PAD_TECLAS, TRACKS } from '../../data/mesa';
 import { FakeAudioContext } from '../../audio/fakeAudioContext.js';
 import { BARRO_URL, olvidarBarro } from './audio/barro.js';
 import { STEP_COUNT } from '../../utils/beatCodec';
+
+// Los mismos componentes, con un espía delante para contar cuántas veces se pintan.
+const espiado = vi.hoisted(() => async (original) => {
+  const modulo = await original();
+  return { ...modulo, default: vi.fn(modulo.default) };
+});
+vi.mock('./mesa/Rejilla.jsx', espiado);
+vi.mock('./mesa/Consola.jsx', espiado);
+vi.mock('./BeatPads.jsx', espiado);
 
 // Cada pista es un fieldset con su nombre por leyenda; las celdas, botones «X, paso N».
 const filas = () =>
@@ -500,6 +512,59 @@ describe('La consola', () => {
       await user.click(screen.getByRole('button', { name: 'Parar el beat' }));
       expect(freeze).not.toHaveClass('is-lleno');
     } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('sonando, avanzar un paso mueve el cabezal sin volver a pintar la mesa ni consultar matchMedia', async () => {
+    let contexto = null;
+    class Contexto extends FakeAudioContext {
+      constructor() {
+        super();
+        contexto = this;
+      }
+    }
+    const fotogramas = [];
+    vi.stubGlobal('AudioContext', Contexto);
+    vi.stubGlobal('requestAnimationFrame', (callback) => fotogramas.push(callback));
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    const pintadas = () =>
+      [Rejilla, Consola, BeatPads].map((componente) => componente.mock.calls.length);
+    const user = userEvent.setup();
+    try {
+      montar();
+      await user.click(screen.getByRole('button', { name: 'Reproducir el beat' }));
+      // El planificador (25 ms) agenda los primeros pasos por delante del reloj
+      await waitFor(() => expect(contexto.started.length).toBeGreaterThan(0));
+      const fotograma = (segundos) =>
+        act(() => {
+          contexto.currentTime = segundos;
+          fotogramas.splice(0).forEach((callback) => callback(0));
+        });
+      fotograma(0.09);
+      expect(document.querySelectorAll('.celda.is-current')).toHaveLength(TRACKS.length);
+      const antes = pintadas();
+      const consultas = vi.spyOn(window, 'matchMedia');
+      const columna = () =>
+        screen
+          .getAllByRole('button', { name: /^Bombo, paso \d+$/ })
+          .findIndex((celda) => celda.classList.contains('is-current'));
+      expect(columna()).toBe(0);
+      // Seis fotogramas de 100 ms: el planificador (25 ms) agenda entre uno y otro
+      const vistas = new Set();
+      for (let n = 1; n <= 6; n += 1) {
+        fotograma(0.09 + n * 0.1);
+        vistas.add(columna());
+        await new Promise((resolve) => setTimeout(resolve, 40));
+      }
+      expect(vistas.size).toBeGreaterThan(2);
+      expect(pintadas()).toEqual(antes);
+      expect(document.querySelectorAll('.lcd-pasos .is-on')).toHaveLength(1);
+      expect(consultas).not.toHaveBeenCalled();
+      await user.click(screen.getByRole('button', { name: 'Parar el beat' }));
+      expect(document.querySelectorAll('.celda.is-current')).toHaveLength(0);
+    } finally {
+      vi.restoreAllMocks();
       vi.unstubAllGlobals();
     }
   });

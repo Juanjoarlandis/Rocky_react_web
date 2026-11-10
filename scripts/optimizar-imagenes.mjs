@@ -19,6 +19,10 @@
 //     como <nombre>.webp, con --heights 320,640;
 //   - animaciones del pie: *-224.webp y sus pósters como <nombre>.webp, con
 //     --heights 112,168 --quality 75 (los pósters, a la calidad por defecto).
+//   - intro (carga-y-estabilidad): cada splash/<nombre>.webp a la mitad de su
+//     ancho, calidad 82, como <nombre>-mitad.webp. Cada una mide distinto, así
+//     que no sale de --widths: es un `sharp(...).resize({ width: w / 2 })` por
+//     fichero; SplashIntro.jsx las ofrece con srcset.
 //
 // Los personajes históricos -600 usan ALTURA; shell/ usa ancho. Los nuevos
 // -hd conservan los píxeles del maestro y se codifican sin pérdida. --width

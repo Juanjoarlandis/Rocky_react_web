@@ -3,10 +3,20 @@ import { FakeAudioContext } from './fakeAudioContext.js';
 import { createEngine } from './engine.js';
 import { VOICE_NAMES, triggerVoice } from './voices.js';
 
+const engines = [];
+
 function engine() {
   vi.stubGlobal('AudioContext', FakeAudioContext);
-  return createEngine();
+  const created = createEngine();
+  engines.push(created);
+  return created;
 }
+
+// El contexto de audio es compartido: cada prueba suelta su motor para que la
+// siguiente estrene el suyo.
+afterEach(() => {
+  engines.splice(0).forEach((created) => created.close());
+});
 
 const tramo = (e, segundos = 1) => e.ctx.createBuffer(2, Math.round(segundos * 48_000), 48_000);
 

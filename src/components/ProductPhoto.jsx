@@ -13,6 +13,8 @@ function ProductPhoto({
   sources,
   sizes,
   priority = false,
+  // Se pide desde el principio (primera fila) pero sin prioridad alta.
+  eager = false,
   // false: no reserva caja con width y height (el lightbox la ajusta por CSS
   // y con las dos medidas puestas recortaba cada eje por separado).
   intrinsicSize = true,
@@ -36,7 +38,7 @@ function ProductPhoto({
       height={intrinsicSize ? (height ?? size.height) : undefined}
       alt={alt}
       className={className}
-      loading={priority ? 'eager' : 'lazy'}
+      loading={priority || eager ? 'eager' : 'lazy'}
       decoding={priority ? 'auto' : 'async'}
       fetchPriority={priority ? 'high' : undefined}
       onError={onError}

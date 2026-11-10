@@ -35,24 +35,106 @@ describe('Modo descontrol: la pared de luz negra', () => {
     expect(screen.getByTestId('uv-wall')).toBeInTheDocument();
   });
 
-  it('de noche hay oscuridad que crece con el scroll y bote de spray', () => {
+  // El spray llega en su propio chunk (carga-y-estabilidad): se espera.
+  it('de noche hay oscuridad que crece con el scroll y bote de spray', async () => {
     document.documentElement.dataset.theme = 'neon';
     render(<Descontrol pathname="/crew" />);
     expect(screen.getByTestId('uv-oscuridad')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Coge el spray' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Coge el spray' })).toBeInTheDocument();
   });
 
-  it('en el chat no hay pared ni spray', () => {
+  describe('la linterna mueve capas, no repinta la pantalla', () => {
+    const capas = () => ({
+      pared: screen.getByTestId('uv-wall'),
+      haz: document.querySelector('.uv-torch'),
+      ventana: document.querySelector('.uv-ink-window'),
+      tinta: document.querySelector('.uv-ink'),
+      tenue: document.querySelector('.uv-ink-tenue'),
+      oscuridad: screen.getByTestId('uv-oscuridad'),
+      luz: document.querySelector('.uv-oscuridad-luz'),
+    });
+    const mover = async (x, y) => {
+      await act(async () => {
+        window.dispatchEvent(new MouseEvent('pointermove', { clientX: x, clientY: y }));
+        await new Promise((resolve) => setTimeout(resolve, 40));
+      });
+    };
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      Object.defineProperty(document.documentElement, 'scrollHeight', {
+        configurable: true,
+        value: 0,
+      });
+    });
+
+    it('al mover el puntero solo cambian transformaciones: ni variables ni degradados', async () => {
+      document.documentElement.dataset.theme = 'neon';
+      render(<Descontrol pathname="/crew" />);
+      await mover(120, 80);
+      const { pared, haz, ventana, tinta, oscuridad, luz } = capas();
+
+      expect(haz.style.transform).toBe('translate3d(120px, 80px, 0) scale(1)');
+      expect(luz.style.transform).toBe('translate3d(120px, 80px, 0) scale(1)');
+      expect(ventana.style.transform).toBe('translate3d(120px, 80px, 0) scale(1)');
+      // La tinta deshace el viaje de su ventana: se queda en su sitio de la página
+      expect(tinta.style.transform).toBe('scale(1) translate3d(-120px, -80px, 0)');
+      for (const capa of [pared, oscuridad, haz, ventana, luz]) {
+        expect(capa.style.getPropertyValue('--tx')).toBe('');
+        expect(capa.style.getPropertyValue('--ty')).toBe('');
+      }
+    });
+
+    it('al bajar, el haz se estrecha con una escala y la noche se hace honda con la opacidad', async () => {
+      document.documentElement.dataset.theme = 'neon';
+      Object.defineProperty(document.documentElement, 'scrollHeight', {
+        configurable: true,
+        value: window.innerHeight + 1000,
+      });
+      render(<Descontrol pathname="/crew" />);
+      await mover(200, 100);
+      await act(async () => {
+        vi.stubGlobal('scrollY', 500);
+        window.dispatchEvent(new Event('scroll'));
+        await new Promise((resolve) => setTimeout(resolve, 40));
+      });
+      const { haz, ventana, tinta, tenue, oscuridad, luz } = capas();
+
+      // Media página: el haz al 82,5 % y la oscuridad a 0,08 + 0,34 × 0,5
+      expect(haz.style.transform).toBe('translate3d(200px, 100px, 0) scale(0.825)');
+      expect(luz.style.transform).toBe('translate3d(200px, 100px, 0) scale(0.825)');
+      expect(ventana.style.transform).toBe('translate3d(200px, 100px, 0) scale(0.825)');
+      expect(Number(luz.style.opacity)).toBeCloseTo(0.25, 3);
+      expect(oscuridad.style.opacity).toBe('');
+      // Fuera del haz queda la copia tenue, que va con la página: nadie la mueve
+      expect(tenue.style.transform).toBe('');
+      expect(tenue.children).toHaveLength(tinta.children.length);
+      // La tinta sube con la página y deshace también la escala de su ventana
+      const [, escala, x, y] =
+        /scale\(([\d.]+)\) translate3d\((-?[\d.]+)px, (-?[\d.]+)px, 0\)/.exec(
+          tinta.style.transform
+        );
+      expect(Number(escala) * 0.825).toBeCloseTo(1, 3);
+      expect([Number(x), Number(y)]).toEqual([-200, -600]);
+    });
+  });
+
+  it('en el chat no hay pared ni spray', async () => {
     document.documentElement.dataset.theme = 'neon';
-    render(<Descontrol pathname="/rockyIA" />);
+    // Con el spray ya cargado (lo trae la página anterior), en el chat no sale
+    const { rerender } = render(<Descontrol pathname="/crew" />);
+    await screen.findByRole('button', { name: 'Coge el spray' });
+    rerender(<Descontrol pathname="/rockyIA" />);
+    await act(async () => {});
     expect(screen.queryByRole('button', { name: 'Coge el spray' })).not.toBeInTheDocument();
   });
 
   it('al coger el spray aparecen los colores y se puede soltar con Escape', async () => {
     document.documentElement.dataset.theme = 'neon';
     render(<Descontrol pathname="/" />);
+    const bote = await screen.findByRole('button', { name: 'Coge el spray' });
     await act(async () => {
-      screen.getByRole('button', { name: 'Coge el spray' }).click();
+      bote.click();
     });
     expect(screen.getByRole('radio', { name: 'Lima' })).toHaveAttribute('aria-checked', 'true');
     expect(document.documentElement).toHaveClass('is-spraying');
@@ -294,5 +376,34 @@ describe('Modo descontrol: rotulador y Tipp-Ex', () => {
     // El corrector dura 0,7 s, igual que su capa en Descontrol.
     expect(css).toMatch(/\.descontrol-tippex \{[^}]*animation: descontrol-tippex-fade 0\.7s/);
     expect(css).toMatch(/\.mode-stroke--tippex path \{[^}]*animation: mode-stroke-tippex 0\.7s/);
+  });
+});
+
+/* La pieza se carga aparte (carga-y-estabilidad): si la bombilla se pulsa antes
+   de que llegue su chunk, al montarse ya es de noche y tiene que anunciarlo. */
+describe('Modo descontrol: montado después de pulsar la bombilla', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    delete document.documentElement.dataset.theme;
+  });
+
+  it('con announceIfNight, llegar de noche trae el apagón y avisa a la portada', async () => {
+    vi.useFakeTimers();
+    document.documentElement.dataset.theme = 'neon';
+    const onActivated = vi.fn();
+
+    render(<Descontrol pathname="/estudio" onActivated={onActivated} announceIfNight />);
+
+    expect(screen.getByTestId('descontrol-flash')).toHaveTextContent('Descontrol activado');
+    await act(async () => {
+      vi.advanceTimersByTime(3000);
+    });
+    expect(onActivated).toHaveBeenCalledTimes(1);
+  });
+
+  it('con announceIfNight y de día no anuncia nada', () => {
+    render(<Descontrol pathname="/" announceIfNight />);
+
+    expect(screen.queryByTestId('descontrol-flash')).not.toBeInTheDocument();
   });
 });

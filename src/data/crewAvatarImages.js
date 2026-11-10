@@ -7,6 +7,11 @@ import estrellaApoyado from '../images/optimized/characters/estrella-apoyado-hd.
 import grafiteroSpray from '../images/optimized/characters/grafitero-spray-hd.webp';
 import skaterHead from '../images/optimized/splash/skater-head.webp';
 import skaterOllie from '../images/optimized/characters/skater-ollie-hd.webp';
+import breakdanceFreezeThumb from '../images/optimized/characters/breakdance-freeze-h320.webp';
+import dianaJefeThumb from '../images/optimized/characters/diana-jefe-h320.webp';
+import estrellaApoyadoThumb from '../images/optimized/characters/estrella-apoyado-h320.webp';
+import grafiteroSprayThumb from '../images/optimized/characters/grafitero-spray-h320.webp';
+import skaterOllieThumb from '../images/optimized/characters/skater-ollie-h320.webp';
 
 const CREW_AVATAR_IMAGES = Object.freeze({
   'skater-head': skaterHead,
@@ -40,4 +45,18 @@ const CREW_AVATAR_SIZES = Object.freeze({
 export function getCrewAvatarSize(rewardId) {
   const [width, height] = CREW_AVATAR_SIZES[rewardId] || CREW_AVATAR_SIZES['skater-head'];
   return { width, height };
+}
+
+// La miniatura de la barra: la variante pequeña de cada avatar, importada a
+// mano para que la barra no arrastre la tabla de variantes de toda la crew.
+const CREW_AVATAR_THUMBS = Object.freeze({
+  'diana-jefe': dianaJefeThumb,
+  'estrella-apoyado': estrellaApoyadoThumb,
+  'skater-ollie': skaterOllieThumb,
+  'grafitero-spray': grafiteroSprayThumb,
+  'breakdance-freeze': breakdanceFreezeThumb,
+});
+
+export function getCrewAvatarThumb(rewardId) {
+  return CREW_AVATAR_THUMBS[rewardId] || getCrewAvatarImage(rewardId);
 }

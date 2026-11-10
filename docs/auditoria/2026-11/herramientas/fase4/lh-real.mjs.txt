@@ -1,0 +1,24 @@
+// node lh-real.mjs <snapshot> <salida> <puerto> "/ /menudrop"   (solo móvil, tienda de pruebas)
+import { execFileSync } from 'node:child_process';
+import fs from 'node:fs';
+import { startInstance } from './instancia-real.mjs';
+const [, , repo, outDir, port, pages] = process.argv;
+fs.mkdirSync(outDir, { recursive: true });
+const inst = await startInstance(repo, Number(port), { TRUST_PROXY_HOPS: '1' });
+const median = (v) => [...v].sort((a, b) => a - b)[Math.floor(v.length / 2)];
+try {
+  for (const page of pages.split(/\s+/).filter(Boolean)) {
+    const slug = page === '/' ? 'portada' : page.slice(1).replace(/\//g, '_');
+    const runs = [];
+    for (let run = 1; run <= Number(process.env.N || 3); run += 1) {
+      const target = `${outDir}/${slug}__movil__${run}.json`;
+      try {
+        execFileSync('npx', ['-y', 'lighthouse@13.5.0', inst.origin + page, '--only-categories=performance', '--chrome-path=/usr/bin/google-chrome', '--chrome-flags=--headless=new --no-sandbox --disable-gpu', '--output=json', `--output-path=${target}`, '--quiet'], { stdio: 'ignore' });
+        const r = JSON.parse(fs.readFileSync(target, 'utf8')); const a = r.audits;
+        const el = JSON.stringify(a['lcp-breakdown-insight']?.details ?? a['largest-contentful-paint-element']?.details ?? '').match(/"snippet":"([^"]{0,80})/)?.[1] ?? '';
+        runs.push({ perf: Math.round(r.categories.performance.score * 100), fcp: a['first-contentful-paint'].numericValue / 1000, lcp: a['largest-contentful-paint'].numericValue / 1000, cls: a['cumulative-layout-shift'].numericValue, tbt: a['total-blocking-time'].numericValue, el });
+      } catch (e) { console.log('FALLO', page, run, String(e).slice(0, 100)); }
+    }
+    console.log(outDir.split('/').pop().padEnd(10), slug.padEnd(10), 'perf', median(runs.map((r) => r.perf)), 'FCP', median(runs.map((r) => r.fcp)).toFixed(2), 'LCP', median(runs.map((r) => r.lcp)).toFixed(2), '[' + runs.map((r) => r.lcp.toFixed(2)).join(' ') + ']', 'CLS', median(runs.map((r) => r.cls)).toFixed(3), '|', runs[0]?.el);
+  }
+} finally { inst.stop(); }

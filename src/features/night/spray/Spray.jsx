@@ -134,6 +134,8 @@ export default function Spray({ pathname }) {
   const [active, setActive] = useState(false);
   const [color, setColor] = useState(0);
   const [hasPaint, setHasPaint] = useState(false);
+  // Trazos subiendo a la pared común: aún no están en `pared.strokes`.
+  const [uploading, setUploading] = useState(0);
   const [confirmClear, setConfirmClear] = useState(false);
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
@@ -191,9 +193,18 @@ export default function Spray({ pathname }) {
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
     ctxRef.current = ctx;
     layoutRef.current = { width, height };
-    setAncho(anchoDePared(width));
     redraw();
   }, [redraw]);
+
+  // El lienzo cubre la página entera (hasta 12 Mpx): solo existe con el bote
+  // en la mano o con algo que enseñar, propio o de la pared común.
+  const showCanvas = active || hasPaint || uploading > 0 || pared.strokes.length > 0;
+  useEffect(() => {
+    // Recién montado no tiene medida: layout() lo dimensiona y repinta.
+    layoutRef.current = { width: 0, height: 0 };
+    if (showCanvas) layout();
+    else ctxRef.current = null;
+  }, [showCanvas, layout]);
 
   // Al cruzar los 900 px se pasa a la otra pared: lo de «Deshacer» de esta
   // visita era de la anterior.
@@ -261,12 +272,14 @@ export default function Spray({ pathname }) {
     // Sin medida previa, layout() rehace el lienzo y repinta sí o sí.
     layoutRef.current = { width: 0, height: 0 };
     layout();
-    const app = canvasRef.current?.closest('.app');
+    const app = document.querySelector('.app');
     let frame = 0;
     const onResize = () => {
       if (frame) return;
       frame = window.requestAnimationFrame(() => {
         frame = 0;
+        // La pared (ancha o estrecha) se decide haya lienzo o no.
+        setAncho(anchoDePared(document.documentElement.clientWidth));
         layout();
       });
     };
@@ -316,6 +329,7 @@ export default function Spray({ pathname }) {
       // página donde se pintó, no a la nueva.
       const destino = strokesRef.current;
       const pagina = pathname;
+      setUploading((count) => count + 1);
       paredRef.current
         .pintar(trazo)
         .then(({ id }) => {
@@ -336,7 +350,8 @@ export default function Spray({ pathname }) {
           scheduleSave();
           redraw();
           setStatus('No se ha podido pegar en la pared común: se queda en tu navegador.');
-        });
+        })
+        .finally(() => setUploading((count) => count - 1));
     },
     [pathname, redraw, scheduleSave]
   );
@@ -599,7 +614,14 @@ export default function Spray({ pathname }) {
 
   return (
     <>
-      <canvas ref={canvasRef} className="spray-wall" aria-hidden="true" data-testid="spray-wall" />
+      {showCanvas && (
+        <canvas
+          ref={canvasRef}
+          className="spray-wall"
+          aria-hidden="true"
+          data-testid="spray-wall"
+        />
+      )}
       {active ? (
         <div className="spray-tools" role="toolbar" aria-label="Spray">
           <div className="spray-fila">

@@ -2,14 +2,14 @@
   "about": "Presupuesto de rendimiento que comprueba `npm run budget:check` sobre dist/. Pesos en kB (1.000 bytes) y lados en píxeles. Cada límite tiende a su objetivo (target) y solo baja: si una medida queda más de un 10 % por debajo de su límite, la comprobación pide bajarlo. Una excepción perdona una métrica a un fichero concreto hasta su propio techo y hay que retirarla en cuanto el fichero cumple o desaparece; los ficheros de assets/ se nombran sin el hash de Vite.",
   "metrics": {
     "initialJs": {
-      "limit": 126,
+      "limit": 100,
       "target": 100,
-      "note": "gzip de los scripts de index.html, de los módulos que precarga y de lo que importan de forma estática. Subió de 123 a 126 en imagenes-y-medios (tabla de variantes de las ilustraciones y foto de producto común); carga-y-estabilidad lo baja al objetivo."
+      "note": "gzip de los scripts de index.html, de los módulos que precarga y de lo que importan de forma estática. En su objetivo desde carga-y-estabilidad: el neón, el spray, el Curioso, la Estampida, el repartidor, el lightbox, el 404 y el catálogo de muestra se cargan aparte."
     },
     "initialCss": {
-      "limit": 19,
+      "limit": 15,
       "target": 15,
-      "note": "gzip de las hojas de estilo que enlaza index.html. Lo baja carga-y-estabilidad."
+      "note": "gzip de las hojas de estilo que enlaza index.html. En su objetivo desde carga-y-estabilidad."
     },
     "deferredChunk": {
       "limit": 21,
@@ -17,9 +17,9 @@
       "note": "gzip del mayor JavaScript de dist/ que no es inicial (hoy, Studio)."
     },
     "preloadedFonts": {
-      "limit": 82,
-      "target": 82,
-      "note": "Fuentes con <link rel=\"preload\"> en index.html. Lo baja carga-y-estabilidad."
+      "limit": 55,
+      "target": 55,
+      "note": "Fuentes con <link rel=\"preload\"> en index.html: las dos de la primera vista (Luckiest Guy y Archivo). Fredoka, la del pie y los avisos, se carga cuando el CSS la pide."
     },
     "imageSide": {
       "limit": 1600,
@@ -37,9 +37,9 @@
       "note": "Peso de cualquier WebP animado. La cinta del pie existe a 112, 168 y 224 px de alto (de 305 a 709 kB) y el navegador descarga la que corresponde a su pantalla."
     },
     "imagesTotal": {
-      "limit": 8700,
-      "target": 8700,
-      "note": "Suma de todas las imágenes de dist/, contadas todas las variantes de cada una: es espacio en disco, no lo que descarga una visita."
+      "limit": 8750,
+      "target": 8750,
+      "note": "Suma de todas las imágenes de dist/, contadas todas las variantes de cada una: es espacio en disco, no lo que descarga una visita. Subió de 8700 a 8750 en carga-y-estabilidad por las dieciséis variantes a la mitad de la intro (96 kB en disco), que le quitan 247 kB a la primera visita desde un móvil con densidad de pantalla de hasta 2."
     },
     "audioTrack": {
       "limit": 1100,

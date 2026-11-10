@@ -64,8 +64,12 @@ export function useStorefrontStatus({
         };
 
         if (status.mode !== 'shopify' || !nextCapabilities.catalog) {
+          // El catálogo de muestra puede llegar como lista o como cargador: la
+          // tienda real nunca lo usa, así que no viaja en el bundle inicial.
+          const demo = typeof demoProducts === 'function' ? await demoProducts() : demoProducts;
+          if (!active) return;
           setCapabilities(nextCapabilities);
-          setProducts(demoProducts);
+          setProducts(demo);
           setMode('demo');
           return;
         }

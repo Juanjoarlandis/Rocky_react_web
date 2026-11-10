@@ -1,16 +1,17 @@
 @layer components {
   /* ---------- La pared de luz negra ----------
      Capa fija detrás de todo el contenido (z-index -1 sobre el papel del
-     body): las tarjetas la tapan como taparían una pared. La linterna la
-     mueve Descontrol.jsx con --tx/--ty. */
+     body): las tarjetas la tapan como taparían una pared. La linterna no
+     repinta nada: Descontrol.jsx mueve con `transform` tres capas ya
+     pintadas (el haz, la ventana de la tinta y el hueco de la oscuridad),
+     centradas en el origen para que su traslación sea la posición del
+     cursor, y las encoge con una escala cuanto más se baja. */
   .uv-wall,
   .uv-oscuridad {
-    --tx: 50vw;
-    --ty: 40vh;
-    --depth: 0;
     --torch-r: 300px;
-    /* Cuanto más se baja, más estrecho el haz. */
-    --torch-now: calc(var(--torch-r) * (1 - 0.35 * var(--depth)));
+    /* Lado de las capas que tienen que tapar la pantalla esté donde esté el
+       cursor, también con el haz encogido al 65 %. */
+    --uv-lona: calc((100vw + 100vh) * 3.1);
   }
 
   .uv-wall {
@@ -21,12 +22,23 @@
     pointer-events: none;
   }
 
+  .uv-torch,
+  .uv-ink-window,
+  .uv-oscuridad-luz {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform: translate3d(50vw, 40vh, 0);
+    will-change: transform, opacity;
+  }
+
   /* El haz: un violeta tenue que tiñe la pared alrededor del cursor. */
   .uv-torch {
-    position: absolute;
-    inset: 0;
+    width: calc(var(--torch-r) * 2.9);
+    height: calc(var(--torch-r) * 2.9);
+    margin: calc(var(--torch-r) * -1.45) 0 0 calc(var(--torch-r) * -1.45);
     background-image: radial-gradient(
-      circle calc(var(--torch-now) * 1.45) at var(--tx) var(--ty),
+      circle closest-side,
       rgba(var(--uv-violet-rgb), 0.17),
       rgba(var(--uv-violet-rgb), 0.06) 45%,
       transparent 72%
@@ -34,21 +46,44 @@
   }
 
   /* La tinta invisible: dentro del haz se lee entera; fuera apenas se
-     intuye, lo justo para que den ganas de pasar la luz por encima. */
-  .uv-ink-window {
+     intuye, lo justo para que den ganas de pasar la luz por encima. Son dos
+     copias. Esta, tenue, es parte de la página (detrás del contenido, como
+     la pared) y sube con ella sin capa propia. */
+  .uv-ink-tenue {
     position: absolute;
-    inset: 0;
+    top: 0;
+    left: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+    opacity: 0.08;
+  }
+
+  /* La otra va entera dentro de la ventana del haz, que es lo único que
+     lleva máscara y mide lo que el haz. La máscara acaba en cero y no en
+     0,08: debajo sigue la copia tenue, y las dos sumadas dan lo de siempre
+     (1 en el centro, 0,85 al 40 % del radio y 0,08 en el borde). */
+  .uv-ink-window {
+    width: calc(var(--torch-r) * 2);
+    height: calc(var(--torch-r) * 2);
+    margin: calc(var(--torch-r) * -1) 0 0 calc(var(--torch-r) * -1);
+    overflow: hidden;
     mask-image: radial-gradient(
-      circle var(--torch-now) at var(--tx) var(--ty),
+      circle closest-side,
       rgba(var(--black-rgb), 1) 0%,
-      rgba(var(--black-rgb), 0.85) 40%,
-      rgba(var(--black-rgb), 0.08) 100%
+      rgba(var(--black-rgb), 0.837) 40%,
+      transparent 100%
     );
   }
 
+  /* Cuelga del centro de su ventana y deshace su viaje: Descontrol.jsx le da
+     la transformación inversa. */
   .uv-ink {
     position: absolute;
-    inset: 0 0 auto;
+    top: 50%;
+    left: 50%;
+    transform-origin: 0 0;
+    transform: translate3d(-50vw, -40vh, 0);
     will-change: transform;
   }
 
@@ -164,12 +199,22 @@
     position: fixed;
     inset: 0;
     z-index: var(--z-dark);
+    overflow: hidden;
     pointer-events: none;
+  }
+
+  /* Negro con un hueco para la linterna; cuánto oscurece lo dice su opacidad,
+     que Descontrol.jsx sube hasta 0,42 al bajar. */
+  .uv-oscuridad-luz {
+    opacity: 0.08;
+    width: var(--uv-lona);
+    height: var(--uv-lona);
+    margin: calc(var(--uv-lona) / -2) 0 0 calc(var(--uv-lona) / -2);
     background-image: radial-gradient(
-      circle calc(var(--torch-now) * 1.8) at var(--tx) var(--ty),
+      circle calc(var(--torch-r) * 1.8) at center,
       transparent 0%,
       transparent 38%,
-      rgba(var(--black-rgb), calc(0.08 + 0.34 * var(--depth))) 100%
+      rgba(var(--black-rgb), 1) 100%
     );
   }
 

@@ -156,7 +156,8 @@ test.each([false, true])('celebrates only an effective cart addition (%s)', asyn
       <App />
     </MemoryRouter>
   );
-  fireEvent.click(screen.getByRole('button', { name: 'Añadir al carrito' }));
+  // El catálogo se pinta cuando también han llegado los drops (carga-y-estabilidad)
+  fireEvent.click(await screen.findByRole('button', { name: 'Añadir al carrito' }));
   await waitFor(() =>
     expect(
       screen.getByRole('button', { name: added ? 'Añadido ✓' : 'Añadir al carrito' })
@@ -210,7 +211,7 @@ test('la portada y las categorías comparten la misma página', () => {
   expect(document.title).toBe('COLMENA SIGNAL · ROCKY 035');
 });
 
-test('El Curioso se asoma solo un rato después de entrar en la tienda', () => {
+test('El Curioso se asoma solo un rato después de entrar en la tienda', async () => {
   sessionStorage.setItem('rocky-splash-seen', '1');
   vi.useFakeTimers();
   // Con el azar fijado, la primera aparición cae a los 6 s y dura 3,1 s.
@@ -221,6 +222,11 @@ test('El Curioso se asoma solo un rato después de entrar en la tienda', () => {
         <App />
       </MemoryRouter>
     );
+    // El Curioso es una pieza opcional: se monta con la página en reposo.
+    await act(async () => {
+      vi.advanceTimersByTime(2_500);
+      await vi.dynamicImportSettled();
+    });
     expect(screen.queryByTestId('curious-peeker')).not.toBeInTheDocument();
     act(() => {
       vi.advanceTimersByTime(6_000);
@@ -230,4 +236,42 @@ test('El Curioso se asoma solo un rato después de entrar en la tienda', () => {
     vi.restoreAllMocks();
     vi.useRealTimers();
   }
+});
+
+/* Piezas opcionales (carga-y-estabilidad): no se montan hasta que la página
+   está en reposo o alguien la toca. */
+test('el repartidor, el curioso y el descontrol no se montan hasta el reposo o el primer gesto', async () => {
+  vi.stubGlobal('requestIdleCallback', () => 1);
+  vi.stubGlobal('cancelIdleCallback', () => {});
+  try {
+    renderEn('/');
+    expect(screen.queryByLabelText('Carreras al carrito')).not.toBeInTheDocument();
+
+    fireEvent.pointerDown(window);
+
+    expect(await screen.findByLabelText('Carreras al carrito')).toBeInTheDocument();
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
+test('teclear 035 suelta la estampida aunque su pieza aún no estuviera cargada', async () => {
+  vi.stubGlobal('requestIdleCallback', () => 1);
+  vi.stubGlobal('cancelIdleCallback', () => {});
+  try {
+    renderEn('/');
+
+    for (const key of ['0', '3', '5']) fireEvent.keyDown(window, { key });
+
+    expect(await screen.findByTestId('estampida')).toBeInTheDocument();
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
+test('una ruta que no existe sigue pintando la página 404', async () => {
+  renderEn('/no-existe');
+
+  expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument();
+  expect(screen.getByTestId('ruta')).toHaveTextContent('/no-existe');
 });

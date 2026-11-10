@@ -475,7 +475,7 @@ describe('ProductPage: punto de mira', () => {
 });
 
 describe('ProductPage: pegatina arrancada', () => {
-  it('un agotado se ve medio arrancado y su foto sigue abriéndose entera', () => {
+  it('un agotado se ve medio arrancado y su foto sigue abriéndose entera', async () => {
     renderCatalog([forSale, soldOut]);
     const card = cardOf('Marea');
     expect(card).toHaveClass('is-sold-out');
@@ -486,7 +486,12 @@ describe('ProductPage: pegatina arrancada', () => {
     expect(within(card).getByRole('button', { name: 'Agotado' })).toBeDisabled();
 
     fireEvent.click(media);
-    const zoom = document.querySelector('dialog img');
+    // El lightbox se carga al abrirlo.
+    const zoom = await waitFor(() => {
+      const image = document.querySelector('dialog img');
+      expect(image).not.toBeNull();
+      return image;
+    });
     expect(zoom).toHaveAttribute('src', '/products/rocky-marea-035.webp');
     expect(zoom.closest('dialog').querySelector('.torn-sticker')).toBeNull();
   });
@@ -591,31 +596,52 @@ describe('ProductPage: drops en la portada y página de drop', () => {
   };
   const drops = [announced, live, archive];
 
+  const catalogo = (path, extra = {}) => (
+    <MemoryRouter initialEntries={[path]}>
+      <Routes>
+        {['/', '/products/:category'].map((routePath) => (
+          <Route
+            key={routePath}
+            path={routePath}
+            element={
+              <ProductPage
+                products={[airwave, congelado]}
+                addToCart={vi.fn()}
+                commerceMode="shopify"
+                canAddToCart
+                drops={drops}
+                featured={announced}
+                serverNow={now}
+                {...extra}
+              />
+            }
+          />
+        ))}
+      </Routes>
+    </MemoryRouter>
+  );
+
   function renderAt(path) {
-    return render(
-      <MemoryRouter initialEntries={[path]}>
-        <Routes>
-          {['/', '/products/:category'].map((routePath) => (
-            <Route
-              key={routePath}
-              path={routePath}
-              element={
-                <ProductPage
-                  products={[airwave, congelado]}
-                  addToCart={vi.fn()}
-                  commerceMode="shopify"
-                  canAddToCart
-                  drops={drops}
-                  featured={announced}
-                  serverNow={now}
-                />
-              }
-            />
-          ))}
-        </Routes>
-      </MemoryRouter>
-    );
+    return render(catalogo(path));
   }
+
+  /* Los productos y los drops llegan por separado. Si los productos se
+     pintaban antes, el cartel del drop anunciado entraba después por encima y
+     empujaba las tarjetas (CLS de 0,30 medido en la portada). */
+  it('con los productos ya aquí, la portada espera a los drops para pintar el catálogo', () => {
+    const { container, rerender } = render(
+      catalogo('/', { drops: [], featured: null, dropsLoading: true })
+    );
+    const grid = container.querySelector('.product-grid');
+    expect(grid).toHaveClass('product-grid--loading');
+    expect(grid).toHaveAttribute('aria-busy', 'true');
+    expect(grid.children).toHaveLength(0);
+
+    rerender(catalogo('/'));
+    expect(grid).not.toHaveClass('product-grid--loading');
+    expect(grid.firstElementChild).toHaveAttribute('data-testid', 'catalogo-teaser-rocky-drop-6');
+    expect(grid.querySelectorAll('.product-card').length).toBeGreaterThan(0);
+  });
 
   it('la portada anuncia el drop destacado y lleva a su página', () => {
     renderAt('/');
@@ -651,6 +677,32 @@ describe('ProductPage: drops en la portada y página de drop', () => {
       </MemoryRouter>
     );
     expect(screen.queryByText('Nada por aquí')).not.toBeInTheDocument();
+  });
+
+  /* La prioridad es de la primera foto de producto, no del primer elemento del
+     catálogo: delante suele haber un cartel y una cabecera de drop. */
+  it('con cartel y cabecera delante, la primera foto de producto lleva la prioridad y su fila se pide ya', () => {
+    const seis = Array.from({ length: 6 }, (_, i) => ({
+      ...airwave,
+      id: `rocky-${i}`,
+      handle: `rocky-${i}`,
+      title: `Diseño ${i}`,
+      imageAlt: `Foto ${i}`,
+    }));
+    const { container } = render(catalogo('/', { products: seis }));
+    const grid = container.querySelector('.product-grid');
+    expect(grid.children[0]).toHaveAttribute('data-testid', 'catalogo-teaser-rocky-drop-6');
+    expect(grid.children[1]).toHaveAttribute('data-testid', 'catalogo-seccion-rocky-drop-5');
+
+    const photo = (i) => screen.getByRole('img', { name: `Foto ${i}` });
+    expect(photo(0)).toHaveAttribute('loading', 'eager');
+    expect(photo(0)).toHaveAttribute('fetchpriority', 'high');
+    for (const i of [1, 2, 3]) {
+      expect(photo(i)).toHaveAttribute('loading', 'eager');
+      expect(photo(i)).not.toHaveAttribute('fetchpriority');
+    }
+    expect(photo(4)).toHaveAttribute('loading', 'lazy');
+    expect(photo(5)).toHaveAttribute('loading', 'lazy');
   });
 
   it('el catálogo sigue el orden del muro: teaser, en la calle y archivo', () => {
@@ -698,5 +750,57 @@ describe('ProductPage: drops en la portada y página de drop', () => {
     renderAt('/products/rocky-drop-3');
     expect(screen.getByText(/este drop ya voló/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Drop cerrado' })).toBeDisabled();
+  });
+});
+
+/* Primera vista (carga-y-estabilidad): las fotos de la primera fila se piden
+   desde el principio, haya intro o no, y la primera con prioridad. */
+describe('ProductPage: fotos de la primera fila', () => {
+  const sixProducts = Array.from({ length: 6 }, (_, i) => ({
+    ...forSale,
+    id: `rocky-${i}`,
+    handle: `rocky-${i}`,
+    title: `Diseño ${i}`,
+    imageAlt: `Foto ${i}`,
+  }));
+  const photo = (i) => screen.getByRole('img', { name: `Foto ${i}` });
+
+  it('la primera foto de producto se pide con prioridad alta', () => {
+    renderCatalog(sixProducts);
+
+    expect(photo(0)).toHaveAttribute('loading', 'eager');
+    expect(photo(0)).toHaveAttribute('fetchpriority', 'high');
+  });
+
+  it('el resto de la primera fila se pide desde el principio, sin prioridad', () => {
+    renderCatalog(sixProducts);
+
+    for (const i of [1, 2, 3]) {
+      expect(photo(i)).toHaveAttribute('loading', 'eager');
+      expect(photo(i)).not.toHaveAttribute('fetchpriority');
+    }
+  });
+
+  it('lo que queda por debajo sigue cargándose con pereza', () => {
+    renderCatalog(sixProducts);
+
+    expect(photo(4)).toHaveAttribute('loading', 'lazy');
+    expect(photo(5)).toHaveAttribute('loading', 'lazy');
+  });
+
+  it('no depende de que la intro haya terminado', () => {
+    render(
+      <MemoryRouter>
+        <ProductPage
+          products={sixProducts}
+          addToCart={vi.fn()}
+          commerceMode="shopify"
+          canAddToCart
+          prioritizeFirstImage={false}
+        />
+      </MemoryRouter>
+    );
+
+    expect(photo(0)).toHaveAttribute('fetchpriority', 'high');
   });
 });

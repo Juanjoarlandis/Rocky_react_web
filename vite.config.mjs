@@ -8,10 +8,11 @@ export default defineConfig({
   // local convertía `npm run build` en un build con React de desarrollo.
   envDir: false,
   build: {
-    // Las ilustraciones optimizadas van siempre como fichero: Vite incrusta en
-    // el JavaScript lo que pesa menos de 4 kB, y los pósters pequeños de la
-    // cinta del pie metían 10 kB de base64 en el bundle inicial.
-    assetsInlineLimit: (file) => (file.includes('/images/optimized/') ? false : undefined),
+    // Las imágenes van siempre como fichero: Vite incrusta en el JavaScript, en
+    // base64, lo que pesa menos de 4 kB, y eso (el logo de la barra, los pósters
+    // pequeños de la cinta del pie) eran 13 kB de bundle inicial que no se
+    // comprimen.
+    assetsInlineLimit: (file) => (file.includes('/src/images/') ? false : undefined),
   },
   server: {
     port: 3000,

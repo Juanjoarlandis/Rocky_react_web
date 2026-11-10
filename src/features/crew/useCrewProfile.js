@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getCrewProfile } from '../../api/shopify.js';
 import { DEFAULT_AVATAR_ID } from '../../config/commerce.js';
 import { errorMessage } from '../../utils/errors.js';
@@ -49,12 +49,11 @@ export function useCrewProfile({ enabled = false } = {}) {
     setProfile((current) => ({ ...(current || {}), equippedAvatarId: avatarId }));
   }, []);
 
-  return {
-    profile,
-    loading,
-    error,
-    applyProfile,
-    applyAvatar,
-    equippedAvatarId: profile?.equippedAvatarId || DEFAULT_AVATAR_ID,
-  };
+  // El mismo objeto mientras nada cambie: quien lo recibe (la tienda entera,
+  // a través de useStorefront) no se vuelve a pintar en cada render de App.
+  const equippedAvatarId = profile?.equippedAvatarId || DEFAULT_AVATAR_ID;
+  return useMemo(
+    () => ({ profile, loading, error, applyProfile, applyAvatar, equippedAvatarId }),
+    [profile, loading, error, applyProfile, applyAvatar, equippedAvatarId]
+  );
 }

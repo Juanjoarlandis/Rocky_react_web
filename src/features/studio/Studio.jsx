@@ -52,6 +52,8 @@ function Studio() {
                     Cuando suena la radio cabecea el doble que nadie: es lo suyo. */}
         <img
           {...artSources(productorArt, 160)}
+          width="964"
+          height="1038"
           alt=""
           className="doodle studio-doodle neon-art al-ritmo al-ritmo--fuerte"
           style={{ '--fase': '0' }}
@@ -68,6 +70,8 @@ function Studio() {
           {/* El Luna, de turno de noche, escucha con el móvil en cuclillas */}
           <img
             {...artSources(lunaMovil, 130)}
+            width="1003"
+            height="1364"
             alt=""
             className="doodle setlist-luna neon-art al-ritmo"
             style={{ '--fase': '0.65' }}
@@ -119,6 +123,8 @@ function Studio() {
           {/* El Tele viendo la tele que es él mismo, sentado en el reproductor */}
           <img
             {...artSources(teleSentado, 160)}
+            width="721"
+            height="1367"
             alt=""
             className="doodle listen-tele neon-art al-ritmo"
             style={{ '--fase': '0.95' }}
@@ -137,6 +143,8 @@ function Studio() {
           {/* Uno de la banda colgado del borde del reproductor */}
           <img
             {...artSources(colgadoBorde, 200)}
+            width="593"
+            height="1565"
             alt=""
             loading="lazy"
             className="doodle listen-hanger neon-art al-ritmo"

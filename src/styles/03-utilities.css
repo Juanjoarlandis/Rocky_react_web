@@ -247,6 +247,8 @@
   /* ---------- Estados de página ---------- */
 
   .page-loading {
+    /* Alto reservado: lo que llega después ocupa su sitio sin empujar nada. */
+    min-height: 60vh;
     padding: 120px 24px;
     display: flex;
     flex-direction: column;
@@ -340,27 +342,30 @@
     filter: drop-shadow(0 0 6px rgba(var(--uv-lime-rgb), 0.5));
   }
 
-  /* El chisporroteo de un tubo recién encendido, una sola vez por página. */
+  /* El chisporroteo de un tubo recién encendido, una sola vez por página. Va
+   con `filter: opacity()` y no con `opacity` a propósito: dos animaciones de
+   la misma propiedad en un elemento no se componen en la GPU, y el parpadeo
+   de abajo, que es infinito, recalculaba estilos a cada fotograma. */
   @keyframes neon-encendido {
     0%,
     100% {
-      opacity: 1;
+      filter: opacity(1);
     }
 
     7% {
-      opacity: 0.72;
+      filter: opacity(0.72);
     }
 
     11% {
-      opacity: 1;
+      filter: opacity(1);
     }
 
     19% {
-      opacity: 0.85;
+      filter: opacity(0.85);
     }
 
     25% {
-      opacity: 1;
+      filter: opacity(1);
     }
   }
 

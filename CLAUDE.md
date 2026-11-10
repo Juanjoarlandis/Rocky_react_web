@@ -81,6 +81,9 @@ docs/                design/, ops/, marketing/, archive/ (ver docs/README.md)
 - **Presupuesto de rendimiento**: los límites están en
   `scripts/performance-budget.json` y sólo bajan. Si `budget:check` pide bajar
   uno, se baja en el mismo commit; una excepción lleva fichero, motivo y techo.
+  La única métrica que puede subir es el total de imágenes (`imagesTotal`), que
+  es espacio en disco y no lo que descarga una visita: sube si lo añadido son
+  variantes que ahorran descarga, y la subida se explica en su `note`.
 - Rocky IA sólo puede usar modelos OpenRouter `:free`; no se toca esa regla.
 
 ## Lo que no se hace sin acuerdo previo

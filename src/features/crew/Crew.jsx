@@ -456,6 +456,8 @@ function Crew() {
               <img
                 key={id}
                 {...artSources(artFor(miembro.img), alto)}
+                width={miembro.imgWidth}
+                height={miembro.imgHeight}
                 alt=""
                 className="neon-art"
                 style={{ height: alto, marginBottom: vuela || 0 }}

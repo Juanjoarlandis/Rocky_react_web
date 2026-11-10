@@ -2,27 +2,29 @@ import React, { Suspense, useCallback, useEffect, useState } from 'react';
 import { matchPath, Route, Routes, useLocation, useNavigate } from 'react-router';
 import NavBar from './components/NavBar';
 import Footer from './components/Footer';
-import NotFound from './components/NotFound';
 import ScrollToTop from './components/ScrollToTop';
 import MiniPlayer from './features/music/MiniPlayer';
 import { MusicProvider } from './features/music/MusicContext';
 import { CrosshairSpinner } from './components/doodles/CrosshairSpinner';
 import SplashIntro from './components/SplashIntro';
 import ProductPage from './features/catalog/ProductPage';
-import CuriousPeeker from './features/peeker/CuriousPeeker';
-import CartRunner from './features/cart/CartRunner';
-import Descontrol from './features/night/Descontrol';
-import Estampida from './features/estampida/Estampida';
-import demoCatalog from './data/demoCatalog.json';
-import previewProducts from '../shared/preview-products.mjs';
-import { normalizeDemoCatalog } from './features/storefront/normalize';
+import { listenForSecret } from './features/estampida/secret.js';
+import { lazyPiece, preloadPieces, usePiecesReady } from './utils/pieces.jsx';
 import { useStorefront } from './features/storefront/useStorefront';
 import { useDrops } from './features/drops/useDrops.js';
 import { STORAGE_KEYS } from './config/storageKeys.js';
 import { readStorage, writeStorage } from './utils/storage.js';
 import { ROUTES } from './config/routes.js';
 
+// Piezas opcionales: no hacen falta para pintar la página, así que su código
+// y su CSS se piden con la página en reposo o al primer gesto.
+const CuriousPeeker = lazyPiece(() => import('./features/peeker/CuriousPeeker'));
+const CartRunner = lazyPiece(() => import('./features/cart/CartRunner'));
+const Descontrol = lazyPiece(() => import('./features/night/Descontrol'));
+const Estampida = lazyPiece(() => import('./features/estampida/Estampida'));
+
 // Páginas cargadas bajo demanda
+const NotFound = React.lazy(() => import('./components/NotFound'));
 const ProductDetail = React.lazy(() => import('./features/catalog/ProductDetail'));
 const Cart = React.lazy(() => import('./features/cart/Cart'));
 const ChatComponent = React.lazy(() => import('./features/chat/ChatComponent'));
@@ -35,14 +37,15 @@ const Legal = React.lazy(() => import('./features/legal/Legal'));
 const Taller = React.lazy(() => import('./features/taller/Taller'));
 
 const SPLASH_MS = 3000;
-const DEMO_CATALOG = Object.freeze([...normalizeDemoCatalog(demoCatalog), ...previewProducts]);
+// El catálogo de muestra solo hace falta sin Shopify: se pide entonces.
+const loadDemoCatalog = () => import('./data/demoProducts.js').then((module) => module.default);
 
 function App() {
   const [showSplash, setShowSplash] = useState(
     () => !readStorage(STORAGE_KEYS.splashSeen, { kind: 'session' })
   );
   const commerce = useStorefront({
-    demoProducts: DEMO_CATALOG,
+    demoProducts: loadDemoCatalog,
   });
   // Los drops (calendario-de-drops): al caer uno se recarga el catálogo, que
   // es cuando sus diseños empiezan a salir.
@@ -52,6 +55,20 @@ function App() {
     onLaunch: commerce.refreshCatalog,
   });
   const [carreras, setCarreras] = useState(0);
+  // Las piezas opcionales esperan al catálogo: antes, la red es de la tienda.
+  const piecesReady = usePiecesReady({ hold: commerce.loading });
+  // En reposo se piden también las que no se montan solas (la Estampida, el
+  // lightbox): quien teclee «035» o abra una foto no espera a la red.
+  useEffect(() => {
+    if (piecesReady) preloadPieces();
+  }, [piecesReady]);
+  // La escucha de «035» se queda aquí, en dos líneas: la Estampida (y con ella
+  // toda la crew) solo se carga si alguien la teclea.
+  const [estampidas, setEstampidas] = useState(0);
+  useEffect(() => {
+    if (showSplash) return undefined;
+    return listenForSecret(() => setEstampidas((n) => n + 1));
+  }, [showSplash]);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -95,7 +112,6 @@ function App() {
       addToCart={addToCart}
       commerceMode={commerce.mode}
       canAddToCart={commerce.canAddToCart}
-      prioritizeFirstImage={!showSplash}
       loading={commerce.loading}
       dropsLoading={drops.loading}
       drops={drops.drops}
@@ -123,10 +139,19 @@ function App() {
           </div>
         )}
         <ScrollToTop />
-        <CuriousPeeker pathname={location.pathname} disabled={showSplash} />
-        <CartRunner runId={carreras} disabled={showSplash} />
-        <Descontrol pathname={location.pathname} disabled={showSplash} onActivated={irALaPortada} />
-        <Estampida disabled={showSplash} />
+        {piecesReady && <CuriousPeeker pathname={location.pathname} disabled={showSplash} />}
+        {(piecesReady || carreras > 0) && <CartRunner runId={carreras} disabled={showSplash} />}
+        {piecesReady && (
+          <Descontrol
+            pathname={location.pathname}
+            disabled={showSplash}
+            onActivated={irALaPortada}
+            announceIfNight
+          />
+        )}
+        {estampidas > 0 && (
+          <Estampida disabled={showSplash} listen={false} launchSignal={estampidas} />
+        )}
         <main id="main-content" className="app-main" tabIndex={-1}>
           {((!commerce.loading && commerce.mode === 'demo') || commerce.error) && (
             <div

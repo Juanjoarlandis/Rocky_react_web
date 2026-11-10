@@ -1,13 +1,15 @@
-import { artSources } from '../../data/art.js';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { legalPath } from '../../config/legal.js';
-import recadero from '../../images/optimized/characters/corriendo-bolsa-hd.webp';
+// Se pinta a 78 px de ancho: las variantes pequeñas de día y de noche,
+// importadas a mano para que la portada no arrastre la tabla de variantes.
+import recadero from '../../images/optimized/characters/corriendo-bolsa-h320.webp';
+import recaderoNoche from '../../images/optimized/night/no-entrega-h320.webp';
 import '../../styles/components/drop-aviso.css';
 import { dropNoticeKey } from '../../config/storageKeys.js';
 import { readStorage, writeStorage } from '../../utils/storage.js';
 import { isAbortError } from '../../api/http.js';
-import { useNightArt } from '../night/nightArt.js';
+import { useNightMode } from '../night/useNightMode.js';
 import { subscribeDropNotice } from '../../api/avisos.js';
 
 /* El mostrador de avisos de un drop que aún no ha caído: dejas tu email y El
@@ -21,7 +23,7 @@ export default function DropAviso({ producto, onApuntado }) {
     readStorage(dropNoticeKey(producto)) ? 'listo' : 'reposo'
   );
   const [repetido, setRepetido] = useState(false);
-  const recaderoArt = useNightArt(recadero);
+  const recaderoArt = useNightMode() ? recaderoNoche : recadero;
   const [fallo, setFallo] = useState('');
   // La petición en vuelo se cancela si el formulario desaparece
   const requestRef = useRef(null);
@@ -72,7 +74,7 @@ export default function DropAviso({ producto, onApuntado }) {
       <div className="drop-aviso drop-aviso--listo" data-testid="drop-aviso-listo">
         {/* El Recadero ya tiene tu recado en la bolsa */}
         <img
-          {...artSources(recaderoArt, 80)}
+          src={recaderoArt}
           width="589"
           height="600"
           loading="lazy"

@@ -68,11 +68,35 @@ function rmsLevel(node, data) {
   return Math.min(1, Math.sqrt(sum / data.length) * 2.2);
 }
 
-export function createEngine() {
+/* El contexto compartido: la mesa y el ranking tienen cada uno su motor (sus
+   buses, su mezcla), pero suenan por el mismo AudioContext. Se crea con el
+   primero que lo pide y se cierra cuando lo suelta el último. */
+let shared = null;
+
+function acquireContext() {
   const Ctx = window.AudioContext || window.webkitAudioContext;
   if (!Ctx) return null;
+  // Uno nuevo si no hay, si el que había se cerró o si no es de este
+  // constructor (cada prueba pone su propio AudioContext falso).
+  if (!shared || shared.ctx.state === 'closed' || !(shared.ctx instanceof Ctx)) {
+    shared = { ctx: new Ctx(), users: 0 };
+  }
+  shared.users += 1;
+  return shared.ctx;
+}
 
-  const ctx = new Ctx();
+function releaseContext(ctx) {
+  if (!shared || shared.ctx !== ctx) return;
+  shared.users -= 1;
+  if (shared.users > 0) return;
+  shared = null;
+  if (ctx.state !== 'closed') ctx.close().catch(() => {});
+}
+
+export function createEngine() {
+  const ctx = acquireContext();
+  if (!ctx) return null;
+  let closed = false;
 
   const master = ctx.createGain();
   master.gain.value = 0.85;
@@ -175,9 +199,13 @@ export function createEngine() {
       if (ctx.state === 'suspended') ctx.resume();
     },
 
+    // Suelta el motor: deja de sonar y, si era el último, se cierra el contexto.
     close() {
+      if (closed) return;
+      closed = true;
       chokes.clear();
-      if (ctx.state !== 'closed') ctx.close().catch(() => {});
+      analyser.disconnect();
+      releaseContext(ctx);
     },
   };
 }

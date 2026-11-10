@@ -58,3 +58,82 @@ describe('motor de la mesa', () => {
     expect(e.levels()[0]).toBe(1);
   });
 });
+
+/* Un solo AudioContext para todo el estudio (H-118): la mesa y el ranking
+   tienen cada uno su motor, pero comparten contexto. */
+describe('contexto de audio compartido', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function setup() {
+    const created = [];
+    vi.stubGlobal(
+      'AudioContext',
+      class extends FakeAudioContext {
+        constructor() {
+          super();
+          created.push(this);
+        }
+      }
+    );
+    return created;
+  }
+
+  it('dos motores a la vez comparten el mismo contexto', () => {
+    const created = setup();
+    const mesa = createEngine();
+    const ranking = createEngine();
+
+    expect(created).toHaveLength(1);
+    expect(ranking.ctx).toBe(mesa.ctx);
+    mesa.close();
+    ranking.close();
+  });
+
+  it('el contexto sigue abierto mientras lo use alguien y se cierra con el último', () => {
+    setup();
+    const mesa = createEngine();
+    const ranking = createEngine();
+
+    ranking.close();
+    expect(mesa.ctx.state).toBe('running');
+    mesa.close();
+    expect(mesa.ctx.state).toBe('closed');
+  });
+
+  it('cerrar dos veces el mismo motor no cierra el contexto de otro', () => {
+    setup();
+    const mesa = createEngine();
+    const ranking = createEngine();
+
+    ranking.close();
+    ranking.close();
+
+    expect(mesa.ctx.state).toBe('running');
+    mesa.close();
+  });
+
+  it('tras cerrarse del todo, el siguiente motor estrena contexto', () => {
+    const created = setup();
+    createEngine().close();
+
+    const next = createEngine();
+
+    expect(created).toHaveLength(2);
+    expect(next.ctx.state).toBe('running');
+    next.close();
+  });
+
+  it('al soltarlo, un motor deja de sonar aunque el contexto siga abierto', () => {
+    setup();
+    const mesa = createEngine();
+    const ranking = createEngine();
+    const disconnect = vi.spyOn(ranking.analyser, 'disconnect');
+
+    ranking.close();
+
+    expect(disconnect).toHaveBeenCalled();
+    mesa.close();
+  });
+});

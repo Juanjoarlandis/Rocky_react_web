@@ -1,5 +1,5 @@
 import { artSources } from '../../data/art.js';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useSearchParams } from 'react-router';
 import { useMusic } from '../music/MusicContext';
 import { IconPlay, IconPause } from '../../components/icons/PlayerIcons';
@@ -61,8 +61,27 @@ const INITIAL_PRESET = PRESETS[0];
 
 // La consola sólo se ve desde 1200 px (beat-machine.css)
 const CONSOLA_MQ = '(min-width: 1200px)';
-const consolaVisible = () =>
-  typeof window === 'undefined' || !window.matchMedia || window.matchMedia(CONSOLA_MQ).matches;
+
+/* El paso que suena no pasa por el estado de la mesa: quien lo pinta se
+   suscribe a su almacén. Son tres: la rejilla (mesa/Rejilla.jsx) y estos dos. */
+
+// El contador de pasos de la pantalla: dieciséis luces, la que suena encendida.
+function LcdPasos({ steps }) {
+  const step = useSyncExternalStore(steps.subscribe, steps.get);
+  return (
+    <div className="lcd-pasos">
+      {Array.from({ length: STEP_COUNT }, (_, i) => (
+        <i key={i} className={i === step ? 'is-on' : ''} />
+      ))}
+    </div>
+  );
+}
+
+// La barra de Rocky IA, que enciende un verso por compás.
+function BarraAlPaso({ steps, ...props }) {
+  const step = useSyncExternalStore(steps.subscribe, steps.get);
+  return <Barra {...props} step={step} />;
+}
 
 // Lo que dice el banco BARRO cuando no carga, según por qué
 const MENSAJE_FALLO_BARRO = Object.freeze({
@@ -228,10 +247,16 @@ function BeatMachine() {
   // para que en una pantalla de 120 Hz no caigan el doble de rápido. Con la
   // consola oculta (menos de 1200 px) ni se leen los niveles por pista.
   const caidaRef = useRef({ niveles: [], antes: 0 });
+  // La consulta se crea una vez (su `matches` está vivo): pedirla a cada
+  // fotograma obligaba al navegador a evaluarla sesenta veces por segundo.
+  const consolaQueryRef = useRef(null);
   const paintMeter = useCallback((engine) => {
     const master = engine.level();
     vuRef.current?.style.setProperty('--nivel', master.toFixed(3));
-    if (!consolaVisible()) return;
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      consolaQueryRef.current ??= window.matchMedia(CONSOLA_MQ);
+      if (!consolaQueryRef.current.matches) return;
+    }
     const ahora = performance.now();
     const caida = caidaRef.current;
     const factor = caida.antes ? 0.86 ** ((ahora - caida.antes) / (1000 / 60)) : 0;
@@ -248,12 +273,12 @@ function BeatMachine() {
 
   const {
     playing,
-    step: uiStep,
+    steps,
     start: startSequencer,
     stop: stopSequencer,
     isRunning,
     stepAt,
-  } = useStepSequencer({ pattern, bpm, swing, trigger, onFrame: paintMeter });
+  } = useStepSequencer({ pattern, bpm, swing, trigger, onFrame: paintMeter, trackStep: false });
 
   const start = useCallback(() => {
     const engine = ensureEngine();
@@ -497,11 +522,7 @@ function BeatMachine() {
                 {recording ? '● REC' : playing ? '▶ PLAY' : '■ STOP'}
               </span>
             </div>
-            <div className="lcd-pasos">
-              {Array.from({ length: STEP_COUNT }, (_, i) => (
-                <i key={i} className={i === uiStep ? 'is-on' : ''} />
-              ))}
-            </div>
+            <LcdPasos steps={steps} />
           </div>
 
           <div className="mesa-vu" ref={vuRef} aria-hidden="true">
@@ -598,7 +619,7 @@ function BeatMachine() {
 
         <Rejilla
           pattern={pattern}
-          step={uiStep}
+          steps={steps}
           mutes={mutes}
           solos={solos}
           levels={levels}
@@ -704,13 +725,13 @@ function BeatMachine() {
               {copied ? '¡Copiado!' : 'Compartir beat'}
             </button>
             <PublishBeat pattern={pattern} bpm={bpm} swing={swing} tonality={tonality} />
-            <Barra
+            <BarraAlPaso
               pattern={pattern}
               bpm={bpm}
               swing={swing}
               tonality={tonality}
               playing={playing}
-              step={uiStep}
+              steps={steps}
             />
           </div>
           <p className="mesa-nota">

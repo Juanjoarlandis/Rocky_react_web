@@ -1,0 +1,9 @@
+import fs from 'node:fs';
+const r = JSON.parse(fs.readFileSync(process.argv[2], 'utf8')).results;
+for (const [k, v] of Object.entries(r)) {
+  if (v.error) { console.log(k, 'ERROR', v.error); continue; }
+  for (const [fase, m] of Object.entries(v)) {
+    if (m && typeof m === 'object' && 'mainThreadBusyPct' in m) console.log(k.padEnd(22), fase.padEnd(15), 'hilo', String(m.mainThreadBusyPct).padStart(5), '% render', String(m.rendererCpuPct).padStart(5), 'gpu', String(m.gpuCpuPct).padStart(5), 'suma', (m.rendererCpuPct + m.gpuCpuPct).toFixed(1).padStart(6), 'recalc', String(m.styleRecalcs).padStart(4), 'layouts', String(m.layouts).padStart(4), 'largas', m.longTasks, m.fps ? `fps ${m.fps} p95 ${m.p95Ms}` : '');
+  }
+  if (v.errors?.length) console.log(k, 'errores', v.errors);
+}

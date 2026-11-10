@@ -74,3 +74,77 @@ describe('Estampida: qué dibujos descarga', () => {
     }
   });
 });
+
+/* La escucha de «035» vive en App (carga-y-estabilidad): la pieza se carga
+   aparte y arranca cuando App le sube la señal. */
+describe('Estampida lanzada desde fuera', () => {
+  it('con una señal nueva suelta a la crew', async () => {
+    const { rerender } = render(<Estampida listen={false} launchSignal={0} />);
+    expect(screen.queryByTestId('estampida')).not.toBeInTheDocument();
+
+    rerender(<Estampida listen={false} launchSignal={1} />);
+    await act(async () => {});
+
+    expect(screen.getByTestId('estampida')).toBeInTheDocument();
+  });
+
+  it('si se monta con la señal ya dada, arranca', async () => {
+    render(<Estampida listen={false} launchSignal={1} />);
+    await act(async () => {});
+
+    expect(screen.getByTestId('estampida')).toBeInTheDocument();
+  });
+
+  it('una señal ya atendida no vuelve a soltarla al cambiar de tema', async () => {
+    vi.useFakeTimers();
+    try {
+      render(<Estampida listen={false} launchSignal={1} />);
+      await act(async () => {});
+      expect(screen.getByTestId('estampida')).toBeInTheDocument();
+      // La estampida termina sola…
+      await act(async () => {
+        vi.advanceTimersByTime(30_000);
+      });
+      expect(screen.queryByTestId('estampida')).not.toBeInTheDocument();
+
+      // …y pulsar la bombilla después no es teclear «035» otra vez.
+      await act(async () => {
+        document.documentElement.dataset.theme = 'neon';
+      });
+      await act(async () => {});
+      expect(screen.queryByTestId('estampida')).not.toBeInTheDocument();
+    } finally {
+      delete document.documentElement.dataset.theme;
+      vi.useRealTimers();
+    }
+  });
+
+  it('sin escucha propia no responde al teclado', async () => {
+    render(<Estampida listen={false} launchSignal={0} />);
+    teclea(['0', '3', '5']);
+    await act(async () => {});
+
+    expect(screen.queryByTestId('estampida')).not.toBeInTheDocument();
+  });
+});
+
+describe('secuencia secreta', () => {
+  it('avisa al completar 035 y no dentro de un campo de texto ni con modificadores', async () => {
+    const { listenForSecret } = await import('./secret.js');
+    const onMatch = vi.fn();
+    const stop = listenForSecret(onMatch);
+    render(<input aria-label="Código postal" />);
+
+    teclea(['0', '3', '4', '0', '3', '5']);
+    expect(onMatch).toHaveBeenCalledTimes(1);
+    teclea(['0', '3', '5'], screen.getByLabelText('Código postal'));
+    fireEvent.keyDown(window, { key: '0' });
+    fireEvent.keyDown(window, { key: '3', ctrlKey: true });
+    fireEvent.keyDown(window, { key: '5' });
+    expect(onMatch).toHaveBeenCalledTimes(1);
+
+    stop();
+    teclea(['0', '3', '5']);
+    expect(onMatch).toHaveBeenCalledTimes(1);
+  });
+});

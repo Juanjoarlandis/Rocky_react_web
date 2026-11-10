@@ -2,7 +2,7 @@ import { artSources } from '../../data/art.js';
 import ProductPhoto from '../../components/ProductPhoto.jsx';
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useParams, Link } from 'react-router';
-import Lightbox from './Lightbox';
+import { lazyPiece } from '../../utils/pieces.jsx';
 import AddToCartButton from '../cart/AddToCartButton';
 import EyeIcon from '../../components/icons/EyeIcon';
 import { ProductReticle } from '../../components/doodles/ProductReticle';
@@ -21,6 +21,9 @@ import '../../styles/pages/product-detail.css';
 import { useNightArt } from '../night/nightArt.js';
 import { DROP_STATES } from '../../../shared/drops.mjs';
 import { ROUTES } from '../../config/routes.js';
+
+// La foto a lo grande solo hace falta cuando alguien la abre.
+const Lightbox = lazyPiece(() => import('./Lightbox'));
 
 function ProductDetail({
   products,

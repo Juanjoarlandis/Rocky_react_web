@@ -48,18 +48,19 @@ beforeEach(() => {
   });
 });
 
-test('keeps previews in the demo catalog without passing a separate Shopify layer', () => {
+test('keeps previews in the demo catalog without passing a separate Shopify layer', async () => {
   render(
     <MemoryRouter>
       <App />
     </MemoryRouter>
   );
 
-  expect(useStorefront).toHaveBeenCalledWith({
-    demoProducts: expect.arrayContaining([
-      expect.objectContaining({ handle: 'rocky-airwave', isPreview: true }),
-    ]),
-  });
+  // El catálogo de muestra se entrega como cargador (carga-y-estabilidad): solo
+  // se pide en modo demo. Lo que carga sigue llevando las vistas previas.
+  const { demoProducts } = useStorefront.mock.calls[0][0];
+  expect(await demoProducts()).toEqual(
+    expect.arrayContaining([expect.objectContaining({ handle: 'rocky-airwave', isPreview: true })])
+  );
   expect(screen.getByText('Airwave')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Vista previa' })).toBeDisabled();
 });

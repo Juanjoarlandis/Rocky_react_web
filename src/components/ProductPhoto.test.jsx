@@ -105,3 +105,14 @@ describe('foto de producto', () => {
     expect(image).not.toHaveAttribute('height');
   });
 });
+
+describe('foto de producto: primera fila', () => {
+  it('con eager se pide desde el principio pero sin prioridad alta', () => {
+    render(<ProductPhoto src="/products/rocky-airwave.webp" alt="Airwave" sizes="42vw" eager />);
+    const image = screen.getByRole('img', { name: 'Airwave' });
+
+    expect(image).toHaveAttribute('loading', 'eager');
+    expect(image).toHaveAttribute('decoding', 'async');
+    expect(image).not.toHaveAttribute('fetchpriority');
+  });
+});

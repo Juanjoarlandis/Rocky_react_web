@@ -49,6 +49,8 @@ const NotFound = () => {
         {/* El perro de la banda, que sí sabe volver; de noche, El Sabueso Negro */}
         <img
           {...artSources(perroArt, 160)}
+          width="770"
+          height="1076"
           alt=""
           className="notfound-dog neon-art al-ritmo"
           style={{ '--fase': '0.75' }}

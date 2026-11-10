@@ -178,4 +178,49 @@ describe('useStepSequencer', () => {
     unmount();
     expect(vi.getTimerCount()).toBe(0);
   });
+  it('con trackStep apagado el paso no vuelve a pintar a quien usa el gancho: va por su almacén', () => {
+    let renders = 0;
+    const trigger = vi.fn();
+    const { result } = renderHook(() => {
+      renders += 1;
+      return useStepSequencer({
+        pattern: patronDePrueba(),
+        bpm: BPM,
+        swing: 0,
+        trigger,
+        trackStep: false,
+      });
+    });
+    const vistos = [];
+    const soltar = result.current.steps.subscribe(() => vistos.push(result.current.steps.get()));
+    act(() => result.current.start(fakeEngine()));
+    const trasArrancar = renders;
+
+    avanzar(300);
+    avanzar(STEP_MS);
+    expect(result.current.steps.get()).toBe(2);
+    expect(vistos).toEqual([0, 1, 2]);
+    expect(renders).toBe(trasArrancar);
+    expect(result.current.step).toBe(-1);
+
+    act(() => result.current.stop());
+    expect(result.current.steps.get()).toBe(-1);
+    soltar();
+  });
+
+  it('el almacén de pasos es el mismo entre renders y deja de avisar a quien se suelta', () => {
+    const { result, rerender } = montar();
+    const { steps } = result.current;
+    const oyente = vi.fn();
+    const soltar = steps.subscribe(oyente);
+    act(() => result.current.start(fakeEngine()));
+    avanzar(300);
+    rerender();
+    expect(result.current.steps).toBe(steps);
+    const llamadas = oyente.mock.calls.length;
+    expect(llamadas).toBeGreaterThan(0);
+    soltar();
+    avanzar(STEP_MS * 2);
+    expect(oyente).toHaveBeenCalledTimes(llamadas);
+  });
 });

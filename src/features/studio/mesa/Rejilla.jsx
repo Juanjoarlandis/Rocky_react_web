@@ -1,12 +1,16 @@
+import { useLayoutEffect, useRef } from 'react';
 import { TRACKS } from '../../../data/mesa';
 import { STEP_COUNT } from '../../../utils/beatCodec';
 
 // LA REJILLA — las 8 pistas por 16 pasos. Cada fila lleva su nombre (que hace
 // de mute), su solo y su volumen; en ordenador esos dos últimos viven en la
 // consola y aquí se ocultan (beat-machine.css). El estado es de la mesa.
+// El cabezal no pasa por React: la columna que suena se marca a mano con
+// `is-current` desde el almacén de pasos, así un paso toca 16 clases y no
+// vuelve a pintar las 128 celdas.
 export default function Rejilla({
   pattern,
-  step,
+  steps,
   mutes,
   solos,
   levels,
@@ -16,6 +20,27 @@ export default function Rejilla({
   onLevel,
   onCell,
 }) {
+  const gridRef = useRef(null);
+  const markedRef = useRef(-1);
+
+  // Tras cada pintada de React (que reescribe las clases de las celdas que
+  // cambian) y a cada paso: fuera la columna anterior, dentro la que suena.
+  useLayoutEffect(() => {
+    const mark = (step) => {
+      const grid = gridRef.current;
+      if (!grid) return;
+      grid
+        .querySelectorAll(`[data-step="${markedRef.current}"]`)
+        .forEach((cell) => cell.classList.remove('is-current'));
+      grid
+        .querySelectorAll(`[data-step="${step}"]`)
+        .forEach((cell) => cell.classList.add('is-current'));
+      markedRef.current = step;
+    };
+    mark(steps.get());
+    return steps.subscribe(mark);
+  });
+
   return (
     <div className="mesa-seq">
       <div className="seq-scroll">
@@ -30,7 +55,12 @@ export default function Rejilla({
           </div>
         </div>
 
-        <div className="seq-rejilla" role="group" aria-label="Secuenciador de 16 pasos">
+        <div
+          className="seq-rejilla"
+          role="group"
+          aria-label="Secuenciador de 16 pasos"
+          ref={gridRef}
+        >
           {TRACKS.map((track, index) => (
             <fieldset className={`seq-fila ${audible(index) ? '' : 'apagada'}`} key={track.id}>
               <legend className="sr-only">{track.label}</legend>
@@ -75,8 +105,8 @@ export default function Rejilla({
                       vel ? `v${vel}` : '',
                       track.acento ? 'acento' : '',
                       stepIndex % 4 === 0 ? 'marca' : '',
-                      stepIndex === step ? 'is-current' : '',
                     ].join(' ')}
+                    data-step={stepIndex}
                     aria-pressed={Boolean(vel)}
                     aria-label={`${track.label}, paso ${stepIndex + 1}`}
                     onClick={() => onCell(index, stepIndex)}

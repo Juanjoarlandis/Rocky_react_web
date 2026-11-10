@@ -1,9 +1,8 @@
-import { artSources } from '../data/art.js';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router';
 import '../styles/components/navbar.css';
 
-import { getCrewAvatarImage } from '../data/crewAvatarImages.js';
+import { getCrewAvatarThumb } from '../data/crewAvatarImages.js';
 import { useLockBodyScroll } from '../hooks/useLockBodyScroll.js';
 import { DEFAULT_AVATAR_ID } from '../config/commerce.js';
 import { ROUTES, accountLoginUrl } from '../config/routes.js';
@@ -88,7 +87,7 @@ function AccountEntry({ accountEnabled, account, crewAvatarId, className, onNavi
         onClick={onNavigate}
       >
         <img
-          {...artSources(getCrewAvatarImage(crewAvatarId), 48)}
+          src={getCrewAvatarThumb(crewAvatarId)}
           width="96"
           height="96"
           decoding="async"

@@ -594,6 +594,99 @@ puede perder si el proceso muere sin apagado ordenado son las escrituras diferid
 los últimos 5 segundos (sesiones, carritos, votos); nunca un crédito, un aviso ni un
 cierre de sesión.
 
+### Tras `carga-y-estabilidad`
+
+Medido el 2026-11-10 con las mismas herramientas (`fase4/`), más las que hicieron falta
+para diagnosticar: `diagnostico-neon`, `diagnostico-mesa`, `traza-animaciones`,
+`traza-invalidaciones`, `capturas-neon` y, contra la tienda de pruebas, `instancia-real`
+y `lh-real`.
+
+**Carga** (`npm run budget:check`):
+
+| Métrica | Línea base | Ahora | Presupuesto |
+| --- | ---: | ---: | ---: |
+| JS inicial de la portada (gzip) | 123,2 kB | 99,9 kB | ≤ 100 kB |
+| CSS inicial (gzip) | 18,7 kB | 14,0 kB | ≤ 15 kB |
+| Fuentes precargadas | 81,8 kB | 52,1 kB | ≤ 55 kB |
+| Ilustraciones de la intro en un móvil (DPR ≤ 2) | 343 kB | 96 kB | — |
+| Total de imágenes en `dist/` | — | 8.743 kB | ≤ 8.750 kB |
+
+El total de imágenes es la única métrica que sube (de 8.700 a 8.750 kB de límite): son las
+dieciséis variantes a la mitad de la intro, 96 kB en disco que ahorran 247 kB de descarga.
+`CLAUDE.md` recoge que es la única que puede subir, y por qué.
+
+**Lighthouse**, mediana de tres, catálogo de muestra (`fase4/lh-paginas.mjs.txt`):
+
+| Página | Móvil: rend. · FCP · LCP · CLS · peso | Escritorio: rend. · LCP · CLS | Línea base, móvil: rend. · LCP · CLS |
+| --- | --- | --- | --- |
+| `/` | 84 · 1,65 s · 4,51 s · 0,030 · 608 kB | 99 · 0,82 s · 0,016 | 68 · 9,76 s · 0,029 |
+| `/products` | 83 · 1,80 s · 4,51 s · 0,030 · 608 kB | 100 · 0,80 s · 0,016 | 67 · 9,83 s · 0,029 |
+| `/product/rockydz-boyz` | 84 · 1,65 s · 4,36 s · 0,000 · 539 kB | 99 · 0,82 s · 0,000 | 52 · 6,08 s · 0,386 |
+| `/menudrop` | 85 · 2,05 s · 4,21 s · 0,000 · 558 kB | 99 · 0,93 s · 0,000 | 50 · 8,26 s · 0,386 |
+| `/estudio` | 85 · 1,65 s · 4,28 s · 0,000 · 1.412 kB | 99 · 0,80 s · 0,000 | 48 · 7,43 s · 0,454 |
+| `/crew` | 84 · 2,05 s · 4,28 s · 0,000 · 964 kB | 99 · 0,84 s · 0,000 | 53 · 6,00 s · 0,386 |
+| `/rockyIA` | 88 · 1,65 s · 3,83 s · 0,000 · 392 kB | 100 · 0,76 s · 0,000 | 71 · 5,85 s · 0,000 |
+| `/cart` | 85 · 2,05 s · 4,05 s · 0,000 · 539 kB | 100 · 0,79 s · 0,000 | — |
+| `/legal/privacidad` | 86 · 1,65 s · 4,05 s · 0,000 · 485 kB | 100 · 0,78 s · 0,000 | — |
+| `/no-existe` | 88 · 1,65 s · 3,68 s · 0,000 · 513 kB | 100 · 0,80 s · 0,000 | — |
+
+La tabla se midió antes de las correcciones de la revisión independiente (prioridad de la
+primera foto, precarga en reposo, spray en su propio chunk). Con el build definitivo se
+repitieron `/`, `/crew` y `/estudio`: 83, 85 y 87 de rendimiento en móvil y 4,58, 4,28 y
+3,98 s de LCP, con el mismo CLS.
+
+- **CLS**: 0,030 como mucho (presupuesto 0,05), en las diez páginas y los dos tamaños.
+- **Rendimiento en móvil**: 83–88. Seis páginas llegan a 85; la portada, `/products`,
+  la ficha y `/crew` se quedan a uno o dos puntos.
+- **LCP en móvil**: 3,7–4,5 s. Baja a la mitad en la portada (9,76 → 4,51 s), pero **no
+  llega a los 3,0 s** del presupuesto en ninguna página. Lo que queda es la cadena de una
+  SPA sin render en servidor (documento → 100 kB de JavaScript → datos → pintura) con la
+  red de Lighthouse (1,6 Mbps, 150 ms): el primer contenido llega a los 1,65–2,05 s y el
+  elemento más grande depende de los datos. Bajar de ahí pide servir HTML ya pintado
+  (prerender de la estructura o render en servidor), que no es de esta fase.
+- **El elemento LCP ya no es la ilustración del pie** en `/estudio`, `/crew` ni `/cart`:
+  es el subtítulo de la página o su propia ilustración.
+- Contra la tienda de pruebas (`lh-real`, solo móvil, build definitivo): `/` 82 de
+  rendimiento y 4,58 s de LCP; `/menudrop`, 83 y 4,50 s; CLS 0,000 en las dos. Ahí apareció un salto que el catálogo de muestra no
+  enseña: si los productos llegaban antes que los drops, el cartel del drop empujaba las
+  tarjetas (CLS de 0,30). El catálogo espera ahora a los dos.
+- Precargar desde el HTML las tres peticiones de arranque no mejoró el LCP (4,73 s frente
+  a 4,88 s, dentro del ruido) y precargar una sola fuente lo empeoró (CLS de 0,30 al
+  llegar Archivo): no se hizo ninguna de las dos.
+
+**Coste en ejecución** (`fase4/traza-navegador.mjs.txt`, 10 s por fase):
+
+| Fase | Línea base | Ahora | Presupuesto |
+| --- | ---: | ---: | ---: |
+| Portada de día en reposo, hilo principal (móvil ×4) | 0,7 % | 0,9 % | < 2 % |
+| Neón en reposo con su cinta, hilo principal (móvil ×4) | 15,8 % | 1,5–1,6 % | ≤ 5 % |
+| Neón en reposo con su cinta, CPU de Chrome (escritorio) | 26,5 % | 6,9–8,5 % | ≤ 8 % |
+| Neón en reposo, recálculos de estilo en 10 s (cinta / radio parada) | 607 / 606 | 100–136 / 35–75 | ≤ 100 |
+| Neón, mover el puntero, CPU de Chrome (escritorio) | 85,6 % | 25,9–26,2 % | ≤ 43 % |
+| Neón, scroll, CPU de Chrome (escritorio) | 147,3 % | 65,1–65,2 % | ≤ 74 % |
+| Mesa sonando, hilo principal (móvil ×4) | 30,2 % | 12,0–12,6 % | ≤ 20 % |
+| Mesa sonando, layouts en 10 s (móvil) | 167–176 | 2 | — |
+
+Cada cifra de «Ahora» es el intervalo de dos tandas completas de la traza.
+
+- **El neón en reposo queda en el límite de dos de sus tres presupuestos**: la CPU de
+  Chrome en escritorio (6,9 y 8,5 % en las dos tandas, para un tope del 8 %) y los
+  recálculos con la cinta sonando (de 100 a 136, para un tope de 100). El hilo principal
+  en móvil, que es lo que nota el visitante, está en el 1,5 %.
+- **El recálculo por fotograma del neón** no era de la pared ni del lienzo: el título de
+  noche tenía dos animaciones de `opacity` y Chrome no las componía
+  (`kTargetHasIncompatibleAnimations`). Con una de las dos en `filter: opacity()`, la
+  infinita va a la GPU. Los recálculos que quedan (unos 10 por segundo con la cinta) los
+  marca el ritmo de los WebP animados.
+- **La linterna** son tres capas que solo se mueven; la tinta de la pared está dos veces
+  (tenue con la página, entera en la ventana del haz).
+- **La mesa**: el vúmetro rehacía el layout al cruzar la opacidad 1 y el cabezal arrancaba
+  una transición en dieciséis celdas por paso. Queda **una tarea larga de 72–78 ms** al
+  pulsar «play» (72 ms en la línea base), que el escenario pedía eliminar y no se ha
+  eliminado: es crear el contexto y el motor de audio y pintar el estado.
+- El lienzo del spray (hasta 12 Mpx) solo existe con el bote en la mano o con trazos que
+  enseñar, y su código solo se descarga de noche.
+
 ### Orden de los cambios
 
 Cada uno es un cambio OpenSpec en `openspec/changes/`, propuesto el 2026-11-10.
