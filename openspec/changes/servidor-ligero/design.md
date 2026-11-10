@@ -46,8 +46,8 @@ Lo que condiciona el diseño:
 
 `npm run build` pasa a ser `vite build && node scripts/precompress.mjs`. El script recorre
 `dist/` y escribe `<fichero>.br` (Brotli, calidad 11) y `<fichero>.gz` (gzip, nivel 9) con
-`node:zlib` para `.js`, `.css`, `.html`, `.svg`, `.json` y `.txt`; descarta la variante
-que no sea más pequeña que el original.
+`node:zlib` para `.js`, `.mjs`, `.css`, `.html`, `.svg`, `.json` y `.txt`; descarta la
+variante que no sea más pequeña que el original y retira las de un fichero que ya no está.
 
 - *Por qué*: la compresión máxima se paga una vez, en el build, y el servidor solo
   elige fichero. En una máquina de una CPU, comprimir en cada petición es justo lo que
@@ -98,6 +98,24 @@ La etapa de runtime del `Dockerfile` fija `NODE_OPTIONS` con `--max-old-space-si
   `consumo-del-servidor`. La cifra y sus medidas se anotan en `tasks.md`.
 - *Si el heap no basta*: la segunda palanca es `MALLOC_ARENA_MAX=2` (la memoria fuera
   del heap que glibc no devuelve). Se añade solo si la medida lo pide.
+- **Medido el 2026-11-10** (contenedor de 128 MB, 1 CPU, `fase4/medir-memoria.mjs.txt`):
+
+  | Configuración | Tanda de carga ×3 (pico) | Almacén de 5.000 sesiones, 200 mutaciones |
+  | --- | --- | --- |
+  | Sin tope | muere en la primera tanda | muere a la segunda mutación |
+  | Heap 64 MB | 93–95 MB, sin fallos | muere tras 104 |
+  | Heap 48 MB | 80–85 MB, sin fallos | aguanta, pico de 115 MB |
+  | Heap 64 MB + 2 arenas | — | aguanta, pico de 117 MB |
+  | Heap 64 MB + joven 4 MB + 2 arenas | **77–79 MB, sin fallos** | **aguanta las 200 (3 de 3), pico de 110–125 MB** |
+  | Heap 48 MB + joven 4 MB + 2 arenas | 68 MB, sin fallos | aguanta, pico de 107 MB |
+
+  **Elegido:** `NODE_OPTIONS="--max-old-space-size=64 --max-semi-space-size=4"` y
+  `MALLOC_ARENA_MAX=2`. El tope de heap solo no basta: con el almacén grande lo que
+  crece es la memoria de fuera del heap (cada mutación serializa y cifra 5,5 MB), y el
+  espacio joven por defecto reserva hasta 192 MB. El caso del almacén grande se mide con
+  200 altas de aviso, que reescriben el almacén igual que un alta de carrito y no
+  necesitan Shopify. Su pico (hasta 125 MB) queda pegado al límite: lo baja de verdad
+  `almacen-escritura-agrupada`, que deja de reescribir en cada mutación.
 - *Alternativa descartada*: solo `mem_limit` en Compose. Es el límite que hoy mata el
   proceso; no hace que V8 recoja antes.
 
@@ -109,6 +127,10 @@ copia y lo usa en `HEALTHCHECK` con los mismos intervalos de hoy.
 
 - *Por qué*: mantiene la comprobación real (HTTP y sonda del almacén) y sustituye un
   proceso de Node, con sus 85 ms y 24 MB, por uno de `bash`.
+- **Medido:** 120 s en reposo con la sonda cuestan 125 ms de CPU (antes 372 ms) y el
+  contenedor se queda en 20 MB (antes 49 MB tras cada sonda). El presupuesto inicial de
+  60 ms no se alcanza: unos 23 ms por sonda son lo que cuesta a Docker lanzar cualquier
+  proceso dentro del contenedor. El requisito pasa a 150 ms.
 - *Alternativa descartada*: alargar el intervalo. Sigue lanzando Node y la publicación
   tardaría más en ver un arranque fallido.
 - *Alternativa descartada*: un fichero de latido en `tmpfs` y `test`. No ejercita HTTP
@@ -130,6 +152,19 @@ mirando los demás límites del modelo de la pared.
 como recursos. Si este cambio se implementa antes que aquel, la tarea no aplica.
 
 ## Risks / Trade-offs
+
+- [Un segundo Node dentro del contenedor comparte su memoria] → `docker exec … node
+  scripts/exportar-avisos.mjs` (o `enviar-avisos.mjs`) hereda `NODE_OPTIONS` y corre en
+  el mismo cgroup: con un almacén de 5.000 sesiones y un límite de 128 MB, la revisión
+  lo vio matar el contenedor. Hoy `compose.production.yaml` no pone límite de memoria,
+  así que no ocurre; `despliegue-ligero`, que lo fija, tiene que dimensionarlo contando
+  con ese segundo proceso o ejecutar esos scripts en un contenedor aparte.
+- [150 ms de CPU en reposo es una cifra de este equipo] → En una máquina más lenta será
+  mayor; lo que se mantiene es la proporción (un tercio de lo de antes). No se evaluó
+  un intervalo largo con `--start-interval`, que exige Docker 25.
+- [La tanda de carga no es idéntica a la de la línea base] → `/api/shopify/status` pide
+  600 peticiones por tanda en vez de 1.500, para no chocar con su límite de 2.000 por
+  ventana al repetirla tres veces.
 
 - [Un tope de heap demasiado bajo termina el proceso con «heap out of memory» en un pico
   legítimo] → Requisito y prueba con 5.000 sesiones; valor sobreescribible por entorno;

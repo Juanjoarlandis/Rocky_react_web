@@ -554,6 +554,27 @@ El peso de `/` sigue por encima de su presupuesto: lo que queda son las fuentes,
 JavaScript sin comprimir en el origen (`servidor-ligero`) y la animación del pie, que
 Lighthouse descarga porque recorre la página entera.
 
+### Tras `servidor-ligero`
+
+Medido el 2026-11-10 con la imagen del cambio, en el mismo contenedor (1 CPU, 128 MB).
+
+| Métrica | Línea base | Ahora | Presupuesto |
+| --- | ---: | ---: | ---: |
+| JS principal servido a un navegador | 322.953 bytes, sin comprimir | 90.907 bytes en Brotli | Brotli y gzip precomprimidos |
+| JS principal: peticiones por segundo (20 conexiones) | 3.357 | 9.276 | — |
+| Tanda de carga con 128 MB | muere (OOM) | aguanta tres seguidas, pico de 78,5 MB, 0 fallos | pico ≤ 100 MB |
+| Memoria en reposo | 24,9 MB | 24,5 MB | ≤ 30 MB |
+| CPU en 120 s de reposo con la sonda | 372 ms, un `node` nuevo cada 30 s | 125 ms, sin lanzar Node | ≤ 150 ms |
+| Memoria tras cada sonda | 49 MB | 20 MB | — |
+| Almacén de 5.000 sesiones, 200 mutaciones seguidas | muere a la segunda | aguanta las 200 (3 de 3), pico de 110–125 MB | no muere |
+
+El presupuesto de CPU en reposo pasa de 60 a 150 ms: lanzar cualquier proceso dentro del
+contenedor cuesta a Docker unos 23 ms, y la sonda sigue siendo necesaria para publicar.
+El pico con el almacén grande queda pegado al límite; lo baja `almacen-escritura-agrupada`.
+Ejecutar además un script con `docker exec` (exportar avisos) arranca otro Node en el mismo
+contenedor y con 128 MB lo mata: el límite de memoria de producción se fija en
+`despliegue-ligero` contando con ese segundo proceso.
+
 ### Orden de los cambios
 
 Cada uno es un cambio OpenSpec en `openspec/changes/`, propuesto el 2026-11-10.

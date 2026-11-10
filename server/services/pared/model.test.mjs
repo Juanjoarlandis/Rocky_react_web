@@ -351,3 +351,52 @@ describe('la pared: memoria', () => {
     expect(cambios).toBe(2);
   });
 });
+
+describe('la pared: el registro de redes que reportan tiene tope', () => {
+  it('no crece más allá de su tope y olvida primero al autor más antiguo', () => {
+    const { model } = modelo({
+      redesQueReportan: 2,
+      paredes: 10,
+      puntosPorAutorYDia: 1000,
+      reportesParaOcultar: 2,
+    });
+    const [ana, berto, carla] = ['ana', 'berto', 'carla'].map((autor) => {
+      model.pintar({ pared: P, autor, trazo: trazo() });
+      return model.firmaPara(autor);
+    });
+
+    [ana, berto, carla].forEach((firma, i) => {
+      model.reportar({ pared: P, reporter: `r${i}`, cliente: 'red-1', firma });
+    });
+    expect(model.redesRecordadas()).toBe(2);
+
+    // «carla» sigue recordada: otra sesión de la misma red no cuenta.
+    expect(model.reportar({ pared: P, reporter: 'r7', cliente: 'red-1', firma: carla })).toEqual({
+      oculta: false,
+    });
+    // «ana» era la más antigua y se ha olvidado: la misma red vuelve a contar.
+    expect(model.reportar({ pared: P, reporter: 'r8', cliente: 'red-1', firma: ana })).toEqual({
+      oculta: true,
+    });
+    expect(model.redesRecordadas()).toBe(2);
+  });
+
+  it('por autor recuerda solo las últimas redes, descartando la más antigua', () => {
+    const { model } = modelo({ redesPorAutor: 2, reportesParaOcultar: 10 });
+    model.pintar({ pared: P, autor: 'ana', trazo: trazo() });
+    const firma = model.firmaPara('ana');
+    const reporta = (reporter, cliente) => model.reportar({ pared: P, reporter, cliente, firma });
+
+    reporta('r1', 'red-1');
+    reporta('r2', 'red-2');
+    reporta('r3', 'red-3');
+
+    expect(model.redesRecordadas(P, firma)).toBe(2);
+    // red-3 y red-2 siguen recordadas; red-1, la más antigua, ya no.
+    expect(model.reportesDe(P, firma)).toBe(3);
+    reporta('r4', 'red-3');
+    expect(model.reportesDe(P, firma)).toBe(3);
+    reporta('r5', 'red-1');
+    expect(model.reportesDe(P, firma)).toBe(4);
+  });
+});

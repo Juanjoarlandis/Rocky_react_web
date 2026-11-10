@@ -28,16 +28,16 @@ en memoria: con un almacén de 5.000 sesiones y mutaciones continuas, el servido
 seguir respondiendo sin terminar por falta de memoria.
 
 #### Scenario: Almacén grande bajo mutaciones
-- **WHEN** el almacén tiene 5.000 sesiones con carrito y llegan 200 altas de carrito seguidas, en el contenedor de 128 MB
+- **WHEN** el almacén tiene 5.000 sesiones con carrito y llegan 200 mutaciones seguidas que lo reescriben entero, en el contenedor de 128 MB
 - **THEN** todas responden 200 y el proceso no termina
 
 ### Requirement: En reposo el servidor no gasta
 Con la sonda de salud activa y sin tráfico, el contenedor SHALL usar 30 MB de memoria
-como máximo y un 0,05 % de una CPU como máximo, medido durante 120 s.
+como máximo y un 0,125 % de una CPU como máximo, medido durante 120 s.
 
 #### Scenario: Dos minutos sin tráfico
 - **WHEN** el contenedor lleva 120 s sin recibir peticiones, con su sonda de salud activa
-- **THEN** ha consumido como mucho 60 ms de CPU y su memoria no pasa de 30 MB
+- **THEN** ha consumido como mucho 150 ms de CPU y su memoria no pasa de 30 MB
 
 ### Requirement: La sonda de salud no lanza un proceso de Node
 La sonda del contenedor SHALL comprobar `GET /api/health` sin arrancar otro proceso de

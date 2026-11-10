@@ -242,6 +242,7 @@ Una build que termina bien también puede llevar un fichero dañado. Para descar
   acabó con resultado `ok`.
 - Para verificar en la Raspberry, pregunta al contenedor, no al puerto 3001 del host (ese
   es de Uptime Kuma; ROCKY se publica en `127.0.0.1:3100`):
-  `docker exec rocky035 node -e "fetch('http://127.0.0.1:3001/api/health').then(r => r.text()).then(console.log)"`.
+  `docker exec rocky035 bash scripts/healthcheck.sh && echo sano` (la misma sonda que usa
+  Docker, sin arrancar otro Node), o `docker inspect -f '{{.State.Health.Status}}' rocky035`.
   La raíz pública enseña la puerta de acceso, así que el código nuevo se comprueba en
   `dist/assets` dentro del contenedor.

@@ -275,11 +275,14 @@ El estado se guarda como un único sobre AES-256-GCM con escrituras atómicas y 
 ## Despliegue
 
 La imagen de producción se construye con el `Dockerfile` multi-etapa (Node 24
-fijado por digest): la etapa de build ejecuta la suite y `vite build`, y la de
-runtime sólo lleva `node_modules` de producción, `server/`, `shared/`,
-`scripts/exportar-avisos.mjs`, el catálogo demo y `dist/`. Corre como usuario
-`node`, con `HEALTHCHECK` sobre `/api/health` y `node server/index.mjs` como
-comando. El servidor sondea el almacén cifrado antes de escuchar: si
+fijado por digest): la etapa de build ejecuta la suite y `npm run build` (que deja
+junto a cada fichero de texto de `dist/` su variante Brotli y gzip), y la de runtime
+sólo lleva `node_modules` de producción, `server/`, `shared/`,
+`scripts/exportar-avisos.mjs`, el catálogo demo y `dist/`. Corre como usuario `node`,
+con `HEALTHCHECK` sobre `/api/health` (un script de `bash`, sin arrancar otro Node), el
+heap de Node limitado a 64 MB (`NODE_OPTIONS`, que una máquina mayor puede subir desde
+su fichero de entorno) y `node server/index.mjs` como comando. El servidor sirve la
+variante comprimida que acepta cada petición sin comprimir nada en caliente. El servidor sondea el almacén cifrado antes de escuchar: si
 `APP_ENCRYPTION_KEY` no descifra el fichero o `.data/` no admite escrituras, el
 proceso termina con código 1 en lugar de arrancar a medias.
 

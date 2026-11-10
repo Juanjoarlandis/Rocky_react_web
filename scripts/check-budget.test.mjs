@@ -1477,3 +1477,44 @@ describe('vídeos: declaración repetida', () => {
     ]);
   });
 });
+
+describe('variantes precomprimidas (servidor-ligero)', () => {
+  it('no cuenta ni rechaza los .br y .gz que deja el build junto a cada fichero', async () => {
+    const entry = noise(61, 3000);
+    const chunk = noise(62, 2000);
+    const files = {
+      'index.html': entryDocument(),
+      'assets/index-AAAAAAAA.js': entry,
+      'assets/Studio-EEEEEEEE.js': chunk,
+    };
+    const plain = await measureBuild(await makeDist(files));
+    const compressed = await measureBuild(
+      await makeDist({
+        ...files,
+        'index.html.br': Buffer.alloc(100),
+        'index.html.gz': Buffer.alloc(120),
+        'assets/index-AAAAAAAA.js.br': Buffer.alloc(900),
+        'assets/index-AAAAAAAA.js.gz': Buffer.alloc(1000),
+        'assets/Studio-EEEEEEEE.js.br': Buffer.alloc(700),
+        'assets/Studio-EEEEEEEE.js.gz': Buffer.alloc(800),
+      })
+    );
+
+    expect(compressed).toEqual(plain);
+    expect(compressed.unknownFiles).toEqual([]);
+  });
+});
+
+describe('variantes precomprimidas: solo las de un fichero que existe', () => {
+  it('un .gz sin su original es un fichero sin regla, no una variante', async () => {
+    const measurement = await measureBuild(
+      await makeDist({
+        'index.html': entryDocument(),
+        'assets/index-AAAAAAAA.js': noise(71, 500),
+        'datos.tar.gz': Buffer.alloc(3000, 1),
+      })
+    );
+
+    expect(measurement.unknownFiles).toEqual([{ file: 'datos.tar.gz', bytes: 3000 }]);
+  });
+});

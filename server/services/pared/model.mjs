@@ -31,6 +31,11 @@ export const LIMITES_POR_DEFECTO = Object.freeze({
   // nada en ninguna pared.
   autores: 20_000,
   olvidoAutorMs: DIA,
+  // Registro en memoria de qué redes han reportado a cada autor: cuántos
+  // autores recuerda (al llenarse olvida el más antiguo) y cuántas redes por
+  // autor. Sin tope, crecería con cada reporte hasta reiniciar el proceso.
+  redesQueReportan: 5_000,
+  redesPorAutor: 200,
 });
 
 const ESTADO_VERSION = 1;
@@ -322,7 +327,13 @@ export function createWallModel({
       if (quienes.has(reporter) || redes.has(cliente)) {
         return { oculta: Boolean(muro.hidden[autor]) };
       }
+      // Un Set también recuerda el orden: al llenarse sale la red más antigua.
+      if (redes.size >= topes.redesPorAutor) redes.delete(redes.values().next().value);
       redes.add(cliente);
+      if (!redesQueReportan.has(claveRedes) && redesQueReportan.size >= topes.redesQueReportan) {
+        // Un Map recuerda el orden de inserción: la primera clave es la más antigua.
+        redesQueReportan.delete(redesQueReportan.keys().next().value);
+      }
       redesQueReportan.set(claveRedes, redes);
       quienes.add(reporter);
       muro.reports[autor] = [...quienes];
@@ -332,6 +343,17 @@ export function createWallModel({
       }
       avisar();
       return { oculta: Boolean(muro.hidden[autor]) };
+    },
+
+    // Para vigilar los topes del registro de redes: cuántos autores recuerda o,
+    // con pared y firma, cuántas redes recuerda de ese autor.
+    redesRecordadas(id, firma) {
+      if (id === undefined) return redesQueReportan.size;
+      return redesQueReportan.get(`${id}|${autorDeFirma(pared(id), firma)}`)?.size ?? 0;
+    },
+    reportesDe(id, firma) {
+      const muro = pared(id);
+      return (muro.reports[autorDeFirma(muro, firma)] ?? []).length;
     },
 
     // ---------- El Taller ----------

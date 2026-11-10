@@ -56,6 +56,9 @@ const WEIGHED_IMAGE_EXTENSIONS = new Set(['.ico', '.svg']);
 // regla: es la señal de que ha entrado un tipo de recurso nuevo (un JPEG, un
 // vídeo…) que nadie está pesando.
 const UNLIMITED_EXTENSIONS = new Set(['.css', '.html', '.json', '.txt', '.woff2']);
+// Variantes que deja scripts/precompress.mjs junto a cada fichero de texto: son
+// el mismo recurso con otra codificación, no un recurso más.
+const PRECOMPRESSED_EXTENSIONS = new Set(['.br', '.gz']);
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 // Dónde se cambian los límites; aparece en los mensajes que piden tocarlos.
 const BUDGET_FILE_LABEL = 'scripts/performance-budget.json';
@@ -376,6 +379,14 @@ export async function measureBuild(distDirectory) {
   const videos = [];
   for (const file of distFiles) {
     const extension = path.extname(file).toLowerCase();
+    // Solo es una variante si su original está al lado; un .gz suelto es un
+    // fichero más y, como no tiene regla, hace fallar la comprobación.
+    if (
+      PRECOMPRESSED_EXTENSIONS.has(extension) &&
+      knownFiles.has(file.slice(0, -extension.length))
+    ) {
+      continue;
+    }
     const filePath = path.join(distDirectory, file);
     if (SCRIPT_EXTENSIONS.has(extension)) {
       if (!initialFiles.has(file)) {

@@ -154,6 +154,12 @@ toca Cloudflare.
 
 ## Risks / Trade-offs
 
+- [El límite de memoria también cuenta para los scripts lanzados con `docker exec`] →
+  Medido en `servidor-ligero`: exportar o enviar avisos dentro del contenedor arranca
+  otro Node en el mismo cgroup y, con 128 MB y un almacén grande, lo mata. El límite se
+  elige contando con ese segundo proceso (por eso 192 MB y no 128) y se verifica con un
+  `docker exec … exportar-avisos.mjs` sobre un almacén de 5.000 sesiones.
+
 - [El equipo del operador pasa a ser parte de la cadena de construcción] → Se construye
   desde el `git archive` de un commit que está en `origin`, con la imagen base fijada
   por digest y las pruebas dentro del build; las huellas del contenido quedan

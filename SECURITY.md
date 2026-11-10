@@ -5,6 +5,7 @@
 - Shopify es la única autoridad de identidad de variante, disponibilidad, precio, moneda, coste de carrito y checkout.
 - React no contiene credenciales, no persiste tokens y no recibe el ID completo del carrito.
 - No se aceptan documentos GraphQL arbitrarios desde HTTP; las operaciones públicas están fijadas en el servidor.
+- Una variante comprimida (`.br`, `.gz`) solo se sirve si la ruta pedida está en el índice que el servidor lee de `dist/` al arrancar; nada de la petición se concatena a una ruta de fichero.
 - Toda mutación de carrito exige un `Origin` exacto permitido, una sesión opaca y un identificador idempotente.
 - Los callbacks y checkout solo usan HTTPS; los redirects de checkout se limitan por hostname.
 - El cuerpo de webhook se verifica antes de parsear JSON.

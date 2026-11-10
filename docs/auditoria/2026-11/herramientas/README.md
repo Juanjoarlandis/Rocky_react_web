@@ -55,6 +55,7 @@ argumentos y por las variables `ROCKY_REPO` (el `git archive` con `dist/` constr
 | `fase4/traza-navegador.mjs.txt` | Carga y ejecución en portada, modo neón y `/estudio`: tareas largas, ocupación del hilo principal, CPU y memoria de Chrome, fotogramas e imágenes decodificadas. |
 | `fase4/medir-contenedor.mjs.txt` | Imagen Docker con `--cpus=1` y `--memory`: arranque, reposo con y sin `HEALTHCHECK`, latencia con ApacheBench y memoria tras cada prueba. |
 | `fase4/contar-escrituras.mjs.txt` + `fase4/cuenta-escrituras-preload.mjs.txt` | Volcados a disco del almacén cifrado por tipo de petición y su crecimiento con 1.000 sesiones, sobre el doble de `e2sim/`. |
+| `fase4/medir-memoria.mjs.txt` | Memoria del contenedor a 128 MB con entorno a medida (`NODE_OPTIONS`, `MALLOC_ARENA_MAX`): tandas de carga repetidas, almacén sembrado con 5.000 sesiones y reposo con la sonda. |
 | `fase4/copia-de-trabajo.sh` | Copia el árbol de trabajo sin `.env` ni `.git` a una carpeta y lo construye, para medir cambios sin confirmar (`ROCKY_SRC` es el repo). |
 | `fase4/capturas.mjs.txt` + `fase4/comparar-capturas.py` + `fase4/diferencias-capturas.mjs.txt` | Capturas de día y neón a 375 y 1440 px con, por página, las imágenes pintadas, sus píxeles reales y los decodificados; comparación de dos tandas en memoria y píxel a píxel (necesita `sharp`, `ROCKY_REPO_SHARP`). |
 | `fase4/verificar-imagenes.mjs.txt` | Escenarios de `imagenes-y-medios` en navegador: variante que descarga cada foto, peso de la Estampida, animación del pie, imágenes ocultas y audio. |

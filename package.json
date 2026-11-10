@@ -35,7 +35,7 @@
   },
   "scripts": {
     "start": "node server/index.mjs",
-    "build": "vite build",
+    "build": "vite build && node scripts/precompress.mjs",
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
