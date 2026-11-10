@@ -113,10 +113,7 @@ export function useParedCompartida({ pagina, ancho }) {
     etagRef.current = null;
   }, [pagina, ancho]);
 
-  const reportar = useCallback(
-    (firma) => reportarFirma({ pagina, ancho, firma }),
-    [pagina, ancho]
-  );
+  const reportar = useCallback((firma) => reportarFirma({ pagina, ancho, firma }), [pagina, ancho]);
 
   return { compartida, ...pared, pintar, deshacer, borrarMios, reportar };
 }

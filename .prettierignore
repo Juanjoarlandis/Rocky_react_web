@@ -13,3 +13,4 @@ docs/design/cotilla-esquina-preview.html
 *.webp
 *.png
 *.json
+.claude/worktrees
