@@ -98,7 +98,7 @@ ninguna de las dos, se niega.
 | «cambios sin commit» | El árbol no está limpio | Haz commit o descarta los cambios |
 | «ya está activa» / «no existe» / «no está construida» | Release o imagen no preparadas | Prepara con `--aplicar` o revisa el id |
 | Falla `sha256sum -c` o `docker build` al preparar | La copia o el build fallaron | Borra la carpeta a medias (`rm -rf /opt/rocky035/releases/<id>` como usuario de despliegue) y repite |
-| `vitest run` acaba en «Segmentation fault» (código 139) en el build, también al repetir | Una capa de la caché de Docker se ha corrompido en la tarjeta SD (visto el 2026-11-09: binario de rolldown con 22.490 bytes distintos del de npm y mismo tamaño) | Comprueba que `docker run` sobre esa capa revienta al cargar `@rolldown/binding-linux-arm64-gnu`. Luego construye esa release sin caché: `docker build --no-cache -t rocky035:<id> /opt/rocky035/releases/<id>`. Revisa la salud de la tarjeta |
+| El build revienta con «Segmentation fault» (código 139), o sus pruebas fallan con `FATAL ERROR: DateTimePatternGeneratorCache::CreateGenerator Allocation failed`, «Icu error» o un `SyntaxError` dentro de `node_modules`, y en tu equipo pasan | La Raspberry tiene en memoria copias dañadas de ficheros que en la tarjeta están bien (visto el 9 y el 10 de noviembre de 2026) | Sigue «Ficheros corruptos en la Raspberry», abajo. Construir sin caché no basta si lo dañado es la imagen base |
 | «no se cumplía una precondición» (código 2) | El estado de producción no era el esperado o hay otra promoción en curso | No se ha tocado nada; revisa el log y qué release está activa |
 | «se ha restaurado la anterior» (código 1) | La release nueva no quedó sana | Ya está activa la anterior; mira el log y los del contenedor antes de reintentar |
 | «LA VUELTA ATRÁS HA FALLADO» (código 3) | No se pudo restaurar sola | Recuperación manual, abajo |
@@ -110,6 +110,87 @@ sobre `compose.env`; apunta `current` a la release anterior con
 `ln -sfn /opt/rocky035/releases/<anterior> /opt/rocky035/current`; y arráncala con
 `docker compose --env-file /opt/rocky035/compose.env -f /opt/rocky035/current/compose.production.yaml up -d --no-build --no-deps --pull never --wait rocky035`.
 El estado cifrado previo está en `/var/backups/rocky035/deploy-<id>-<marca>/`.
+
+## Ficheros corruptos en la Raspberry
+
+El síntoma es un build que revienta de una forma distinta en cada intento con código que
+en tu equipo pasa: un «Segmentation fault», un `SyntaxError` en una dependencia, errores
+de `Intl`. La causa vista hasta ahora: la Raspberry guarda en memoria (su caché de
+páginas) una copia dañada de algún fichero que en la tarjeta está bien. Todo proceso nuevo
+usa la copia dañada, también dentro del contenedor de producción.
+
+### Cómo comprobarlo
+
+Son órdenes de solo lectura. Compara la lectura normal de un fichero con su lectura
+directa del disco, que se salta la caché. Con el binario de Node de la imagen base (la
+del `FROM` del `Dockerfile`):
+
+```bash
+docker run --rm --entrypoint sh <imagen-base> -c \
+  'sha256sum /usr/local/bin/node; dd if=/usr/local/bin/node iflag=direct bs=1M 2>/dev/null | sha256sum'
+```
+
+Si las dos huellas difieren, la copia en memoria está dañada. La buena es la del disco:
+se puede contrastar con el `bin/node` del paquete oficial de esa versión
+(`https://nodejs.org/dist/v<versión>/node-v<versión>-linux-arm64.tar.xz`, que trae su
+`SHASUMS256.txt`). El 10 de noviembre de 2026 eran `d18f6217…` en memoria frente a
+`3e53e5ff…` en el disco y en nodejs.org.
+
+Otra señal rápida, en el contenedor de producción:
+
+```bash
+docker exec rocky035 node -e "console.log(new Intl.DateTimeFormat('es-ES', { dateStyle: 'full' }).format(new Date()))"
+```
+
+Con la copia dañada revienta con ese mismo `FATAL ERROR`. La orden solo mata su propio
+proceso. El servidor no usa `Intl` (ni en `server/` ni en `shared/`), así que sigue sano
+mientras tanto, pero no se puede construir ninguna imagen.
+
+### Cómo arreglarlo
+
+Hay que vaciar esa memoria, y eso es un cambio en la máquina de producción: solo con
+autorización explícita.
+
+- **Reiniciar la Raspberry** lo arregla seguro. Corta un par de minutos todo lo que corre
+  en ella, no solo ROCKY.
+- Antes de reiniciar, apunta lo que está en marcha (`docker ps --format '{{.Names}}'`) y
+  compáralo después: los contenedores sin política de reinicio no vuelven solos y hay que
+  arrancarlos con `docker start`, las bases de datos primero.
+- Vaciar solo la caché (`sync && sudo sysctl vm.drop_caches=3`) no corta nada, pero no
+  está probado aquí y puede no bastar si algún proceso tiene esas páginas en uso.
+
+Después:
+
+1. Repite la comprobación: las dos huellas tienen que coincidir.
+2. La carpeta de la release que ya subiste sigue valiendo. Compruébala
+   (`cd /opt/rocky035/releases/<id> && sha256sum -c --quiet SHA256SUMS`) y construye la
+   imagen sin caché, para reinstalar las dependencias con la memoria limpia:
+   `docker build --no-cache -t rocky035:<id> /opt/rocky035/releases/<id>`.
+3. Compara la imagen con una build limpia antes de promoverla (siguiente apartado).
+
+Si vuelve a pasar con la máquina recién reiniciada, sospecha de la memoria RAM o de la
+tarjeta.
+
+### Comparar la imagen con una build limpia
+
+Una build que termina bien también puede llevar un fichero dañado. Para descartarlo:
+
+1. En tu equipo, en una carpeta aparte y vacía: `git archive <commit> | tar -x -C <carpeta>`
+   y, dentro, `npm ci` y `npx vite build`. No sirve el `dist/` del árbol de trabajo: el
+   `.env` local cambia la build.
+2. Saca las huellas de la imagen:
+
+   ```bash
+   docker run --rm --entrypoint sh rocky035:<id> -c \
+     'cd /app && find dist server shared node_modules -type f ! -name "*.node" -print0 | sort -z | xargs -0 sha256sum'
+   ```
+
+   y las de la carpeta local con el mismo `find … | xargs -0 sha256sum`.
+3. Compara las dos listas. Tienen que coincidir todos los ficheros que están en los dos
+   lados salvo `node_modules/.package-lock.json`, que cambia porque la imagen quita las
+   dependencias de desarrollo. En la imagen sobra además el fichero de resultados de las
+   pruebas (`node_modules/.vite/vitest/…/results.json`). Los binarios nativos (`*.node`)
+   no se comparan: son de otra arquitectura.
 
 ## Diferencias con el proceso manual anterior
 
@@ -147,9 +228,18 @@ El estado cifrado previo está en `/var/backups/rocky035/deploy-<id>-<marca>/`.
     sano y el resto de contenedores de la Raspberry sin cambios.
 - 2026-11-09: `20261109T125531Z-arte-curioso-c42eff38` sobre
   `20261108T164136Z-menu-movil-9a93b482`. Promoción con resultado `ok` y contenedor sano.
-  Antes, la build de esa misma tanda falló dos veces con «Segmentation fault» por la caché
-  corrupta (ver «Si algo falla»). Se reconstruyó una vez sin caché, y la release definitiva
-  ya reutilizó la capa nueva de `npm ci`.
+  Antes, la build de esa misma tanda falló dos veces con «Segmentation fault», que entonces
+  se achacó a una capa de la caché de Docker dañada en la tarjeta. Se reconstruyó una vez
+  sin caché, y la release definitiva ya reutilizó la capa nueva de `npm ci`. Visto lo del
+  día siguiente, lo más probable es que fuera la misma corrupción en memoria.
+- 2026-11-10: `20261110T101102Z-pulido-artistico-13f7cc99` sobre
+  `20261109T175828Z-estudio-pared-56c8426b`. La build falló tres veces: «Segmentation
+  fault» con caché y, sin caché y al repetir, errores de `Intl` y un `SyntaxError` en
+  `react-dom`. La Raspberry tenía en memoria una copia dañada del binario de Node de la
+  imagen base (ver «Ficheros corruptos en la Raspberry»). Tras reiniciarla, la build salió
+  a la primera sin caché (1287 pruebas dentro de la imagen), la imagen coincidió con una
+  build limpia (1310 ficheros iguales, con las dos diferencias esperadas) y la promoción
+  acabó con resultado `ok`.
 - Para verificar en la Raspberry, pregunta al contenedor, no al puerto 3001 del host (ese
   es de Uptime Kuma; ROCKY se publica en `127.0.0.1:3100`):
   `docker exec rocky035 node -e "fetch('http://127.0.0.1:3001/api/health').then(r => r.text()).then(console.log)"`.
