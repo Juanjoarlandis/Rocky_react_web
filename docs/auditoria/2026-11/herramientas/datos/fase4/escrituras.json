@@ -1,0 +1,212 @@
+{
+  "date": "2026-11-10T10:44:52.079Z",
+  "rows": [
+    {
+      "label": "Documento de la SPA",
+      "request": "GET /",
+      "status": 200,
+      "ms": 4,
+      "writes": 0,
+      "stateBytes": 0
+    },
+    {
+      "label": "Estático con hash",
+      "request": "GET /assets/index-tSIRmsyj.js",
+      "status": 200,
+      "ms": 2.1,
+      "writes": 0,
+      "stateBytes": 0
+    },
+    {
+      "label": "Sonda de salud",
+      "request": "GET /api/health",
+      "status": 200,
+      "ms": 0.8,
+      "writes": 0,
+      "stateBytes": 0
+    },
+    {
+      "label": "Estado de la tienda",
+      "request": "GET /api/shopify/status",
+      "status": 200,
+      "ms": 0.8,
+      "writes": 0,
+      "stateBytes": 0
+    },
+    {
+      "label": "Catálogo (primera lectura)",
+      "request": "GET /api/shopify/products",
+      "status": 200,
+      "ms": 7.3,
+      "writes": 0,
+      "stateBytes": 0
+    },
+    {
+      "label": "Catálogo (en caché)",
+      "request": "GET /api/shopify/products",
+      "status": 200,
+      "ms": 0.7,
+      "writes": 0,
+      "stateBytes": 0
+    },
+    {
+      "label": "Drops",
+      "request": "GET /api/drops",
+      "status": 200,
+      "ms": 0.6,
+      "writes": 0,
+      "stateBytes": 0
+    },
+    {
+      "label": "Carrito sin cookie",
+      "request": "GET /api/shopify/cart",
+      "status": 200,
+      "ms": 0.7,
+      "writes": 0,
+      "stateBytes": 0
+    },
+    {
+      "label": "Ranking de beats sin cookie",
+      "request": "GET /api/beats",
+      "status": 200,
+      "ms": 0.8,
+      "writes": 0,
+      "stateBytes": 0
+    },
+    {
+      "label": "Cuenta sin cookie",
+      "request": "GET /api/shopify/account",
+      "status": 200,
+      "ms": 0.5,
+      "writes": 0,
+      "stateBytes": 0
+    },
+    {
+      "label": "Añadir al carrito (sesión y carrito nuevos)",
+      "request": "POST /api/shopify/cart/lines",
+      "status": 200,
+      "ms": 9.1,
+      "writes": 4,
+      "stateBytes": 1598
+    },
+    {
+      "label": "Leer el carrito con sesión",
+      "request": "GET /api/shopify/cart",
+      "status": 200,
+      "ms": 1.1,
+      "writes": 0,
+      "stateBytes": 1598
+    },
+    {
+      "label": "Añadir otra línea (sesión existente)",
+      "request": "POST /api/shopify/cart/lines",
+      "status": 200,
+      "ms": 1.8,
+      "writes": 2,
+      "stateBytes": 3386
+    },
+    {
+      "label": "Cambiar cantidad",
+      "request": "PATCH /api/shopify/cart/lines",
+      "status": 200,
+      "ms": 2.1,
+      "writes": 2,
+      "stateBytes": 5178
+    },
+    {
+      "label": "Quitar línea",
+      "request": "DELETE /api/shopify/cart/lines",
+      "status": 200,
+      "ms": 2.5,
+      "writes": 2,
+      "stateBytes": 6302
+    },
+    {
+      "label": "Cuenta con sesión",
+      "request": "GET /api/shopify/account",
+      "status": 200,
+      "ms": 0.6,
+      "writes": 0,
+      "stateBytes": 6302
+    },
+    {
+      "label": "Ranking de beats con sesión",
+      "request": "GET /api/beats",
+      "status": 200,
+      "ms": 0.8,
+      "writes": 0,
+      "stateBytes": 6302
+    },
+    {
+      "label": "Publicar un beat",
+      "request": "POST /api/beats",
+      "status": 201,
+      "ms": 2.3,
+      "writes": 2,
+      "stateBytes": 6786
+    },
+    {
+      "label": "«Me mola» a un beat",
+      "request": "POST /api/beats/TteF8e3X2oA/like",
+      "status": 200,
+      "ms": 0.7,
+      "writes": 1,
+      "stateBytes": 6830
+    },
+    {
+      "label": "Rocky IA: primer mensaje",
+      "request": "POST /api/chat",
+      "status": 200,
+      "ms": 3.4,
+      "writes": 1,
+      "stateBytes": 7118
+    },
+    {
+      "label": "Rocky IA: segundo mensaje",
+      "request": "POST /api/chat",
+      "status": 200,
+      "ms": 2.6,
+      "writes": 1,
+      "stateBytes": 7434
+    },
+    {
+      "label": "Apuntarse a un aviso",
+      "request": "POST /api/avisos",
+      "status": 200,
+      "ms": 1.2,
+      "writes": 2,
+      "stateBytes": 7674
+    }
+  ],
+  "growth": [
+    {
+      "sessions": "1–50",
+      "requestMs": 2,
+      "writesPerRequest": 4,
+      "writeMs": 2.63,
+      "stateKB": 77
+    },
+    {
+      "sessions": "226–275",
+      "requestMs": 6.7,
+      "writesPerRequest": 4,
+      "writeMs": 3.13,
+      "stateKB": 391
+    },
+    {
+      "sessions": "476–525",
+      "requestMs": 12.2,
+      "writesPerRequest": 4,
+      "writeMs": 3.49,
+      "stateKB": 740
+    },
+    {
+      "sessions": "951–1000",
+      "requestMs": 22.7,
+      "writesPerRequest": 4,
+      "writeMs": 4.73,
+      "stateKB": 1403
+    }
+  ],
+  "totalWrites": 4017
+}

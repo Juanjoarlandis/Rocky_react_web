@@ -1,0 +1,20 @@
+// Lighthouse de la línea base (fase 0): el mismo montaje que la segunda tanda de la
+// auditoría (metricas.md, 2.1): instancia aislada en :3290, modo demo, origen propio,
+// SHOPIFY_RATE_LIMIT_MAX=1000, y lighthouse.sh con tres pasadas por página y viewport.
+//
+//   ROCKY_REPO=<git archive con dist/> node lh-linea-base.mjs <lighthouse.sh> <salida>
+import { execFileSync } from 'node:child_process';
+import { startInstance } from './instancia.mjs';
+
+const [script, outDir] = process.argv.slice(2);
+const inst = await startInstance(3290, { SHOPIFY_RATE_LIMIT_MAX: '1000' });
+try {
+  const out = execFileSync('bash', [script, inst.origin, outDir], {
+    encoding: 'utf8',
+    env: process.env,
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  console.log(out.split('\n').filter((line) => /FALLO|terminado/.test(line)).join('\n'));
+} finally {
+  inst.stop();
+}

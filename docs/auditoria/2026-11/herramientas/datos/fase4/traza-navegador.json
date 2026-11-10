@@ -1,0 +1,1076 @@
+{
+  "date": "2026-11-10T11:02:33.383Z",
+  "chrome": null,
+  "results": {
+    "portada__movil": {
+      "carga": {
+        "theme": "light",
+        "lcp": {
+          "time": 324,
+          "size": 84218,
+          "url": "",
+          "element": "span.cartel-cinta"
+        },
+        "cls": 0,
+        "worstShift": null,
+        "longTasks": 0,
+        "longTaskMs": 0,
+        "blockingMs": 0,
+        "resources": {
+          "fuentes": {
+            "n": 3,
+            "kB": 81
+          },
+          "css": {
+            "n": 1,
+            "kB": 83
+          },
+          "js": {
+            "n": 4,
+            "kB": 363
+          },
+          "imagen": {
+            "n": 24,
+            "kB": 791
+          },
+          "api": {
+            "n": 1,
+            "kB": 0
+          }
+        },
+        "images": {
+          "loaded": 10,
+          "decodedMB": 21.6,
+          "neededMB": 1.8,
+          "oversized": [
+            "placeholder-unreleased.webp 1254×1254 (×340 píxeles de más)",
+            "rocky-airwave.webp 1254×1254 (×16 píxeles de más)",
+            "rocky-signal-ghost.webp 1254×1254 (×16 píxeles de más)",
+            "2uzHwAAAAAAAAAAAAAAAAAAAAAAAAAAAIALMnjkY1awh2IAAAAASUVORK5CYII= 831×173 (×15 píxeles de más)"
+          ]
+        },
+        "domNodes": 376,
+        "animations": 2,
+        "jsHeapMB": 3.3,
+        "taskSecondsSinceLoad": 0.75,
+        "scriptSecondsSinceLoad": 0.16,
+        "chromeRssMB": {
+          "browser": 205.1,
+          "renderer": 426,
+          "GPU": 93.9,
+          "network.mojom.NetworkService": 113,
+          "storage.mojom.StorageService": 52.3
+        }
+      },
+      "reposo": {
+        "seconds": 10,
+        "mainThreadBusyPct": 0.7,
+        "scriptPct": 0.1,
+        "layoutPct": 0.1,
+        "stylePct": 0.1,
+        "rendererCpuPct": 77.7,
+        "gpuCpuPct": 0.6,
+        "layouts": 13,
+        "styleRecalcs": 33,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "scroll": {
+        "seconds": 8,
+        "mainThreadBusyPct": 4.3,
+        "scriptPct": 0.5,
+        "layoutPct": 0.1,
+        "stylePct": 0.7,
+        "rendererCpuPct": 83.8,
+        "gpuCpuPct": 3,
+        "layouts": 12,
+        "styleRecalcs": 482,
+        "longTasks": 0,
+        "longTaskMs": 0,
+        "frames": 481,
+        "fps": 60,
+        "p50Ms": 16.7,
+        "p95Ms": 16.8,
+        "maxMs": 16.8,
+        "over25Ms": 0,
+        "over50Ms": 0
+      },
+      "trasScroll": {
+        "theme": "light",
+        "lcp": {
+          "time": 324,
+          "size": 84218,
+          "url": "",
+          "element": "span.cartel-cinta"
+        },
+        "cls": 0,
+        "worstShift": {
+          "value": 0.0000016320942819918357,
+          "node": "small."
+        },
+        "longTasks": 0,
+        "longTaskMs": 0,
+        "blockingMs": 0,
+        "resources": {
+          "fuentes": {
+            "n": 3,
+            "kB": 81
+          },
+          "css": {
+            "n": 1,
+            "kB": 83
+          },
+          "js": {
+            "n": 4,
+            "kB": 363
+          },
+          "imagen": {
+            "n": 34,
+            "kB": 2368
+          },
+          "api": {
+            "n": 1,
+            "kB": 0
+          }
+        },
+        "images": {
+          "loaded": 18,
+          "decodedMB": 314.5,
+          "neededMB": 4.2,
+          "oversized": [
+            "rockydz-boyz.webp 5906×5906 (×458 píxeles de más)",
+            "rocky35-camel.webp 5906×5906 (×458 píxeles de más)",
+            "placeholder-unreleased.webp 1254×1254 (×340 píxeles de más)",
+            "rocky-airwave.webp 1254×1254 (×16 píxeles de más)",
+            "rocky-signal-ghost.webp 1254×1254 (×16 píxeles de más)",
+            "rocky-night-runner.webp 1254×1254 (×16 píxeles de más)"
+          ]
+        },
+        "domNodes": 376,
+        "animations": 2,
+        "jsHeapMB": 3.7,
+        "taskSecondsSinceLoad": 1.19,
+        "scriptSecondsSinceLoad": 0.21,
+        "chromeRssMB": {
+          "browser": 205.3,
+          "renderer": 810.8,
+          "GPU": 94.4,
+          "network.mojom.NetworkService": 115.1,
+          "storage.mojom.StorageService": 52.9
+        }
+      },
+      "errors": []
+    },
+    "portada__escritorio": {
+      "carga": {
+        "theme": "light",
+        "lcp": {
+          "time": 80,
+          "size": 149325,
+          "url": "",
+          "element": "h1.page-title"
+        },
+        "cls": 0.014,
+        "worstShift": {
+          "value": 0.013891255144032921,
+          "node": "div.page-container"
+        },
+        "longTasks": 0,
+        "longTaskMs": 0,
+        "blockingMs": 0,
+        "resources": {
+          "fuentes": {
+            "n": 3,
+            "kB": 81
+          },
+          "js": {
+            "n": 4,
+            "kB": 363
+          },
+          "css": {
+            "n": 1,
+            "kB": 83
+          },
+          "imagen": {
+            "n": 29,
+            "kB": 1394
+          },
+          "api": {
+            "n": 1,
+            "kB": 0
+          }
+        },
+        "images": {
+          "loaded": 15,
+          "decodedMB": 45.9,
+          "neededMB": 2.4,
+          "oversized": [
+            "placeholder-unreleased.webp 1254×1254 (×1360 píxeles de más)",
+            "rocky-airwave.webp 1254×1254 (×23 píxeles de más)",
+            "rocky-signal-ghost.webp 1254×1254 (×23 píxeles de más)",
+            "rocky-night-runner.webp 1254×1254 (×23 píxeles de más)",
+            "rocky-pit-crew.webp 1254×1254 (×23 píxeles de más)",
+            "rocky-solar-club.webp 1254×1254 (×23 píxeles de más)"
+          ]
+        },
+        "domNodes": 376,
+        "animations": 2,
+        "jsHeapMB": 3.2,
+        "taskSecondsSinceLoad": 0.17,
+        "scriptSecondsSinceLoad": 0.04,
+        "chromeRssMB": {
+          "browser": 206,
+          "renderer": 452.9,
+          "GPU": 118.8,
+          "network.mojom.NetworkService": 114.3,
+          "storage.mojom.StorageService": 52.5
+        }
+      },
+      "reposo": {
+        "seconds": 10,
+        "mainThreadBusyPct": 0.3,
+        "scriptPct": 0,
+        "layoutPct": 0,
+        "stylePct": 0,
+        "rendererCpuPct": 1.4,
+        "gpuCpuPct": 0.6,
+        "layouts": 13,
+        "styleRecalcs": 45,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "scroll": {
+        "seconds": 8,
+        "mainThreadBusyPct": 2,
+        "scriptPct": 0.3,
+        "layoutPct": 0,
+        "stylePct": 0.4,
+        "rendererCpuPct": 8.7,
+        "gpuCpuPct": 8.5,
+        "layouts": 11,
+        "styleRecalcs": 482,
+        "longTasks": 0,
+        "longTaskMs": 0,
+        "frames": 481,
+        "fps": 60,
+        "p50Ms": 16.7,
+        "p95Ms": 16.7,
+        "maxMs": 16.8,
+        "over25Ms": 0,
+        "over50Ms": 0
+      },
+      "trasScroll": {
+        "theme": "light",
+        "lcp": {
+          "time": 80,
+          "size": 149325,
+          "url": "",
+          "element": "h1.page-title"
+        },
+        "cls": 0.014,
+        "worstShift": {
+          "value": 0.013891255144032921,
+          "node": "div.page-container"
+        },
+        "longTasks": 0,
+        "longTaskMs": 0,
+        "blockingMs": 0,
+        "resources": {
+          "fuentes": {
+            "n": 3,
+            "kB": 81
+          },
+          "js": {
+            "n": 4,
+            "kB": 363
+          },
+          "css": {
+            "n": 1,
+            "kB": 83
+          },
+          "imagen": {
+            "n": 35,
+            "kB": 2399
+          },
+          "api": {
+            "n": 1,
+            "kB": 0
+          }
+        },
+        "images": {
+          "loaded": 20,
+          "decodedMB": 318.8,
+          "neededMB": 3,
+          "oversized": [
+            "rockydz-boyz.webp 5906×5906 (×637 píxeles de más)",
+            "rocky35-camel.webp 5906×5906 (×637 píxeles de más)",
+            "placeholder-unreleased.webp 1254×1254 (×1360 píxeles de más)",
+            "rocky-airwave.webp 1254×1254 (×23 píxeles de más)",
+            "rocky-signal-ghost.webp 1254×1254 (×23 píxeles de más)",
+            "rocky-night-runner.webp 1254×1254 (×23 píxeles de más)"
+          ]
+        },
+        "domNodes": 380,
+        "animations": 4,
+        "jsHeapMB": 3.7,
+        "taskSecondsSinceLoad": 0.36,
+        "scriptSecondsSinceLoad": 0.07,
+        "chromeRssMB": {
+          "browser": 206.1,
+          "renderer": 839.1,
+          "GPU": 121.8,
+          "network.mojom.NetworkService": 115.6,
+          "storage.mojom.StorageService": 53.1
+        }
+      },
+      "errors": []
+    },
+    "neon__movil": {
+      "encendido": {
+        "seconds": 5,
+        "mainThreadBusyPct": 23.1,
+        "scriptPct": 1.2,
+        "layoutPct": 0.2,
+        "stylePct": 4,
+        "rendererCpuPct": 88.5,
+        "gpuCpuPct": 5.4,
+        "layouts": 35,
+        "styleRecalcs": 307,
+        "longTasks": 1,
+        "longTaskMs": 63,
+        "frames": 296,
+        "fps": 59.1,
+        "p50Ms": 16.7,
+        "p95Ms": 16.8,
+        "maxMs": 66.7,
+        "over25Ms": 3,
+        "over50Ms": 1
+      },
+      "carga": {
+        "theme": "neon",
+        "lcp": {
+          "time": 300,
+          "size": 84218,
+          "url": "",
+          "element": "span.cartel-cinta"
+        },
+        "cls": 0,
+        "worstShift": null,
+        "longTasks": 1,
+        "longTaskMs": 63,
+        "blockingMs": 13,
+        "resources": {
+          "fuentes": {
+            "n": 3,
+            "kB": 81
+          },
+          "js": {
+            "n": 4,
+            "kB": 363
+          },
+          "css": {
+            "n": 1,
+            "kB": 83
+          },
+          "imagen": {
+            "n": 16,
+            "kB": 693
+          },
+          "api": {
+            "n": 2,
+            "kB": 1
+          },
+          "audio": {
+            "n": 1,
+            "kB": 998
+          },
+          "otros": {
+            "n": 1,
+            "kB": 2
+          }
+        },
+        "images": {
+          "loaded": 11,
+          "decodedMB": 24.8,
+          "neededMB": 1.8,
+          "oversized": [
+            "placeholder-unreleased.webp 1254×1254 (×340 píxeles de más)",
+            "rocky-airwave.webp 1254×1254 (×16 píxeles de más)",
+            "rocky-signal-ghost.webp 1254×1254 (×16 píxeles de más)",
+            "miron-800-BP2onPhj.webp 1022×800 (×46 píxeles de más)",
+            "2uzHwAAAAAAAAAAAAAAAAAAAAAAAAAAAIALMnjkY1awh2IAAAAASUVORK5CYII= 831×173 (×15 píxeles de más)"
+          ]
+        },
+        "domNodes": 406,
+        "animations": 10,
+        "jsHeapMB": 4.4,
+        "taskSecondsSinceLoad": 2.04,
+        "scriptSecondsSinceLoad": 0.22,
+        "chromeRssMB": {
+          "browser": 209.3,
+          "renderer": 498.8,
+          "GPU": 110,
+          "network.mojom.NetworkService": 114.9,
+          "storage.mojom.StorageService": 52.1,
+          "audio.mojom.AudioService": 91
+        }
+      },
+      "reposo": {
+        "seconds": 10,
+        "mainThreadBusyPct": 15.8,
+        "scriptPct": 0.2,
+        "layoutPct": 0.1,
+        "stylePct": 1.9,
+        "rendererCpuPct": 83.6,
+        "gpuCpuPct": 1.1,
+        "layouts": 11,
+        "styleRecalcs": 609,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "scroll": {
+        "seconds": 8,
+        "mainThreadBusyPct": 39.1,
+        "scriptPct": 2.2,
+        "layoutPct": 0.1,
+        "stylePct": 9.3,
+        "rendererCpuPct": 118.7,
+        "gpuCpuPct": 17.2,
+        "layouts": 32,
+        "styleRecalcs": 939,
+        "longTasks": 0,
+        "longTaskMs": 0,
+        "frames": 481,
+        "fps": 60.1,
+        "p50Ms": 16.7,
+        "p95Ms": 16.8,
+        "maxMs": 16.8,
+        "over25Ms": 0,
+        "over50Ms": 0
+      },
+      "trasScroll": {
+        "theme": "neon",
+        "lcp": {
+          "time": 300,
+          "size": 84218,
+          "url": "",
+          "element": "span.cartel-cinta"
+        },
+        "cls": 0,
+        "worstShift": null,
+        "longTasks": 1,
+        "longTaskMs": 63,
+        "blockingMs": 13,
+        "resources": {
+          "fuentes": {
+            "n": 3,
+            "kB": 81
+          },
+          "js": {
+            "n": 4,
+            "kB": 363
+          },
+          "css": {
+            "n": 1,
+            "kB": 83
+          },
+          "imagen": {
+            "n": 25,
+            "kB": 2297
+          },
+          "api": {
+            "n": 3,
+            "kB": 1
+          },
+          "audio": {
+            "n": 1,
+            "kB": 998
+          },
+          "otros": {
+            "n": 1,
+            "kB": 2
+          }
+        },
+        "images": {
+          "loaded": 18,
+          "decodedMB": 314.5,
+          "neededMB": 4.2,
+          "oversized": [
+            "rockydz-boyz.webp 5906×5906 (×458 píxeles de más)",
+            "rocky35-camel.webp 5906×5906 (×458 píxeles de más)",
+            "placeholder-unreleased.webp 1254×1254 (×340 píxeles de más)",
+            "rocky-airwave.webp 1254×1254 (×16 píxeles de más)",
+            "rocky-signal-ghost.webp 1254×1254 (×16 píxeles de más)",
+            "rocky-night-runner.webp 1254×1254 (×16 píxeles de más)"
+          ]
+        },
+        "domNodes": 402,
+        "animations": 6,
+        "jsHeapMB": 4.1,
+        "taskSecondsSinceLoad": 7.04,
+        "scriptSecondsSinceLoad": 0.42,
+        "chromeRssMB": {
+          "browser": 210.1,
+          "renderer": 940.4,
+          "GPU": 147.4,
+          "network.mojom.NetworkService": 116.8,
+          "storage.mojom.StorageService": 52.2,
+          "audio.mojom.AudioService": 91.2
+        }
+      },
+      "errors": []
+    },
+    "neon__escritorio": {
+      "encendido": {
+        "seconds": 5,
+        "mainThreadBusyPct": 10.7,
+        "scriptPct": 0.4,
+        "layoutPct": 0.1,
+        "stylePct": 1.2,
+        "rendererCpuPct": 21.5,
+        "gpuCpuPct": 22.3,
+        "layouts": 13,
+        "styleRecalcs": 309,
+        "longTasks": 0,
+        "longTaskMs": 0,
+        "frames": 300,
+        "fps": 59.9,
+        "p50Ms": 16.7,
+        "p95Ms": 16.8,
+        "maxMs": 33.3,
+        "over25Ms": 1,
+        "over50Ms": 0
+      },
+      "carga": {
+        "theme": "neon",
+        "lcp": {
+          "time": 72,
+          "size": 149325,
+          "url": "",
+          "element": "h1.page-title"
+        },
+        "cls": 0.014,
+        "worstShift": {
+          "value": 0.013891255144032921,
+          "node": "div.page-container"
+        },
+        "longTasks": 0,
+        "longTaskMs": 0,
+        "blockingMs": 0,
+        "resources": {
+          "fuentes": {
+            "n": 3,
+            "kB": 81
+          },
+          "js": {
+            "n": 4,
+            "kB": 363
+          },
+          "css": {
+            "n": 1,
+            "kB": 83
+          },
+          "imagen": {
+            "n": 22,
+            "kB": 1308
+          },
+          "api": {
+            "n": 2,
+            "kB": 1
+          },
+          "audio": {
+            "n": 1,
+            "kB": 998
+          },
+          "otros": {
+            "n": 1,
+            "kB": 2
+          }
+        },
+        "images": {
+          "loaded": 16,
+          "decodedMB": 49,
+          "neededMB": 2.4,
+          "oversized": [
+            "placeholder-unreleased.webp 1254×1254 (×1360 píxeles de más)",
+            "rocky-airwave.webp 1254×1254 (×23 píxeles de más)",
+            "rocky-signal-ghost.webp 1254×1254 (×23 píxeles de más)",
+            "rocky-night-runner.webp 1254×1254 (×23 píxeles de más)",
+            "rocky-pit-crew.webp 1254×1254 (×23 píxeles de más)",
+            "rocky-solar-club.webp 1254×1254 (×23 píxeles de más)"
+          ]
+        },
+        "domNodes": 406,
+        "animations": 9,
+        "jsHeapMB": 5.2,
+        "taskSecondsSinceLoad": 0.88,
+        "scriptSecondsSinceLoad": 0.06,
+        "chromeRssMB": {
+          "browser": 210.3,
+          "renderer": 631.8,
+          "GPU": 176.6,
+          "network.mojom.NetworkService": 114.9,
+          "storage.mojom.StorageService": 52.4,
+          "audio.mojom.AudioService": 90.4
+        }
+      },
+      "reposo": {
+        "seconds": 10,
+        "mainThreadBusyPct": 8.6,
+        "scriptPct": 0.1,
+        "layoutPct": 0,
+        "stylePct": 0.8,
+        "rendererCpuPct": 12.8,
+        "gpuCpuPct": 13.7,
+        "layouts": 11,
+        "styleRecalcs": 607,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "puntero": {
+        "seconds": 8,
+        "mainThreadBusyPct": 12.4,
+        "scriptPct": 0.4,
+        "layoutPct": 0,
+        "stylePct": 1.8,
+        "rendererCpuPct": 50.1,
+        "gpuCpuPct": 35.5,
+        "layouts": 18,
+        "styleRecalcs": 545,
+        "longTasks": 0,
+        "longTaskMs": 0,
+        "frames": 361,
+        "fps": 60.1,
+        "p50Ms": 16.7,
+        "p95Ms": 16.8,
+        "maxMs": 16.8,
+        "over25Ms": 0,
+        "over50Ms": 0
+      },
+      "scroll": {
+        "seconds": 8,
+        "mainThreadBusyPct": 15,
+        "scriptPct": 0.6,
+        "layoutPct": 0.1,
+        "stylePct": 2.5,
+        "rendererCpuPct": 85.8,
+        "gpuCpuPct": 61.5,
+        "layouts": 107,
+        "styleRecalcs": 934,
+        "longTasks": 0,
+        "longTaskMs": 0,
+        "frames": 481,
+        "fps": 60.1,
+        "p50Ms": 16.7,
+        "p95Ms": 16.8,
+        "maxMs": 16.8,
+        "over25Ms": 0,
+        "over50Ms": 0
+      },
+      "trasScroll": {
+        "theme": "neon",
+        "lcp": {
+          "time": 72,
+          "size": 149325,
+          "url": "",
+          "element": "h1.page-title"
+        },
+        "cls": 0.014,
+        "worstShift": {
+          "value": 0.013891255144032921,
+          "node": "div.page-container"
+        },
+        "longTasks": 0,
+        "longTaskMs": 0,
+        "blockingMs": 0,
+        "resources": {
+          "fuentes": {
+            "n": 3,
+            "kB": 81
+          },
+          "js": {
+            "n": 4,
+            "kB": 363
+          },
+          "css": {
+            "n": 1,
+            "kB": 83
+          },
+          "imagen": {
+            "n": 28,
+            "kB": 2424
+          },
+          "api": {
+            "n": 3,
+            "kB": 1
+          },
+          "audio": {
+            "n": 1,
+            "kB": 998
+          },
+          "otros": {
+            "n": 1,
+            "kB": 2
+          }
+        },
+        "images": {
+          "loaded": 19,
+          "decodedMB": 314.8,
+          "neededMB": 3,
+          "oversized": [
+            "rockydz-boyz.webp 5906×5906 (×637 píxeles de más)",
+            "rocky35-camel.webp 5906×5906 (×637 píxeles de más)",
+            "placeholder-unreleased.webp 1254×1254 (×1360 píxeles de más)",
+            "rocky-airwave.webp 1254×1254 (×23 píxeles de más)",
+            "rocky-signal-ghost.webp 1254×1254 (×23 píxeles de más)",
+            "rocky-night-runner.webp 1254×1254 (×23 píxeles de más)"
+          ]
+        },
+        "domNodes": 402,
+        "animations": 7,
+        "jsHeapMB": 4.1,
+        "taskSecondsSinceLoad": 4.06,
+        "scriptSecondsSinceLoad": 0.14,
+        "chromeRssMB": {
+          "browser": 212.1,
+          "renderer": 1122.8,
+          "GPU": 316.8,
+          "network.mojom.NetworkService": 116.5,
+          "storage.mojom.StorageService": 52.5,
+          "audio.mojom.AudioService": 90.5
+        }
+      },
+      "errors": []
+    },
+    "estudio__movil": {
+      "carga": {
+        "theme": "light",
+        "lcp": {
+          "time": 192,
+          "size": 31725,
+          "url": "sentado-860-Ca4Wp15u.webp",
+          "element": "img.doodle"
+        },
+        "cls": 0,
+        "worstShift": null,
+        "longTasks": 0,
+        "longTaskMs": 0,
+        "blockingMs": 0,
+        "resources": {
+          "fuentes": {
+            "n": 3,
+            "kB": 81
+          },
+          "js": {
+            "n": 7,
+            "kB": 433
+          },
+          "css": {
+            "n": 2,
+            "kB": 116
+          },
+          "imagen": {
+            "n": 11,
+            "kB": 920
+          },
+          "api": {
+            "n": 2,
+            "kB": 1
+          }
+        },
+        "images": {
+          "loaded": 10,
+          "decodedMB": 23.5,
+          "neededMB": 1.2,
+          "oversized": [
+            "luna-movil-hd-DtR2Tsc6.webp 1003×1364 (×50 píxeles de más)",
+            "breakdance-freeze-hd-CaJPlPhG.webp 1107×1101 (×33 píxeles de más)",
+            "auriculares-sentado-hd-nBGvuqv2.webp 964×1038 (×16 píxeles de más)",
+            "tele-sentado-borde-hd-CtX9elwI.webp 721×1367 (×33 píxeles de más)",
+            "2uzHwAAAAAAAAAAAAAAAAAAAAAAAAAAAIALMnjkY1awh2IAAAAASUVORK5CYII= 831×173 (×15 píxeles de más)"
+          ]
+        },
+        "domNodes": 839,
+        "animations": 3,
+        "jsHeapMB": 3.3,
+        "taskSecondsSinceLoad": 0.35,
+        "scriptSecondsSinceLoad": 0.17,
+        "chromeRssMB": {
+          "browser": 205.8,
+          "renderer": 418.7,
+          "GPU": 90.2,
+          "network.mojom.NetworkService": 113.6,
+          "storage.mojom.StorageService": 52.8
+        }
+      },
+      "reposo": {
+        "seconds": 10,
+        "mainThreadBusyPct": 1,
+        "scriptPct": 0.1,
+        "layoutPct": 0,
+        "stylePct": 0.3,
+        "rendererCpuPct": 78.1,
+        "gpuCpuPct": 2,
+        "layouts": 3,
+        "styleRecalcs": 65,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "sonando": {
+        "seconds": 10,
+        "mainThreadBusyPct": 30.2,
+        "scriptPct": 4,
+        "layoutPct": 0.6,
+        "stylePct": 5.7,
+        "rendererCpuPct": 125,
+        "gpuCpuPct": 3.6,
+        "layouts": 167,
+        "styleRecalcs": 630,
+        "longTasks": 1,
+        "longTaskMs": 72,
+        "frames": 598,
+        "fps": 59.7,
+        "p50Ms": 16.7,
+        "p95Ms": 16.8,
+        "maxMs": 66.7,
+        "over25Ms": 1,
+        "over50Ms": 1
+      },
+      "sonabaAlAcabar": 1,
+      "trasSonar": {
+        "theme": "light",
+        "lcp": {
+          "time": 192,
+          "size": 31725,
+          "url": "sentado-860-Ca4Wp15u.webp",
+          "element": "img.doodle"
+        },
+        "cls": 0,
+        "worstShift": null,
+        "longTasks": 1,
+        "longTaskMs": 72,
+        "blockingMs": 22,
+        "resources": {
+          "fuentes": {
+            "n": 3,
+            "kB": 81
+          },
+          "js": {
+            "n": 7,
+            "kB": 433
+          },
+          "css": {
+            "n": 2,
+            "kB": 116
+          },
+          "imagen": {
+            "n": 12,
+            "kB": 937
+          },
+          "api": {
+            "n": 2,
+            "kB": 1
+          },
+          "otros": {
+            "n": 2,
+            "kB": 2
+          }
+        },
+        "images": {
+          "loaded": 10,
+          "decodedMB": 23.5,
+          "neededMB": 1.2,
+          "oversized": [
+            "luna-movil-hd-DtR2Tsc6.webp 1003×1364 (×50 píxeles de más)",
+            "breakdance-freeze-hd-CaJPlPhG.webp 1107×1101 (×33 píxeles de más)",
+            "auriculares-sentado-hd-nBGvuqv2.webp 964×1038 (×16 píxeles de más)",
+            "tele-sentado-borde-hd-CtX9elwI.webp 721×1367 (×33 píxeles de más)",
+            "2uzHwAAAAAAAAAAAAAAAAAAAAAAAAAAAIALMnjkY1awh2IAAAAASUVORK5CYII= 831×173 (×15 píxeles de más)"
+          ]
+        },
+        "domNodes": 839,
+        "animations": 68,
+        "jsHeapMB": 6,
+        "taskSecondsSinceLoad": 3.57,
+        "scriptSecondsSinceLoad": 0.58,
+        "chromeRssMB": {
+          "browser": 209.4,
+          "renderer": 653.5,
+          "GPU": 91.3,
+          "network.mojom.NetworkService": 113.9,
+          "storage.mojom.StorageService": 53.5,
+          "audio.mojom.AudioService": 91.1
+        }
+      },
+      "errors": []
+    },
+    "estudio__escritorio": {
+      "carga": {
+        "theme": "light",
+        "lcp": {
+          "time": 112,
+          "size": 25245,
+          "url": "auriculares-sentado-hd-nBGvuqv2.webp",
+          "element": "img.doodle"
+        },
+        "cls": 0,
+        "worstShift": null,
+        "longTasks": 0,
+        "longTaskMs": 0,
+        "blockingMs": 0,
+        "resources": {
+          "fuentes": {
+            "n": 3,
+            "kB": 81
+          },
+          "js": {
+            "n": 7,
+            "kB": 433
+          },
+          "css": {
+            "n": 2,
+            "kB": 116
+          },
+          "imagen": {
+            "n": 15,
+            "kB": 333
+          },
+          "api": {
+            "n": 2,
+            "kB": 1
+          },
+          "otros": {
+            "n": 1,
+            "kB": 0
+          }
+        },
+        "images": {
+          "loaded": 15,
+          "decodedMB": 53.7,
+          "neededMB": 0.4,
+          "oversized": [
+            "luna-movil-hd-DtR2Tsc6.webp 1003×1364 (×117 píxeles de más)",
+            "bombilla-eureka-hd-CtxBvmZ1.webp 849×1529 (×407 píxeles de más)",
+            "diana-jefe-hd-DYQJalc_.webp 852×1481 (×476 píxeles de más)",
+            "estrella-apoyado-hd-BDg5M8Rs.webp 784×1598 (×446 píxeles de más)",
+            "breakdance-freeze-hd-CaJPlPhG.webp 1107×1101 (×54 píxeles de más)",
+            "cruiser-patinando-hd-BsE0WZXO.webp 940×1131 (×354 píxeles de más)"
+          ]
+        },
+        "domNodes": 839,
+        "animations": 3,
+        "jsHeapMB": 3.3,
+        "taskSecondsSinceLoad": 0.09,
+        "scriptSecondsSinceLoad": 0.04,
+        "chromeRssMB": {
+          "browser": 211.8,
+          "renderer": 536.9,
+          "GPU": 102.7,
+          "network.mojom.NetworkService": 113,
+          "storage.mojom.StorageService": 52.6
+        }
+      },
+      "reposo": {
+        "seconds": 10,
+        "mainThreadBusyPct": 0.3,
+        "scriptPct": 0.1,
+        "layoutPct": 0,
+        "stylePct": 0,
+        "rendererCpuPct": 1.7,
+        "gpuCpuPct": 2.7,
+        "layouts": 2,
+        "styleRecalcs": 45,
+        "longTasks": 0,
+        "longTaskMs": 0
+      },
+      "sonando": {
+        "seconds": 10,
+        "mainThreadBusyPct": 10.9,
+        "scriptPct": 1.4,
+        "layoutPct": 0.2,
+        "stylePct": 2,
+        "rendererCpuPct": 27.3,
+        "gpuCpuPct": 9.3,
+        "layouts": 176,
+        "styleRecalcs": 634,
+        "longTasks": 0,
+        "longTaskMs": 0,
+        "frames": 601,
+        "fps": 60,
+        "p50Ms": 16.7,
+        "p95Ms": 16.8,
+        "maxMs": 16.8,
+        "over25Ms": 0,
+        "over50Ms": 0
+      },
+      "sonabaAlAcabar": 1,
+      "trasSonar": {
+        "theme": "light",
+        "lcp": {
+          "time": 112,
+          "size": 25245,
+          "url": "auriculares-sentado-hd-nBGvuqv2.webp",
+          "element": "img.doodle"
+        },
+        "cls": 0,
+        "worstShift": null,
+        "longTasks": 0,
+        "longTaskMs": 0,
+        "blockingMs": 0,
+        "resources": {
+          "fuentes": {
+            "n": 3,
+            "kB": 81
+          },
+          "js": {
+            "n": 7,
+            "kB": 433
+          },
+          "css": {
+            "n": 2,
+            "kB": 116
+          },
+          "imagen": {
+            "n": 16,
+            "kB": 360
+          },
+          "api": {
+            "n": 2,
+            "kB": 1
+          },
+          "otros": {
+            "n": 2,
+            "kB": 2
+          }
+        },
+        "images": {
+          "loaded": 15,
+          "decodedMB": 53.7,
+          "neededMB": 0.4,
+          "oversized": [
+            "luna-movil-hd-DtR2Tsc6.webp 1003×1364 (×117 píxeles de más)",
+            "bombilla-eureka-hd-CtxBvmZ1.webp 849×1529 (×407 píxeles de más)",
+            "diana-jefe-hd-DYQJalc_.webp 852×1481 (×476 píxeles de más)",
+            "estrella-apoyado-hd-BDg5M8Rs.webp 784×1598 (×446 píxeles de más)",
+            "breakdance-freeze-hd-CaJPlPhG.webp 1107×1101 (×54 píxeles de más)",
+            "cruiser-patinando-hd-BsE0WZXO.webp 940×1131 (×354 píxeles de más)"
+          ]
+        },
+        "domNodes": 839,
+        "animations": 72,
+        "jsHeapMB": 5.8,
+        "taskSecondsSinceLoad": 1.23,
+        "scriptSecondsSinceLoad": 0.18,
+        "chromeRssMB": {
+          "browser": 211.9,
+          "renderer": 694.5,
+          "GPU": 105.9,
+          "network.mojom.NetworkService": 113.2,
+          "storage.mojom.StorageService": 53.4,
+          "audio.mojom.AudioService": 90.1
+        }
+      },
+      "errors": []
+    }
+  }
+}

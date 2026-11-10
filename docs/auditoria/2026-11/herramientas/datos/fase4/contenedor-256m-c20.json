@@ -1,0 +1,188 @@
+{
+  "image": "rocky035:lineabase-7effff4",
+  "memory": "256m",
+  "cpus": 1,
+  "date": "2026-11-10T11:01:23.789Z",
+  "startupMs": 210,
+  "bootInsideMs": 168,
+  "idle": {
+    "cgroupMB": 24.9,
+    "peakMB": 28.7,
+    "anonMB": 21.3,
+    "fileMB": 0,
+    "nodeRssMB": 70
+  },
+  "concurrency": 20,
+  "load": [
+    {
+      "label": "index.html",
+      "path": "/",
+      "n": 5000,
+      "c": 20,
+      "bytes": 2685,
+      "failed": 0,
+      "non2xx": 0,
+      "rps": 10151.23,
+      "kbPerSecond": 37016.31,
+      "p50": 1,
+      "p95": 3,
+      "p99": 34,
+      "max": 53,
+      "memory": {
+        "cgroupMB": 54.7,
+        "peakMB": 59.1,
+        "anonMB": 51.3,
+        "fileMB": 0,
+        "nodeRssMB": 100.2
+      }
+    },
+    {
+      "label": "JS principal",
+      "path": "/assets/index-tSIRmsyj.js",
+      "n": 2000,
+      "c": 20,
+      "bytes": 322953,
+      "failed": 0,
+      "non2xx": 0,
+      "rps": 3155.34,
+      "kbPerSecond": 998480.41,
+      "p50": 2,
+      "p95": 57,
+      "p99": 70,
+      "max": 72,
+      "memory": {
+        "cgroupMB": 76.8,
+        "peakMB": 133.9,
+        "anonMB": 72.6,
+        "fileMB": 0,
+        "nodeRssMB": 121.5
+      }
+    },
+    {
+      "label": "JS principal (Accept-Encoding: br, gzip)",
+      "path": "/assets/index-tSIRmsyj.js",
+      "n": 2000,
+      "c": 20,
+      "bytes": 322953,
+      "failed": 0,
+      "non2xx": 0,
+      "rps": 3895.04,
+      "kbPerSecond": 1232553.25,
+      "p50": 2,
+      "p95": 52,
+      "p99": 66,
+      "max": 67,
+      "memory": {
+        "cgroupMB": 121.3,
+        "peakMB": 136.4,
+        "anonMB": 115.6,
+        "fileMB": 0,
+        "nodeRssMB": 164.5
+      }
+    },
+    {
+      "label": "CSS principal",
+      "path": "/assets/index-DTxCop9T.css",
+      "n": 3000,
+      "c": 20,
+      "bytes": 85168,
+      "failed": 0,
+      "non2xx": 0,
+      "rps": 8462.79,
+      "kbPerSecond": 712692.58,
+      "p50": 1,
+      "p95": 2,
+      "p99": 61,
+      "max": 71,
+      "memory": {
+        "cgroupMB": 152.9,
+        "peakMB": 157,
+        "anonMB": 147,
+        "fileMB": 0,
+        "nodeRssMB": 195.9
+      }
+    },
+    {
+      "label": "WebP animado del pie",
+      "path": "/assets/lata-spray-walk-seedance-224-CtuyZQqy.webp",
+      "n": 1000,
+      "c": 20,
+      "bytes": 663248,
+      "failed": 0,
+      "non2xx": 0,
+      "rps": 2909.97,
+      "kbPerSecond": 1887798.42,
+      "p50": 3,
+      "p95": 55,
+      "p99": 59,
+      "max": 60,
+      "memory": {
+        "cgroupMB": 146.8,
+        "peakMB": 164.9,
+        "anonMB": 141.3,
+        "fileMB": 0,
+        "nodeRssMB": 190.2
+      }
+    },
+    {
+      "label": "GET /api/drops",
+      "path": "/api/drops",
+      "n": 5000,
+      "c": 20,
+      "bytes": 61,
+      "failed": 0,
+      "non2xx": 0,
+      "rps": 34541.12,
+      "kbPerSecond": 33596.64,
+      "p50": 0,
+      "p95": 1,
+      "p99": 1,
+      "max": 20,
+      "memory": {
+        "cgroupMB": 153.7,
+        "peakMB": 164.9,
+        "anonMB": 148.1,
+        "fileMB": 0,
+        "nodeRssMB": 197.3
+      }
+    },
+    {
+      "label": "GET /api/shopify/status",
+      "path": "/api/shopify/status",
+      "n": 1500,
+      "c": 20,
+      "bytes": 140,
+      "failed": 0,
+      "non2xx": 0,
+      "rps": 28399.95,
+      "kbPerSecond": 32023.9,
+      "p50": 0,
+      "p95": 2,
+      "p99": 2,
+      "max": 9,
+      "memory": {
+        "cgroupMB": 155.1,
+        "peakMB": 164.9,
+        "anonMB": 149.4,
+        "fileMB": 0,
+        "nodeRssMB": 198.6
+      }
+    }
+  ],
+  "oomKilled": "false",
+  "exitCode": "0",
+  "afterLoad": {
+    "cgroupMB": 155,
+    "peakMB": 164.9,
+    "anonMB": 149.4,
+    "fileMB": 0,
+    "nodeRssMB": 198.6
+  },
+  "afterLoadSettled": {
+    "cgroupMB": 155.1,
+    "peakMB": 164.9,
+    "anonMB": 149.4,
+    "fileMB": 0,
+    "nodeRssMB": 198.6
+  }
+}

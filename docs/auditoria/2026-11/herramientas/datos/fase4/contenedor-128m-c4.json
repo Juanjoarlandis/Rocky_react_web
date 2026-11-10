@@ -1,0 +1,103 @@
+{
+  "image": "rocky035:lineabase-7effff4",
+  "memory": "128m",
+  "cpus": 1,
+  "date": "2026-11-10T11:01:41.319Z",
+  "startupMs": 214,
+  "bootInsideMs": 175,
+  "idle": {
+    "cgroupMB": 24.5,
+    "peakMB": 28.7,
+    "anonMB": 21.3,
+    "fileMB": 0,
+    "nodeRssMB": 70.2
+  },
+  "concurrency": 4,
+  "load": [
+    {
+      "label": "index.html",
+      "path": "/",
+      "n": 5000,
+      "c": 4,
+      "bytes": 2685,
+      "failed": 0,
+      "non2xx": 0,
+      "rps": 9561.51,
+      "kbPerSecond": 34865.89,
+      "p50": 0,
+      "p95": 1,
+      "p99": 1,
+      "max": 45,
+      "memory": {
+        "cgroupMB": 47.5,
+        "peakMB": 51.2,
+        "anonMB": 43.7,
+        "fileMB": 0,
+        "nodeRssMB": 92.7
+      }
+    },
+    {
+      "label": "JS principal",
+      "path": "/assets/index-tSIRmsyj.js",
+      "n": 2000,
+      "c": 4,
+      "bytes": 322953,
+      "failed": 0,
+      "non2xx": 0,
+      "rps": 3052.7,
+      "kbPerSecond": 966000.28,
+      "p50": 0,
+      "p95": 1,
+      "p99": 50,
+      "max": 66,
+      "memory": {
+        "cgroupMB": 122.4,
+        "peakMB": 126.2,
+        "anonMB": 117.6,
+        "fileMB": 0,
+        "nodeRssMB": 166.7
+      }
+    },
+    {
+      "label": "JS principal (Accept-Encoding: br, gzip)",
+      "path": "/assets/index-tSIRmsyj.js",
+      "n": 2000,
+      "c": 4,
+      "bytes": 322953,
+      "failed": 0,
+      "non2xx": 0,
+      "rps": 3829.79,
+      "kbPerSecond": 1211903.77,
+      "p50": 0,
+      "p95": 1,
+      "p99": 47,
+      "max": 56,
+      "memory": {
+        "cgroupMB": 124.5,
+        "peakMB": 128,
+        "anonMB": 120.1,
+        "fileMB": 0,
+        "nodeRssMB": 169.1
+      }
+    },
+    {
+      "label": "CSS principal",
+      "path": "/assets/index-DTxCop9T.css",
+      "n": 3000,
+      "c": 4,
+      "bytes": null,
+      "failed": null,
+      "non2xx": 0,
+      "rps": null,
+      "kbPerSecond": null,
+      "p50": null,
+      "p95": null,
+      "p99": null,
+      "max": null,
+      "memory": null
+    }
+  ],
+  "diedDuring": "CSS principal",
+  "oomKilled": "true",
+  "exitCode": "137"
+}

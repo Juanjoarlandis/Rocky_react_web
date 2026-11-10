@@ -1,0 +1,59 @@
+{
+  "image": "rocky035:lineabase-7effff4",
+  "memory": "128m",
+  "cpus": 1,
+  "date": "2026-11-10T11:01:36.309Z",
+  "startupMs": 201,
+  "bootInsideMs": 161,
+  "idle": {
+    "cgroupMB": 24.2,
+    "peakMB": 28.6,
+    "anonMB": 21,
+    "fileMB": 0,
+    "nodeRssMB": 69.8
+  },
+  "concurrency": 20,
+  "load": [
+    {
+      "label": "index.html",
+      "path": "/",
+      "n": 5000,
+      "c": 20,
+      "bytes": 2685,
+      "failed": 0,
+      "non2xx": 0,
+      "rps": 7840.73,
+      "kbPerSecond": 28591.09,
+      "p50": 1,
+      "p95": 4,
+      "p99": 38,
+      "max": 53,
+      "memory": {
+        "cgroupMB": 53.5,
+        "peakMB": 57.4,
+        "anonMB": 49.8,
+        "fileMB": 0,
+        "nodeRssMB": 98.8
+      }
+    },
+    {
+      "label": "JS principal",
+      "path": "/assets/index-tSIRmsyj.js",
+      "n": 2000,
+      "c": 20,
+      "bytes": null,
+      "failed": null,
+      "non2xx": 0,
+      "rps": null,
+      "kbPerSecond": null,
+      "p50": null,
+      "p95": null,
+      "p99": null,
+      "max": null,
+      "memory": null
+    }
+  ],
+  "diedDuring": "JS principal",
+  "oomKilled": "true",
+  "exitCode": "137"
+}

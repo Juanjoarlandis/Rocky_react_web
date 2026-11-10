@@ -17,6 +17,7 @@ Plan y criterios de aceptación: `openspec/changes/auditoria-integral-web/`
 | [`arte.md`](arte.md) | Inventario de arte y revisión de dirección artística. |
 | [`metricas.md`](metricas.md) | Métricas de partida y comandos para repetirlas. |
 | [`plan-fases.md`](plan-fases.md) | Hallazgos agrupados en cambios candidatos para las fases 2–4. |
+| [`linea-base-fase-4.md`](linea-base-fase-4.md) | Línea base de rendimiento del commit `7effff4` (2026-11-10), antes de la fase 4: build, Lighthouse, navegador, servidor en contenedor limitado y almacén. |
 | `capturas/` | Capturas que respaldan hallazgos y la revisión de arte. |
 | [`herramientas/`](herramientas/README.md) | Scripts con los que se generó todo (Playwright, doble de Shopify y OpenRouter, Lighthouse, inventario, montaje). |
 

@@ -1,0 +1,155 @@
+{
+  "image": "rocky035:lineabase-7effff4",
+  "memory": "256m",
+  "cpus": 1,
+  "date": "2026-11-10T10:39:59.913Z",
+  "startupMs": 211,
+  "bootInsideMs": 171,
+  "idle": {
+    "cgroupMB": 24.9,
+    "peakMB": 29.1,
+    "anonMB": 21.3,
+    "fileMB": 0,
+    "nodeRssMB": 70
+  },
+  "idleCpuNoHealthcheck": {
+    "seconds": 60,
+    "cpuMs": 17,
+    "percentOfOneCpu": 0.03
+  },
+  "load": [
+    {
+      "label": "index.html",
+      "path": "/",
+      "n": 5000,
+      "c": 20,
+      "bytes": 2685,
+      "failed": 0,
+      "non2xx": 0,
+      "rps": 10139.01,
+      "kbPerSecond": 36971.73,
+      "p50": 1,
+      "p95": 3,
+      "p99": 31,
+      "max": 58
+    },
+    {
+      "label": "JS principal",
+      "path": "/assets/index-tSIRmsyj.js",
+      "n": 2000,
+      "c": 20,
+      "bytes": 322953,
+      "failed": 0,
+      "non2xx": 0,
+      "rps": 3357.06,
+      "kbPerSecond": 1062313.47,
+      "p50": 2,
+      "p95": 53,
+      "p99": 65,
+      "max": 65
+    },
+    {
+      "label": "JS principal (Accept-Encoding: br, gzip)",
+      "path": "/assets/index-tSIRmsyj.js",
+      "n": 2000,
+      "c": 20,
+      "bytes": 322953,
+      "failed": 0,
+      "non2xx": 0,
+      "rps": 3970.04,
+      "kbPerSecond": 1256285.69,
+      "p50": 2,
+      "p95": 54,
+      "p99": 58,
+      "max": 60
+    },
+    {
+      "label": "CSS principal",
+      "path": "/assets/index-DTxCop9T.css",
+      "n": 3000,
+      "c": 20,
+      "bytes": 85168,
+      "failed": 0,
+      "non2xx": 0,
+      "rps": 7935.84,
+      "kbPerSecond": 668315.2,
+      "p50": 1,
+      "p95": 2,
+      "p99": 48,
+      "max": 65
+    },
+    {
+      "label": "WebP animado del pie",
+      "path": "/assets/lata-spray-walk-seedance-224-CtuyZQqy.webp",
+      "n": 1000,
+      "c": 20,
+      "bytes": 663248,
+      "failed": 0,
+      "non2xx": 0,
+      "rps": 2494.61,
+      "kbPerSecond": 1618336.29,
+      "p50": 3,
+      "p95": 52,
+      "p99": 59,
+      "max": 59
+    },
+    {
+      "label": "GET /api/drops",
+      "path": "/api/drops",
+      "n": 5000,
+      "c": 20,
+      "bytes": 61,
+      "failed": 0,
+      "non2xx": 0,
+      "rps": 26270.02,
+      "kbPerSecond": 25551.7,
+      "p50": 0,
+      "p95": 1,
+      "p99": 1,
+      "max": 45
+    },
+    {
+      "label": "GET /api/shopify/status",
+      "path": "/api/shopify/status",
+      "n": 1500,
+      "c": 20,
+      "bytes": 140,
+      "failed": 0,
+      "non2xx": 0,
+      "rps": 17795.07,
+      "kbPerSecond": 20065.8,
+      "p50": 1,
+      "p95": 2,
+      "p99": 31,
+      "max": 31
+    }
+  ],
+  "afterLoad": {
+    "cgroupMB": 152.4,
+    "peakMB": 157.8,
+    "anonMB": 146.7,
+    "fileMB": 0.2,
+    "nodeRssMB": 195.8
+  },
+  "afterLoadSettled": {
+    "cgroupMB": 152.2,
+    "peakMB": 157.8,
+    "anonMB": 146.7,
+    "fileMB": 0.2,
+    "nodeRssMB": 195.8
+  },
+  "oomKilled": "false",
+  "idleCpuWithHealthcheck": {
+    "seconds": 120,
+    "cpuMs": 372,
+    "percentOfOneCpu": 0.31
+  },
+  "idleWithHealthcheck": {
+    "cgroupMB": 24.6,
+    "peakMB": 53,
+    "anonMB": 21.4,
+    "fileMB": 0,
+    "nodeRssMB": 70.3
+  },
+  "health": "healthy"
+}

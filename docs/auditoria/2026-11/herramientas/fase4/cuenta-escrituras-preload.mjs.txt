@@ -1,0 +1,23 @@
+// Precarga (NODE_OPTIONS=--import) que cuenta los volcados a disco del almacén
+// cifrado sin tocar el código del servidor: envuelve writeState() y anota cada
+// volcado (instante, bytes del fichero y milisegundos) en ROCKY_WRITE_LOG.
+import fs from 'node:fs';
+
+const { EncryptedFileStore } = await import(process.env.ROCKY_STORE_MODULE);
+const original = EncryptedFileStore.prototype.writeState;
+
+EncryptedFileStore.prototype.writeState = async function countedWriteState(state) {
+  const startedAt = performance.now();
+  const result = await original.call(this, state);
+  let bytes = 0;
+  try {
+    bytes = fs.statSync(this.filePath).size;
+  } catch {
+    /* el fichero puede no existir todavía */
+  }
+  fs.appendFileSync(
+    process.env.ROCKY_WRITE_LOG,
+    `${JSON.stringify({ t: Date.now(), bytes, ms: Math.round((performance.now() - startedAt) * 100) / 100 })}\n`
+  );
+  return result;
+};
