@@ -477,6 +477,33 @@ describe('La consola', () => {
     );
   });
 
+  it('con las ocho pistas sonando El Freeze hace su truco; al callar una vuelve al balanceo', async () => {
+    vi.stubGlobal('AudioContext', FakeAudioContext);
+    vi.stubGlobal('requestAnimationFrame', () => 0);
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    const user = userEvent.setup();
+    try {
+      const { container } = montar();
+      const freeze = container.querySelector('.mesa-dancer');
+      await user.click(screen.getByRole('button', { name: 'Limpiar' }));
+      for (const fila of filas()) {
+        await user.click(within(fila).getAllByRole('button', { name: /, paso \d+$/ })[0]);
+      }
+      // Parada no hay truco, aunque las ocho tengan pasos
+      expect(freeze).not.toHaveClass('is-lleno');
+      await user.click(screen.getByRole('button', { name: 'Reproducir el beat' }));
+      expect(freeze).toHaveClass('is-lleno');
+      await user.click(within(consola()).getByRole('button', { name: 'Silenciar Tom' }));
+      expect(freeze).not.toHaveClass('is-lleno');
+      await user.click(within(consola()).getByRole('button', { name: 'Silenciar Tom' }));
+      expect(freeze).toHaveClass('is-lleno');
+      await user.click(screen.getByRole('button', { name: 'Parar el beat' }));
+      expect(freeze).not.toHaveClass('is-lleno');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('el fader anuncia su valor', () => {
     montar();
     const fader = within(consola()).getByRole('slider', { name: 'Volumen de Caja' });

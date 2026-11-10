@@ -1,7 +1,11 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { subscribeDropNotice } from '../../api/avisos.js';
 import Cartel from './Cartel';
+
+// El aviso se apunta en el servidor: aquí solo importa qué pasa con el resguardo.
+vi.mock('../../api/avisos.js', () => ({ subscribeDropNotice: vi.fn() }));
 
 const NOW = Date.parse('2026-11-10T12:00:00Z');
 const serverNow = () => Date.now();
@@ -64,6 +68,16 @@ describe('Cartel', () => {
     expect(within(cartel).getByText('Próximamente')).toBeInTheDocument();
     expect(cartel.textContent).not.toMatch(/Sin frenos|Descontrol/);
     expect(within(cartel).queryByRole('link', { name: /entrar al drop/i })).toBeNull();
+  });
+
+  it('la hoja dice la fecha una sola vez, también en la página del drop', () => {
+    const muro = renderCartel(base);
+    expect(screen.getAllByText(/hora de Madrid/)).toHaveLength(1);
+    muro.unmount();
+    renderCartel(base, { cabecera: true });
+    // En la página del drop la dice el calendario, junto a sus botones
+    expect(screen.getAllByText(/hora de Madrid/)).toHaveLength(1);
+    expect(screen.getByRole('link', { name: 'Añadir al calendario' })).toBeInTheDocument();
   });
 
   it('con muchos diseños enseña seis siluetas y cuántos más hay', () => {
@@ -198,6 +212,77 @@ describe('Pestañas de aviso del cartel', () => {
     pestanas[1].focus();
     fireEvent.click(pestanas[1]);
     expect(email).toHaveFocus();
+  });
+
+  it('una nota a mano invita a arrancar: es decorativa y desaparece al arrancar la primera', () => {
+    const { container } = renderCartel(base);
+    const nota = container.querySelector('.pestanas-nota');
+    expect(nota).toHaveTextContent(/arranca una/i);
+    // Fuera del lector: el botón ya dice lo que hace
+    expect(nota.closest('[aria-hidden="true"]')).not.toBeNull();
+    expect(
+      screen.queryByText(/arranca una/i, { ignore: '[aria-hidden="true"], [aria-hidden="true"] *' })
+    ).toBeNull();
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Avísame cuando caiga el ROCKY DROP 6' })[0]
+    );
+    expect(container.querySelector('.pestanas-nota')).toBeNull();
+  });
+
+  it('la pestaña arrancada se queda como resguardo con la fecha, sin sello hasta apuntarse', async () => {
+    vi.mocked(subscribeDropNotice).mockResolvedValue({ duplicate: false });
+    try {
+      const { container } = renderCartel(base);
+      expect(container.querySelector('.resguardo')).toBeNull();
+      fireEvent.click(
+        screen.getAllByRole('button', { name: 'Avísame cuando caiga el ROCKY DROP 6' })[0]
+      );
+      const resguardo = container.querySelector('.resguardo');
+      expect(resguardo).toHaveTextContent('13·11');
+      expect(resguardo).not.toHaveClass('is-sellado');
+      expect(resguardo.querySelector('.resguardo-sello')).toBeNull();
+      // Decorativo: quien avisa de que está apuntado es el aviso
+      expect(resguardo).toHaveAttribute('aria-hidden', 'true');
+
+      fireEvent.change(screen.getByRole('textbox', { name: 'Tu email para el aviso del drop' }), {
+        target: { value: 'ana@example.com' },
+      });
+      fireEvent.click(screen.getByRole('checkbox'));
+      fireEvent.click(screen.getByRole('button', { name: 'Avísame' }));
+      expect(await screen.findByText('Recado apuntado')).toBeInTheDocument();
+      await waitFor(() => expect(container.querySelector('.resguardo')).toHaveClass('is-sellado'));
+      expect(container.querySelector('.resguardo-sello')).toHaveTextContent(/apuntado/i);
+    } finally {
+      window.localStorage.removeItem('rocky-aviso-rocky-drop-6');
+    }
+  });
+
+  it('si el aviso falla, el resguardo sigue sin sello y se ve el error', async () => {
+    vi.mocked(subscribeDropNotice).mockRejectedValue(new Error('No hemos podido apuntarte.'));
+    const { container } = renderCartel(base);
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Avísame cuando caiga el ROCKY DROP 6' })[0]
+    );
+    fireEvent.change(screen.getByRole('textbox', { name: 'Tu email para el aviso del drop' }), {
+      target: { value: 'ana@example.com' },
+    });
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Avísame' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('No hemos podido apuntarte.');
+    expect(container.querySelector('.resguardo')).not.toHaveClass('is-sellado');
+  });
+
+  it('quien ya estaba apuntado ve el resguardo sellado desde el principio', () => {
+    window.localStorage.setItem('rocky-aviso-rocky-drop-6', '1');
+    try {
+      const { container } = renderCartel(base);
+      fireEvent.click(
+        screen.getAllByRole('button', { name: 'Avísame cuando caiga el ROCKY DROP 6' })[0]
+      );
+      expect(container.querySelector('.resguardo')).toHaveClass('is-sellado');
+    } finally {
+      window.localStorage.removeItem('rocky-aviso-rocky-drop-6');
+    }
   });
 
   it('si ya estaba apuntado, el foco va al aviso y no se pierde', () => {

@@ -61,6 +61,7 @@
     --uv-violet-soft: #c4adff;
     --uv-lime-rgb: 212, 255, 38;
     --uv-violet-rgb: 157, 114, 255;
+    --uv-violet-soft-rgb: 196, 173, 255;
     /* El cursor con el spray en la mano: la boquilla, en lima. */
     --spray-cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'><circle cx='14' cy='14' r='9' fill='none' stroke='%23d4ff26' stroke-width='2' stroke-dasharray='3 3'/><circle cx='14' cy='14' r='2' fill='%23d4ff26'/></svg>")
       14 14;

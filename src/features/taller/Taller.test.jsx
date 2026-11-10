@@ -430,6 +430,21 @@ describe('El Taller: la pared', () => {
     return screen.findByRole('region', { name: 'La pared compartida' });
   }
 
+  it('las secciones son botones de la casa y marcan la activa, sin estilos de la mesa', async () => {
+    await abrirPared();
+    const drops = screen.getByRole('button', { name: 'Drops' });
+    const pared = screen.getByRole('button', { name: 'La pared' });
+    for (const boton of [drops, pared]) {
+      expect(boton).toHaveClass('btn');
+      // «chip» solo tiene estilo en la hoja de la mesa, que carga el Estudio
+      expect(boton).not.toHaveClass('chip');
+    }
+    expect(pared).toHaveClass('btn--primary');
+    expect(pared).toHaveAttribute('aria-pressed', 'true');
+    expect(drops).not.toHaveClass('btn--primary');
+    expect(drops).toHaveAttribute('aria-pressed', 'false');
+  });
+
   it('lista las paredes con sus reportes y el estado del interruptor', async () => {
     const seccion = await abrirPared();
     expect(await within(seccion).findByText(/encendida/i)).toBeInTheDocument();
@@ -466,6 +481,41 @@ describe('El Taller: la pared', () => {
         firma: 'TELE-2',
       })
     );
+  });
+
+  it('poner el foco o el cursor en una firma destaca lo suyo en la vista previa, y al salir vuelve', async () => {
+    const seccion = await abrirPared();
+    fireEvent.click(await within(seccion).findByRole('button', { name: /\/crew · ancha/ }));
+    const tele = await within(seccion).findByRole('listitem', { name: 'TELE-2' });
+    const vista = () => within(seccion).getByRole('img', { name: /Vista previa de la pared/ });
+    expect(vista()).not.toHaveAccessibleName(/destacando/);
+
+    fireEvent.focus(within(tele).getByRole('button', { name: 'Ocultar' }));
+    expect(vista()).toHaveAccessibleName(/destacando lo de TELE-2/);
+    expect(tele).toHaveClass('is-resaltada');
+    fireEvent.blur(within(tele).getByRole('button', { name: 'Ocultar' }));
+    expect(vista()).not.toHaveAccessibleName(/destacando/);
+    expect(tele).not.toHaveClass('is-resaltada');
+
+    fireEvent.pointerMove(tele);
+    expect(vista()).toHaveAccessibleName(/destacando lo de TELE-2/);
+    fireEvent.pointerLeave(tele);
+    expect(vista()).not.toHaveAccessibleName(/destacando/);
+  });
+
+  it('tras ocultar lo de una firma, con el foco aún en su fila, sigue destacada', async () => {
+    const seccion = await abrirPared();
+    fireEvent.click(await within(seccion).findByRole('button', { name: /\/crew · ancha/ }));
+    const tele = await within(seccion).findByRole('listitem', { name: 'TELE-2' });
+    const ocultar = within(tele).getByRole('button', { name: 'Ocultar' });
+    fireEvent.focus(ocultar);
+    api.ocultarFirma.mockResolvedValue({ ok: true });
+    fireEvent.click(ocultar);
+    await waitFor(() => expect(api.ocultarFirma).toHaveBeenCalled());
+    await waitFor(() => expect(api.detallePared).toHaveBeenCalledTimes(2));
+    expect(
+      within(seccion).getByRole('img', { name: /Vista previa de la pared/ })
+    ).toHaveAccessibleName(/destacando lo de TELE-2/);
   });
 
   it('limpia una pared entera con dos pulsaciones', async () => {

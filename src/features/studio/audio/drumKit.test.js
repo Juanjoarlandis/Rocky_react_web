@@ -3,6 +3,7 @@ import { redoble, triggerVoice } from '../../../audio/voices';
 import { TRACKS, VELOCIDADES, padsDelBanco } from '../../../data/mesa';
 import {
   applyMix,
+  estadosDelPublico,
   hitPad,
   isAudible,
   pistasQueSuenan,
@@ -165,6 +166,85 @@ describe('quién suena (para el público de La Colmena)', () => {
     const solos = [...nadie];
     solos[0] = true;
     expect(pistasQueSuenan(pattern, { mutes: nadie, solos }).slice(0, 2)).toEqual([true, false]);
+  });
+
+  it('el público: baila quien suena, duerme quien tiene pasos y está callado, y el resto se sienta', () => {
+    const pattern = vacio();
+    pattern[0][0] = 3; // bombo
+    pattern[1][4] = 3; // caja
+    pattern[2][2] = 1; // hi-hat
+    const mutes = [...nadie];
+    mutes[1] = true;
+    const { miembros, lleno } = estadosDelPublico(pattern, { mutes, solos: nadie, playing: true });
+    expect(miembros.slice(0, 4).map((m) => m.estado)).toEqual([
+      'baila',
+      'duerme',
+      'baila',
+      'sentado',
+    ]);
+    expect(miembros.some((m) => m.solo)).toBe(false);
+    expect(lleno).toBe(false);
+  });
+
+  it('el público: el solo pone el foco en quien suena y duerme a los demás con pasos', () => {
+    const pattern = vacio();
+    pattern[0][0] = 3;
+    pattern[1][4] = 3;
+    pattern[2][2] = 1;
+    const solos = [...nadie];
+    solos[2] = true;
+    const { miembros } = estadosDelPublico(pattern, { mutes: nadie, solos, playing: true });
+    expect(miembros.slice(0, 4).map((m) => m.estado)).toEqual([
+      'duerme',
+      'duerme',
+      'baila',
+      'sentado',
+    ]);
+    expect(miembros.map((m) => m.solo)).toEqual([
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+    ]);
+  });
+
+  it('el público: el solo de una pista sin pasos no tiene foco, porque no suena', () => {
+    const pattern = vacio();
+    pattern[0][0] = 3;
+    const solos = [...nadie];
+    solos[3] = true;
+    const { miembros } = estadosDelPublico(pattern, { mutes: nadie, solos, playing: true });
+    expect(miembros[3]).toEqual({ estado: 'sentado', solo: false });
+    expect(miembros[0].estado).toBe('duerme');
+  });
+
+  it('el público: con la mesa parada nadie duerme ni tiene foco, aunque haya mutes y solos', () => {
+    const pattern = vacio();
+    pattern[0][0] = 3;
+    pattern[1][4] = 3;
+    const mutes = [...nadie];
+    mutes[1] = true;
+    const solos = [...nadie];
+    solos[0] = true;
+    const { miembros, lleno } = estadosDelPublico(pattern, { mutes, solos, playing: false });
+    expect(miembros.every((m) => m.estado === 'sentado' && !m.solo)).toBe(true);
+    expect(lleno).toBe(false);
+  });
+
+  it('el público: lleno solo cuando suenan las ocho pistas', () => {
+    const ocho = vacio().map((steps) => steps.map((_, i) => (i === 0 ? 2 : 0)));
+    const mezcla = { mutes: nadie, solos: nadie, playing: true };
+    expect(estadosDelPublico(ocho, mezcla).lleno).toBe(true);
+    const siete = ocho.map((steps, i) => (i === 7 ? steps.map(() => 0) : steps));
+    expect(estadosDelPublico(siete, mezcla).lleno).toBe(false);
+    const mutes = [...nadie];
+    mutes[4] = true;
+    expect(estadosDelPublico(ocho, { ...mezcla, mutes }).lleno).toBe(false);
+    expect(estadosDelPublico(ocho, { ...mezcla, playing: false }).lleno).toBe(false);
   });
 
   it('sin pasos no suena nada', () => {

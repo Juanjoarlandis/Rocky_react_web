@@ -211,7 +211,7 @@ function TallerPanel({ onSalir }) {
           <button
             key={id}
             type="button"
-            className={`chip${vista === id ? ' is-on' : ''}`}
+            className={`btn btn--sm ${vista === id ? 'btn--primary' : 'btn--ghost'}`}
             aria-pressed={vista === id}
             onClick={() => setVista(id)}
           >

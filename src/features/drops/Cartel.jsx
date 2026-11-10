@@ -89,7 +89,8 @@ export default function Cartel({
 
       {anunciado && (
         <>
-          <p className="cartel-cuando">{fechaAccesible(drop.launchAt)}</p>
+          {/* En la página del drop la fecha la dice el calendario, con sus botones */}
+          {!cabecera && <p className="cartel-cuando">{fechaAccesible(drop.launchAt)}</p>}
           <CuentaAtras target={drop.launchAt} serverNow={serverNow} />
           {drop.designCount > 0 && (
             <div className="cartel-siluetas">

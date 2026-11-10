@@ -7,7 +7,14 @@ import Rejilla from './mesa/Rejilla.jsx';
 import Consola from './mesa/Consola.jsx';
 import Publico from './mesa/Publico.jsx';
 import { createEngine } from '../../audio/engine';
-import { applyMix, hitPad, isAudible, trackIndexOf, triggerTrack } from './audio/drumKit';
+import {
+  applyMix,
+  estadosDelPublico,
+  hitPad,
+  isAudible,
+  trackIndexOf,
+  triggerTrack,
+} from './audio/drumKit';
 import { cargarCortesBarro } from './audio/barro';
 import { useStepSequencer } from './useStepSequencer';
 import {
@@ -445,6 +452,9 @@ function BeatMachine() {
     }
   };
 
+  // Con las ocho pistas sonando El Freeze cambia el balanceo por su truco
+  const { lleno } = estadosDelPublico(pattern, { mutes, solos, playing });
+
   // El Freeze baila a la velocidad del beat (un balanceo cada 2 pulsos)
   const danceStyle = {
     animationDuration: `${(60 / bpm) * 2}s`,
@@ -458,7 +468,7 @@ function BeatMachine() {
         width="604"
         height="600"
         alt=""
-        className="doodle mesa-dancer neon-art"
+        className={`doodle mesa-dancer neon-art${lleno ? ' is-lleno' : ''}`}
         style={danceStyle}
       />
 

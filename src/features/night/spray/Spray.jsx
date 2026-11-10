@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   SPRAY_COLOR_NAMES,
+  atenuar,
   drawDrip,
   drawStroke,
   drawTag,
@@ -14,6 +15,7 @@ import {
 } from './paint.js';
 import { loadPage, savePage } from './sprayStore.js';
 import { useParedCompartida } from './useParedCompartida.js';
+import { traquetear } from './rattle.js';
 import { STORAGE_KEYS } from '../../../config/storageKeys.js';
 import { readStorage, writeStorage } from '../../../utils/storage.js';
 import { composeShareImage, shareOrDownload } from './shareImage.js';
@@ -59,6 +61,32 @@ function SprayCanIcon() {
   );
 }
 
+// Un bote de spray: tapa, boquilla, cuerpo del color (--spray-color) y su
+// etiqueta. La nube de pintura solo se ve en el que se tiene cogido.
+function Bote() {
+  return (
+    <svg
+      className="spray-bote"
+      viewBox="0 0 26 44"
+      width="26"
+      height="44"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <g className="spray-bote-nube">
+        <circle cx="20.5" cy="3.6" r="1.6" />
+        <circle cx="24" cy="6.2" r="1.2" />
+        <circle cx="23.2" cy="1.6" r="1" />
+      </g>
+      <rect className="spray-bote-tapa" x="10.5" y="3" width="5" height="4.5" rx="1" />
+      <path className="spray-bote-tapa" d="M7 12.5 Q7 7.5 13 7.5 Q19 7.5 19 12.5 Z" />
+      <rect className="spray-bote-cuerpo" x="4" y="12" width="18" height="30" rx="3.5" />
+      <rect className="spray-bote-etiqueta" x="5" y="21.5" width="16" height="10" />
+      <circle className="spray-bote-punto" cx="13" cy="26.5" r="2.6" />
+    </svg>
+  );
+}
+
 /* El spray del descontrol: se coge del bote flotante y se pinta sobre la
    pared (detrás del contenido, como el resto de la luz negra). Con la pared
    compartida encendida, cada trazo se sube y lo ve todo el que pase de noche,
@@ -91,6 +119,17 @@ export default function Spray({ pathname }) {
   modoReporteRef.current = modoReporte;
   const [aReportar, setAReportar] = useState(null);
   const [avisoVisto, setAvisoVisto] = useState(() => Boolean(readStorage(STORAGE_KEYS.paredAviso)));
+  // La firma de la lista que se está mirando: lo suyo se destaca en la pared
+  // para saber qué pintó. El cursor y el foco van por separado (perder el foco
+  // no apaga lo que señala el cursor) y manda el cursor. Si esa firma ya no
+  // está en la pared (la crew la ha borrado), no hay nada que destacar.
+  const [conCursor, setConCursor] = useState(null);
+  const [conFoco, setConFoco] = useState(null);
+  const pedida = conCursor ?? conFoco;
+  const resaltada = pared.firmas.some((entrada) => entrada.firma === pedida) ? pedida : null;
+  const resaltadaRef = useRef(null);
+  resaltadaRef.current = resaltada;
+  const cursorRef = useRef({ timer: 0, firma: null });
 
   const [active, setActive] = useState(false);
   const [color, setColor] = useState(0);
@@ -113,9 +152,24 @@ export default function Spray({ pathname }) {
     const fuente =
       getComputedStyle(document.documentElement).getPropertyValue('--font-display').trim() ||
       'sans-serif';
-    posicionesDeFirmas(sharedRef.current, centro).forEach(({ x, y, c }, firma) => {
-      drawTag(ctx, firma, x, y, colors[c] ?? colors[0], fuente);
-    });
+    // Los sitios de las firmas se calculan una vez con la pared entera: al
+    // destacar una, su firma se repinta donde estaba, no donde caería sola.
+    const sitios = posicionesDeFirmas(sharedRef.current, centro, width);
+    const firmar = (lista) =>
+      lista.forEach(({ firma, x, y, c }) => {
+        drawTag(ctx, firma, x, y, colors[c] ?? colors[0], fuente);
+      });
+    firmar(sitios);
+    // Con una firma destacada, todo lo demás se atenúa y lo suyo se repinta
+    // encima a toda luz.
+    const destacada = resaltadaRef.current;
+    if (destacada) {
+      atenuar(ctx, width, height);
+      sharedRef.current
+        .filter((stroke) => stroke.firma === destacada)
+        .forEach((stroke) => drawStroke(ctx, stroke, centro, sprites, colors));
+      firmar(sitios.filter((sitio) => sitio.firma === destacada));
+    }
     pendingRef.current.forEach((stroke) => drawStroke(ctx, stroke, centro, sprites, colors));
   }, []);
 
@@ -152,6 +206,41 @@ export default function Spray({ pathname }) {
     sharedRef.current = pared.strokes;
     redraw();
   }, [pared.strokes, redraw]);
+
+  // Cambia la firma destacada (o se suelta el spray): se repinta.
+  useEffect(() => {
+    redraw();
+  }, [resaltada, redraw]);
+
+  // Con el cursor se espera a que se pare un momento en la fila: recorrer la
+  // lista no repinta la pared entera (que puede ser grande) en cada fila. Y
+  // solo cuenta el cursor que se mueve: si la lista se abre debajo de un
+  // cursor quieto, la pared no se atenúa sola.
+  const apuntar = useCallback((firma) => {
+    const cursor = cursorRef.current;
+    if (cursor.firma === firma) return;
+    cursor.firma = firma;
+    window.clearTimeout(cursor.timer);
+    if (firma === null) {
+      setConCursor(null);
+      return;
+    }
+    cursor.timer = window.setTimeout(() => setConCursor(firma), 80);
+  }, []);
+
+  const soltarDestacado = useCallback(() => {
+    apuntar(null);
+    setConFoco(null);
+  }, [apuntar]);
+
+  useEffect(() => {
+    if (!active) soltarDestacado();
+  }, [active, soltarDestacado]);
+
+  useEffect(() => {
+    const cursor = cursorRef.current;
+    return () => window.clearTimeout(cursor.timer);
+  }, []);
 
   const scheduleSave = useCallback(() => {
     window.clearTimeout(timersRef.current.save);
@@ -414,6 +503,8 @@ export default function Spray({ pathname }) {
   }, [confirmClear]);
 
   const pickColor = (index) => {
+    // Coger otro bote suena; el que ya se tenía, no.
+    if (index !== colorRef.current) traquetear();
     colorRef.current = index;
     setColor(index);
   };
@@ -511,63 +602,67 @@ export default function Spray({ pathname }) {
       <canvas ref={canvasRef} className="spray-wall" aria-hidden="true" data-testid="spray-wall" />
       {active ? (
         <div className="spray-tools" role="toolbar" aria-label="Spray">
-          <div className="spray-colors" role="radiogroup" aria-label="Color del spray">
-            {SPRAY_COLOR_NAMES.map((name, index) => (
-              <button
-                key={name}
-                type="button"
-                role="radio"
-                aria-checked={color === index}
-                aria-label={name}
-                title={name}
-                className={`spray-color${color === index ? ' is-active' : ''}`}
-                style={{ '--spray-color': colors[index] }}
-                onClick={() => pickColor(index)}
-              />
-            ))}
-          </div>
-          <button type="button" className="spray-tool" onClick={undo} disabled={!puedeDeshacer}>
-            Deshacer
-          </button>
-          <button
-            type="button"
-            className={`spray-tool${confirmClear ? ' is-warning' : ''}`}
-            onClick={clear}
-            disabled={!puedeDeshacer}
-          >
-            {confirmClear ? '¿Borrar todo?' : 'Borrar'}
-          </button>
-          <button
-            type="button"
-            className="spray-tool spray-tool--photo"
-            onClick={photo}
-            disabled={!puedeDeshacer || busy}
-          >
-            Foto
-          </button>
-          <button
-            type="button"
-            className="spray-tool spray-tool--close"
-            onClick={() => setActive(false)}
-            aria-label="Soltar el spray"
-            title="Soltar el spray (Esc)"
-          >
-            ✕
-          </button>
-          {pared.compartida && (
+          <div className="spray-fila">
+            <div className="spray-colors" role="radiogroup" aria-label="Color del spray">
+              {SPRAY_COLOR_NAMES.map((name, index) => (
+                <button
+                  key={name}
+                  type="button"
+                  role="radio"
+                  aria-checked={color === index}
+                  aria-label={name}
+                  title={name}
+                  className={`spray-color${color === index ? ' is-active' : ''}`}
+                  style={{ '--spray-color': colors[index] }}
+                  onClick={() => pickColor(index)}
+                >
+                  <Bote />
+                </button>
+              ))}
+            </div>
+            <button type="button" className="spray-tool" onClick={undo} disabled={!puedeDeshacer}>
+              Deshacer
+            </button>
             <button
               type="button"
-              className={`spray-tool${modoReporte ? ' is-warning' : ''}`}
-              onClick={() => {
-                setModoReporte((actual) => !actual);
-                setAReportar(null);
-                setStatus(modoReporte ? '' : 'Pincha en la pintada que quieras reportar.');
-              }}
-              aria-pressed={modoReporte}
+              className={`spray-tool${confirmClear ? ' is-warning' : ''}`}
+              onClick={clear}
+              disabled={!puedeDeshacer}
             >
-              Reportar
+              {confirmClear ? '¿Borrar todo?' : 'Borrar'}
             </button>
-          )}
+            <button
+              type="button"
+              className="spray-tool spray-tool--photo"
+              onClick={photo}
+              disabled={!puedeDeshacer || busy}
+            >
+              Foto
+            </button>
+            <button
+              type="button"
+              className="spray-tool spray-tool--close"
+              onClick={() => setActive(false)}
+              aria-label="Soltar el spray"
+              title="Soltar el spray (Esc)"
+            >
+              ✕
+            </button>
+            {pared.compartida && (
+              <button
+                type="button"
+                className={`spray-tool${modoReporte ? ' is-warning' : ''}`}
+                onClick={() => {
+                  setModoReporte((actual) => !actual);
+                  setAReportar(null);
+                  setStatus(modoReporte ? '' : 'Pincha en la pintada que quieras reportar.');
+                }}
+                aria-pressed={modoReporte}
+              >
+                Reportar
+              </button>
+            )}
+          </div>
           {aReportar && (
             <div className="spray-reporte" role="group" aria-label="Reportar una pintada">
               <button
@@ -586,11 +681,23 @@ export default function Spray({ pathname }) {
             {status || pista}
           </p>
           {pared.compartida && pared.firmas.length > 0 && (
-            <details className="spray-firmas">
+            <details
+              className="spray-firmas"
+              onToggle={(event) => {
+                if (!event.currentTarget.open) soltarDestacado();
+              }}
+            >
               <summary>Firmas en esta pared ({pared.firmas.length})</summary>
               <ul>
                 {pared.firmas.map(({ firma, mia }) => (
-                  <li key={firma}>
+                  <li
+                    key={firma}
+                    className={resaltada === firma ? 'is-resaltada' : undefined}
+                    onPointerMove={() => apuntar(firma)}
+                    onPointerLeave={() => apuntar(null)}
+                    onFocus={() => setConFoco(firma)}
+                    onBlur={() => setConFoco(null)}
+                  >
                     {mia ? (
                       <span>{firma} (tú)</span>
                     ) : (

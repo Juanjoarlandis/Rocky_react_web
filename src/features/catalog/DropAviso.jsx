@@ -12,9 +12,10 @@ import { subscribeDropNotice } from '../../api/avisos.js';
 /* El mostrador de avisos de un drop que aún no ha caído: dejas tu email y El
    Recadero te lo trae el día que salga. El "apodo" es el campo trampa para
    bots — ningún humano lo ve, y el servidor tira a la basura las altas que lo
-   traen relleno. */
+   traen relleno. `onApuntado` avisa a quien lo monta de que el recado ya está
+   en la lista. */
 
-export default function DropAviso({ producto }) {
+export default function DropAviso({ producto, onApuntado }) {
   const [estado, setEstado] = useState(() =>
     readStorage(dropNoticeKey(producto)) ? 'listo' : 'reposo'
   );
@@ -25,6 +26,12 @@ export default function DropAviso({ producto }) {
   const requestRef = useRef(null);
 
   useEffect(() => () => requestRef.current?.abort(), []);
+
+  // Quien lo monta (las pestañas del cartel) sella su resguardo cuando el
+  // recado queda apuntado, también si ya lo estaba de antes.
+  useEffect(() => {
+    if (estado === 'listo') onApuntado?.();
+  }, [estado, onApuntado]);
 
   if (!producto) return null;
 

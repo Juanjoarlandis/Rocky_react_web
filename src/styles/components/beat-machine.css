@@ -285,9 +285,20 @@
     min-width: 165px;
   }
 
+  /* Las leyendas fijas del aparato van serigrafiadas: la misma letra que la
+     pantalla y los códigos de los pads. Lo que se elige sigue en letra de mano. */
+  .mando-nombre,
+  .mesa-presets-titulo,
+  .pads-tono > span {
+    font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+    font-size: var(--text-2xs);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(var(--card-rgb), 0.58);
+  }
+
   .mando-nombre {
     white-space: nowrap;
-    color: rgba(var(--card-rgb), 0.62);
   }
 
   .mando-valor {
@@ -313,10 +324,6 @@
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
-  }
-
-  .mesa-presets-titulo {
-    color: rgba(var(--card-rgb), 0.55);
   }
 
   .chip {
@@ -607,7 +614,6 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    color: rgba(var(--card-rgb), 0.55);
   }
 
   .pads-tono select {
@@ -791,6 +797,14 @@
     flex-wrap: wrap;
   }
 
+  /* El botón principal de la web es tinta sobre papel: sobre el chasis oscuro
+     no se vería. Aquí es de miel, como lo elegido en la mesa. */
+  .mesa-acciones .btn--primary {
+    border-color: var(--gold);
+    background-color: var(--gold);
+    color: var(--ink-fixed);
+  }
+
   .mesa-nota {
     margin: 0;
     flex: 1;
@@ -892,13 +906,33 @@
     display: none;
   }
 
+  /* Un canal, como en una mesa de mezclas: el carril (vúmetro, fader y
+     escala), mute y solo, y el nombre en su cinta. --luz es el color de la
+     pista, el mismo de su fila en la rejilla. */
   .canal {
+    --luz: var(--gold);
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
-    padding: 10px 4px 8px;
-    border-radius: 10px;
+    gap: 6px;
+    min-width: 0;
+    padding: 6px 2px 4px;
+    border-inline-start: 1px solid rgba(var(--card-rgb), 0.07);
+  }
+
+  .canal:first-child {
+    border-inline-start: 0;
+  }
+
+  .canal:nth-child(1),
+  .canal:nth-child(8) {
+    --luz: var(--accent);
+  }
+
+  .canal:nth-child(3),
+  .canal:nth-child(4),
+  .canal:nth-child(6) {
+    --luz: var(--mesa-cyan);
   }
 
   .canal.is-callado {
@@ -906,45 +940,129 @@
   }
 
   .canal--maestro {
-    border-left: 2px dashed var(--mesa-line);
+    border-inline-start: 2px dashed var(--mesa-line);
   }
 
-  /* Vúmetro de canal: una barra que sube con --nivel (lo pinta la mesa) */
+  .canal-carril {
+    display: grid;
+    grid-template-columns: 9px 30px 5px;
+    justify-content: center;
+    gap: 6px;
+    block-size: 82px;
+  }
+
+  /* La escala de la ranura: ocho rayas entre los dos topes del capuchón. */
+  .canal-carril::after {
+    content: '';
+    margin-block: 7px;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      rgba(var(--card-rgb), 0.36) 0 1px,
+      transparent 1px 9.57px
+    );
+  }
+
+  /* Vúmetro de canal: una escalera de ledes. Los apagados se intuyen; los
+     encendidos los descubre --nivel (lo pinta la mesa) de abajo arriba, y el
+     color es el de la altura: verde, ámbar arriba y rojo en el tope. */
   .canal-vu {
     --nivel: 0;
     position: relative;
-    width: 12px;
-    height: 72px;
     overflow: hidden;
     background-color: var(--mesa-screen);
-    border: 2px solid var(--mesa-line);
-    border-radius: 4px;
+    background-image: repeating-linear-gradient(
+      to top,
+      rgba(var(--card-rgb), 0.12) 0 4px,
+      transparent 4px 6px
+    );
+    border-radius: 2px;
   }
 
   .canal-vu-luz {
     position: absolute;
-    inset: auto 0 0;
-    height: calc(var(--nivel) * 100%);
-    background-image: linear-gradient(to top, var(--mesa-green), var(--gold) 72%, var(--accent));
+    inset: 0;
+    background-image: linear-gradient(
+      to top,
+      var(--mesa-green) 0 55%,
+      var(--gold) 78%,
+      var(--accent)
+    );
+    clip-path: inset(calc((1 - var(--nivel)) * 100%) 0 0 0);
+    mask-image: repeating-linear-gradient(to top, var(--white) 0 4px, transparent 4px 6px);
   }
 
-  /* El fader, en vertical con el input nativo (teclado y lector intactos).
-     Las medidas van en propiedades lógicas: un navegador que no sabe girar
-     un range (Chrome < 124) deja el control en horizontal y entonces el
-     largo (inline-size) cae a lo ancho, no en una caja de 28 px. */
+  /* El fader, en vertical con el input nativo (teclado y lector intactos):
+     una ranura y un capuchón con la raya del color de su pista. Las medidas
+     van en propiedades lógicas: un navegador que no sabe girar un range
+     (Chrome < 124) deja el control en horizontal y entonces el largo
+     (inline-size) cae a lo ancho, no en una caja de 30 px. */
   .mesa .canal-fader[type='range'] {
     flex: none;
     inline-size: 100%;
+    /* Ni el largo ni el ancho mínimos de los mandos del transporte valen aquí:
+       con min-width el fader medía 60 px e invadía el canal de al lado. */
     min-inline-size: 0;
+    min-width: 0;
+    block-size: 30px;
+    margin: 0;
+    appearance: none;
+    background-color: transparent;
   }
 
   @supports (writing-mode: vertical-lr) {
     .mesa .canal-fader[type='range'] {
       writing-mode: vertical-lr;
       direction: rtl;
-      inline-size: 112px;
-      block-size: 28px;
+      inline-size: 82px;
     }
+  }
+
+  .canal-fader::-webkit-slider-runnable-track {
+    block-size: 6px;
+    border: 1px solid var(--mesa-line);
+    border-radius: 3px;
+    background-color: var(--mesa-screen);
+  }
+
+  .canal-fader::-moz-range-track {
+    block-size: 6px;
+    border: 1px solid var(--mesa-line);
+    border-radius: 3px;
+    background-color: var(--mesa-screen);
+  }
+
+  .canal-fader::-webkit-slider-thumb {
+    inline-size: 14px;
+    block-size: 28px;
+    margin-block-start: -12px;
+    border: 2px solid var(--ink-fixed);
+    border-radius: 4px;
+    appearance: none;
+    background-color: var(--ink-block-text);
+    background-image: linear-gradient(
+      to bottom,
+      transparent calc(50% - 2px),
+      var(--luz) calc(50% - 2px) calc(50% + 2px),
+      transparent calc(50% + 2px)
+    );
+    box-shadow: 0 2px 0 rgba(var(--black-rgb), 0.6);
+    cursor: grab;
+  }
+
+  .canal-fader::-moz-range-thumb {
+    inline-size: 14px;
+    block-size: 28px;
+    border: 2px solid var(--ink-fixed);
+    border-radius: 4px;
+    background-color: var(--ink-block-text);
+    background-image: linear-gradient(
+      to bottom,
+      transparent calc(50% - 2px),
+      var(--luz) calc(50% - 2px) calc(50% + 2px),
+      transparent calc(50% + 2px)
+    );
+    box-shadow: 0 2px 0 rgba(var(--black-rgb), 0.6);
+    cursor: grab;
   }
 
   .canal-botones {
@@ -954,15 +1072,15 @@
 
   .canal-mute,
   .canal-solo {
-    width: 28px;
-    height: 26px;
+    width: 26px;
+    height: 22px;
     padding: 0;
     border: 2px solid var(--mesa-line);
     border-radius: 6px;
     background-color: var(--mesa-panel-hi);
     color: var(--ink-block-text);
     font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
-    font-size: var(--text-xs);
+    font-size: var(--text-2xs);
     cursor: pointer;
   }
 
@@ -977,25 +1095,96 @@
     color: var(--ink);
   }
 
+  /* El nombre, rotulado a mano en una tira de cinta de carrocero cortada con
+     los dedos: cada una pegada un poco torcida. */
   .canal-nombre {
-    font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+    max-inline-size: 100%;
+    /* Abajo del todo: el maestro no tiene botones y su cinta no debe subir */
+    margin-block-start: auto;
+    padding: 2px 8px 3px;
+    overflow: hidden;
+    background-color: var(--tape);
+    color: var(--ink-fixed);
+    font-family: var(--font-hand);
     font-size: var(--text-2xs);
-    color: rgba(var(--card-rgb), 0.62);
+    font-weight: 600;
+    line-height: 1.15;
+    white-space: nowrap;
+    rotate: var(--giro-cinta, -2deg);
+    clip-path: polygon(
+      0 14%,
+      4% 0,
+      96% 0,
+      100% 12%,
+      97% 36%,
+      100% 60%,
+      97% 84%,
+      99% 100%,
+      3% 100%,
+      0 82%,
+      3% 58%,
+      0 34%
+    );
+  }
+
+  .canal:nth-child(even) .canal-nombre {
+    --giro-cinta: 1.5deg;
+  }
+
+  .canal:nth-child(3n) .canal-nombre {
+    --giro-cinta: -3deg;
   }
 
   /* ---------- El público de La Colmena ---------- */
 
-  /* La grada: sentados en el canto de arriba de la mesa, en el hueco que ya
-     tiene para El Freeze. Solo en ordenador. Quien no baila se queda sentado,
-     un poco más abajo y apagado; quien baila cabecea con `al-ritmo`. */
+  /* La grada: en el canto de arriba de la mesa, en el hueco que ya tiene
+     para El Freeze. Solo en ordenador. Quien baila cabecea con `al-ritmo`;
+     quien no tiene nada que tocar se sienta, más abajo y apagado; quien está
+     callado se duerme y quien va en solo tiene el foco. */
   .publico {
     display: none;
   }
 
-  /* ---------- En ordenador: la mesa a pantalla completa ---------- */
+  @keyframes publico-zetas {
+    0%,
+    100% {
+      opacity: 0.35;
+      translate: 0 0;
+    }
 
-  /* La rejilla y los pads, uno al lado del otro; debajo, la consola. La mesa
-     se sale de la columna de 900 px de La Colmena hasta 1180 px. */
+    50% {
+      opacity: 1;
+      translate: 3px -7px;
+    }
+  }
+
+  /* Con las ocho pistas sonando, El Freeze cambia el balanceo por su truco:
+     un giro entero con salto, al mismo pulso. */
+  .mesa-dancer.is-lleno {
+    transform-origin: 50% 60%;
+    animation-name: mesa-truco;
+    animation-timing-function: linear;
+  }
+
+  @keyframes mesa-truco {
+    0% {
+      transform: rotate(-3deg);
+    }
+
+    50% {
+      transform: translateY(-18px) rotate(177deg);
+    }
+
+    100% {
+      transform: rotate(357deg);
+    }
+  }
+
+  /* ---------- En ordenador: la mesa en una pantalla ---------- */
+
+  /* La rejilla y, debajo, la consola a un lado; los pads al otro, ocupando
+     todo el alto. Así la mesa entera cabe en una ventana de 880 px de alto.
+     Se sale de la columna de 900 px de La Colmena hasta 1180 px. */
   @media (min-width: 1200px) {
     .mesa-wrap {
       /* 16 celdas y el nombre de la pista caben en su columna sin desplazar */
@@ -1012,48 +1201,99 @@
       grid-template-areas:
         'cabecera cabecera'
         'transporte transporte'
-        'ritmos ritmos'
+        'ritmos pads'
         'rejilla pads'
-        'consola consola'
+        'consola pads'
         'pie pie';
-      column-gap: 20px;
-      row-gap: 14px;
+      column-gap: 16px;
+      row-gap: 8px;
+      padding: 14px 18px 12px;
     }
 
     .mesa-cabecera {
       grid-area: cabecera;
+      gap: 12px;
+    }
+
+    .mesa-lcd {
+      gap: 6px;
+      padding: 6px 14px;
+    }
+
+    .mesa-vu {
+      gap: 2px;
+      padding: 5px 6px;
+    }
+
+    .mesa-vu i {
+      min-height: 3px;
     }
 
     .mesa-transporte {
       grid-area: transporte;
+      padding: 8px 12px;
+    }
+
+    .mesa-play {
+      width: 46px;
+      height: 46px;
     }
 
     .mesa-presets {
       grid-area: ritmos;
     }
 
-    /* La columna de los pads es más alta: la rejilla se centra en la suya */
     .mesa-seq {
       grid-area: rejilla;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
+      padding: 10px 12px 6px;
     }
 
+    .seq-rejilla {
+      gap: 5px;
+    }
+
+    .seq-pista {
+      margin-top: 6px;
+    }
+
+    /* Los pads se reparten todo el alto de su columna */
     .mesa-pads-zona {
       grid-area: pads;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .pads-barra {
+      margin-bottom: 10px;
+    }
+
+    .pads-rejilla {
+      flex: 1;
+      grid-auto-rows: minmax(0, 1fr);
+      gap: 9px;
+      max-width: none;
+      margin: 0;
+    }
+
+    .pad {
+      min-height: 56px;
+      aspect-ratio: auto;
+    }
+
+    .pads-nota {
+      margin-top: 10px;
     }
 
     .mesa-pie {
       grid-area: pie;
+      padding-top: 8px;
     }
 
     .consola {
       grid-area: consola;
       display: grid;
-      grid-template-columns: repeat(9, minmax(0, 1fr));
-      gap: 6px;
-      padding: 6px 10px;
+      grid-template-columns: repeat(8, minmax(0, 1fr)) minmax(0, 1.1fr);
+      padding: 6px 8px;
       background-color: var(--mesa-panel);
       border: 2px solid var(--mesa-line);
       border-radius: 12px;
@@ -1065,11 +1305,6 @@
     .mesa .pista-nivel[type='range'],
     .mesa-mando--volumen {
       display: none;
-    }
-
-    .pads-rejilla {
-      max-width: none;
-      gap: 9px;
     }
 
     .publico {
@@ -1084,14 +1319,41 @@
       pointer-events: none;
     }
 
+    /* El sitio de cada uno: suyas son las zetas y el foco. La grada no es una
+       fila: cada sitio tiene su altura y su inclinación, siempre las mismas. */
+    .publico-sitio {
+      --alto: 86px;
+      --giro: 0deg;
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+    }
+
+    .publico-sitio:nth-child(3n + 2) {
+      --alto: 96px;
+      --giro: -3deg;
+    }
+
+    .publico-sitio:nth-child(3n) {
+      --alto: 76px;
+      --giro: 2.5deg;
+    }
+
+    .publico-sitio:nth-child(7) {
+      --giro: 3deg;
+    }
+
     .publico-miembro {
       width: auto;
-      height: 86px;
+      height: var(--alto);
       opacity: 0.55;
       translate: 0 8px;
+      rotate: var(--giro);
       transition:
         opacity var(--dur-base) ease,
-        translate var(--dur-base) var(--ease-out);
+        translate var(--dur-base) var(--ease-out),
+        rotate var(--dur-base) var(--ease-out),
+        scale var(--dur-base) var(--ease-out);
     }
 
     .publico-miembro.is-bailando {
@@ -1099,19 +1361,137 @@
       translate: 0 0;
     }
 
-    .pad {
-      aspect-ratio: 1.6 / 1;
+    /* Callado: se le cae la cabeza y le salen las zetas */
+    .publico-sitio.is-dormido .publico-miembro {
+      opacity: 0.42;
+      translate: 0 16px;
+      rotate: 11deg;
     }
+
+    .publico-sitio.is-dormido::after {
+      content: 'z Z';
+      position: absolute;
+      inset-block-end: calc(100% - 10px);
+      inset-inline-start: 56%;
+      color: var(--ink);
+      font-family: var(--font-display);
+      font-size: var(--text-sm);
+      letter-spacing: 0.12em;
+      white-space: nowrap;
+      rotate: -12deg;
+      animation: publico-zetas 2.6s ease-in-out infinite;
+    }
+
+    /* En solo: el foco cae sobre él desde arriba */
+    .publico-sitio.is-solo::before {
+      content: '';
+      position: absolute;
+      inset: -26px -16px 4px;
+      z-index: -1;
+      background-image: linear-gradient(
+        to bottom,
+        rgba(var(--gold-rgb), 0.75),
+        rgba(var(--gold-rgb), 0)
+      );
+      clip-path: polygon(38% 0, 62% 0, 100% 100%, 0 100%);
+    }
+
+    .publico-sitio.is-solo .publico-miembro {
+      scale: 1.08;
+    }
+  }
+
+  /* En ventanas bajas el público encoge para que la mesa quepa con él */
+  @media (min-width: 1200px) and (max-height: 960px) {
+    .publico-sitio {
+      --alto: 68px;
+    }
+
+    .publico-sitio:nth-child(3n + 2) {
+      --alto: 76px;
+    }
+
+    .publico-sitio:nth-child(3n) {
+      --alto: 60px;
+    }
+  }
+
+  /* ---------- La mesa en neón ---------- */
+
+  /* El ámbar del aparato pasa a ultravioleta de una vez: todo lo que usa
+     --gold dentro de la mesa (pantalla, play, mandos, faders, opciones
+     elegidas, el foco del público) cambia con él. El rojo ya es lima. */
+  [data-theme='neon'] .mesa-wrap {
+    --gold: var(--uv-violet-soft);
+    --gold-rgb: var(--uv-violet-soft-rgb);
+  }
+
+  [data-theme='neon'] .mesa {
+    box-shadow:
+      6px 6px 0 var(--accent),
+      0 0 34px rgba(var(--uv-violet-rgb), 0.24);
+  }
+
+  [data-theme='neon'] .mesa-lcd {
+    box-shadow:
+      inset 0 0 22px rgba(var(--uv-violet-rgb), 0.32),
+      0 0 16px rgba(var(--uv-violet-rgb), 0.26);
+  }
+
+  /* El violeta suave da menos luz que el ámbar: las etiquetas pequeñas de la
+     pantalla suben de opacidad para seguir leyéndose (4,5:1). */
+  [data-theme='neon'] .lcd-datos {
+    color: rgba(var(--gold-rgb), 0.76);
+  }
+
+  [data-theme='neon'] .mesa-play.sonando {
+    box-shadow:
+      3px 3px 0 rgba(var(--black-rgb), 0.55),
+      0 0 18px rgba(var(--uv-violet-rgb), 0.8);
+  }
+
+  /* Los pasos encendidos brillan con la luz de su pista y la columna que
+     suena es un haz de luz lima */
+  [data-theme='neon'] .celda-luz {
+    box-shadow: 0 0 9px var(--luz, var(--gold));
+  }
+
+  [data-theme='neon'] .celda.is-current {
+    border-color: var(--uv-lime);
+    box-shadow:
+      0 0 0 2px rgba(var(--uv-lime-rgb), 0.22),
+      0 0 14px rgba(var(--uv-lime-rgb), 0.6);
+  }
+
+  [data-theme='neon'] .canal-fader::-webkit-slider-thumb {
+    box-shadow:
+      0 2px 0 rgba(var(--black-rgb), 0.6),
+      0 0 10px var(--luz);
+  }
+
+  [data-theme='neon'] .canal-fader::-moz-range-thumb {
+    box-shadow:
+      0 2px 0 rgba(var(--black-rgb), 0.6),
+      0 0 10px var(--luz);
   }
 
   @media (prefers-reduced-motion: reduce) {
     .mesa-dancer,
+    .mesa-dancer.is-lleno,
     .lcd-rec.is-on,
-    .mesa-rec.is-on .mesa-led {
+    .mesa-rec.is-on .mesa-led,
+    .publico-sitio.is-dormido::after {
       animation: none;
     }
 
-    /* El público no se mueve: quien suena se distingue solo por la opacidad */
+    /* El Freeze no gira: con las ocho sonando se queda en otra postura */
+    .mesa-dancer.is-lleno {
+      rotate: -10deg;
+      scale: 1.12;
+    }
+
+    /* El público no se mueve: quien suena se distingue por la opacidad y
+       quien duerme, además, por la cabeza caída */
     .publico-miembro,
     .publico-miembro.is-bailando {
       translate: none;

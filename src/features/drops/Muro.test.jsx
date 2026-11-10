@@ -37,6 +37,26 @@ function renderMuro(props = {}) {
 }
 
 describe('El muro', () => {
+  it('la pared lleva restos pegados por detrás de los carteles: decorativos, sin foco y fuera del lector', () => {
+    const { container } = renderMuro();
+    const restos = container.querySelector('.muro-pared > .muro-restos');
+    expect(restos).not.toBeNull();
+    expect(restos).toHaveAttribute('aria-hidden', 'true');
+    expect(restos.querySelectorAll('.resto').length).toBeGreaterThanOrEqual(5);
+    expect(restos.querySelectorAll('a, button, input, [tabindex], [role]')).toHaveLength(0);
+    // Van antes que los carteles en el DOM y los carteles siguen siendo los cinco
+    expect(restos.nextElementSibling).toHaveClass('muro-hueco');
+    expect(screen.getAllByRole('article')).toHaveLength(DROPS.length);
+  });
+
+  it('con el muro vacío o cargando no hay restos', () => {
+    const vacio = renderMuro({ drops: [], featured: null });
+    expect(vacio.container.querySelector('.muro-restos')).toBeNull();
+    vacio.unmount();
+    const cargando = renderMuro({ loading: true });
+    expect(cargando.container.querySelector('.muro-restos')).toBeNull();
+  });
+
   it('pega un cartel por drop en el orden que le da el servidor', () => {
     renderMuro();
     expect(screen.getByRole('heading', { level: 1, name: 'El muro' })).toBeInTheDocument();

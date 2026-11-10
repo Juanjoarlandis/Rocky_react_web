@@ -1,7 +1,8 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { act, render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { composeShareImage } from './shareImage.js';
+import { traquetear } from './rattle.js';
 import Spray from './Spray.jsx';
 
 // La foto se compone en un canvas de verdad: aquí solo importa con qué trazos.
@@ -9,6 +10,9 @@ vi.mock('./shareImage.js', () => ({
   composeShareImage: vi.fn(async () => null),
   shareOrDownload: vi.fn(async () => 'downloaded'),
 }));
+
+// El traqueteo del bote suena de verdad: aquí solo importa cuándo se pide.
+vi.mock('./rattle.js', () => ({ traquetear: vi.fn() }));
 
 // Un contexto 2D que lo acepta todo: aquí importa qué se sube, no qué se pinta.
 const nada = new Proxy(function nada() {}, {
@@ -186,6 +190,168 @@ describe('El spray con la pared compartida', () => {
       'TELE-2'
     );
     expect(await screen.findByText(/Gracias/)).toBeInTheDocument();
+  });
+
+  it('los colores son tres botes con nombre; el elegido queda marcado y levantado', async () => {
+    servidor();
+    render(<Spray pathname="/crew" />);
+    await cogerSpray();
+    const botes = screen.getAllByRole('radio');
+    expect(botes.map((bote) => bote.getAttribute('aria-label'))).toEqual([
+      'Lima',
+      'Violeta',
+      'Blanco UV',
+    ]);
+    for (const bote of botes) expect(bote.querySelector('svg.spray-bote')).not.toBeNull();
+    expect(botes[0]).toHaveAttribute('aria-checked', 'true');
+    await userEvent.click(screen.getByRole('radio', { name: 'Violeta' }));
+    expect(screen.getByRole('radio', { name: 'Violeta' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: 'Violeta' })).toHaveClass('is-active');
+    expect(screen.getByRole('radio', { name: 'Lima' })).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByRole('radio', { name: 'Lima' })).not.toHaveClass('is-active');
+  });
+
+  it('coger otro bote suena; volver a pulsar el mismo, no', async () => {
+    servidor();
+    vi.mocked(traquetear).mockClear();
+    render(<Spray pathname="/crew" />);
+    await cogerSpray();
+    await userEvent.click(screen.getByRole('radio', { name: 'Lima' }));
+    expect(traquetear).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('radio', { name: 'Violeta' }));
+    expect(traquetear).toHaveBeenCalledTimes(1);
+    await userEvent.click(screen.getByRole('radio', { name: 'Violeta' }));
+    expect(traquetear).toHaveBeenCalledTimes(1);
+    await userEvent.click(screen.getByRole('radio', { name: 'Blanco UV' }));
+    expect(traquetear).toHaveBeenCalledTimes(2);
+  });
+
+  it('llevar el foco a una firma de la lista destaca lo suyo y al salir la pared vuelve entera', async () => {
+    servidor();
+    // Un contexto que apunta cuándo se atenúa el lienzo
+    const atenuados = [];
+    const espia = new Proxy(function espia() {}, {
+      get: (_, key) => (key === Symbol.toPrimitive ? () => 0 : espia),
+      apply: () => espia,
+      set: (_, key, value) => {
+        if (key === 'globalCompositeOperation' && value === 'destination-out')
+          atenuados.push(value);
+        return true;
+      },
+    });
+    HTMLCanvasElement.prototype.getContext.mockReturnValue(espia);
+    render(<Spray pathname="/crew" />);
+    await cogerSpray();
+    await userEvent.click(await screen.findByText(/Firmas en esta pared/));
+    const reportar = await screen.findByRole('button', { name: 'Reportar TELE-2' });
+    const fila = reportar.closest('li');
+    expect(atenuados).toHaveLength(0);
+    expect(fila).not.toHaveClass('is-resaltada');
+
+    fireEvent.focus(reportar);
+    await waitFor(() => expect(fila).toHaveClass('is-resaltada'));
+    expect(atenuados.length).toBeGreaterThanOrEqual(1);
+
+    const antes = atenuados.length;
+    fireEvent.blur(reportar);
+    await waitFor(() => expect(fila).not.toHaveClass('is-resaltada'));
+    // Al salir se repinta la pared entera, sin atenuar
+    expect(atenuados).toHaveLength(antes);
+
+    // Con el ratón, igual: al moverlo por la fila, no solo por tenerlo encima
+    fireEvent.pointerMove(fila);
+    await waitFor(() => expect(fila).toHaveClass('is-resaltada'));
+    fireEvent.pointerLeave(fila);
+    await waitFor(() => expect(fila).not.toHaveClass('is-resaltada'));
+  });
+
+  it('abrir la lista con el cursor quieto encima no atenúa la pared; el foco y el cursor van por separado', async () => {
+    servidor();
+    render(<Spray pathname="/crew" />);
+    await cogerSpray();
+    await userEvent.click(await screen.findByText(/Firmas en esta pared/));
+    const reportar = await screen.findByRole('button', { name: 'Reportar TELE-2' });
+    const fila = reportar.closest('li');
+    // La fila aparece bajo el cursor sin que se haya movido: no destaca
+    fireEvent.pointerEnter(fila);
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    expect(fila).not.toHaveClass('is-resaltada');
+    // Con el cursor moviéndose por la fila, perder el foco no apaga el destacado
+    fireEvent.focus(reportar);
+    fireEvent.pointerMove(fila);
+    await waitFor(() => expect(fila).toHaveClass('is-resaltada'));
+    fireEvent.blur(reportar);
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    expect(fila).toHaveClass('is-resaltada');
+    fireEvent.pointerLeave(fila);
+    await waitFor(() => expect(fila).not.toHaveClass('is-resaltada'));
+  });
+
+  it('lo propio también se destaca al pasar el cursor por su fila', async () => {
+    const fetchMock = servidor();
+    render(<Spray pathname="/crew" />);
+    await cogerSpray();
+    await screen.findByText(/lo verá todo el que pase de noche/);
+    pintar();
+    await waitFor(() => expect(llamadas(fetchMock, 'POST', '/api/pared/trazos')).toHaveLength(1));
+    await userEvent.click(screen.getByText(/Firmas en esta pared/));
+    const mia = (await screen.findByText(/LUNA-7 \(tú\)/)).closest('li');
+    // La fila propia no tiene nada que pulsar: no entra en el tabulador
+    expect(mia.querySelectorAll('button, [tabindex]')).toHaveLength(0);
+    fireEvent.pointerMove(mia);
+    await waitFor(() => expect(mia).toHaveClass('is-resaltada'));
+    fireEvent.pointerLeave(mia);
+    await waitFor(() => expect(mia).not.toHaveClass('is-resaltada'));
+  });
+
+  it('si la firma destacada desaparece de la pared con el foco puesto, la pared vuelve a verse entera', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      let conTele = true;
+      const fetchMock = vi.fn((url, options = {}) => {
+        if ((options.method ?? 'GET') === 'GET') {
+          return respuesta(conTele ? PARED : { ...PARED, version: 2, strokes: [], firmas: [] });
+        }
+        return Promise.resolve(new Response(null, { status: 204 }));
+      });
+      vi.stubGlobal('fetch', fetchMock);
+      const atenuados = [];
+      let limpiezas = 0;
+      const espia = new Proxy(function espia() {}, {
+        get: (_, key) => {
+          if (key === Symbol.toPrimitive) return () => 0;
+          if (key === 'clearRect') return () => (limpiezas += 1);
+          return espia;
+        },
+        apply: () => espia,
+        set: (_, key, value) => {
+          if (key === 'globalCompositeOperation' && value === 'destination-out') atenuados.push(1);
+          return true;
+        },
+      });
+      HTMLCanvasElement.prototype.getContext.mockReturnValue(espia);
+      render(<Spray pathname="/crew" />);
+      await cogerSpray();
+      await userEvent.click(await screen.findByText(/Firmas en esta pared/));
+      const reportar = await screen.findByRole('button', { name: 'Reportar TELE-2' });
+      fireEvent.focus(reportar);
+      await waitFor(() => expect(atenuados.length).toBeGreaterThanOrEqual(1));
+
+      // La siguiente lectura ya no trae a TELE-2 (la crew lo ha borrado)
+      conTele = false;
+      const antes = { atenuados: atenuados.length, limpiezas };
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(20_000);
+      });
+      await waitFor(() =>
+        expect(screen.queryByRole('button', { name: 'Reportar TELE-2' })).toBeNull()
+      );
+      // Se ha repintado, y ya sin atenuar
+      await waitFor(() => expect(limpiezas).toBeGreaterThan(antes.limpiezas));
+      expect(atenuados).toHaveLength(antes.atenuados);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('la foto se puede hacer con lo pintado en la pared común y solo lleva lo propio', async () => {

@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as api from '../../api/taller.js';
-import { drawStroke, makeSprite, sprayColors, strokeBounds } from '../night/spray/paint.js';
+import {
+  atenuar,
+  drawStroke,
+  makeSprite,
+  sprayColors,
+  strokeBounds,
+} from '../night/spray/paint.js';
 import BotonConfirmar from './BotonConfirmar';
 
 // LA PARED EN EL TALLER (moderacion-de-la-pared): ver cada pared con lo que
@@ -23,8 +29,10 @@ function textoEstado({ configurada, encendida, corrupta }) {
     : 'Apagada: el spray solo guarda en cada navegador.';
 }
 
-/* La pared en pequeño: lo visible a todo color y lo oculto, apagado. */
-function VistaPrevia({ strokes }) {
+/* La pared en pequeño: lo visible a todo color y lo oculto, apagado. Con una
+   firma destacada (la fila que se está mirando), lo demás se atenúa y lo suyo
+   se repinta encima, también lo que tenga oculto: es para saber qué pintó. */
+function VistaPrevia({ strokes, destacada = null }) {
   const canvasRef = useRef(null);
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -69,7 +77,14 @@ function VistaPrevia({ strokes }) {
       ctx.drawImage(capa, 0, 0);
       ctx.globalAlpha = 1;
     }
-  }, [strokes]);
+    if (destacada) {
+      atenuar(ctx, canvas.width, canvas.height);
+      pintar(
+        ctx,
+        strokes.filter((stroke) => stroke.firma === destacada)
+      );
+    }
+  }, [strokes, destacada]);
   return (
     <canvas
       ref={canvasRef}
@@ -77,7 +92,9 @@ function VistaPrevia({ strokes }) {
       width="640"
       height="360"
       role="img"
-      aria-label={`Vista previa de la pared: ${plural(strokes.length, 'trazo', 'trazos')}`}
+      aria-label={`Vista previa de la pared: ${plural(strokes.length, 'trazo', 'trazos')}${
+        destacada ? `, destacando lo de ${destacada}` : ''
+      }`}
     />
   );
 }
@@ -87,6 +104,10 @@ export default function ParedTaller({ onFallo }) {
   const [abierta, setAbierta] = useState(null);
   const [detalle, setDetalle] = useState(null);
   const [aviso, setAviso] = useState({ tipo: 'reposo', texto: '' });
+  // La firma cuya fila se está mirando (con el cursor o con el foco, cada uno
+  // por su lado; manda el cursor): lo suyo se destaca en la vista previa.
+  const [conCursor, setConCursor] = useState(null);
+  const [conFoco, setConFoco] = useState(null);
 
   const fallar = useCallback(
     (error) => {
@@ -158,6 +179,9 @@ export default function ParedTaller({ onFallo }) {
 
   const estado = datos?.estado;
   const sitio = abierta ? separar(abierta) : null;
+  // Solo se destaca una firma que siga en la pared abierta
+  const pedida = conCursor ?? conFoco;
+  const destacada = detalle?.firmas.some((f) => f.firma === pedida) ? pedida : null;
 
   return (
     <section className="taller-pared" aria-label="La pared compartida">
@@ -195,7 +219,14 @@ export default function ParedTaller({ onFallo }) {
                 type="button"
                 className={`paper-card taller-pared-fila${pared.pared === abierta ? ' is-active' : ''}`}
                 aria-pressed={pared.pared === abierta}
-                onClick={() => abrir(pared.pared)}
+                onClick={() => {
+                  // Otra pared: lo que se miraba en la anterior ya no cuenta.
+                  // Tras ocultar o borrar se vuelve a abrir la misma y la fila
+                  // que se mira sigue destacada.
+                  setConCursor(null);
+                  setConFoco(null);
+                  abrir(pared.pared);
+                }}
               >
                 <span className="taller-drop-titulo">
                   {pagina} · {ancho}
@@ -214,10 +245,20 @@ export default function ParedTaller({ onFallo }) {
 
       {detalle && sitio && (
         <div className="paper-card taller-pared-detalle">
-          <VistaPrevia strokes={detalle.strokes} />
+          <VistaPrevia strokes={detalle.strokes} destacada={destacada} />
           <ul className="taller-firmas" aria-label="Firmas de la pared">
             {detalle.firmas.map((f) => (
-              <li key={f.firma} aria-label={f.firma} className={f.oculta ? 'is-oculta' : ''}>
+              <li
+                key={f.firma}
+                aria-label={f.firma}
+                className={[f.oculta && 'is-oculta', destacada === f.firma && 'is-resaltada']
+                  .filter(Boolean)
+                  .join(' ')}
+                onPointerMove={() => setConCursor(f.firma)}
+                onPointerLeave={() => setConCursor(null)}
+                onFocus={() => setConFoco(f.firma)}
+                onBlur={() => setConFoco(null)}
+              >
                 <span className="taller-drop-titulo">{f.firma}</span>
                 <span className="taller-drop-meta">
                   {plural(f.trazos, 'trazo', 'trazos')} ·{' '}

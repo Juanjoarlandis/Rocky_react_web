@@ -247,6 +247,8 @@
   /* ---------- La nota de debajo (y sus pestañas) ---------- */
 
   .cartel-nota {
+    /* Referencia de la nota «arranca una», que va sobre la tira de pestañas */
+    position: relative;
     display: flex;
     flex-direction: column;
     min-width: 0;
@@ -515,12 +517,125 @@
     background-color: var(--card);
   }
 
+  /* La nota a mano, sobre el hueco de la primera pestaña que ya se llevaron:
+     invita a arrancar una y ahí no pisa nada a ningún ancho. Mide lo que el
+     hueco (la tira reparte --pestanas columnas con 4 px entre ellas) y parte
+     el texto en dos líneas. Mientras está, la tira es lo último de la nota:
+     por eso se ancla abajo. */
+  .pestanas-nota {
+    position: absolute;
+    inset-block-end: 12px;
+    /* 5 px de aire a cada lado: girada, su caja no toca las pestañas vecinas */
+    inset-inline-start: calc((100% + 4px) / var(--pestanas) * var(--hueco) + 5px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    inline-size: calc((100% + 4px) / var(--pestanas) - 14px);
+    color: var(--ink);
+    font-family: var(--font-hand);
+    font-size: var(--text-2xs);
+    font-weight: 600;
+    line-height: 1.05;
+    text-align: center;
+    rotate: -7deg;
+    pointer-events: none;
+  }
+
+  .pestanas-nota-flecha {
+    inline-size: min(34px, 100%);
+    block-size: 20px;
+    fill: none;
+    color: var(--accent-dark);
+    stroke: currentColor;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* El aviso abierto: a un lado, la pestaña arrancada como resguardo */
   .pestanas-aviso:not([hidden]) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--space-3);
     margin-top: var(--space-2);
   }
 
   .pestanas-aviso .drop-aviso {
+    flex: 1 1 230px;
+    min-width: 0;
     margin-top: 0;
+  }
+
+  /* El resguardo: la misma pestaña, con el borde de arriba rasgado por donde
+     se arrancó. La sombra va fuera del recorte, en la caja. */
+  .resguardo {
+    position: relative;
+    flex: none;
+    margin: var(--space-1) 0 0 var(--space-1);
+    filter: var(--shadow-ink-sm-silueta);
+    rotate: -7deg;
+  }
+
+  .resguardo-papel {
+    display: grid;
+    place-items: center;
+    inline-size: 56px;
+    min-block-size: 98px;
+    padding: var(--space-3) var(--space-1) var(--space-2);
+    border: 2px solid var(--ink);
+    background-color: var(--card);
+    color: var(--ink);
+    clip-path: polygon(
+      0 8%,
+      12% 0,
+      25% 7%,
+      37% 1%,
+      50% 8%,
+      62% 0,
+      75% 7%,
+      88% 1%,
+      100% 8%,
+      100% 100%,
+      0 100%
+    );
+  }
+
+  /* El sello: cae cuando el recado entra en la lista */
+  .resguardo-sello {
+    position: absolute;
+    inset-block-start: 46%;
+    inset-inline-start: 50%;
+    padding: 1px 6px;
+    border: 2px solid var(--accent);
+    border-radius: 4px;
+    background-color: var(--card);
+    color: var(--accent);
+    font-family: var(--font-display);
+    font-size: var(--text-2xs);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    translate: -50% -50%;
+    rotate: -19deg;
+  }
+
+  @keyframes resguardo-sello-golpe {
+    from {
+      opacity: 0;
+      scale: 2;
+    }
+
+    to {
+      opacity: 1;
+      scale: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .resguardo-sello {
+      animation: resguardo-sello-golpe 0.26s var(--ease-bounce) both;
+    }
   }
 
   /* ---------- Miniaturas de lo que hay en la calle ---------- */
@@ -595,6 +710,11 @@
 
     .pestana {
       height: 80px;
+    }
+
+    /* El hueco mide menos de 50 px: la nota encoge para caber en él */
+    .pestanas-nota {
+      font-size: 0.64rem;
     }
   }
 

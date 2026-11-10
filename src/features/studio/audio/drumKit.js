@@ -19,6 +19,19 @@ export function pistasQueSuenan(pattern, mezcla) {
   return pattern.map((steps, index) => steps.some(Boolean) && isAudible(index, mezcla));
 }
 
+/* Cómo está el público de La Colmena (reacciones-del-publico): con la mesa en
+   marcha baila quien suena, duerme quien tiene pasos pero está callado (su
+   mute o el solo de otra) y se sienta quien no tiene nada que tocar. `solo`
+   marca a quien suena con su solo puesto y `lleno`, que suenan las ocho. */
+export function estadosDelPublico(pattern, { mutes, solos, playing }) {
+  const suenan = playing ? pistasQueSuenan(pattern, { mutes, solos }) : pattern.map(() => false);
+  const miembros = pattern.map((steps, index) => ({
+    estado: suenan[index] ? 'baila' : playing && steps.some(Boolean) ? 'duerme' : 'sentado',
+    solo: suenan[index] && Boolean(solos[index]),
+  }));
+  return { miembros, lleno: suenan.length > 0 && suenan.every(Boolean) };
+}
+
 // El mezclador se refleja en los buses: la pista callada baja a cero
 export function applyMix(engine, { levels, mutes, solos }) {
   if (!engine) return;

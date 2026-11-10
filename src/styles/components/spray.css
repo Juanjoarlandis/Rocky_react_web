@@ -53,46 +53,105 @@
   /* ---------- La caja de herramientas ---------- */
   .spray-tools {
     position: fixed;
-    left: 50%;
+    /* Centrada con márgenes automáticos entre los dos bordes: así el ancho
+       disponible es toda la ventana (con left: 50% sería media). */
+    inset-inline: 0;
+    margin-inline: auto;
     bottom: max(var(--space-4), env(safe-area-inset-bottom));
     z-index: var(--z-tools);
+    /* Una columna: la fila de herramientas manda en el ancho y el aviso, la
+       confirmación y la lista de firmas se parten dentro de él. */
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
     gap: var(--space-2);
-    width: max-content;
-    max-width: calc(100vw - 2 * var(--space-4));
+    width: fit-content;
+    max-width: min(720px, calc(100vw - 2 * var(--space-4)));
     padding: var(--space-3) var(--space-4);
     border: 2px solid var(--uv-lime);
     border-radius: var(--wobble-md);
     background-color: rgba(var(--neon-paper-rgb), 0.92);
     box-shadow: 0 0 26px rgba(var(--uv-lime-rgb), 0.3);
     backdrop-filter: blur(6px);
-    translate: -50% 0;
   }
 
+  .spray-fila {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+  }
+
+  /* Los colores son botes: se coge uno y queda levantado, soltando pintura */
   .spray-colors {
     display: flex;
-    gap: var(--space-2);
+    align-items: flex-end;
+    gap: var(--space-1);
     margin-right: var(--space-2);
   }
 
   .spray-color {
-    width: 32px;
-    height: 32px;
+    display: grid;
+    place-items: end center;
+    width: 36px;
+    height: 50px;
     padding: 0;
-    border: 2px solid transparent;
-    border-radius: 50%;
-    background-color: var(--spray-color);
-    box-shadow: 0 0 10px var(--spray-color);
+    border: 0;
+    border-radius: var(--wobble-xs);
+    background-color: transparent;
+    color: var(--ink);
     cursor: pointer;
-    transition: transform var(--dur-fast) ease;
+    transition: translate var(--dur-fast) var(--ease-bounce);
   }
 
+  .spray-bote {
+    display: block;
+    overflow: visible;
+    opacity: 0.6;
+    transition: opacity var(--dur-fast) ease;
+  }
+
+  .spray-bote-cuerpo {
+    fill: var(--spray-color);
+    stroke: currentColor;
+    stroke-width: 2;
+  }
+
+  .spray-bote-tapa {
+    fill: currentColor;
+  }
+
+  .spray-bote-etiqueta {
+    fill: var(--neon-night);
+    opacity: 0.7;
+  }
+
+  .spray-bote-punto {
+    fill: var(--spray-color);
+  }
+
+  .spray-bote-nube {
+    fill: var(--spray-color);
+    opacity: 0;
+  }
+
+  .spray-color:hover .spray-bote {
+    opacity: 0.85;
+  }
+
+  /* El elegido se distingue por la postura, no solo por el color */
   .spray-color.is-active {
-    border-color: var(--ink);
-    transform: scale(1.15);
+    translate: 0 -7px;
+  }
+
+  .spray-color.is-active .spray-bote {
+    opacity: 1;
+    filter: drop-shadow(0 0 7px var(--spray-color));
+  }
+
+  .spray-color.is-active .spray-bote-nube {
+    opacity: 1;
   }
 
   .spray-tool {
@@ -130,14 +189,17 @@
   /* Reportar una pintada: la confirmación en línea, sin diálogos */
   .spray-reporte {
     display: flex;
+    flex-wrap: wrap;
     gap: var(--space-2);
-    flex-basis: 100%;
     justify-content: center;
   }
 
   /* La lista de firmas de la pared: la forma accesible de reportar */
+  /* Ni la lista ni el aviso ensanchan la barra: no cuentan para su ancho
+     (inline-size 0) y luego ocupan el que marquen las herramientas. */
   .spray-firmas {
-    flex-basis: 100%;
+    inline-size: 0;
+    min-inline-size: 100%;
     font-family: var(--font-hand);
     font-size: var(--text-xs);
     color: var(--muted);
@@ -167,6 +229,12 @@
     color: var(--ink);
   }
 
+  /* La firma que se está mirando: lo suyo destaca en la pared */
+  .spray-firmas li.is-resaltada {
+    color: var(--uv-lime);
+    text-shadow: 0 0 8px rgba(var(--uv-lime-rgb), 0.6);
+  }
+
   .spray-tool--photo {
     border-color: var(--uv-lime);
     background-color: var(--uv-lime);
@@ -178,7 +246,8 @@
   }
 
   .spray-status {
-    flex-basis: 100%;
+    inline-size: 0;
+    min-inline-size: 100%;
     margin: 0;
     color: var(--muted);
     font-family: var(--font-hand);
@@ -197,9 +266,21 @@
       justify-content: center;
     }
 
+    /* En el móvil la barra no pasa de un tercio de la pantalla: la lista de
+       firmas se queda con lo que sobra tras las dos filas de herramientas y
+       su título (156 px) y se desplaza dentro; si aun así no cabe (un aviso,
+       una confirmación), se desplaza la barra. */
     .spray-tools {
       bottom: max(var(--space-3), env(safe-area-inset-bottom));
+      max-block-size: 33vh;
+      max-block-size: 33dvh;
       padding: var(--space-2) var(--space-3);
+      overflow-y: auto;
+    }
+
+    .spray-firmas ul {
+      max-height: max(40px, calc(33vh - 156px));
+      max-height: max(40px, calc(33dvh - 156px));
     }
 
     /* En el móvil la barra ya ocupa dos filas: la ayuda fija sobra, los
@@ -209,9 +290,22 @@
     }
   }
 
+  /* Con muy poco alto (un móvil apaisado) la ayuda fija sobra y la lista de
+     firmas se queda en una fila que se desplaza. */
+  @media (max-height: 480px) {
+    .spray-status--hint {
+      display: none;
+    }
+
+    .spray-firmas ul {
+      max-height: 40px;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .spray-fab,
-    .spray-color {
+    .spray-color,
+    .spray-bote {
       transition: none;
     }
   }

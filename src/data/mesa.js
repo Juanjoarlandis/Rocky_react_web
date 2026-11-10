@@ -2,30 +2,43 @@
 // Los patrones se escriben a mano en texto para poder leerlos de un vistazo:
 // '.' silencio · 'o' fantasma · 'x' golpe · 'X' acento.
 
+// `cinta` es el nombre que cabe rotulado a mano en la tira de cinta de su
+// canal de la consola.
 export const TRACKS = [
-  { id: 'bombo', label: 'Bombo', corto: 'BMB', voz: 'bombo', opts: { pitch: 52 } },
-  { id: 'caja', label: 'Caja', corto: 'CJA', voz: 'caja', opts: {} },
+  { id: 'bombo', label: 'Bombo', cinta: 'Bombo', voz: 'bombo', opts: { pitch: 52 } },
+  { id: 'caja', label: 'Caja', cinta: 'Caja', voz: 'caja', opts: {} },
   {
     id: 'hat',
     label: 'Hi-hat',
-    corto: 'HAT',
+
+    cinta: 'Hi-hat',
     voz: 'metal',
     opts: { decay: 0.055, hp: 7800, choke: 'hat' },
   },
-  { id: 'diana', label: 'Diana', corto: 'DNA', voz: 'diana', opts: {}, acento: true },
-  { id: 'palmas', label: 'Palmas', corto: 'PLM', voz: 'palmas', opts: {} },
+  {
+    id: 'diana',
+    label: 'Diana',
+
+    cinta: 'Diana',
+    voz: 'diana',
+    opts: {},
+    acento: true,
+  },
+  { id: 'palmas', label: 'Palmas', cinta: 'Palmas', voz: 'palmas', opts: {} },
   {
     id: 'hatab',
     label: 'Hat abierto',
-    corto: 'H-A',
+
+    cinta: 'Hat ab.',
     voz: 'metal',
     opts: { decay: 0.34, hp: 6600, nivelBase: 0.3, choke: 'hat' },
   },
-  { id: 'tom', label: 'Tom', corto: 'TOM', voz: 'tom', opts: { pitch: 150 } },
+  { id: 'tom', label: 'Tom', cinta: 'Tom', voz: 'tom', opts: { pitch: 150 } },
   {
     id: 'sub',
     label: '808',
-    corto: '808',
+
+    cinta: '808',
     voz: 'sub',
     opts: { decay: 0.8 },
     usaTonica: true,

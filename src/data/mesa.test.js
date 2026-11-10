@@ -24,6 +24,15 @@ describe('datos de la mesa', () => {
     expect(new Set(TRACK_IDS).size).toBe(TRACK_COUNT);
   });
 
+  it('cada pista trae el nombre de su cinta de la consola: corto, legible y sin repetir', () => {
+    const cintas = TRACKS.map((track) => track.cinta);
+    expect(new Set(cintas).size).toBe(TRACKS.length);
+    for (const cinta of cintas) {
+      expect(cinta).toMatch(/\S/);
+      expect(cinta.length).toBeLessThanOrEqual(8);
+    }
+  });
+
   it('cada pista apunta a una voz que existe', () => {
     TRACKS.forEach((track) => expect(VOICE_NAMES).toContain(track.voz));
   });
