@@ -22,6 +22,11 @@
   - **Prueba existente cambiada a propósito**: `App.storefront.test.jsx` (el catálogo de muestra es ahora un cargador).
   - Añadido al medir el LCP: las piezas opcionales no se piden mientras el catálogo está cargando (`usePiecesReady({ hold })`); un gesto las trae igual.
 
+- [x] 2.5 (Añadida al implementar `seo-y-cache`, cuyo código dejaba el JavaScript inicial en 101,3 kB: el guardián falló.) Sacar de la carga inicial el pie de página y los drops de muestra.
+  - El pie queda siempre bajo el pliegue desde 4.1, así que va en su propio chunk (`React.lazy`, no pieza opcional: si no llega, se recupera como una ruta) y se pide cuando ha llegado el catálogo o al primer gesto. Con él salen su CSS, el de la marquesina y las URL de sus imágenes. Los drops de muestra (`shared/demo-drops.mjs`) se importan solo en modo demo, como el catálogo de muestra.
+  - `src/App.pieces.test.jsx`: mientras el catálogo carga no hay pie; después llega sin esperar al reposo. Resultado: JS inicial **98,36 kB** y CSS inicial **13,10 kB**.
+  - Lighthouse en móvil con el pie aparte (mediana de tres): `/` 87 de rendimiento, LCP 3,90 s, 509 kB (antes 84 · 4,51 s · 608 kB); `/cart` 87 · 3,83 s (antes 85 · 4,05 s); `/no-existe` 90 · 3,46 s (antes 88 · 3,68 s). CLS igual (0,030 · 0,000 · 0,000). El LCP sigue por encima de los 3,0 s.
+
 ## 3. Fuentes
 
 - [x] 3.1 Quitar de `index.html` la precarga de Fredoka; medir el LCP de `/` en móvil con Lighthouse (mediana de tres) precargando Luckiest Guy y Archivo, y solo Luckiest Guy; dejar la mejor, anotar las dos medidas y comprobar que el texto del pie y de los avisos sigue saliendo con su fuente.

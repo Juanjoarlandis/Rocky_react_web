@@ -234,6 +234,11 @@ Lo que la medida cambió respecto a lo previsto arriba. Las cifras completas est
 - **D1, un chunk opcional que falla no recarga la página.** Vite avisa de un fallo de
   precarga con `vite:preloadError` y `preloadRecovery` recargaba; con una pieza opcional
   en vuelo (`asOptionalLoad`) ya no lo hace y el límite de error la descarta.
+- **El pie, aparte.** Con el contenido ocupando la pantalla (D3) el pie está siempre bajo
+  el pliegue: va en su propio chunk y se pide cuando ha llegado el catálogo. No es una
+  pieza opcional (lleva los enlaces legales): usa `React.lazy` y, si su chunk falla, se
+  recupera como el de una ruta. Los drops de muestra se cargan solo en modo demo. Margen
+  que deja: 98,4 kB de JavaScript y 13,1 kB de CSS iniciales.
 - **`StreetWall` no espera al reposo**: es contenido de la portada (bajo el pliegue), no
   una pieza opcional; sale del JavaScript inicial pero se pide con el primer render.
 

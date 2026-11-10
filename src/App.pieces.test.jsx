@@ -17,6 +17,7 @@ vi.mock('./features/night/Descontrol', watched('descontrol'));
 vi.mock('./features/estampida/Estampida', watched('estampida'));
 vi.mock('./features/catalog/Lightbox', watched('lightbox'));
 vi.mock('./features/peeker/CuriousPeeker', watched('curioso'));
+vi.mock('./components/Footer', watched('pie'));
 
 const useStorefront = vi.hoisted(() => vi.fn());
 vi.mock('./features/storefront/useStorefront', () => ({ useStorefront }));
@@ -80,16 +81,31 @@ test('mientras el catálogo carga no se pide ninguna pieza, aunque el hilo esté
 
   expect(idle).toHaveLength(0);
   expect([...loaded]).toEqual([]);
+  // Tampoco el pie: está bajo el pliegue y sus imágenes competirían con el catálogo
+  expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument();
+});
+
+test('el pie va en su propio chunk y llega con el catálogo, sin esperar al reposo ni a un gesto', async () => {
+  useStorefront.mockReturnValue(storefront());
+  montar();
+
+  expect(await screen.findByRole('contentinfo')).toBeInTheDocument();
+  expect([...loaded]).toEqual(['pie']);
 });
 
 test('de día y sin tocar nada: en reposo llegan las piezas, también las que no se montan solas, y el spray no', async () => {
   useStorefront.mockReturnValue(storefront());
   montar();
-  expect([...loaded]).toEqual([]);
+  expect([...loaded].filter((name) => name !== 'pie')).toEqual([]);
 
   await reposo();
   await waitFor(() =>
-    expect([...loaded].sort()).toEqual(['curioso', 'descontrol', 'estampida', 'lightbox'])
+    expect([...loaded].filter((name) => name !== 'pie').sort()).toEqual([
+      'curioso',
+      'descontrol',
+      'estampida',
+      'lightbox',
+    ])
   );
   // Con todo lo demás cargado, el código del spray sigue sin ejecutarse
   await act(async () => {});

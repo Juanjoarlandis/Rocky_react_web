@@ -605,8 +605,8 @@ y `lh-real`.
 
 | Métrica | Línea base | Ahora | Presupuesto |
 | --- | ---: | ---: | ---: |
-| JS inicial de la portada (gzip) | 123,2 kB | 99,9 kB | ≤ 100 kB |
-| CSS inicial (gzip) | 18,7 kB | 14,0 kB | ≤ 15 kB |
+| JS inicial de la portada (gzip) | 123,2 kB | 99,9 kB; 98,4 kB con el pie aparte | ≤ 100 kB |
+| CSS inicial (gzip) | 18,7 kB | 14,0 kB; 13,1 kB con el pie aparte | ≤ 15 kB |
 | Fuentes precargadas | 81,8 kB | 52,1 kB | ≤ 55 kB |
 | Ilustraciones de la intro en un móvil (DPR ≤ 2) | 343 kB | 96 kB | — |
 | Total de imágenes en `dist/` | — | 8.743 kB | ≤ 8.750 kB |
@@ -634,6 +634,10 @@ La tabla se midió antes de las correcciones de la revisión independiente (prio
 primera foto, precarga en reposo, spray en su propio chunk). Con el build definitivo se
 repitieron `/`, `/crew` y `/estudio`: 83, 85 y 87 de rendimiento en móvil y 4,58, 4,28 y
 3,98 s de LCP, con el mismo CLS.
+
+Después, al cargar aparte el pie de página (que ya queda siempre bajo el pliegue), las tres
+páginas que se volvieron a medir mejoran en móvil: `/` 87 de rendimiento y 3,90 s de LCP
+con 509 kB, `/cart` 87 y 3,83 s, y `/no-existe` 90 y 3,46 s, con el mismo CLS.
 
 - **CLS**: 0,030 como mucho (presupuesto 0,05), en las diez páginas y los dos tamaños.
 - **Rendimiento en móvil**: 83–88. Seis páginas llegan a 85; la portada, `/products`,

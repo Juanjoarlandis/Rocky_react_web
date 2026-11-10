@@ -1,7 +1,6 @@
 import React, { Suspense, useCallback, useEffect, useState } from 'react';
 import { matchPath, Route, Routes, useLocation, useNavigate } from 'react-router';
 import NavBar from './components/NavBar';
-import Footer from './components/Footer';
 import ScrollToTop from './components/ScrollToTop';
 import MiniPlayer from './features/music/MiniPlayer';
 import { MusicProvider } from './features/music/MusicContext';
@@ -35,6 +34,9 @@ const CrewProfile = React.lazy(() => import('./features/crew/CrewProfile'));
 const Legal = React.lazy(() => import('./features/legal/Legal'));
 // El panel de drops de la crew: sin enlace en la barra y con noindex.
 const Taller = React.lazy(() => import('./features/taller/Taller'));
+// El pie queda siempre bajo el pliegue (.app-main ocupa la pantalla): su
+// código, su CSS y sus imágenes no viajan en la carga inicial.
+const Footer = React.lazy(() => import('./components/Footer'));
 
 const SPLASH_MS = 3000;
 // El catálogo de muestra solo hace falta sin Shopify: se pide entonces.
@@ -253,7 +255,13 @@ function App() {
             </Routes>
           </Suspense>
         </main>
-        {!esChat && <Footer featuredDrop={drops.featured} />}
+        {/* Se pide cuando ha llegado el catálogo (o al primer gesto): antes, sus
+            imágenes le quitarían red a lo que sí se ve. */}
+        {!esChat && (piecesReady || !commerce.loading) && (
+          <Suspense fallback={null}>
+            <Footer featuredDrop={drops.featured} />
+          </Suspense>
+        )}
       </div>
     </MusicProvider>
   );

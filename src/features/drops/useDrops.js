@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createDemoDrops } from '../../../shared/demo-drops.mjs';
 import { DROP_STATES, isOnSale } from '../../../shared/drops.mjs';
 import { getDrops } from '../../api/drops.js';
 import { errorMessage } from '../../utils/errors.js';
@@ -34,6 +33,8 @@ function nextBoundary(drops) {
     .filter(Number.isFinite);
   return times.length ? Math.min(...times) : null;
 }
+
+const loadDemoDrops = () => import('../../../shared/demo-drops.mjs');
 
 export function useDrops({ mode, products = EMPTY, onLaunch } = {}) {
   const [payload, setPayload] = useState(null);
@@ -78,17 +79,34 @@ export function useDrops({ mode, products = EMPTY, onLaunch } = {}) {
     if (mode === 'shopify') load();
   }, [mode, load]);
 
-  // En demo se reparte el catálogo de muestra en drops; sin tienda, nada.
+  // En demo se reparte el catálogo de muestra en drops; sin tienda, nada. El
+  // reparto solo hace falta sin Shopify: su código se pide entonces, como el
+  // catálogo de muestra, y no viaja en la carga inicial de la tienda real.
   const isDemo = mode === 'demo';
   useEffect(() => {
     if (isDemo) {
-      offsetRef.current = 0;
-      setPayload(createDemoDrops({ products, now: new Date() }));
-      setLoading(false);
-    } else if (mode === 'unavailable') {
+      let cancelled = false;
+      loadDemoDrops()
+        .then(({ createDemoDrops }) => {
+          if (cancelled) return;
+          offsetRef.current = 0;
+          setPayload(createDemoDrops({ products, now: new Date() }));
+        })
+        .catch(() => {
+          if (!cancelled) setPayload((current) => current ?? EMPTY_PAYLOAD);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }
+    if (mode === 'unavailable') {
       setPayload(EMPTY_PAYLOAD);
       setLoading(false);
     }
+    return undefined;
   }, [isDemo, mode, products]);
 
   // La próxima frontera: se vuelve a pedir al llegar su hora.
