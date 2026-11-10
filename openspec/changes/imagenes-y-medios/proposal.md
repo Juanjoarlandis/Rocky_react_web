@@ -78,7 +78,7 @@ Ninguna (`openspec/specs/` está vacío). La respuesta de `GET /api/shopify/prod
 
 `scripts/optimizar-imagenes.mjs` y sus pruebas, `public/products/`,
 `src/images/optimized/`, un componente nuevo de foto de producto y los ocho sitios que
-pintan una, `src/data/crew.js`, `src/features/night/nightArt.js`, `Footer.jsx`,
+pintan una, `src/data/art.js` (ayudante de variantes), `src/components/ProductPhoto.jsx`, `Footer.jsx`,
 `Estampida.jsx`, `CartRunner.jsx`, cuatro ilustraciones ocultas por CSS,
 `server/integrations/shopify/` (consultas de imagen), `src/features/storefront/normalize.js`,
 el doble de Shopify de la auditoría, `scripts/performance-budget.json` y `CONTRIBUTING.md`.

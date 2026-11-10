@@ -1,3 +1,4 @@
+import { artSources } from '../../data/art.js';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { legalPath } from '../../config/legal.js';
@@ -71,7 +72,7 @@ export default function DropAviso({ producto, onApuntado }) {
       <div className="drop-aviso drop-aviso--listo" data-testid="drop-aviso-listo">
         {/* El Recadero ya tiene tu recado en la bolsa */}
         <img
-          src={recaderoArt}
+          {...artSources(recaderoArt, 80)}
           width="589"
           height="600"
           loading="lazy"

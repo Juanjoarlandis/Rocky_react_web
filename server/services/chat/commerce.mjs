@@ -138,15 +138,38 @@ function safeText(value, maxLength = 120) {
   );
 }
 
-function safeImage(image) {
-  if (!image || typeof image.url !== 'string') return null;
+const MAX_IMAGE_SIDE = 20_000;
+const MAX_IMAGE_SOURCES = 6;
+const isImageSide = (value) => Number.isInteger(value) && value > 0 && value <= MAX_IMAGE_SIDE;
+
+function safeHttpsUrl(value) {
+  if (typeof value !== 'string') return null;
   try {
-    const url = new URL(image.url);
-    if (url.protocol !== 'https:') return null;
-    return { url: url.toString(), alt: safeText(image.alt, 160) };
+    const url = new URL(value);
+    return url.protocol === 'https:' ? url.toString() : null;
   } catch {
     return null;
   }
+}
+
+// La imagen de una tarjeta: solo URL https, también en cada variante, y un
+// tamaño que sea un entero razonable.
+function safeImage(image) {
+  const url = safeHttpsUrl(image?.url);
+  if (!url) return null;
+  const safe = { url, alt: safeText(image.alt, 160) };
+  if (isImageSide(image.width) && isImageSide(image.height)) {
+    safe.width = image.width;
+    safe.height = image.height;
+  }
+  if (Array.isArray(image.sources)) {
+    const sources = image.sources
+      .slice(0, MAX_IMAGE_SOURCES)
+      .map((source) => ({ width: source?.width, url: safeHttpsUrl(source?.url) }))
+      .filter((source) => isImageSide(source.width) && source.url);
+    if (sources.length) safe.sources = sources;
+  }
+  return safe;
 }
 
 function safeDemoImage(product) {

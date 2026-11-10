@@ -230,8 +230,15 @@ function inventoryOf(variant, control) {
   return variant.inventory;
 }
 
+// Como Shopify desde imagenes-y-medios: tamaño real y una URL por ancho (el doble no
+// redimensiona; cuelga el ancho pedido de la URL, como hace el CDN de Shopify).
 function imageOf(product) {
-  return product.image ? { url: product.image.url, altText: product.image.altText } : null;
+  if (!product.image) return null;
+  const { url, altText } = product.image;
+  const width = product.image.width ?? 1254;
+  const height = product.image.height ?? 1254;
+  const sized = (maxWidth) => `${url}${url.includes('?') ? '&' : '?'}width=${Math.min(maxWidth, width)}`;
+  return { url, altText, width, height, w320: sized(320), w640: sized(640), w1280: sized(1280) };
 }
 
 // Storefront: ProductVariant.image cae a la imagen del producto si la variante no tiene.

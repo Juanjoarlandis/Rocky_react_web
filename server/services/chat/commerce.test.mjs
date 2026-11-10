@@ -347,3 +347,50 @@ describe('Rocky IA commerce context', () => {
     expect(selectCatalogChatProducts(message, products, previewProducts)).toHaveLength(3);
   });
 });
+
+describe('imágenes de las tarjetas del chat (imagenes-y-medios)', () => {
+  const withImage = (image) => [
+    {
+      ...products[0],
+      image,
+      variants: products[0].variants.map((variant) => ({ ...variant, availableForSale: true })),
+    },
+  ];
+  const card = (image) =>
+    selectCatalogChatProducts('Quiero la Rockydz Boyz', withImage(image), [], 1)[0];
+
+  it('pasa el tamaño y las variantes de la foto, cada una con la misma regla de https', () => {
+    expect(
+      card({
+        url: 'https://cdn.shopify.com/boyz.jpg',
+        alt: 'Rockydz Boyz blanca',
+        width: 1200,
+        height: 1600,
+        sources: [
+          { width: 320, url: 'https://cdn.shopify.com/boyz.jpg?width=320' },
+          { width: 640, url: 'http://cdn.shopify.com/boyz.jpg?width=640' },
+          { width: 1280, url: 'javascript:alert(1)' },
+          { width: '1280', url: 'https://cdn.shopify.com/boyz.jpg?width=1280' },
+        ],
+      }).image
+    ).toEqual({
+      url: 'https://cdn.shopify.com/boyz.jpg',
+      alt: 'Rockydz Boyz blanca',
+      width: 1200,
+      height: 1600,
+      sources: [{ width: 320, url: 'https://cdn.shopify.com/boyz.jpg?width=320' }],
+    });
+  });
+
+  it('una foto sin tamaño ni variantes sigue saliendo con url y alt', () => {
+    expect(
+      card({ url: 'https://cdn.shopify.com/boyz.jpg', alt: 'Rockydz Boyz blanca' }).image
+    ).toEqual({ url: 'https://cdn.shopify.com/boyz.jpg', alt: 'Rockydz Boyz blanca' });
+  });
+
+  it('descarta un tamaño que no es un entero razonable', () => {
+    expect(
+      card({ url: 'https://cdn.shopify.com/boyz.jpg', alt: '', width: -5, height: 1e9 }).image
+    ).toEqual({ url: 'https://cdn.shopify.com/boyz.jpg', alt: '' });
+  });
+});

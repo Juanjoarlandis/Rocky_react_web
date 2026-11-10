@@ -1,3 +1,5 @@
+import { artSources } from '../../data/art.js';
+import ProductPhoto from '../../components/ProductPhoto.jsx';
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useParams, Link } from 'react-router';
 import Lightbox from './Lightbox';
@@ -134,7 +136,7 @@ function ProductDetail({
         <div className="detail-media-wrap tape">
           {/* Un chaval de la banda vigila el producto desde el marco */}
           <img
-            src={vigiaArt}
+            {...artSources(vigiaArt, 190)}
             width="717"
             height="1186"
             decoding="async"
@@ -150,14 +152,22 @@ function ProductDetail({
             disabled={isPlaceholder}
           >
             {isPlaceholder ? (
-              <PlaceholderTee title={product.title} compact description="sin foto todavía" />
+              <PlaceholderTee
+                title={product.title}
+                compact
+                description="sin foto todavía"
+                sizes="(max-width: 900px) 92vw, 600px"
+              />
             ) : (
-              <img
+              <ProductPhoto
                 src={product.image}
-                width={product.imageWidth ?? 1254}
-                height={product.imageHeight ?? 1254}
+                width={product.imageWidth}
+                height={product.imageHeight}
+                sources={product.imageSources}
+                sizes="(max-width: 900px) 92vw, 600px"
                 alt={product.title}
                 className="detail-image"
+                priority
               />
             )}
             {!isPlaceholder && !productSoldOut && <ProductReticle />}
@@ -206,7 +216,7 @@ function ProductDetail({
           <div className="detail-buy">
             {/* El Nube pasea por la línea de puntos con su paraguas */}
             <img
-              src={nubePaseando}
+              {...artSources(nubePaseando, 115)}
               width="345"
               height="600"
               alt=""
@@ -259,7 +269,12 @@ function ProductDetail({
       </div>
 
       {zoomOpen && (
-        <Lightbox src={product.image} alt={product.title} onClose={() => setZoomOpen(false)} />
+        <Lightbox
+          src={product.image}
+          sources={product.imageSources}
+          alt={product.title}
+          onClose={() => setZoomOpen(false)}
+        />
       )}
     </div>
   );

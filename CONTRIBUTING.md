@@ -75,6 +75,11 @@ y falla si algo supera los límites de `scripts/performance-budget.json`.
   motivo y su propio techo, y se retira cuando deja de hacer falta.
 - Un tipo de fichero nuevo en `dist/` (JPEG, AVIF, un vídeo…) hace fallar la
   comprobación hasta que `scripts/check-budget.mjs` tenga una regla para él.
+- Un vídeo (`.mp4`, `.webm`, `.mov`) solo entra declarado en `videos` de
+  `scripts/performance-budget.json`, con su fichero, su límite en kB y su
+  motivo. Y en la página: con póster, `preload="none"`, la fuente asignada al
+  entrar en pantalla, en pausa fuera de ella y con la pestaña oculta, y sin
+  sonido automático.
 - El cliente no lee `.env`: Vite tiene `envDir: false`, así que
   `npm run build` genera el mismo `dist/` de producción en cualquier equipo.
   No añadas variables `VITE_*`; el `.env` es del servidor.

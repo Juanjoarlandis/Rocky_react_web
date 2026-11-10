@@ -1,3 +1,4 @@
+import ProductPhoto from '../../components/ProductPhoto.jsx';
 import { useId } from 'react';
 import { Link } from 'react-router';
 import { DROP_STATES, dropState, isOnSale } from '../../../shared/drops.mjs';
@@ -126,13 +127,13 @@ export default function Cartel({
         <ul className="cartel-miniaturas">
           {disenos.slice(0, MAX_MINIATURAS).map((product) => (
             <li key={product.handle}>
-              <img
+              <ProductPhoto
                 src={product.image}
+                sources={product.imageSources}
+                sizes="64px"
                 alt={product.imageAlt || product.title}
-                width="96"
-                height="96"
-                loading="lazy"
-                decoding="async"
+                width={96}
+                height={96}
               />
             </li>
           ))}
@@ -157,14 +158,15 @@ export default function Cartel({
     >
       <div className="cartel-papel">
         {drop.poster ? (
-          <img
+          <ProductPhoto
             className="cartel-arte"
             src={drop.poster.url}
+            sources={drop.poster.sources}
+            sizes="(max-width: 640px) 92vw, 420px"
             alt={drop.poster.alt || ''}
-            width="1024"
-            height="1536"
-            loading={cabecera ? 'eager' : 'lazy'}
-            decoding="async"
+            width={drop.poster.width ?? 1024}
+            height={drop.poster.height ?? 1536}
+            priority={cabecera}
           />
         ) : (
           <CartelTipografico drop={drop} />

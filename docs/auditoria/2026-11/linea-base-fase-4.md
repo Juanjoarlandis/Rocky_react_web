@@ -535,6 +535,25 @@ JavaScript inicial todo lo que `index.html` hace descargar al abrir: sus scripts
   entra en `check`: tarda minutos y depende del equipo. Se repite con las herramientas
   del apartado 9 al cerrar cada cambio.
 
+### Tras `imagenes-y-medios`
+
+Medido el 2026-11-10 con el cambio aplicado (mismo método; Lighthouse solo en tres páginas).
+
+| Métrica | Línea base | Ahora | Presupuesto |
+| --- | ---: | ---: | ---: |
+| Peso de `/` en móvil (Lighthouse) | 1.943 kB | 1.149 kB | ≤ 800 kB |
+| Imágenes de `/` en móvil (Lighthouse) | 1.400 kB | 580 kB | — |
+| LCP de `/` en móvil | 9,76 s | 7,51 s | ≤ 3,0 s |
+| Imágenes decodificadas al recorrer la portada (móvil) | 344,5 MB | 8,9 MB | ≤ 40 MB |
+| Imágenes decodificadas en `/estudio` (escritorio) | 55,6 MB | 5,3 MB | ≤ 15 MB |
+| Imágenes decodificadas en `/crew` (móvil) | 122,2 MB | 33,5 MB | — |
+| Estampida: dibujos que descarga (día / noche) | 584 / 1.330 kB | 340 / 351 kB | ≤ 350 / 500 kB |
+| Animación del pie que descarga un móvil | 663 kB, a 800 px del pie | 490 kB, solo al verse | ≤ 530 kB |
+
+El peso de `/` sigue por encima de su presupuesto: lo que queda son las fuentes, el
+JavaScript sin comprimir en el origen (`servidor-ligero`) y la animación del pie, que
+Lighthouse descarga porque recorre la página entera.
+
 ### Orden de los cambios
 
 Cada uno es un cambio OpenSpec en `openspec/changes/`, propuesto el 2026-11-10.

@@ -7,6 +7,12 @@ export default defineConfig({
   // ese fichero es del servidor (lleva sus secretos) y un `NODE_ENV=development`
   // local convertía `npm run build` en un build con React de desarrollo.
   envDir: false,
+  build: {
+    // Las ilustraciones optimizadas van siempre como fichero: Vite incrusta en
+    // el JavaScript lo que pesa menos de 4 kB, y los pósters pequeños de la
+    // cinta del pie metían 10 kB de base64 en el bundle inicial.
+    assetsInlineLimit: (file) => (file.includes('/images/optimized/') ? false : undefined),
+  },
   server: {
     port: 3000,
     proxy: {

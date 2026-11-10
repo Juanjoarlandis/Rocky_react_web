@@ -1,5 +1,10 @@
 import { PLACEHOLDER_IMAGE } from '../../config/commerce.js';
+import { localPhotoSources } from '../../data/productImages.js';
 import '../../styles/components/placeholder-tee.css';
+
+const PLACEHOLDER_SRCSET = localPhotoSources(PLACEHOLDER_IMAGE)
+  .map(({ url, width }) => `${url} ${width}w`)
+  .join(', ');
 
 /* La camiseta tapada: el mockup de un diseño que aún no se ve. `kicker` dice
    de qué drop es (solo si se sabe, nunca un drop fijo) y `description`, por qué
@@ -11,6 +16,8 @@ function PlaceholderTee({
   label = 'Diseño bajo llave',
   kicker = null,
   description = 'diseño todavía sin revelar',
+  // Ancho al que se pinta, como en ProductPhoto: elige la variante del mockup.
+  sizes = compact ? '96px' : '(max-width: 640px) 42vw, (max-width: 1100px) 380px, 280px',
 }) {
   return (
     <span
@@ -20,6 +27,8 @@ function PlaceholderTee({
     >
       <img
         src={PLACEHOLDER_IMAGE}
+        srcSet={PLACEHOLDER_SRCSET}
+        sizes={sizes}
         alt=""
         width="1254"
         height="1254"

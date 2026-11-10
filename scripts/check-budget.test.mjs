@@ -429,7 +429,7 @@ describe('imágenes del build', () => {
     expect(measurement.unknownFiles).toEqual([]);
   });
 
-  it.each(['foto.jpg', 'foto.JPEG', 'foto.jfif', 'foto.avif', 'foto.gif', 'intro.mp4', 'voz.weba'])(
+  it.each(['foto.jpg', 'foto.JPEG', 'foto.jfif', 'foto.avif', 'foto.gif', 'plano.psd', 'voz.weba'])(
     'no da por bueno %s, un tipo de fichero para el que no tiene regla',
     async (name) => {
       const measurement = await measureBuild(
@@ -497,6 +497,7 @@ function sampleMeasurement(overrides = {}) {
     ],
     unreadableImages: [],
     unknownFiles: [],
+    videos: [],
     audio: [{ file: 'music/modo-neon.m4a', bytes: 1_021_000 }],
     ...overrides,
   };
@@ -513,6 +514,7 @@ function sampleBudget({ metrics = {}, exceptions = [] } = {}) {
       preloadedFonts: { limit: 55, target: 55 },
       imageSide: { limit: 1600, target: 1600 },
       imageWeight: { limit: 200, target: 200 },
+      animationWeight: { limit: 710, target: 710 },
       imagesTotal: { limit: 200, target: 200 },
       audioTrack: { limit: 1100, target: 1100 },
       audioTotal: { limit: 1100, target: 1100 },
@@ -535,7 +537,7 @@ describe('reglas del presupuesto', () => {
     const evaluation = evaluateBudget(sampleMeasurement(), sampleBudget());
 
     expect(evaluation.failures).toEqual([]);
-    expect(evaluation.rows).toHaveLength(9);
+    expect(evaluation.rows).toHaveLength(10);
   });
 
   it('falla cuando el JavaScript inicial supera su límite y dice cuánto y contra qué', () => {
@@ -746,14 +748,14 @@ describe('excepciones del presupuesto', () => {
       animated: true,
     };
     const { failures } = evaluateBudget(
-      sampleMeasurement({ images: [{ ...walk, bytes: 709_174 }] }),
+      sampleMeasurement({ images: [{ ...walk, bytes: 750_000 }] }),
       sampleBudget({
-        metrics: { imagesTotal: { limit: 720, target: 720 } },
+        metrics: { imagesTotal: { limit: 760, target: 760 } },
         exceptions: [
           {
             file: 'assets/toxico-paseo-224.webp',
-            metric: 'imageWeight',
-            limit: 710,
+            metric: 'animationWeight',
+            limit: 800,
             reason: 'H-169',
           },
         ],
@@ -952,6 +954,7 @@ describe('comprobación completa', () => {
     preloadedFonts: { limit: 82, target: 82 },
     imageSide: { limit: 1600, target: 1600 },
     imageWeight: { limit: 200, target: 200 },
+    animationWeight: { limit: 710, target: 710 },
     imagesTotal: { limit: 5200, target: 5200 },
     audioTrack: { limit: 1100, target: 1100 },
     audioTotal: { limit: 3750, target: 3750 },
@@ -1269,26 +1272,37 @@ describe('reglas del presupuesto: casos límite', () => {
     });
   });
 
-  it('dice que una imagen pesada es una animación', () => {
+  const walk = (bytes) =>
+    image({ file: 'paseo.webp', bytes, width: 166, height: 224, animated: true });
+
+  it('una animación se mide contra su propio límite, no contra el de una imagen', () => {
     const { failures } = evaluateBudget(
-      sampleMeasurement({
-        images: [
-          image({ file: 'paseo.webp', bytes: 709_174, width: 166, height: 224, animated: true }),
-        ],
-      }),
+      sampleMeasurement({ images: [walk(709_174)] }),
       sampleBudget({ metrics: { imagesTotal: { limit: 710, target: 710 } } })
     );
 
-    expect(failures).toEqual([expect.stringMatching(/paseo\.webp.*709,17 kB.*animación/)]);
+    expect(failures).toEqual([]);
+  });
+
+  it('nombra la animación que supera el límite de animaciones', () => {
+    const evaluation = evaluateBudget(
+      sampleMeasurement({ images: [walk(800_000)] }),
+      sampleBudget({ metrics: { imagesTotal: { limit: 900, target: 900 } } })
+    );
+
+    expect(evaluation.failures).toEqual([
+      expect.stringMatching(/Animación paseo\.webp.*800,00 kB.*710 kB/),
+    ]);
+    expect(evaluation.rows.find(({ id }) => id === 'imageWeight')).toMatchObject({ file: '' });
   });
 
   it('no da por bueno un fichero de un tipo para el que no hay regla', () => {
     const { failures } = evaluateBudget(
-      sampleMeasurement({ unknownFiles: [{ file: 'intro.mp4', bytes: 20_000_000 }] }),
+      sampleMeasurement({ unknownFiles: [{ file: 'plano.psd', bytes: 20_000_000 }] }),
       sampleBudget()
     );
 
-    expect(failures).toEqual([expect.stringMatching(/intro\.mp4.*\.mp4.*20000,00 kB/)]);
+    expect(failures).toEqual([expect.stringMatching(/plano\.psd.*\.psd.*20000,00 kB/)]);
   });
 
   it('no propone bajar un límite al mismo valor que ya tiene', () => {
@@ -1396,5 +1410,70 @@ describe('línea de comandos', () => {
     ).catch((error) => error);
 
     expect(`${stdout}${stderr}`).toMatch(/presupuesto/i);
+  });
+});
+
+describe('vídeos: solo con límite declarado', () => {
+  const dist = {
+    'index.html': entryDocument(),
+    'assets/index-AAAAAAAA.js': noise(51, 500),
+  };
+  const video = { file: 'assets/intro-QQQQQQQQ.mp4', bytes: 900_000 };
+  const declared = { file: 'assets/intro.mp4', limit: 1000, reason: 'Cabecera del drop 5' };
+
+  it.each(['intro.mp4', 'intro.webm', 'intro.MOV'])('mide %s como vídeo', async (name) => {
+    const measurement = await measureBuild(
+      await makeDist({ ...dist, [`media/${name}`]: Buffer.alloc(3000, 1) })
+    );
+
+    expect(measurement.videos).toEqual([{ file: `media/${name}`, bytes: 3000 }]);
+    expect(measurement.unknownFiles).toEqual([]);
+  });
+
+  it('falla y nombra el vídeo que entra sin declarar', () => {
+    const { failures } = evaluateBudget(sampleMeasurement({ videos: [video] }), sampleBudget());
+
+    expect(failures).toEqual([
+      expect.stringMatching(/assets\/intro-QQQQQQQQ\.mp4.*900,00 kB.*sin límite declarado/),
+    ]);
+  });
+
+  it('admite un vídeo declarado mientras no supere su límite', () => {
+    const budget = { ...sampleBudget(), videos: [declared] };
+
+    expect(evaluateBudget(sampleMeasurement({ videos: [video] }), budget).failures).toEqual([]);
+    expect(
+      evaluateBudget(sampleMeasurement({ videos: [{ ...video, bytes: 1_200_000 }] }), budget)
+        .failures
+    ).toEqual([expect.stringMatching(/intro-QQQQQQQQ\.mp4.*1200,00 kB.*1000 kB/)]);
+  });
+
+  it('pide retirar la declaración de un vídeo que ya no está', () => {
+    const { failures } = evaluateBudget(sampleMeasurement(), {
+      ...sampleBudget(),
+      videos: [declared],
+    });
+
+    expect(failures).toEqual([expect.stringMatching(/assets\/intro\.mp4.*no está en dist\//)]);
+  });
+
+  it.each([
+    ['sin límite', { file: 'a.mp4', reason: 'x' }, /a\.mp4.*límite/],
+    ['sin motivo', { file: 'a.mp4', limit: 500 }, /a\.mp4.*motivo/],
+    ['sin fichero', { limit: 500, reason: 'x' }, /fichero/],
+  ])('rechaza la declaración de un vídeo %s', (_label, entry, expected) => {
+    expect(validateBudget({ ...sampleBudget(), videos: [entry] })).toEqual([
+      expect.stringMatching(expected),
+    ]);
+  });
+});
+
+describe('vídeos: declaración repetida', () => {
+  it('rechaza declarar dos veces el mismo vídeo', () => {
+    const video = { file: 'assets/intro.mp4', limit: 1000, reason: 'Cabecera' };
+
+    expect(validateBudget({ ...sampleBudget(), videos: [video, { ...video }] })).toEqual([
+      expect.stringMatching(/intro\.mp4.*repetido/),
+    ]);
   });
 });

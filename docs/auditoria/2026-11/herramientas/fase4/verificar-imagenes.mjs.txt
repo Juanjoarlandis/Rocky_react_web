@@ -1,0 +1,111 @@
+// Verificación de los escenarios de imagenes-y-medios: node verificar.mjs <snapshot> [puerto]
+const { chromium } = await import(process.env.ROCKY_PLAYWRIGHT); // ruta a playwright-core/index.mjs
+process.env.ROCKY_REPO = process.argv[2];
+const { startInstance } = await import('./instancia.mjs');
+const instance = await startInstance(Number(process.argv[3] || 3049), { SITE_ACCESS_ENABLED: 'false', TRUST_PROXY_HOPS: '1' });
+const browser = await chromium.launch({ channel: 'chrome' });
+const name = (url) => url.split('/').pop().replace(/-[A-Za-z0-9_-]{8}(\.\w+)$/, '$1');
+async function open({ width, height = 900, dpr = 1, reducedMotion = 'no-preference', saveData = false, route = '/' }) {
+  const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: dpr, reducedMotion });
+  await context.addInitScript((save) => {
+    sessionStorage.setItem('rocky-splash-seen', '1');
+    if (save) Object.defineProperty(navigator, 'connection', { value: { saveData: true }, configurable: true });
+  }, saveData);
+  const page = await context.newPage();
+  const requests = [];
+  page.on('requestfinished', async (request) => {
+    const sizes = await request.sizes().catch(() => null);
+    requests.push({ file: name(request.url()), type: request.resourceType(), bytes: sizes?.responseBodySize ?? 0 });
+  });
+  await page.goto(instance.origin + route, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(600);
+  return { context, page, requests };
+}
+const kb = (n) => (n / 1000).toFixed(1) + ' kB';
+const out = [];
+const check = (label, ok, detail) => { out.push(`${ok ? 'OK   ' : 'FALLO'} ${label}${detail ? ' — ' + detail : ''}`); };
+try {
+  // --- Fotos de producto
+  { const { context, page } = await open({ width: 375, height: 812, dpr: 2 });
+    const cards = await page.evaluate(() => [...document.querySelectorAll('img.product-image')].map((i) => i.currentSrc.replace(location.origin, '')).filter(Boolean));
+    check('tarjetas en móvil 375@2x descargan la variante de 320', cards.length > 0 && cards.every((src) => /-320\.webp$/.test(src)), [...new Set(cards)].join(' '));
+    await context.close(); }
+  { const { context, page } = await open({ width: 1440, dpr: 1 });
+    const href = await page.evaluate(() => document.querySelector('img.product-image')?.closest('article')?.querySelector('a[href^="/product/"]')?.getAttribute('href'));
+    await page.evaluate((to) => { history.pushState({}, '', to); dispatchEvent(new PopStateEvent('popstate')); }, href);
+    await page.waitForTimeout(900);
+    const detail = await page.evaluate(() => { const i = document.querySelector('img.detail-image'); return i && { src: i.currentSrc.replace(location.origin, ''), w: Math.round(i.getBoundingClientRect().width) }; });
+    check('ficha en 1440@1x descarga la variante de 640', /-640\.webp$/.test(detail?.src ?? ''), JSON.stringify(detail));
+    await page.locator('.detail-media').click();
+    await page.waitForTimeout(700);
+    const zoom = await page.evaluate(() => { const i = document.querySelector('img.lightbox-image'); return i && { src: i.currentSrc.replace(location.origin, ''), w: Math.round(i.getBoundingClientRect().width), real: i.naturalWidth }; });
+    check('lightbox en 1440@1x descarga como mucho 1.280 px', !!zoom && !/5906/.test(zoom.src), JSON.stringify(zoom));
+    for (const [w, h] of [[1440, 900], [812, 375], [900, 700]]) {
+      await page.setViewportSize({ width: w, height: h }); await page.waitForTimeout(300);
+      const box = await page.evaluate(() => { const r = document.querySelector('img.lightbox-image').getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; });
+      check(`lightbox a ${w}×${h}: la foto cuadrada no se deforma`, Math.abs(box[0] - box[1]) <= 8, box.join('×'));
+    }
+    await context.close(); }
+  // --- Estampida
+  for (const night of [false, true]) {
+    const { context, page, requests } = await open({ width: 1440, dpr: 1 });
+    if (night) { await page.evaluate(() => { document.documentElement.dataset.theme = 'neon'; }); await page.waitForTimeout(500); }
+    requests.length = 0;
+    await page.keyboard.type('035', { delay: 80 });
+    await page.waitForTimeout(4500);
+    const art = requests.filter((r) => r.type === 'image');
+    const runners = await page.evaluate(() => document.querySelectorAll('.estampida img, [class*="estampida"] img').length);
+    const total = art.reduce((t, r) => t + r.bytes, 0);
+    check(`Estampida de ${night ? 'noche' : 'día'}: ${art.length} dibujos, ${kb(total)} (límite ${night ? 500 : 350} kB)`, art.length >= 20 && total <= (night ? 500_000 : 350_000), `corredores en pantalla: ${runners}; ${[...new Set(art.map((r) => r.file.replace(/^.*-(h\d+|hd|800)\.webp$/, '$1')))].join(',')}`);
+    await context.close();
+  }
+  // --- Animación del pie
+  const anim = (requests) => requests.filter((r) => /(walk-seedance|toxico-paseo)/.test(r.file) && !/poster/.test(r.file));
+  { const { context, page, requests } = await open({ width: 375, height: 812, dpr: 2 });
+    check('sin hacer scroll no se descarga la animación del pie', anim(requests).length === 0, anim(requests).map((r) => r.file).join(' '));
+    await page.evaluate(() => { document.documentElement.dataset.theme = 'neon'; }); await page.waitForTimeout(800);
+    check('al encender el neón con la cinta fuera de pantalla tampoco', anim(requests).length === 0, anim(requests).map((r) => r.file).join(' '));
+    await page.evaluate(() => { delete document.documentElement.dataset.theme; });
+    await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight)); await page.waitForTimeout(2500);
+    const got = anim(requests);
+    await page.evaluate(() => scrollTo(0, 0)); await page.waitForTimeout(600);
+    await page.evaluate(() => { document.documentElement.dataset.theme = 'neon'; }); await page.waitForTimeout(1500);
+    check('tras ver el pie y volver arriba, encender el neón no baja la animación de noche', !anim(requests).some((r) => /toxico/.test(r.file)), anim(requests).map((r) => r.file).join(' '));
+    await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight)); await page.waitForTimeout(2500);
+    check('y al volver al pie de noche baja la de 168 px', anim(requests).some((r) => /toxico-paseo-h168/.test(r.file)), anim(requests).map((r) => r.file).join(' '));
+    check('móvil 375@2x: al llegar al pie descarga la variante de 168 px', got.length === 1 && /h168/.test(got[0].file), got.map((r) => `${r.file} ${kb(r.bytes)}`).join(' '));
+    await context.close(); }
+  { const { context, page, requests } = await open({ width: 1440, dpr: 1 });
+    await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight)); await page.waitForTimeout(2500);
+    const got = anim(requests);
+    check('escritorio 1440@1x: descarga la variante de 112 px', got.length === 1 && /h112/.test(got[0].file), got.map((r) => `${r.file} ${kb(r.bytes)}`).join(' '));
+    await context.close(); }
+  for (const [label, options] of [['movimiento reducido', { reducedMotion: 'reduce' }], ['ahorro de datos', { saveData: true }]]) {
+    const { context, page, requests } = await open({ width: 1440, dpr: 1, ...options });
+    await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight)); await page.waitForTimeout(2000);
+    const posters = requests.filter((r) => /poster/.test(r.file));
+    check(`con ${label} se queda el póster`, anim(requests).length === 0 && posters.length >= 1, posters.map((r) => r.file).join(' '));
+    await context.close();
+  }
+  // --- Ocultas
+  for (const [route, hidden, width] of [['/estudio', /colgado-borde|perro-rocky|skater-ollie|diana-jefe|cruiser-patinando/, 375], ['/rockyIA', /estrella-apoyado/, 375], ['/mi-crew', /larguirucho/, 375], ['/taller', /pegador/, 375]]) {
+    const { context, requests } = await open({ width, height: 812, dpr: 2, route });
+    const got = requests.filter((r) => r.type === 'image' && hidden.test(r.file));
+    check(`${route} a ${width} px no pide sus ilustraciones ocultas`, got.length === 0, got.map((r) => r.file).join(' '));
+    await context.close();
+  }
+  // --- Audio
+  for (const route of ['/', '/estudio', '/crew', '/cart']) {
+    const { context, requests } = await open({ width: 1440, route });
+    const music = requests.filter((r) => /\.m4a$/.test(r.file));
+    check(`${route} no pide audio al cargar`, music.length === 0, music.map((r) => r.file).join(' '));
+    await context.close();
+  }
+  { const { context, page, requests } = await open({ width: 1440 });
+    await page.locator('button[aria-label="Activar el descontrol"]:visible').first().click();
+    await page.waitForTimeout(2500);
+    const music = [...new Set(requests.filter((r) => /\.m4a$/.test(r.file)).map((r) => r.file))];
+    check('encender el neón pide solo modo-neon.m4a', music.length === 1 && music[0] === 'modo-neon.m4a', music.join(' '));
+    await context.close(); }
+} finally { await browser.close(); instance.stop(); }
+console.log(out.join('\n'));

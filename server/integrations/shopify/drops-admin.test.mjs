@@ -452,3 +452,57 @@ describe('subida de imágenes', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 });
+
+describe('tamaño y variantes del póster y de los diseños (imagenes-y-medios)', () => {
+  const shopifyImage = (file) => ({
+    url: `https://cdn.shopify.com/${file}`,
+    altText: 'Cartel',
+    width: 1024,
+    height: 1536,
+    w320: `https://cdn.shopify.com/${file}?width=320`,
+    w640: `https://cdn.shopify.com/${file}?width=640`,
+    w1280: `https://cdn.shopify.com/${file}?width=1280`,
+  });
+  const mapped = (file) => ({
+    url: `https://cdn.shopify.com/${file}`,
+    alt: 'Cartel',
+    width: 1024,
+    height: 1536,
+    sources: [
+      { width: 320, url: `https://cdn.shopify.com/${file}?width=320` },
+      { width: 640, url: `https://cdn.shopify.com/${file}?width=640` },
+      { width: 1024, url: `https://cdn.shopify.com/${file}?width=1280` },
+    ],
+  });
+
+  it('el póster de un drop lleva su tamaño real y una URL por ancho', async () => {
+    const admin = fakeAdmin({
+      RockyDrops: () => ({
+        collections: {
+          nodes: [
+            {
+              id: 'gid://shopify/Collection/6',
+              handle: 'rocky-drop-6',
+              title: 'ROCKY DROP 6',
+              image: shopifyImage('cartel.png'),
+              metafield: null,
+            },
+          ],
+        },
+      }),
+      RockyDropProducts: () => ({ collection: { products: { nodes: [] } } }),
+    });
+    const drops = await createDropsAdmin({ admin, publicationId: PUBLICATION }).listDrops();
+
+    expect(drops[0].poster).toEqual(mapped('cartel.png'));
+    const [document] = admin.query.mock.calls.find(([text]) => /query RockyDrops\b/.test(text));
+    expect(document).toContain('w640: url(transform: { maxWidth: 640 })');
+  });
+
+  it('la foto de un diseño también', () => {
+    expect(
+      mapAdminProduct({ ...productNode(), featuredImage: shopifyImage('jefe.png') }).image
+    ).toEqual(mapped('jefe.png'));
+    expect(mapAdminProduct({ ...productNode(), featuredImage: null }).image).toBeNull();
+  });
+});

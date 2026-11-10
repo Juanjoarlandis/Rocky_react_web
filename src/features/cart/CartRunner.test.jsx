@@ -163,3 +163,128 @@ describe('CartRunner: cuándo sale', () => {
     expect(screen.queryByTestId('cart-runner')).toBeNull();
   });
 });
+
+describe('CartRunner: el dibujo llega antes que la carrera', () => {
+  let imagenes;
+
+  // Una Image que no carga sola: cada prueba decide cuándo queda decodificada.
+  class ImagenFalsa {
+    constructor() {
+      this.src = '';
+      this.decode = vi.fn(
+        () =>
+          new Promise((resolve, reject) => {
+            this.lista = resolve;
+            this.falla = reject;
+          })
+      );
+      imagenes.push(this);
+    }
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    imagenes = [];
+    vi.stubGlobal('Image', ImagenFalsa);
+    montaIcono();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    document.body.innerHTML = '';
+  });
+
+  const resuelve = async (accion) => {
+    await act(async () => {
+      accion();
+      await Promise.resolve();
+    });
+  };
+
+  it('pide su dibujo pequeño cuando la página está en reposo, sin esperar a una compra', () => {
+    const enReposo = [];
+    vi.stubGlobal('requestIdleCallback', (callback) => enReposo.push(callback));
+
+    render(<CartRunner runId={0} />);
+    expect(imagenes).toHaveLength(0);
+
+    act(() => enReposo.forEach((callback) => callback()));
+    expect(imagenes).toHaveLength(1);
+    expect(imagenes[0].src).toContain('corriendo-bolsa-h320');
+  });
+
+  it('no arranca la carrera hasta que el dibujo está decodificado', async () => {
+    const { rerender } = render(<CartRunner runId={0} />);
+
+    rerender(<CartRunner runId={1} />);
+    expect(screen.queryByTestId('cart-runner')).toBeNull();
+
+    await resuelve(() => imagenes.at(-1).lista());
+    expect(screen.getByTestId('cart-runner')).toBeInTheDocument();
+    expect(screen.getByTestId('cart-runner').querySelector('img').src).toContain(
+      'corriendo-bolsa-h320'
+    );
+
+    advance(CRUCE_MS + 120);
+    expect(screen.queryByTestId('cart-runner')).toBeNull();
+  });
+
+  it('si el dibujo no llega en un segundo no hay carrera, ni aunque llegue después', async () => {
+    const { rerender } = render(<CartRunner runId={0} />);
+    rerender(<CartRunner runId={1} />);
+
+    await resuelve(() => vi.advanceTimersByTime(1000));
+    await resuelve(() => imagenes.at(-1).lista());
+
+    expect(screen.queryByTestId('cart-runner')).toBeNull();
+  });
+
+  it('si el dibujo falla al cargar no hay carrera ni error', async () => {
+    const { rerender } = render(<CartRunner runId={0} />);
+    rerender(<CartRunner runId={1} />);
+
+    await resuelve(() => imagenes.at(-1).falla(new Error('sin red')));
+
+    expect(screen.queryByTestId('cart-runner')).toBeNull();
+  });
+});
+
+describe('CartRunner: cuándo no merece la pena pedir el dibujo', () => {
+  let pedidas;
+  beforeEach(() => {
+    pedidas = [];
+    vi.stubGlobal(
+      'Image',
+      class {
+        set src(value) {
+          pedidas.push(value);
+        }
+      }
+    );
+    vi.stubGlobal('requestIdleCallback', (callback) => callback());
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('no lo precarga con movimiento reducido, porque no va a correr', () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn().mockImplementation((query) => ({
+        matches: query === '(prefers-reduced-motion: reduce)',
+      }))
+    );
+    render(<CartRunner runId={0} />);
+    expect(pedidas).toEqual([]);
+  });
+
+  it('no lo precarga con el ahorro de datos puesto', () => {
+    vi.stubGlobal('navigator', { ...navigator, connection: { saveData: true } });
+    render(<CartRunner runId={0} />);
+    expect(pedidas).toEqual([]);
+  });
+
+  it('en condiciones normales sí', () => {
+    render(<CartRunner runId={0} />);
+    expect(pedidas).toHaveLength(1);
+  });
+});

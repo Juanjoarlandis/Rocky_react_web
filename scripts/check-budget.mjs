@@ -45,6 +45,9 @@ const AUDIO_EXTENSIONS = new Set([
   '.wav',
 ]);
 const SCRIPT_EXTENSIONS = new Set(['.js', '.mjs']);
+// Un vídeo solo entra si el presupuesto lo declara con su límite (ver
+// CONTRIBUTING.md): es el recurso que más pesa y el que más fácil se cuela.
+const VIDEO_EXTENSIONS = new Set(['.mov', '.mp4', '.webm']);
 const SIZED_IMAGE_EXTENSIONS = new Set(['.png', '.webp']);
 // Imágenes sin un tamaño en píxeles que limitar: solo se pesan.
 const WEIGHED_IMAGE_EXTENSIONS = new Set(['.ico', '.svg']);
@@ -112,12 +115,16 @@ const METRICS = [
     unit: 'kB',
     noun: 'Imagen',
     scope: 'por imagen',
-    items: (measurement) =>
-      measurement.images.map(({ file, bytes, animated }) => ({
-        file,
-        value: bytes,
-        text: animated ? `${formatValue(bytes, 'kB')} (animación)` : undefined,
-      })),
+    items: (measurement) => byBytes(measurement.images.filter(({ animated }) => !animated)),
+  },
+  {
+    // Una animación son decenas de fotogramas: tiene su propio límite.
+    id: 'animationWeight',
+    label: 'Animación más pesada',
+    unit: 'kB',
+    noun: 'Animación',
+    scope: 'por animación',
+    items: (measurement) => byBytes(measurement.images.filter(({ animated }) => animated)),
   },
   {
     id: 'imagesTotal',
@@ -366,6 +373,7 @@ export async function measureBuild(distDirectory) {
   const images = [];
   const unreadableImages = [];
   const unknownFiles = [];
+  const videos = [];
   for (const file of distFiles) {
     const extension = path.extname(file).toLowerCase();
     const filePath = path.join(distDirectory, file);
@@ -375,6 +383,8 @@ export async function measureBuild(distDirectory) {
       }
     } else if (AUDIO_EXTENSIONS.has(extension)) {
       audio.push({ file, bytes: (await fs.stat(filePath)).size });
+    } else if (VIDEO_EXTENSIONS.has(extension)) {
+      videos.push({ file, bytes: (await fs.stat(filePath)).size });
     } else if (SIZED_IMAGE_EXTENSIONS.has(extension)) {
       const content = await fs.readFile(filePath);
       try {
@@ -400,6 +410,7 @@ export async function measureBuild(distDirectory) {
     images,
     unreadableImages,
     unknownFiles,
+    videos,
     audio,
   };
 }
@@ -462,6 +473,24 @@ export function validateBudget(budget) {
       errors.push(`La excepción de ${exception.file} para ${exception.metric} está repetida.`);
     }
     declared.add(key);
+  }
+  const videos = budget.videos ?? [];
+  if (!Array.isArray(videos)) {
+    errors.push('`videos` tiene que ser una lista.');
+    return errors;
+  }
+  const declaredVideos = new Set();
+  for (const video of videos) {
+    if (!isPlainObject(video) || typeof video.file !== 'string' || !video.file) {
+      errors.push('Un vídeo declarado no nombra su fichero (file).');
+    } else if (declaredVideos.has(video.file)) {
+      errors.push(`El vídeo ${video.file} está repetido.`);
+    } else if (!isPositiveNumber(video.limit)) {
+      errors.push(`El vídeo ${video.file} no declara su límite (limit).`);
+    } else if (typeof video.reason !== 'string' || !video.reason.trim()) {
+      errors.push(`El vídeo ${video.file} no declara su motivo (reason).`);
+    }
+    if (isPlainObject(video)) declaredVideos.add(video.file);
   }
   return errors;
 }
@@ -583,6 +612,27 @@ export function evaluateBudget(measurement, budget) {
 
   for (const { file, reason } of measurement.unreadableImages) {
     failures.push(`Imagen ${file}: ${reason}.`);
+  }
+  // Vídeos: ninguno entra sin su límite declarado.
+  const declaredVideos = budget.videos ?? [];
+  for (const { file, bytes } of measurement.videos ?? []) {
+    const declared = declaredVideos.find((video) => video.file === logicalName(file));
+    if (!declared) {
+      failures.push(
+        `Vídeo ${file}: ${formatValue(bytes, 'kB')}, sin límite declarado en ${BUDGET_FILE_LABEL} (la regla está en CONTRIBUTING.md).`
+      );
+    } else if (bytes > declared.limit * UNIT_SCALE.kB) {
+      failures.push(
+        `Vídeo ${file}: ${formatValue(bytes, 'kB')}, por encima de su límite de ${declared.limit} kB.`
+      );
+    }
+  }
+  for (const declared of declaredVideos) {
+    if (!(measurement.videos ?? []).some(({ file }) => logicalName(file) === declared.file)) {
+      failures.push(
+        `El vídeo declarado ${declared.file} no está en dist/. Retíralo de ${BUDGET_FILE_LABEL}.`
+      );
+    }
   }
   for (const { file, bytes } of measurement.unknownFiles) {
     const type = path.extname(file).toLowerCase() || 'sin extensión';

@@ -11,7 +11,15 @@ import '../styles/components/footer.css';
 import instagramIcon from '../images/optimized/shell/instagram-64.webp';
 import guysSittingImage from '../images/optimized/shell/sentado-860.webp';
 import lataPaseo from '../images/optimized/characters/lata-spray-walk-seedance-224.webp';
+import lataPaseo168 from '../images/optimized/characters/lata-spray-walk-seedance-h168.webp';
+import lataPaseo112 from '../images/optimized/characters/lata-spray-walk-seedance-h112.webp';
 import lataPaseoQuieto from '../images/optimized/characters/lata-spray-walk-seedance-poster-224.webp';
+import lataPaseoQuieto168 from '../images/optimized/characters/lata-spray-walk-seedance-poster-h168.webp';
+import lataPaseoQuieto112 from '../images/optimized/characters/lata-spray-walk-seedance-poster-h112.webp';
+import toxicoPaseo168 from '../images/optimized/night/toxico-paseo-h168.webp';
+import toxicoPaseo112 from '../images/optimized/night/toxico-paseo-h112.webp';
+import toxicoPaseoQuieto168 from '../images/optimized/night/toxico-paseo-poster-h168.webp';
+import toxicoPaseoQuieto112 from '../images/optimized/night/toxico-paseo-poster-h112.webp';
 import { useNightArt } from '../features/night/nightArt.js';
 import { useNightMode } from '../features/night/useNightMode.js';
 
@@ -54,19 +62,40 @@ const tickerItemsNoche = (drop) =>
     'DESDE EL FONDO DE LA COLMENA',
   ].filter(Boolean);
 
+/* El paseo de la cinta en sus tres alturas (112, 168 y 224 px; 83, 125 y
+   166 px de ancho): el navegador descarga la que corresponde a su tamaño
+   pintado y a la densidad de la pantalla, no siempre la mayor. */
+// La cinta mide clamp(84px, 10vw, 110px) de alto; en media queries, que todos
+// los navegadores entienden dentro de `sizes`.
+const PASEO_SIZES = '(max-width: 840px) 62px, (max-width: 1100px) 7.4vw, 82px';
+const paseoSrcSet = (h112, h168, h224) => `${h112} 83w, ${h168} 125w, ${h224} 166w`;
+
+// Sin movimiento, o con el ahorro de datos puesto, la cinta se queda en el póster.
+const quiereAhorrar = () => globalThis.navigator?.connection?.saveData === true;
+
 const Footer = ({ featuredDrop = null }) => {
   const guysSittingArt = useNightArt(guysSittingImage);
+  const night = useNightMode();
   // De noche patrulla El Tóxico, con el mismo paseo.
   const paseoArt = useNightArt(lataPaseo);
   const paseoQuietoArt = useNightArt(lataPaseoQuieto);
-  const night = useNightMode();
+  const paseoVariantes = night
+    ? paseoSrcSet(toxicoPaseo112, toxicoPaseo168, paseoArt)
+    : paseoSrcSet(lataPaseo112, lataPaseo168, paseoArt);
+  const paseoQuietoVariantes = night
+    ? paseoSrcSet(toxicoPaseoQuieto112, toxicoPaseoQuieto168, paseoQuietoArt)
+    : paseoSrcSet(lataPaseoQuieto112, lataPaseoQuieto168, paseoQuietoArt);
   const year = new Date().getFullYear();
   const tickerRef = useRef(null);
   const [lataAnimada, setLataAnimada] = useState(false);
 
   useEffect(() => {
     const ticker = tickerRef.current;
-    if (!ticker || prefersReducedMotion()) return undefined;
+    // Al encender o apagar el neón cambia el dibujo: se vuelve al póster y a
+    // esperar a que la cinta esté en pantalla, para no bajar la otra animación
+    // con el pie fuera de la vista.
+    setLataAnimada(false);
+    if (!ticker || prefersReducedMotion() || quiereAhorrar()) return undefined;
 
     if (typeof IntersectionObserver !== 'function') {
       setLataAnimada(true);
@@ -79,12 +108,14 @@ const Footer = ({ featuredDrop = null }) => {
         setLataAnimada(true);
         observer.disconnect();
       },
-      { rootMargin: '800px 0px', threshold: 0 }
+      // Solo cuando la cinta entra en pantalla: la animación pesa cientos de
+      // kB y quien no llega al pie no tiene por qué descargarla.
+      { rootMargin: '0px', threshold: 0 }
     );
 
     observer.observe(ticker);
     return () => observer.disconnect();
-  }, []);
+  }, [night]);
 
   const tickerText = (night ? tickerItemsNoche(featuredDrop) : tickerItems(featuredDrop))
     .map((item) => `${item} ✦ `)
@@ -93,15 +124,16 @@ const Footer = ({ featuredDrop = null }) => {
   return (
     <>
       <div className="ticker" ref={tickerRef} aria-hidden="true">
-        {/* WebP animado con alfa: mismo paseo que el APNG original pero
-                    a tamaño de pantalla (663 kB frente a 7,3 MB). CSS sigue
+        {/* WebP animado con alfa en tres alturas (de 305 a 663 kB). CSS sigue
                     controlando recorrido, dirección y extremos, y el póster
-                    quieto atiende al movimiento reducido. */}
+                    quieto atiende al movimiento reducido y al ahorro de datos. */}
         <span className="doodle ticker-lata">
           <picture className="ticker-lata-picture">
-            <source media={REDUCED_MOTION} srcSet={paseoQuietoArt} />
+            <source media={REDUCED_MOTION} srcSet={paseoQuietoVariantes} sizes={PASEO_SIZES} />
             <img
               src={lataAnimada ? paseoArt : paseoQuietoArt}
+              srcSet={lataAnimada ? paseoVariantes : paseoQuietoVariantes}
+              sizes={PASEO_SIZES}
               width="166"
               height="224"
               loading="lazy"

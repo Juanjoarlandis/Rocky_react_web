@@ -1,3 +1,4 @@
+import ProductPhoto from './ProductPhoto.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router';
@@ -208,14 +209,17 @@ function StreetWall() {
       <div className="street-wall-grid" ref={wallGridRef}>
         {streetWall.map((photo) => (
           <figure key={photo.src} className="street-photo tape">
-            <img
-              src={wallImagesReady ? photo.src : undefined}
-              width={photo.width}
-              height={photo.height}
-              alt={wallImagesReady ? photo.alt : ''}
-              loading="lazy"
-              decoding="async"
-            />
+            {wallImagesReady ? (
+              <ProductPhoto
+                src={photo.src}
+                width={photo.width}
+                height={photo.height}
+                sizes="(max-width: 640px) 40vw, 250px"
+                alt={photo.alt}
+              />
+            ) : (
+              <img width={photo.width} height={photo.height} alt="" />
+            )}
             <figcaption>{photo.caption}</figcaption>
           </figure>
         ))}

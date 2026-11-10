@@ -1,3 +1,4 @@
+import { artSources } from '../../data/art.js';
 import { useEffect, useRef, useState } from 'react';
 import asomadoBorde from '../../images/optimized/characters/asomado-borde-hd.webp';
 // Derivado de `characters/cotilla-esquina.png` (620x820, el original de
@@ -235,7 +236,7 @@ export default function CuriousPeeker({ pathname, disabled = false }) {
         <span className="curious-peeker-mirror">
           <img
             className="curious-peeker-art neon-art"
-            src={artFor(POSE_ART[placement.pose])}
+            {...artSources(artFor(POSE_ART[placement.pose]), 200)}
             width={art.width}
             height={art.height}
             style={{

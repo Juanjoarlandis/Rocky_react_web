@@ -96,6 +96,12 @@ que manda el servidor.
 - *Por qué*: hoy cada sitio escribe sus atributos a mano y ya divergen (el carrito y la
   ficha no llevan `loading`; el lightbox no lleva nada).
 - `src/data/productImages.js` se reduce a las medidas reales de los originales nuevos.
+- La ficha y el cartel de cabecera marcan su foto como prioritaria (`fetchPriority`):
+  es su imagen principal. El lightbox no reserva caja con `width` y `height`, porque su
+  CSS limita los dos ejes y con ambas medidas deformaba la foto en ventanas apaisadas.
+- Límite conocido: no hay variante entre 640 y 1.254 px, así que la ficha en un móvil de
+  densidad 2 (339 px pintados) descarga el original (66–199 kB). Cumple la regla de
+  cuatro veces; una variante de 960 px queda como mejora si esas fotos siguen.
 
 ### D3. En Shopify, las variantes las pide el servidor
 
@@ -112,8 +118,11 @@ que manda el servidor.
 - `url` y `alt` no cambian: el añadido es compatible y `normalizeCatalog` pasa los campos
   nuevos tal cual. El validador del chat (`safeImage`) aplica la misma regla de `https:`
   a cada variante. El doble de Shopify de la auditoría aprende a responder estos campos.
-- Se verifica contra la tienda de pruebas que las URL transformadas responden 200 con el
-  ancho pedido.
+- **Verificado contra la tienda de pruebas el 2026-11-10** (Storefront y Admin,
+  API 2026-07): `width`, `height` y `url(transform: { maxWidth })` existen en las dos, las
+  URL responden 200 con el ancho pedido y Shopify no amplía (un original de 1.024 px
+  pedido a 1.280 mide 1.024). A un navegador que acepta WebP le sirve WebP: 13 kB a
+  320 px y 32 kB a 640 px de un PNG original de 1 MB.
 
 ### D4. Ilustraciones en dos alturas, con pérdida
 
@@ -123,10 +132,28 @@ toca según el alto al que se pinta.
 
 - *Por qué con pérdida*: a 320 px, las 23 ilustraciones pesan 309,7 kB con pérdida y
   472,5 kB sin ella. Es la misma calidad que ya usan las `-600`.
-- *Por qué dos alturas y no `srcSet`*: se pintan por alto y `srcSet` solo sabe de
-  anchos; dos escalones fijos cubren 160 px (a densidad 2) y 320 px.
-- El emparejamiento día-noche de `nightArt.js` se hace por ilustración y variante, no
-  por URL suelta.
+- *Dos alturas y `srcSet` por densidad.* Cada sitio declara el alto máximo en píxeles
+  CSS al que pinta y `artSources(src, alto)` (`src/data/art.js`) devuelve `src` y, si
+  hace falta, `srcSet="… 1x, … 2x"`: la menor variante que cubre ese alto a densidad 1
+  y la menor que lo cubre a densidad 2. Hasta 160 px basta la de 320 en cualquier
+  pantalla; hasta 320 px, 320 y 640; por encima, 640 y el original. (La primera versión
+  de este diseño descartaba `srcSet` porque solo sabe de anchos; con descriptores de
+  densidad no hace falta saber el ancho.)
+- El emparejamiento día-noche no cambia: `nightArt.js` sigue resolviendo el original de
+  día a su original de noche, y la variante se elige después, sobre el de noche.
+- *Coste*: la tabla de variantes (`import.meta.glob` sobre los `-hd`, los `-800` de
+  noche y sus `-h320`/`-h640`) vive en el chunk compartido y pesa unos 2,4 kB en gzip.
+  Con el resto del cambio, el JavaScript inicial pasa de 122,2 a 125,3 kB y su límite
+  sube de 123 a 126 kB hasta que `carga-y-estabilidad` lo baje. Si entonces el objetivo
+  de 100 kB queda justo, la alternativa es un módulo por personaje.
+- *Vite no incrusta las ilustraciones optimizadas.* Por defecto mete en el JavaScript,
+  en base64, lo que pesa menos de 4 kB: los dos pósters de 112 px añadían 10 kB al
+  bundle inicial. `assetsInlineLimit` lo desactiva para `src/images/optimized/`.
+- Solo se ofrecen densidades 1 y 2: en una pantalla de densidad 3 una ilustración
+  queda al 82–89 % de la nitidez ideal, que no se aprecia en dibujos de trazo.
+- La variante de 640 px con pérdida pesa más que el `-hd` sin pérdida (704 frente a
+  585 kB el lote de día), pero ocupa entre 3 y 6 veces menos memoria decodificada, que
+  es lo que se busca; por eso solo se ofrece a quien la necesita.
 - Los `-hd` se quedan como origen y para lo que se pinta grande (404, avatar de Mi
   Crew).
 
@@ -138,6 +165,13 @@ de 800 px de margen a «la cinta está en pantalla». Con `prefers-reduced-motio
 `navigator.connection.saveData` se queda el póster.
 
 - *Por qué no recodificar a la misma medida*: 612,5 kB frente a 663,2 kB; no compensa.
+- Las variantes van a calidad 75: 305 kB (día) y 314 kB (noche) la de 112 px; 490 y
+  525 kB la de 168 px. Bajar a calidad 50 solo ahorra un 10 % más, así que los límites
+  del delta pasan de 310 y 450 kB a 320 y 530 kB: el peso lo ponen los 81 fotogramas
+  con alfa, no la calidad.
+- **Medido el 2026-11-10 (tarea 6.3):** con el muñeco cruzando la pantalla, Chrome gasta
+  un 2,3 % de un núcleo con el WebP animado y un 3,3 % con una hoja de sprites del mismo
+  tamaño (mediana de tres medidas de 10 s). La hoja no gana: se queda el WebP.
 - *Alternativa descartada: quitar fotogramas (283,5 kB con 41).* Baja la animación de
   24 a 12 imágenes por segundo: cambia el arte.
 - *Alternativa descartada: vídeo con alfa (163–249 kB).* Safari no admite alfa en WebM y
@@ -178,9 +212,12 @@ declarado.
 
 ### D10. El guardián se aprieta en el mismo cambio
 
-Se retiran las excepciones de las dos fotos, se bajan los techos de las animaciones a
-lo que midan sus variantes mayores y se ajustan los límites de lado, peso y total de
-imágenes a las medidas nuevas.
+Se retiran las excepciones de las dos fotos. Las animaciones dejan de ser excepciones
+y pasan a tener métrica propia (`animationWeight`, 710 kB): una animación son decenas
+de fotogramas y no tiene sentido medirla contra el límite de una imagen fija. El total
+de imágenes sube a 8.700 kB porque `dist/` lleva ahora todas las variantes (es espacio
+en disco, no lo que descarga una visita), y el JavaScript inicial a 126 kB (D4). Los
+vídeos solo pasan si están declarados en `videos` con su límite (D9).
 
 ## Risks / Trade-offs
 

@@ -139,7 +139,7 @@ npm run check           # pruebas + lint + stylelint + build + presupuesto + sec
 npm start               # node server/index.mjs: sirve /api y dist/
 npm run seed:drop4      # crea los productos del DROP 4 en Shopify (simulacro sin --apply)
 npm run avisos:exportar # CSV de la lista de avisos desde el almacén cifrado
-npm run images:optimize # regenera src/images/optimized/** desde assets-master/
+npm run images:optimize # regenera src/images/optimized/** y las fotos de public/products desde assets-master/
 ```
 
 ## Puerta privada de preestreno

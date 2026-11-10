@@ -306,6 +306,12 @@ describe('ProductPage card anatomy', () => {
     const image = within(card).getByRole('img', { name: /Night Runner/ });
     expect(image).toHaveAttribute('width');
     expect(image).toHaveAttribute('height');
+    // La tarjeta ofrece las variantes de la foto y dice a qué ancho la pinta.
+    expect(image.getAttribute('srcset')).toContain('/products/rocky-night-runner-320.webp 320w');
+    expect(image).toHaveAttribute(
+      'sizes',
+      '(max-width: 640px) 42vw, (max-width: 1100px) 380px, 280px'
+    );
   });
 
   it('la portada presenta el título, el lema, el contador y un salto real al catálogo', () => {

@@ -124,6 +124,7 @@ export default function DropEditor({ drop, onCambio, onCerrar, onFallo }) {
     handle: design.handle,
     title: design.title,
     image: design.image?.url,
+    imageSources: design.image?.sources,
     imageAlt: design.image?.alt || design.title,
   }));
 

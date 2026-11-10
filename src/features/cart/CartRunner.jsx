@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 // no hay que voltearlo.
 import corriendoBolsa from '../../images/optimized/characters/corriendo-bolsa-hd.webp';
 import '../../styles/components/cart-runner.css';
+import { artSources } from '../../data/art.js';
 import { clamp } from '../../utils/math.js';
 import { prefersReducedMotion } from '../../utils/media.js';
 import { useNightArt } from '../night/nightArt.js';
@@ -23,6 +24,33 @@ const MARGEN_SALIDA = 24;
 const HUECO_BARRA = 10;
 // Trastos fijos de la esquina de arriba por los que no debe pasar por encima.
 const ESTORBOS = '.mini-player';
+// Lo que se espera al dibujo antes de dar la carrera por perdida.
+const ESPERA_DIBUJO_MS = 1000;
+
+const enReposo = (tarea) =>
+  typeof window.requestIdleCallback === 'function'
+    ? window.requestIdleCallback(tarea)
+    : window.setTimeout(tarea, 2000);
+const cancelaReposo = (id) =>
+  typeof window.cancelIdleCallback === 'function'
+    ? window.cancelIdleCallback(id)
+    : window.clearTimeout(id);
+
+/* ¿Está el dibujo listo para pintarse? `true` al momento si el navegador no
+   sabe decodificar por adelantado; si sabe, una promesa que acaba en `false`
+   cuando falla o tarda demasiado. */
+function dibujoListo(src) {
+  const imagen = new Image();
+  imagen.src = src;
+  if (typeof imagen.decode !== 'function') return true;
+  return Promise.race([
+    imagen.decode().then(
+      () => true,
+      () => false
+    ),
+    new Promise((resolve) => window.setTimeout(() => resolve(false), ESPERA_DIBUJO_MS)),
+  ]);
+}
 
 /* Cuánto mide a este ancho de ventana, respetando la proporción del dibujo. */
 export function medidas(anchoVentana) {
@@ -73,7 +101,21 @@ export function planRun(destino, size, view, estorbos = []) {
    carrito guardado y al tocar el `+` de la página del carrito. */
 export default function CartRunner({ runId = 0, disabled = false }) {
   const [carrera, setCarrera] = useState(null);
-  const runnerArt = useNightArt(corriendoBolsa);
+  // Se pinta a 96 px como mucho: le basta la variante pequeña (unos 13 kB).
+  const runnerArt = artSources(useNightArt(corriendoBolsa), MAX_ALTO).src;
+
+  /* El dibujo solo existe en el árbol durante la carrera, así que nadie lo
+     descargaba antes: la primera vez cruzaba un hueco vacío. Se pide en cuanto
+     la página está en reposo. */
+  useEffect(() => {
+    // Si no va a correr (movimiento reducido, splash) o hay que ahorrar datos,
+    // no hay nada que precargar.
+    if (disabled || prefersReducedMotion() || navigator.connection?.saveData) return undefined;
+    const id = enReposo(() => {
+      new Image().src = runnerArt;
+    });
+    return () => cancelaReposo(id);
+  }, [runnerArt, disabled]);
 
   useEffect(() => {
     if (!runId || disabled) return undefined;
@@ -97,10 +139,23 @@ export default function CartRunner({ runId = 0, disabled = false }) {
     const plan = planRun(icono.getBoundingClientRect(), size, view, estorbos);
     if (!plan) return undefined;
 
-    setCarrera({ id: runId, ...plan, ...size });
-    // Se desmonta al acabar: mientras no corre no deja nada en el árbol.
-    const timer = window.setTimeout(() => setCarrera(null), CRUCE_MS + 120);
-    return () => window.clearTimeout(timer);
+    let timer = null;
+    let cancelada = false;
+    const corre = () => {
+      setCarrera({ id: runId, ...plan, ...size });
+      // Se desmonta al acabar: mientras no corre no deja nada en el árbol.
+      timer = window.setTimeout(() => setCarrera(null), CRUCE_MS + 120);
+    };
+    // Sin dibujo no hay carrera: el añadido al carrito no depende de ella.
+    const listo = dibujoListo(runnerArt);
+    if (listo === true) corre();
+    else listo.then((llega) => llega && !cancelada && corre());
+    return () => {
+      cancelada = true;
+      window.clearTimeout(timer);
+    };
+    // El dibujo de noche cambia de URL, pero eso no lanza una carrera nueva.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runId, disabled]);
 
   if (!carrera) return null;

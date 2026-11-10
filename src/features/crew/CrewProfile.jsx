@@ -1,3 +1,4 @@
+import { artSources } from '../../data/art.js';
 import { useEffect, useMemo, useState } from 'react';
 import { equipCrewReward, redeemCrewReward } from '../../api/shopify.js';
 import { useCrewProfile } from './useCrewProfile.js';
@@ -36,6 +37,7 @@ function errorText(error) {
 function CrewCornerCharacter({ className = '' }) {
   return (
     <img
+      loading="lazy"
       className={`doodle crew-corner-character neon-art al-ritmo ${className}`.trim()}
       style={{ '--fase': '0.7' }}
       src={larguiruchoEsquina}
@@ -88,7 +90,7 @@ function CrewGate({ accountEnabled }) {
             <span className="crew-id-card__serial">MEMBER // 035</span>
             <div className="crew-current-avatar crew-current-avatar--frame-red-squiggle">
               <img
-                src={getCrewAvatarImage('dormido-head')}
+                {...artSources(getCrewAvatarImage('dormido-head'), 240)}
                 {...getCrewAvatarSize('dormido-head')}
                 alt="Vista previa del avatar El Dormido"
                 className="neon-art"
@@ -161,7 +163,7 @@ function RewardVisual({ reward }) {
   }
   return (
     <img
-      src={getCrewAvatarImage(reward.id)}
+      {...artSources(getCrewAvatarImage(reward.id), 170)}
       {...getCrewAvatarSize(reward.id)}
       alt=""
       className="neon-art"
@@ -315,7 +317,7 @@ export default function CrewProfile({
             className={`crew-current-avatar ${profile.equippedFrameId ? `crew-current-avatar--${profile.equippedFrameId}` : ''}`}
           >
             <img
-              src={getCrewAvatarImage(profile.equippedAvatarId)}
+              {...artSources(getCrewAvatarImage(profile.equippedAvatarId), 240)}
               {...getCrewAvatarSize(profile.equippedAvatarId)}
               alt={`Avatar ${currentAvatar?.name || 'ROCKY'}`}
               className="neon-art"

@@ -1,3 +1,4 @@
+import { artSources } from '../../../data/art.js';
 import { PUBLICO, TRACK_IDS } from '../../../data/mesa';
 import { estadosDelPublico } from '../audio/drumKit';
 import { useNightArtResolver } from '../../night/nightArt.js';
@@ -55,7 +56,7 @@ export default function Publico({ pattern, mutes, solos, playing, bpm }) {
         return (
           <span key={pista} className={sitio}>
             <img
-              src={arte(ARTE[personaje])}
+              {...artSources(arte(ARTE[personaje]), 80)}
               alt=""
               loading="lazy"
               decoding="async"

@@ -1,3 +1,4 @@
+import { artSources } from '../../data/art.js';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CREW } from '../../data/crew.js';
 import { useNightArtResolver } from '../night/nightArt.js';
@@ -33,6 +34,8 @@ function lineUp() {
 /* La primera vez las imágenes no están en caché: sin esperar, los primeros
    cruzarían invisibles. Se espera a tenerlas listas, con un tope para que el
    huevo de pascua no se quede colgado en una conexión lenta. */
+// Alto máximo de un corredor (70 + 70 px): decide la variante de su dibujo.
+const RUNNER_MAX_HEIGHT = 140;
 const PRELOAD_MAX_MS = 1500;
 
 function preload(sources) {
@@ -74,11 +77,13 @@ export default function Estampida({ disabled = false }) {
     if (launching.current) return;
     launching.current = true;
     const lineup = lineUp();
-    preload(lineup.map((runner) => artFor(runner.img))).then(() => {
-      if (!mounted.current) return;
-      setStill(prefersReducedMotion());
-      setRunners(lineup);
-    });
+    preload(lineup.map((runner) => artSources(artFor(runner.img), RUNNER_MAX_HEIGHT).src)).then(
+      () => {
+        if (!mounted.current) return;
+        setStill(prefersReducedMotion());
+        setRunners(lineup);
+      }
+    );
   }, [artFor]);
 
   useEffect(() => {
@@ -135,7 +140,7 @@ export default function Estampida({ disabled = false }) {
           }}
         >
           <img
-            src={artFor(runner.img)}
+            {...artSources(artFor(runner.img), RUNNER_MAX_HEIGHT)}
             alt=""
             className="estampida-art neon-art"
             draggable="false"

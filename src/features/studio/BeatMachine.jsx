@@ -1,3 +1,4 @@
+import { artSources } from '../../data/art.js';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { useMusic } from '../music/MusicContext';
@@ -464,7 +465,7 @@ function BeatMachine() {
   return (
     <div className="mesa-wrap" ref={wrapRef}>
       <img
-        src={dancerArt}
+        {...artSources(dancerArt, 160)}
         width="604"
         height="600"
         alt=""

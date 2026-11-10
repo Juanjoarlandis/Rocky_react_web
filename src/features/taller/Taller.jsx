@@ -193,6 +193,7 @@ function TallerPanel({ onSalir }) {
           width="583"
           height="600"
           alt=""
+          loading="lazy"
           className="doodle taller-pegador neon-art"
         />
       </header>

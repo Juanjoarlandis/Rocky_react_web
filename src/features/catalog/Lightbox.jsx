@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import ProductPhoto from '../../components/ProductPhoto.jsx';
 import { useLockBodyScroll } from '../../hooks/useLockBodyScroll.js';
 import '../../styles/components/lightbox.css';
 
@@ -7,7 +8,7 @@ import '../../styles/components/lightbox.css';
    abrió. Pinchar fuera de la foto también cierra. No se llama a close() en la
    limpieza: dispararía el evento close (y con él onClose) también en el
    doble montaje de StrictMode; quitar el diálogo del DOM ya lo cierra. */
-function Lightbox({ src, alt, onClose }) {
+function Lightbox({ src, alt, sources, onClose }) {
   const dialogRef = useRef(null);
   useLockBodyScroll(true);
 
@@ -47,7 +48,15 @@ function Lightbox({ src, alt, onClose }) {
       <button type="button" className="lightbox-close" onClick={onClose} aria-label="Cerrar">
         ×
       </button>
-      <img src={src} alt={alt} className="lightbox-image" />
+      <ProductPhoto
+        src={src}
+        sources={sources}
+        intrinsicSize={false}
+        sizes="(max-width: 900px) 100vw, 860px"
+        alt={alt}
+        className="lightbox-image"
+        priority
+      />
     </dialog>
   );
 }

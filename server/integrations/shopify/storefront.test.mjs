@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { PRODUCT_VARIANT_ID, createStorefrontClient } from './storefront.mjs';
+import { PRODUCT_VARIANT_ID, createStorefrontClient, sanitizeCart } from './storefront.mjs';
 
 const config = {
   storeDomain: 'rocky-dev.myshopify.com',
@@ -224,5 +224,103 @@ describe('Storefront client', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(PRODUCT_VARIANT_ID.test('gid://shopify/ProductVariant/65158825574777')).toBe(true);
     expect(PRODUCT_VARIANT_ID.test('gid://shopify/ProductVariant/9223372036854775807')).toBe(true);
+  });
+});
+
+describe('tamaño y variantes de las fotos (imagenes-y-medios)', () => {
+  const shopifyImage = {
+    url: 'https://cdn.shopify.com/p.jpg?v=1',
+    altText: 'Camiseta',
+    width: 1200,
+    height: 1600,
+    w320: 'https://cdn.shopify.com/p.jpg?v=1&width=320',
+    w640: 'https://cdn.shopify.com/p.jpg?v=1&width=640',
+    w1280: 'https://cdn.shopify.com/p.jpg?v=1&width=1280',
+  };
+  const mappedImage = {
+    url: 'https://cdn.shopify.com/p.jpg?v=1',
+    alt: 'Camiseta',
+    width: 1200,
+    height: 1600,
+    sources: [
+      { width: 320, url: 'https://cdn.shopify.com/p.jpg?v=1&width=320' },
+      { width: 640, url: 'https://cdn.shopify.com/p.jpg?v=1&width=640' },
+      { width: 1200, url: 'https://cdn.shopify.com/p.jpg?v=1&width=1280' },
+    ],
+  };
+
+  it('pide las variantes y las devuelve en el producto y en cada variante', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      jsonResponse({
+        data: {
+          products: {
+            pageInfo: { hasNextPage: false, endCursor: null },
+            nodes: [
+              {
+                id: 'gid://shopify/Product/1',
+                handle: 'camiseta-rocky',
+                title: 'Camiseta Rocky',
+                description: '',
+                featuredImage: shopifyImage,
+                collections: { nodes: [] },
+                variants: {
+                  nodes: [
+                    {
+                      id: 'gid://shopify/ProductVariant/2',
+                      title: 'L',
+                      availableForSale: true,
+                      selectedOptions: [],
+                      price: { amount: '35.00', currencyCode: 'EUR' },
+                      image: shopifyImage,
+                    },
+                    {
+                      id: 'gid://shopify/ProductVariant/3',
+                      title: 'M',
+                      availableForSale: true,
+                      selectedOptions: [],
+                      price: { amount: '35.00', currencyCode: 'EUR' },
+                      image: null,
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        },
+      })
+    );
+    const { products } = await createStorefrontClient({ config, fetchImpl }).listProducts();
+    const query = JSON.parse(fetchImpl.mock.calls[0][1].body).query;
+
+    expect(query).toContain('w320: url(transform: { maxWidth: 320 })');
+    expect(products[0].image).toEqual(mappedImage);
+    expect(products[0].variants[0].image).toEqual(mappedImage);
+    expect(products[0].variants[1].image).toBeNull();
+  });
+
+  it('las devuelve también en cada línea del carrito', () => {
+    const cart = sanitizeCart({
+      totalQuantity: 1,
+      lines: {
+        nodes: [
+          {
+            id: REAL_LINE_ID,
+            quantity: 1,
+            cost: null,
+            merchandise: {
+              id: 'gid://shopify/ProductVariant/2',
+              title: 'L',
+              availableForSale: true,
+              product: { handle: 'camiseta-rocky', title: 'Camiseta Rocky' },
+              image: shopifyImage,
+              price: { amount: '35.00', currencyCode: 'EUR' },
+            },
+          },
+        ],
+      },
+      cost: null,
+    });
+
+    expect(cart.lines[0].variant.image).toEqual(mappedImage);
   });
 });

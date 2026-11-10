@@ -6,8 +6,8 @@
 const streetWall = [
   {
     src: '/products/rockydz-boyz.webp',
-    width: 5906,
-    height: 5906,
+    width: 1280,
+    height: 1280,
     caption: 'Rockydz boyz — print de la casa',
     alt: 'Camiseta blanca con los personajes Rockydz',
   },
@@ -20,8 +20,8 @@ const streetWall = [
   },
   {
     src: '/products/rocky35-camel.webp',
-    width: 5906,
-    height: 5906,
+    width: 1280,
+    height: 1280,
     caption: 'Smoker Edition, el camello',
     alt: 'Camiseta azul ROCKY35 con camello',
   },

@@ -11,7 +11,8 @@ memoria del navegador no dependan de cómo se guardó el original.
 ### Requirement: Las fotos de producto se descargan al tamaño al que se pintan
 Toda foto de producto SHALL ofrecer variantes de 320, 640 y 1.280 px de ancho (sin
 superar el ancho del original), y el navegador SHALL descargar una cuyos píxeles no
-superen cuatro veces los que ocupa en pantalla, contada la densidad del dispositivo.
+superen cuatro veces los que ocupa en pantalla, contada la densidad del dispositivo, o
+la menor de las variantes cuando ni esa cumple (miniaturas).
 
 #### Scenario: Tarjeta del catálogo en un móvil
 - **WHEN** se abre la portada en una pantalla de 375 px de ancho y densidad 2
@@ -32,6 +33,10 @@ superen cuatro veces los que ocupa en pantalla, contada la densidad del disposit
 #### Scenario: Foto sin variantes
 - **WHEN** una foto solo tiene su URL original
 - **THEN** se pinta con ella, sin error
+
+#### Scenario: Producto sin foto
+- **WHEN** un producto se pinta con la camiseta de «sin foto todavía»
+- **THEN** esa imagen también se descarga en la variante que corresponde a su tamaño
 
 ### Requirement: Ninguna foto de producto del repo supera 1.280 px de lado
 Las fotos de `public/products/` SHALL medir 1.280 px de lado como máximo, y cada una
@@ -68,8 +73,9 @@ SHALL llevar, además de `url` y `alt`, su `width` y `height` reales y una lista
 
 ### Requirement: Las ilustraciones se descargan al tamaño al que se pintan
 Cada ilustración de la crew, de día y de noche, SHALL existir en variantes de 320 y
-640 px de alto además de su original, y cada sitio SHALL usar la menor cuyos píxeles no
-superen cuatro veces los que ocupa en pantalla.
+640 px de alto además de su original, y cada sitio SHALL ofrecer la menor que la deja
+nítida a su tamaño pintado: una para pantallas de densidad 1 y otra para las de
+densidad 2.
 
 #### Scenario: Estampida de día
 - **WHEN** se lanza la Estampida de día
@@ -85,7 +91,15 @@ superen cuatro veces los que ocupa en pantalla.
 
 #### Scenario: Ilustración que se pinta grande
 - **WHEN** una ilustración se pinta a más de 320 px de alto, como el muñeco del 404
-- **THEN** usa la variante de 640 px o el original, la menor que cumpla la regla
+- **THEN** usa la variante de 640 px a densidad 1 y el original a densidad 2
+
+#### Scenario: Ilustración pequeña
+- **WHEN** una ilustración se pinta a 160 px de alto o menos, como el público de la mesa
+- **THEN** usa la variante de 320 px en cualquier pantalla
+
+#### Scenario: De noche
+- **WHEN** el modo neón cambia una ilustración por su versión nocturna
+- **THEN** se usa la variante de la versión nocturna que corresponde al mismo tamaño
 
 ### Requirement: La animación del pie se descarga a su tamaño y solo si se ve
 La animación de la cinta del pie, de día y de noche, SHALL existir en alturas de 112,
@@ -100,18 +114,18 @@ se queda el póster.
 
 #### Scenario: Se llega al pie en un móvil
 - **WHEN** la cinta entra en pantalla en un móvil de densidad 2
-- **THEN** se descarga la variante de 168 px, de 450 kB como máximo
+- **THEN** se descarga la variante de 168 px, de 530 kB como máximo
 
 #### Scenario: Pantalla de densidad 1
 - **WHEN** la cinta entra en pantalla en un escritorio de densidad 1
-- **THEN** se descarga la variante de 112 px, de 310 kB como máximo
+- **THEN** se descarga la variante de 112 px, de 320 kB como máximo
 
 #### Scenario: Movimiento reducido o ahorro de datos
 - **WHEN** el visitante prefiere movimiento reducido o tiene activado el ahorro de datos
 - **THEN** se ve el póster y la animación no se descarga
 
 #### Scenario: Modo neón
-- **WHEN** se enciende el neón con la cinta fuera de pantalla
+- **WHEN** se enciende el neón con la cinta fuera de pantalla, se haya visto antes el pie o no
 - **THEN** tampoco se descarga la animación de noche
 
 ### Requirement: Una imagen oculta no se descarga

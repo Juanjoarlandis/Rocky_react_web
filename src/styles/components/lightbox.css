@@ -40,6 +40,9 @@
 
   /* Foto enmarcada como una polaroid dibujada */
   .lightbox-image {
+    /* auto en los dos ejes: los límites recortan la foto sin deformarla. */
+    width: auto;
+    height: auto;
     max-width: min(100%, 860px);
     max-height: 84vh;
     background-color: var(--card);

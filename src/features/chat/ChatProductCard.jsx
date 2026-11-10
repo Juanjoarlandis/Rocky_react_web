@@ -1,3 +1,4 @@
+import ProductPhoto from '../../components/ProductPhoto.jsx';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import AddToCartButton from '../cart/AddToCartButton';
@@ -47,16 +48,17 @@ function ChatProductCard({ product, addToCart, commerceMode = 'demo', canAddToCa
     <article className="chat-product-card">
       <Link to={productPath} className="chat-product-media" aria-label={`Ver ${product.title}`}>
         {productImage?.url && !hasImageError ? (
-          <img
+          <ProductPhoto
             src={productImage.url}
-            width={productImage.width ?? 1254}
-            height={productImage.height ?? 1254}
+            width={productImage.width}
+            height={productImage.height}
+            sources={productImage.sources}
+            sizes="(max-width: 480px) 80vw, 350px"
             alt={productImage.alt || product.title}
-            loading="lazy"
             onError={() => setFailedImageUrl(productImage.url)}
           />
         ) : (
-          <PlaceholderTee title={product.title} compact />
+          <PlaceholderTee title={product.title} compact sizes="(max-width: 480px) 80vw, 350px" />
         )}
         <span className="chat-product-open" aria-hidden="true">
           ↗

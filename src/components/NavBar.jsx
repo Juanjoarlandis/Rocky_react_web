@@ -1,3 +1,4 @@
+import { artSources } from '../data/art.js';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router';
 import '../styles/components/navbar.css';
@@ -87,7 +88,7 @@ function AccountEntry({ accountEnabled, account, crewAvatarId, className, onNavi
         onClick={onNavigate}
       >
         <img
-          src={getCrewAvatarImage(crewAvatarId)}
+          {...artSources(getCrewAvatarImage(crewAvatarId), 48)}
           width="96"
           height="96"
           decoding="async"

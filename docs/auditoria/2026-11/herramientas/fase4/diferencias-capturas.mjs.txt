@@ -1,0 +1,25 @@
+import { createRequire } from 'node:module';
+import fs from 'node:fs';
+const sharp = createRequire(process.env.ROCKY_REPO_SHARP + '/package.json') // repo con sharp instalado (--no-save)('sharp');
+const [a, b, outDir] = process.argv.slice(2);
+fs.mkdirSync(outDir, { recursive: true });
+const rows = [];
+for (const file of fs.readdirSync(a).filter((f) => f.endsWith('.png')).sort()) {
+  if (!fs.existsSync(`${b}/${file}`)) continue;
+  const ia = sharp(`${a}/${file}`), ib = sharp(`${b}/${file}`);
+  const [ma, mb] = [await ia.metadata(), await ib.metadata()];
+  const w = Math.min(ma.width, mb.width), h = Math.min(ma.height, mb.height);
+  const ra = await ia.extract({ left: 0, top: 0, width: w, height: h }).removeAlpha().raw().toBuffer();
+  const rb = await ib.extract({ left: 0, top: 0, width: w, height: h }).removeAlpha().raw().toBuffer();
+  let changed = 0; const mask = Buffer.alloc(w * h);
+  for (let i = 0, p = 0; i < ra.length; i += 3, p += 1) {
+    const d = Math.abs(ra[i] - rb[i]) + Math.abs(ra[i + 1] - rb[i + 1]) + Math.abs(ra[i + 2] - rb[i + 2]);
+    if (d > 60) { changed += 1; mask[p] = 255; }
+  }
+  // caja que contiene los cambios
+  let x0 = w, y0 = h, x1 = 0, y1 = 0;
+  for (let p = 0; p < mask.length; p += 1) if (mask[p]) { const x = p % w, y = (p / w) | 0; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  rows.push({ file, size: `${ma.width}x${ma.height}` + (ma.height !== mb.height ? ` → ${mb.width}x${mb.height}` : ''), pct: (100 * changed) / (w * h), box: changed ? [x0, y0, x1, y1] : null });
+}
+rows.sort((p, q) => q.pct - p.pct);
+for (const r of rows) console.log(r.file.padEnd(26), r.size.padEnd(26), r.pct.toFixed(3) + ' %', r.box ? r.box.join(',') : '');

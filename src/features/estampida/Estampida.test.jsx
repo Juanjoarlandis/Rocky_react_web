@@ -47,3 +47,30 @@ describe('Estampida 035', () => {
     expect(screen.queryByTestId('estampida')).not.toBeInTheDocument();
   });
 });
+
+describe('Estampida: qué dibujos descarga', () => {
+  it('precarga y pinta la variante pequeña de cada corredor, no el original', async () => {
+    const pedidas = [];
+    class ImagenFalsa {
+      set src(value) {
+        pedidas.push(value);
+      }
+    }
+    vi.stubGlobal('Image', ImagenFalsa);
+    try {
+      render(<Estampida />);
+      teclea(['0', '3', '5']);
+      await act(async () => {});
+
+      expect(pedidas.length).toBeGreaterThan(15);
+      expect(pedidas.filter((src) => /-hd\.webp/.test(src))).toEqual([]);
+      expect(pedidas.filter((src) => /-h320\.webp/.test(src)).length).toBeGreaterThan(15);
+      const pintadas = [...screen.getByTestId('estampida').querySelectorAll('img')].map((img) =>
+        img.getAttribute('src')
+      );
+      expect(pintadas.filter((src) => /-hd\.webp/.test(src))).toEqual([]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});

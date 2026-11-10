@@ -1,0 +1,66 @@
+// Capturas de referencia: node capturas.mjs <repo-snapshot> <outDir> [puerto]
+import fs from 'node:fs';
+import path from 'node:path';
+const { chromium } = await import(process.env.ROCKY_PLAYWRIGHT); // ruta a playwright-core/index.mjs
+process.env.ROCKY_REPO = process.argv[2];
+const { startInstance } = await import('./instancia.mjs');
+const outDir = process.argv[3];
+const port = Number(process.argv[4] || 3046);
+fs.mkdirSync(outDir, { recursive: true });
+const pages = [['portada', '/'], ['ficha', '/product/rocky-racing'], ['carrito', '/cart'], ['estudio', '/estudio'], ['crew', '/crew'], ['404', '/no-existe'], ['chat', '/rockyIA']];
+const viewports = [['375', { width: 375, height: 812 }, 2], ['1440', { width: 1440, height: 900 }, 1]];
+const instance = await startInstance(port, { SITE_ACCESS_ENABLED: 'false', TRUST_PROXY_HOPS: '1' });
+const browser = await chromium.launch({ channel: 'chrome' });
+const report = {};
+try {
+  for (const [vpName, viewport, dpr] of viewports) {
+    for (const mode of ['dia', 'neon']) {
+      const context = await browser.newContext({ viewport, deviceScaleFactor: dpr, reducedMotion: 'reduce' });
+      await context.addInitScript(() => sessionStorage.setItem('rocky-splash-seen', '1'));
+      const page = await context.newPage();
+      const requests = [];
+      page.on('requestfinished', async (request) => {
+        const response = await request.response();
+        const sizes = await request.sizes().catch(() => null);
+        requests.push({ url: request.url().replace(instance.origin, ''), type: request.resourceType(), bytes: sizes?.responseBodySize ?? 0, status: response?.status() });
+      });
+      await page.goto(instance.origin + '/', { waitUntil: 'networkidle' });
+      if (mode === 'neon') {
+        await page.evaluate(() => { document.documentElement.dataset.theme = 'neon'; });
+        await page.waitForTimeout(800);
+      }
+      for (const [name, route] of pages) {
+        requests.length = 0;
+        await page.evaluate((to) => { history.pushState({}, '', to); dispatchEvent(new PopStateEvent('popstate')); }, route);
+        await page.waitForTimeout(700);
+        // Recorre la página para que carguen las imágenes diferidas.
+        await page.evaluate(async () => {
+          for (let y = 0; y < document.documentElement.scrollHeight; y += 500) { scrollTo(0, y); await new Promise((r) => setTimeout(r, 120)); }
+          scrollTo(0, 0);
+        });
+        await page.waitForLoadState('networkidle').catch(() => {});
+        await page.waitForTimeout(400);
+        await page.screenshot({ path: path.join(outDir, `${name}-${mode}-${vpName}.png`), fullPage: true });
+        // naturalWidth viene corregido por la densidad del srcset: los píxeles reales se leen del fichero.
+        const images = await page.evaluate(async () => {
+          const real = new Map();
+          const list = [...document.images].filter((i) => i.currentSrc && !i.currentSrc.startsWith('data:'));
+          for (const src of new Set(list.map((i) => i.currentSrc))) {
+            try { const bitmap = await createImageBitmap(await (await fetch(src)).blob()); real.set(src, [bitmap.width, bitmap.height]); bitmap.close(); } catch { real.set(src, null); }
+          }
+          return list.map((i) => ({ src: i.currentSrc.replace(location.origin, ''), natural: real.get(i.currentSrc) ?? [i.naturalWidth, i.naturalHeight], painted: [Math.round(i.getBoundingClientRect().width), Math.round(i.getBoundingClientRect().height)] }));
+        });
+        report[`${name}-${mode}-${vpName}`] = { images, imageBytes: requests.filter((r) => r.type === 'image').reduce((t, r) => t + r.bytes, 0), imageRequests: requests.filter((r) => r.type === 'image').length, media: requests.filter((r) => r.type === 'media').map((r) => r.url) };
+      }
+      await context.close();
+    }
+  }
+} finally {
+  await browser.close();
+  instance.stop();
+}
+fs.writeFileSync(path.join(outDir, 'informe.json'), JSON.stringify(report, null, 1));
+for (const [key, value] of Object.entries(report)) {
+  const decoded = value.images.reduce((t, i) => t + i.natural[0] * i.natural[1] * 4, 0);
+  console.log(key.padEnd(22), String(value.images.length).padStart(3), 'img', (decoded / 1048576).toFixed(1).padStart(7), 'MB decod.', (value.imageBytes / 1000).toFixed(0).padStart(6), 'kB red');
+}

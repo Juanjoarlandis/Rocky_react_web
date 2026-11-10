@@ -1,3 +1,4 @@
+import { artSources } from '../../data/art.js';
 import Boombox from '../music/Boombox';
 import { BeeDoodle } from '../../components/doodles/BeeDoodle';
 import { ColmenaSticker } from '../../components/doodles/ColmenaSticker';
@@ -50,7 +51,7 @@ function Studio() {
         {/* El productor cabeza-hexágono vibra encima del radiocasete.
                     Cuando suena la radio cabecea el doble que nadie: es lo suyo. */}
         <img
-          src={productorArt}
+          {...artSources(productorArt, 160)}
           alt=""
           className="doodle studio-doodle neon-art al-ritmo al-ritmo--fuerte"
           style={{ '--fase': '0' }}
@@ -66,7 +67,7 @@ function Studio() {
         <div className="doodle-shelf setlist-frame">
           {/* El Luna, de turno de noche, escucha con el móvil en cuclillas */}
           <img
-            src={lunaMovil}
+            {...artSources(lunaMovil, 130)}
             alt=""
             className="doodle setlist-luna neon-art al-ritmo"
             style={{ '--fase': '0.65' }}
@@ -117,7 +118,7 @@ function Studio() {
         <div className="doodle-shelf listen-wrap">
           {/* El Tele viendo la tele que es él mismo, sentado en el reproductor */}
           <img
-            src={teleSentado}
+            {...artSources(teleSentado, 160)}
             alt=""
             className="doodle listen-tele neon-art al-ritmo"
             style={{ '--fase': '0.95' }}
@@ -135,8 +136,9 @@ function Studio() {
           </div>
           {/* Uno de la banda colgado del borde del reproductor */}
           <img
-            src={colgadoBorde}
+            {...artSources(colgadoBorde, 200)}
             alt=""
+            loading="lazy"
             className="doodle listen-hanger neon-art al-ritmo"
             style={{ '--fase': '1.25' }}
           />

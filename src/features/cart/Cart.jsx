@@ -1,3 +1,5 @@
+import { artSources } from '../../data/art.js';
+import ProductPhoto from '../../components/ProductPhoto.jsx';
 import { Link } from 'react-router';
 import { parsePrice, formatPrice } from '../../utils/price';
 import PlaceholderTee from '../catalog/PlaceholderTee';
@@ -68,7 +70,7 @@ function Cart({
         {warningNotice}
         <div className="paper-card cart-empty-card">
           <img
-            src={emptyCartArt}
+            {...artSources(emptyCartArt, 165)}
             width="800"
             height="539"
             alt=""
@@ -77,7 +79,7 @@ function Cart({
           />
           {/* El Bombilla ya sabe la solución: ¡a la tienda! */}
           <img
-            src={bombillaArt}
+            {...artSources(bombillaArt, 150)}
             width="334"
             height="600"
             alt=""
@@ -108,7 +110,7 @@ function Cart({
       <div className="doodle-shelf cart-list-wrap">
         {/* Un curioso asomado tras el borde del carrito */}
         <img
-          src={curiosoArt}
+          {...artSources(curiosoArt, 120)}
           width="767"
           height="600"
           alt=""
@@ -129,10 +131,12 @@ function Cart({
                   {product.image === PLACEHOLDER_IMAGE ? (
                     <PlaceholderTee title={product.title} compact />
                   ) : (
-                    <img
+                    <ProductPhoto
                       src={product.image}
-                      width={product.imageWidth ?? 1254}
-                      height={product.imageHeight ?? 1254}
+                      width={product.imageWidth}
+                      height={product.imageHeight}
+                      sources={product.imageSources}
+                      sizes="88px"
                       alt={product.imageAlt || product.title}
                       className="cart-item-image"
                     />
@@ -201,7 +205,7 @@ function Cart({
         {/* Dormido esperando a que abra el pago del drop; cabecea flojito,
                 bastante hace con seguir el ritmo en sueños */}
         <img
-          src={dormidoEsperando}
+          {...artSources(dormidoEsperando, 120)}
           width="617"
           height="600"
           alt=""

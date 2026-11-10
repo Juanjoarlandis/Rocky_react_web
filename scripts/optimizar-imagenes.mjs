@@ -7,6 +7,19 @@
 //   npm run images:optimize -- --dry-run                 # sólo enseña el plan
 //   npm run images:optimize -- --only characters/lata-spray
 //
+// Varias medidas en una pasada (imagenes-y-medios):
+//   # fotos de producto: <nombre>.webp a 1.280 px como mucho, más -640 y -320
+//   npm run images:optimize -- --source assets-master/products --output public/products --widths 320,640,1280
+//   # ilustraciones por alto: <nombre>-h320.webp y <nombre>-h640.webp
+//   npm run images:optimize -- --source <carpeta> --output src/images/optimized/characters --heights 320,640
+// Ninguna salida supera el tamaño de su maestro, y un maestro animado conserva
+// todos sus fotogramas. Recetas usadas (los maestros de estas dos son las
+// salidas ya versionadas, copiadas a una carpeta temporal sin su sufijo):
+//   - ilustraciones: cada characters/<nombre>-hd.webp y night/<nombre>-800.webp
+//     como <nombre>.webp, con --heights 320,640;
+//   - animaciones del pie: *-224.webp y sus pósters como <nombre>.webp, con
+//     --heights 112,168 --quality 75 (los pósters, a la calidad por defecto).
+//
 // Los personajes históricos -600 usan ALTURA; shell/ usa ancho. Los nuevos
 // -hd conservan los píxeles del maestro y se codifican sin pérdida. --width
 // crea una salida -wN para no confundir ancho con la altura histórica.
@@ -27,6 +40,17 @@ const MASTER_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.tif', '.t
 const DEFAULT_HEIGHT_BY_FOLDER = Object.freeze({ characters: 600 });
 const DEFAULT_QUALITY = 82;
 
+// «320,640,1280» → [320, 640, 1280], ordenado y sin repetidos.
+function parseSizeList(argument, value) {
+  const sizes = value.split(',').map((item) => Number(item.trim()));
+  if (sizes.some((size) => !Number.isInteger(size) || size < 1 || size > 8192)) {
+    throw new Error(
+      `${argument} debe ser una lista de enteros entre 1 y 8192 separados por comas.`
+    );
+  }
+  return [...new Set(sizes)].sort((left, right) => left - right);
+}
+
 export function parseArgs(argv) {
   const options = {
     source: DEFAULT_SOURCE,
@@ -34,6 +58,8 @@ export function parseArgs(argv) {
     dryRun: false,
     only: null,
     width: null,
+    widths: null,
+    heights: null,
     quality: DEFAULT_QUALITY,
     lossless: false,
   };
@@ -49,6 +75,8 @@ export function parseArgs(argv) {
     else if (argument === '--dry-run') options.dryRun = true;
     else if (argument === '--only') options.only = next();
     else if (argument === '--width') options.width = Number(next());
+    else if (argument === '--widths') options.widths = parseSizeList(argument, next());
+    else if (argument === '--heights') options.heights = parseSizeList(argument, next());
     else if (argument === '--quality') options.quality = Number(next());
     else if (argument === '--lossless') options.lossless = true;
     else if (argument === '--help' || argument === '-h') options.help = true;
@@ -59,6 +87,9 @@ export function parseArgs(argv) {
     (!Number.isInteger(options.width) || options.width < 1 || options.width > 8192)
   ) {
     throw new Error('--width debe ser un entero entre 1 y 8192.');
+  }
+  if ([options.width, options.widths, options.heights].filter(Boolean).length > 1) {
+    throw new Error('--width, --widths y --heights no se pueden combinar.');
   }
   if (!Number.isInteger(options.quality) || options.quality < 1 || options.quality > 100) {
     throw new Error('--quality debe ser un entero entre 1 y 100.');
@@ -125,7 +156,29 @@ async function existingTargets(outputDirectory, master) {
     }));
 }
 
-export function planTargets(outputDirectory, master, existing, forcedWidth) {
+export function planTargets(outputDirectory, master, existing, forcedWidth, sizes = {}) {
+  const directory = path.join(outputDirectory, master.relativeDirectory);
+  if (sizes.widths) {
+    // La mayor conserva el nombre del maestro; las demás llevan su ancho. Nada
+    // se amplía: los anchos que no caben en el maestro se descartan.
+    const largest = Math.min(sizes.widths.at(-1), master.width);
+    // Un WebP que ya mide lo pedido se copia: recomprimirlo solo le quita calidad.
+    const copy =
+      largest === master.width && path.extname(master.absolutePath ?? '').toLowerCase() === '.webp';
+    return [
+      { file: path.join(directory, `${master.stem}.webp`), width: largest, ...(copy && { copy }) },
+      ...sizes.widths
+        .filter((width) => width < largest)
+        .reverse()
+        .map((width) => ({ file: path.join(directory, `${master.stem}-${width}.webp`), width })),
+    ];
+  }
+  if (sizes.heights) {
+    return sizes.heights.map((height) => ({
+      file: path.join(directory, `${master.stem}-h${height}.webp`),
+      height,
+    }));
+  }
   if (forcedWidth) {
     return [
       {
@@ -153,11 +206,32 @@ export function planTargets(outputDirectory, master, existing, forcedWidth) {
   ];
 }
 
+// Escribe una salida. `sharp` se inyecta para poder probarlo sin la librería.
+export async function encodeTarget(sharp, master, target, options) {
+  // animated: sin esto, sharp solo lee el primer fotograma de un WebP animado.
+  let pipeline = sharp(master.absolutePath, { animated: true });
+  if (target.width || target.height) {
+    pipeline = pipeline.resize({
+      width: target.width,
+      height: target.height,
+      fit: 'inside',
+      withoutEnlargement: true,
+    });
+  }
+  await pipeline
+    .webp({
+      quality: options.quality,
+      lossless: Boolean(target.original || options.lossless),
+      effort: 6,
+    })
+    .toFile(target.file);
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
     console.info(
-      'Uso: npm run images:optimize -- [--source dir] [--output dir] [--only carpeta/nombre] [--width N] [--quality N] [--lossless] [--dry-run]'
+      'Uso: npm run images:optimize -- [--source dir] [--output dir] [--only carpeta/nombre] [--width N | --widths a,b,c | --heights a,b] [--quality N] [--lossless] [--dry-run]'
     );
     return;
   }
@@ -183,45 +257,46 @@ async function main() {
     throw new Error('Hay varios maestros con el mismo nombre de salida. Usa uno por personaje.');
   }
 
-  const sharp = options.dryRun ? null : await loadSharp();
+  // Con --widths hace falta el ancho de cada maestro también en el simulacro.
+  const sharp = options.dryRun && !options.widths ? null : await loadSharp();
   let generated = 0;
   for (const master of masters) {
+    if (options.widths) master.width = (await sharp(master.absolutePath).metadata()).width;
     const targets = planTargets(
       outputDirectory,
       master,
       await existingTargets(outputDirectory, master),
-      options.width
+      options.width,
+      { widths: options.widths, heights: options.heights }
     );
     for (const target of targets) {
       const label = `${master.key} → ${path.relative(rootDirectory, target.file)}${
-        target.preserveDimensions
-          ? ' (dimensiones existentes)'
-          : target.width
-            ? ` (ancho ${target.width}px)`
-            : target.height
-              ? ` (alto ${target.height}px)`
-              : ' (tamaño maestro)'
+        target.copy
+          ? ' (copia del maestro)'
+          : target.preserveDimensions
+            ? ' (dimensiones existentes)'
+            : target.width
+              ? ` (ancho ${target.width}px)`
+              : target.height
+                ? ` (alto ${target.height}px)`
+                : ' (tamaño maestro)'
       }`;
       if (options.dryRun) {
         console.info(`  [simulacro] ${label}`);
         continue;
       }
       await fs.mkdir(path.dirname(target.file), { recursive: true });
-      let pipeline = sharp(master.absolutePath);
       let { width, height } = target;
       if (target.preserveDimensions) {
-        ({ width, height } = await sharp(target.file).metadata());
+        const existing = await sharp(target.file, { animated: true }).metadata();
+        ({ width } = existing);
+        height = existing.pageHeight ?? existing.height;
       }
-      if (width || height) {
-        pipeline = pipeline.resize({ width, height, fit: 'inside', withoutEnlargement: true });
+      if (target.copy) {
+        await fs.copyFile(master.absolutePath, target.file);
+      } else {
+        await encodeTarget(sharp, master, { ...target, width, height }, options);
       }
-      await pipeline
-        .webp({
-          quality: options.quality,
-          lossless: target.original || options.lossless,
-          effort: 6,
-        })
-        .toFile(target.file);
       generated += 1;
       console.info(`  ${label}`);
     }

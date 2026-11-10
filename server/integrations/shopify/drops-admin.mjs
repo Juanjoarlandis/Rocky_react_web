@@ -2,6 +2,7 @@ import { DROP_METAFIELD, isDropHandle } from '../../../shared/drops.mjs';
 import { ShopifyGraphqlError } from '../../http/errors.mjs';
 import { fetchJson } from '../../lib/fetch-json.mjs';
 import { shopifyTransportError } from './graphql.mjs';
+import { IMAGE_FIELDS, mapShopifyImage } from './image.mjs';
 
 // Las operaciones de drops sobre la Admin API de Shopify (ver
 // openspec/changes/sistema-de-drops/design.md, D1, D2, D4, D8 y D9). Aquí solo
@@ -20,7 +21,7 @@ const productFields = (withPublication) => `
   title
   status
   descriptionHtml
-  featuredImage { url altText }
+  featuredImage { ${IMAGE_FIELDS} }
   ${withPublication ? 'publishedOnPublication(publicationId: $publicationId)' : ''}
   collections(first: 10) { nodes { handle } }
   variants(first: 10) {
@@ -50,7 +51,7 @@ const LIST_DROPS = `
         id
         handle
         title
-        image { url altText }
+        image { ${IMAGE_FIELDS} }
         metafield(namespace: "${DROP_METAFIELD.namespace}", key: "${DROP_METAFIELD.key}") { value }
       }
     }
@@ -224,9 +225,7 @@ export function mapAdminProduct(node) {
     title: node.title,
     status: node.status,
     descriptionHtml: node.descriptionHtml ?? '',
-    image: node.featuredImage
-      ? { url: node.featuredImage.url, alt: node.featuredImage.altText || '' }
-      : null,
+    image: mapShopifyImage(node.featuredImage),
     publishedOnHeadless: Boolean(node.publishedOnPublication),
     collections: (node.collections?.nodes ?? []).map((collection) => collection.handle),
     availableForSale: variants.some((variant) => variant.availableForSale),
@@ -317,9 +316,7 @@ export function createDropsAdmin({
               id: collection.id,
               handle: collection.handle,
               title: collection.title,
-              poster: collection.image
-                ? { url: collection.image.url, alt: collection.image.altText || '' }
-                : null,
+              poster: mapShopifyImage(collection.image),
               rawConfig: collection.metafield?.value ?? null,
               products: await productsOf(collection.id),
             }))

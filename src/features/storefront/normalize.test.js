@@ -173,3 +173,75 @@ describe('Shopify UI normalization', () => {
     expect(slugify('Ñandú · Éxito!')).toBe('nandu-exito');
   });
 });
+
+describe('tamaño y variantes de las fotos de Shopify', () => {
+  const image = {
+    url: 'https://cdn.shopify.com/tee.jpg',
+    alt: 'Camiseta',
+    width: 1200,
+    height: 1600,
+    sources: [
+      { width: 320, url: 'https://cdn.shopify.com/tee.jpg?width=320' },
+      { width: 640, url: 'https://cdn.shopify.com/tee.jpg?width=640' },
+    ],
+  };
+  const variant = {
+    id: 'gid://shopify/ProductVariant/2',
+    title: 'M',
+    availableForSale: true,
+    price: { amount: '35.00', currencyCode: 'EUR' },
+    image: null,
+  };
+
+  it('el catálogo conserva el tamaño real y las variantes de cada foto', () => {
+    const [product] = normalizeCatalog([
+      { id: 'p1', handle: 'camiseta-rocky', title: 'Camiseta Rocky', image, variants: [variant] },
+    ]);
+
+    expect(product).toMatchObject({
+      image: image.url,
+      imageWidth: 1200,
+      imageHeight: 1600,
+      imageSources: image.sources,
+    });
+  });
+
+  it('una respuesta antigua, sin tamaño, sigue normalizándose igual', () => {
+    const [product] = normalizeCatalog([
+      {
+        id: 'p1',
+        handle: 'camiseta-rocky',
+        title: 'Camiseta Rocky',
+        image: { url: image.url, alt: 'Camiseta' },
+        variants: [variant],
+      },
+    ]);
+
+    expect(product.image).toBe(image.url);
+    expect(product).not.toHaveProperty('imageWidth');
+    expect(product).not.toHaveProperty('imageSources');
+  });
+
+  it('las líneas del carrito también', () => {
+    const cart = normalizeCart({
+      totalQuantity: 1,
+      lines: [
+        {
+          id: 'gid://shopify/CartLine/c1cc8c01-8339-4bf3-bbcf-f9ada9a4df4a?cart=hWNFNxSlWtmqSRT6',
+          quantity: 1,
+          variant: {
+            ...variant,
+            image,
+            product: { handle: 'camiseta-rocky', title: 'Camiseta Rocky' },
+          },
+        },
+      ],
+    });
+
+    expect(cart.items[0]).toMatchObject({
+      imageWidth: 1200,
+      imageHeight: 1600,
+      imageSources: image.sources,
+    });
+  });
+});

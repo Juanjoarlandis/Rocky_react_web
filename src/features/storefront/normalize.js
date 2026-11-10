@@ -12,6 +12,16 @@ export function slugify(value) {
     .replace(/^-+|-+$/g, '');
 }
 
+/* El tamaño real y las variantes que manda el servidor para una foto de
+   Shopify. Una respuesta antigua, sin esos campos, no añade nada. */
+function photoSize(image) {
+  if (!image?.url) return {};
+  return {
+    ...(image.width && image.height && { imageWidth: image.width, imageHeight: image.height }),
+    ...(Array.isArray(image.sources) && image.sources.length && { imageSources: image.sources }),
+  };
+}
+
 function firstSellableVariant(variants) {
   return variants.find((variant) => variant.availableForSale) || variants[0] || null;
 }
@@ -35,7 +45,8 @@ export function normalizeCatalog(products = []) {
   return products.map((product) => {
     const variants = Array.isArray(product.variants) ? product.variants : [];
     const defaultVariant = firstSellableVariant(variants);
-    const image = product.image?.url || defaultVariant?.image?.url || PRODUCT_PLACEHOLDER;
+    const photo = product.image?.url ? product.image : defaultVariant?.image;
+    const image = photo?.url || PRODUCT_PLACEHOLDER;
     const drop = dropOf(product);
     return {
       id: product.handle,
@@ -45,6 +56,7 @@ export function normalizeCatalog(products = []) {
       description: product.description || '',
       specifications: [],
       image,
+      ...photoSize(photo),
       imageAlt: product.image?.alt || defaultVariant?.image?.alt || product.title,
       drop: drop.title,
       dropHandle: drop.handle,
@@ -106,6 +118,7 @@ export function normalizeCart(cart) {
       availableForSale: Boolean(line.variant.availableForSale),
       title: line.variant.product.title,
       image: line.variant.image?.url || PRODUCT_PLACEHOLDER,
+      ...photoSize(line.variant.image),
       imageAlt: line.variant.image?.alt || line.variant.product.title,
       price: line.variant.price,
       lineCost: line.cost || null,

@@ -1,3 +1,4 @@
+import ProductPhoto from '../../components/ProductPhoto.jsx';
 import { useRef, useState } from 'react';
 import * as api from '../../api/taller.js';
 import BotonConfirmar from './BotonConfirmar';
@@ -237,12 +238,14 @@ export default function DisenosEditor({ drop, onCambio, onFallo }) {
         {drop.designs.map((design) => (
           <li key={design.id} className="paper-card taller-diseno" aria-label={design.title}>
             {design.image ? (
-              <img
+              <ProductPhoto
                 className="taller-miniatura"
                 src={design.image.url}
+                sources={design.image.sources}
+                sizes="64px"
                 alt=""
-                width="64"
-                height="64"
+                width={64}
+                height={64}
               />
             ) : (
               <span className="taller-miniatura taller-miniatura--vacia" aria-hidden="true" />

@@ -1,3 +1,4 @@
+import { artSources } from '../../data/art.js';
 import { useEffect, useRef, useState } from 'react';
 import userLogo from '../../images/optimized/shell/menu-256.webp';
 import botLogo from '../../images/optimized/shell/ia-256.webp';
@@ -106,11 +107,12 @@ function ChatComponent({
       <div className="chat-shell">
         {/* El Estrella vigila desde el lateral, solo cuando sobra pantalla */}
         <img
-          src={estrellaArt}
+          {...artSources(estrellaArt, 210)}
           width="784"
           height="1598"
           decoding="async"
           alt=""
+          loading="lazy"
           className="doodle chat-lean neon-art al-ritmo"
           style={{ '--fase': '0.5' }}
         />
@@ -151,7 +153,7 @@ function ChatComponent({
               <div className="chat-welcome-wrap">
                 {/* El del chándal rojo espera sentado en la tarjeta de bienvenida */}
                 <img
-                  src={porteroArt}
+                  {...artSources(porteroArt, 160)}
                   width="720"
                   height="1187"
                   decoding="async"

@@ -91,3 +91,19 @@ describe('Lightbox', () => {
     html.style.overflow = previous;
   });
 });
+
+describe('Lightbox: qué foto descarga', () => {
+  afterEach(restoreDialog);
+
+  it('ofrece las variantes de la foto y no fija su caja con width y height', () => {
+    stubDialog();
+    render(<Lightbox src="/products/rocky-airwave.webp" alt="Airwave" onClose={() => {}} />);
+    const image = screen.getByRole('img', { name: 'Airwave' });
+
+    expect(image.getAttribute('srcset')).toContain('/products/rocky-airwave-640.webp 640w');
+    expect(image).toHaveAttribute('sizes', '(max-width: 900px) 100vw, 860px');
+    // Con width y height el CSS recortaba cada eje por separado y deformaba la foto.
+    expect(image).not.toHaveAttribute('width');
+    expect(image).not.toHaveAttribute('height');
+  });
+});

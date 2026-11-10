@@ -1,3 +1,4 @@
+import ProductPhoto from '../../components/ProductPhoto.jsx';
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import Lightbox from './Lightbox';
@@ -306,17 +307,18 @@ function ProductPage({
                     priority={isPriorityImage}
                     compact
                     description="sin foto todavía"
+                    sizes="(max-width: 640px) 42vw, (max-width: 1100px) 380px, 280px"
                   />
                 ) : (
-                  <img
+                  <ProductPhoto
                     src={product.image}
-                    width={product.imageWidth ?? 1254}
-                    height={product.imageHeight ?? 1254}
+                    width={product.imageWidth}
+                    height={product.imageHeight}
+                    sources={product.imageSources}
+                    sizes="(max-width: 640px) 42vw, (max-width: 1100px) 380px, 280px"
                     alt={product.imageAlt || product.title}
                     className="product-image"
-                    loading={isPriorityImage ? 'eager' : 'lazy'}
-                    decoding={isPriorityImage ? 'auto' : 'async'}
-                    fetchPriority={isPriorityImage ? 'high' : undefined}
+                    priority={isPriorityImage}
                   />
                 )}
                 {!isPlaceholder && soldOut && <TornSticker />}
@@ -374,6 +376,7 @@ function ProductPage({
       {zoomImage && (
         <Lightbox
           src={zoomImage.image}
+          sources={zoomImage.imageSources}
           alt={zoomImage.imageAlt || zoomImage.title}
           onClose={() => setZoomImage(null)}
         />

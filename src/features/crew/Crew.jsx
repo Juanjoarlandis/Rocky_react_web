@@ -1,3 +1,4 @@
+import { artSources } from '../../data/art.js';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router';
 import { CREW, POR_FICHAR } from '../../data/crew';
@@ -248,7 +249,7 @@ export function CrewCard({
                             número de ficha, que es estable— y El Productor
                             más fuerte que nadie, que para eso es lo suyo. */}
             <img
-              src={memberArt}
+              {...artSources(memberArt, 200)}
               width={miembro.imgWidth}
               height={miembro.imgHeight}
               alt=""
@@ -454,7 +455,7 @@ function Crew() {
             return (
               <img
                 key={id}
-                src={artFor(miembro.img)}
+                {...artSources(artFor(miembro.img), alto)}
                 alt=""
                 className="neon-art"
                 style={{ height: alto, marginBottom: vuela || 0 }}

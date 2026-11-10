@@ -1,4 +1,5 @@
 import { assertMutationSucceeded, requestShopifyGraphql, ShopifyGraphqlError } from './graphql.mjs';
+import { IMAGE_FIELDS, mapShopifyImage as mapImage } from './image.mjs';
 import net from 'node:net';
 
 const PRODUCT_FIELDS = `
@@ -6,7 +7,7 @@ const PRODUCT_FIELDS = `
   handle
   title
   description
-  featuredImage { url altText }
+  featuredImage { ${IMAGE_FIELDS} }
   collections(first: 5) { nodes { handle title } }
   variants(first: 100) {
     nodes {
@@ -16,7 +17,7 @@ const PRODUCT_FIELDS = `
       quantityAvailable @include(if: $includeQuantity)
       selectedOptions { name value }
       price { amount currencyCode }
-      image { url altText }
+      image { ${IMAGE_FIELDS} }
     }
   }
 `;
@@ -36,7 +37,7 @@ const CART_FIELDS = `
           title
           availableForSale
           product { handle title }
-          image { url altText }
+          image { ${IMAGE_FIELDS} }
           price { amount currencyCode }
         }
       }
@@ -95,10 +96,6 @@ const REMOVE_LINES = `
     }
   }
 `;
-
-function mapImage(image) {
-  return image ? { url: image.url, alt: image.altText || '' } : null;
-}
 
 function mapProduct(product) {
   const drop = product.collections?.nodes?.[0] || null;

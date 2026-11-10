@@ -1,3 +1,4 @@
+import { artSources } from '../data/art.js';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import perdidoMapa from '../images/optimized/characters/perdido-mapa-hd.webp';
@@ -37,7 +38,7 @@ const NotFound = () => {
     <div className={`page-container notfound${night ? ' notfound--oscuras' : ''}`}>
       <div className="notfound-figures">
         <img
-          src={perdidoMapa}
+          {...artSources(perdidoMapa, 400)}
           width="614"
           height="1360"
           decoding="async"
@@ -47,7 +48,7 @@ const NotFound = () => {
         />
         {/* El perro de la banda, que sí sabe volver; de noche, El Sabueso Negro */}
         <img
-          src={perroArt}
+          {...artSources(perroArt, 160)}
           alt=""
           className="notfound-dog neon-art al-ritmo"
           style={{ '--fase': '0.75' }}
