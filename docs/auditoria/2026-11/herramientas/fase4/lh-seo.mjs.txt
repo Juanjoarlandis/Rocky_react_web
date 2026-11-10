@@ -1,0 +1,21 @@
+// node lh-seo.mjs <snapshot> <salida> <puerto> "<rutas>"  → SEO, buenas prácticas y accesibilidad (móvil, una pasada)
+import { execFileSync } from 'node:child_process';
+import fs from 'node:fs';
+process.env.ROCKY_REPO = process.argv[2];
+const { startInstance } = await import('./instancia.mjs');
+const [, , , outDir, port, pages] = process.argv;
+fs.mkdirSync(outDir, { recursive: true });
+const inst = await startInstance(Number(port), { SHOPIFY_RATE_LIMIT_MAX: '1000', SITE_ACCESS_ENABLED: 'false', TRUST_PROXY_HOPS: '1', ...(process.env.ORIGEN ? { PUBLIC_ORIGIN: process.env.ORIGEN, API_ALLOWED_ORIGINS: 'http://localhost:' + port } : {}) });
+try {
+  for (const page of pages.split(/\s+/).filter(Boolean)) {
+    const slug = page === '/' ? 'portada' : page.slice(1).replace(/\//g, '_');
+    const target = `${outDir}/${slug}.json`;
+    try {
+      execFileSync('npx', ['-y', 'lighthouse@13.5.0', inst.origin + page, '--only-categories=seo,best-practices,accessibility', '--chrome-path=/usr/bin/google-chrome', '--chrome-flags=--headless=new --no-sandbox --disable-gpu', '--output=json', `--output-path=${target}`, '--quiet'], { stdio: 'ignore' });
+      const r = JSON.parse(fs.readFileSync(target, 'utf8'));
+      const c = r.categories;
+      const failed = Object.values(c.seo.auditRefs).concat(Object.values(c['best-practices'].auditRefs)).map((ref) => r.audits[ref.id]).filter((a) => a.score !== null && a.score < 1).map((a) => a.id);
+      console.log(slug.padEnd(24), 'SEO', Math.round(c.seo.score * 100), 'B.prác', Math.round(c['best-practices'].score * 100), 'Acces', Math.round(c.accessibility.score * 100), failed.join(',') || '');
+    } catch (error) { console.log('FALLO', page, String(error).slice(0, 120)); }
+  }
+} finally { inst.stop(); }

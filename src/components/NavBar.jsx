@@ -6,6 +6,7 @@ import { getCrewAvatarThumb } from '../data/crewAvatarImages.js';
 import { useLockBodyScroll } from '../hooks/useLockBodyScroll.js';
 import { DEFAULT_AVATAR_ID } from '../config/commerce.js';
 import { ROUTES, accountLoginUrl } from '../config/routes.js';
+import { matchRoute } from '../../shared/routes.mjs';
 import { alternaTema, temaActual } from '../utils/theme.js';
 import { useOptionalMusic } from '../features/music/MusicContext.jsx';
 import logo from '../images/Rockypng.png';
@@ -53,8 +54,12 @@ const MenuIcon = ({ open }) => (
   </svg>
 );
 
+// Lo que cuenta como «la tienda»: la portada, los listados por categoría y
+// las fichas de producto.
+const SHOP_ROUTES = new Set(['home', 'catalog', 'product']);
+
 const DESTINATIONS = [
-  { to: ROUTES.home, label: 'Tienda', end: true },
+  { to: ROUTES.home, label: 'Tienda', shop: true },
   { to: ROUTES.drops, label: 'Drops' },
   { to: ROUTES.studio, label: 'Estudio' },
   { to: ROUTES.crew, label: 'Crew' },
@@ -65,6 +70,29 @@ const DESTINATIONS = [
 // prefijo de estado de la casa.
 const navLinkClass = ({ isActive }) => `navbar-link${isActive ? ' is-active' : ''}`;
 const sheetLinkClass = ({ isActive }) => `navbar-sheet-link${isActive ? ' is-active' : ''}`;
+
+/* Un destino de la barra o del menú. «Tienda» no es una sola ruta, así que
+   su estado activo no lo puede decidir NavLink: se calcula con la tabla de
+   rutas y se pinta con las mismas clases y el mismo aria-current. */
+function Destination({ to, label, shop = false, inShop, className, onClick }) {
+  if (!shop) {
+    return (
+      <NavLink to={to} className={className} onClick={onClick}>
+        {label}
+      </NavLink>
+    );
+  }
+  return (
+    <Link
+      to={to}
+      className={className({ isActive: inShop })}
+      aria-current={inShop ? 'page' : undefined}
+      onClick={onClick}
+    >
+      {label}
+    </Link>
+  );
+}
 const FOCUSABLE = 'a[href], button:not([disabled])';
 
 function cartLabel(totalItems) {
@@ -127,6 +155,7 @@ const NavBar = ({
   const sheetRef = useRef(null);
   const sheetId = useId();
   const location = useLocation();
+  const inShop = SHOP_ROUTES.has(matchRoute(location.pathname)?.route.id);
 
   const closeMenu = useCallback(() => {
     setMenuOpen(false);
@@ -229,10 +258,13 @@ const NavBar = ({
             />
           </Link>
           <nav className="navbar-links" aria-label="Navegación principal">
-            {DESTINATIONS.map(({ to, label, end }) => (
-              <NavLink key={to} to={to} end={end} className={navLinkClass}>
-                {label}
-              </NavLink>
+            {DESTINATIONS.map((destination) => (
+              <Destination
+                key={destination.to}
+                {...destination}
+                inShop={inShop}
+                className={navLinkClass}
+              />
             ))}
             <AccountEntry
               accountEnabled={accountEnabled}
@@ -282,10 +314,14 @@ const NavBar = ({
           aria-label="Menú"
         >
           <nav className="navbar-sheet-links" aria-label="Navegación principal">
-            {DESTINATIONS.map(({ to, label, end }) => (
-              <NavLink key={to} to={to} end={end} className={sheetLinkClass} onClick={closeMenu}>
-                {label}
-              </NavLink>
+            {DESTINATIONS.map((destination) => (
+              <Destination
+                key={destination.to}
+                {...destination}
+                inShop={inShop}
+                className={sheetLinkClass}
+                onClick={closeMenu}
+              />
             ))}
             <AccountEntry
               accountEnabled={accountEnabled}

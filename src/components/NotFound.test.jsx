@@ -34,4 +34,16 @@ describe('404', () => {
     expect(container.querySelector('.notfound-oscuridad')).not.toBeNull();
     expect(screen.getByText(/toca la pantalla para alumbrar/)).toBeInTheDocument();
   });
+  it('se titula «No encontrado» y pide que no se indexe mientras está en pantalla', () => {
+    document.title = 'ROCKY 035';
+    const { unmount } = renderNotFound();
+    const robots = () =>
+      [...document.head.querySelectorAll('meta[name="robots"]')].map((meta) => meta.content);
+
+    expect(document.title).toBe('No encontrado · ROCKY 035');
+    expect(robots()).toEqual(['noindex']);
+    unmount();
+    expect(document.title).toBe('ROCKY 035');
+    expect(robots()).toEqual([]);
+  });
 });

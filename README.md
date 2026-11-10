@@ -158,6 +158,36 @@ válido concede una sesión privada temporal. No uses variables `VITE_*` para es
 clave y no la guardes en Git. Reinicia el proceso después de cambiarla para
 invalidar todas las concesiones anteriores.
 
+El HTML de la puerta y sus respuestas no se guardan en ninguna caché
+(`no-store`). Su hoja de estilos y sus siete recursos visuales (el logo, tres
+ilustraciones y tres fuentes, una lista cerrada) sí, pero solo en el navegador
+de quien la visita: `private, max-age=3600` la hoja y `private, max-age=86400`
+los demás, siempre con `Cloudflare-CDN-Cache-Control: no-store` y sin indexar.
+
+## Rutas, estados y URL canónica
+
+Las rutas de la aplicación están en un solo sitio, `shared/routes.mjs`: de esa
+tabla salen los `<Route>` de `src/App.jsx` y lo que responde el servidor
+(`server/http/static.mjs`). Una ruta nueva se añade ahí y en `App`; una prueba
+falla si las dos listas dejan de coincidir.
+
+- Una ruta de la tabla responde **200** con `index.html` y la cabecera
+  `Link: <PUBLIC_ORIGIN + ruta>; rel="canonical"` (sin parámetros ni barra
+  final; la de `/products` es la portada). El documento es el mismo para todas,
+  así que el `<link rel="canonical">` y el `og:url` los pone la aplicación al
+  navegar (`src/hooks/usePageMetadata.js`).
+- Una ruta que la aplicación no conoce responde **404** con `X-Robots-Tag:
+  noindex`: con `index.html`, que pinta la página de no encontrado, si parece
+  una dirección (`/loquesea`), y con texto plano sin caché si su último tramo
+  lleva extensión (`/sitemap.xml`, `/music/no-existe.m4a`).
+- El cliente declara la canónica con `SITE_ORIGIN` (`src/config/links.js`) y el
+  servidor con `PUBLIC_ORIGIN`: en producción tienen que ser la misma dirección.
+  En una instancia local con otro `PUBLIC_ORIGIN` las dos difieren y Lighthouse
+  lo señala (auditoría `canonical`); no es un fallo de la web publicada.
+- Un producto o una categoría que no existen responden 200 (el servidor no
+  consulta el catálogo al servir el documento); la página se titula «No
+  encontrado» y añade `noindex` en el navegador.
+
 Para un smoke de producción:
 
 ```bash

@@ -6,6 +6,7 @@ import perroRocky from '../images/optimized/characters/perro-rocky-hd.webp';
 import { useNightMode } from '../features/night/useNightMode.js';
 import { useNightArt } from '../features/night/nightArt.js';
 import { subscribeTorch } from '../features/night/torch.js';
+import { useNotFound } from '../hooks/usePageMetadata.js';
 import '../styles/pages/not-found.css';
 
 // De noche la salida se esconde en otro sitio cada vez: siempre por debajo
@@ -30,6 +31,8 @@ function Oscuridad() {
 }
 
 const NotFound = () => {
+  // «No encontrado · ROCKY 035» y noindex mientras esté en pantalla.
+  useNotFound();
   const night = useNightMode();
   const [exit] = useState(hiddenExit);
   const perroArt = useNightArt(perroRocky);

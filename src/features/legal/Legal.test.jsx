@@ -58,4 +58,13 @@ describe('Páginas legales', () => {
     expect(isLegalEntityComplete({ a: 'PENDIENTE: x', b: 'ok' })).toBe(false);
     expect(isLegalEntityComplete({ a: 'ok', b: 'ok' })).toBe(true);
   });
+  it('una página legal que no existe se titula «No encontrado» y no se indexa', () => {
+    renderLegal('/legal/loquesea');
+    const robots = [...document.head.querySelectorAll('meta[name="robots"]')].map(
+      (meta) => meta.content
+    );
+
+    expect(document.title).toBe('No encontrado · ROCKY 035');
+    expect(robots).toEqual(['noindex']);
+  });
 });

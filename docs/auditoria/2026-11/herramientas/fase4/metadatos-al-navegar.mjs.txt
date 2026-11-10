@@ -1,0 +1,35 @@
+process.env.ROCKY_REPO = process.argv[2];
+const { startInstance } = await import('./instancia.mjs');
+const { chromium } = await import(process.env.ROCKY_PLAYWRIGHT);
+const inst = await startInstance(3312, { PUBLIC_ORIGIN: 'https://rocky035.com', API_ALLOWED_ORIGINS: 'http://localhost:3312' });
+try {
+  const html = await (await fetch(inst.origin + '/crew')).text();
+  console.log('HTML servido declara canónica/og:url:', /rel="canonical"/.test(html), /og:url/.test(html));
+  const browser = await chromium.launch({ channel: 'chrome', headless: true });
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'es-ES' });
+  await context.addInitScript(() => sessionStorage.setItem('rocky-splash-seen', '1'));
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(String(e).slice(0, 160)));
+  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 160)); });
+  const meta = () => page.evaluate(() => ({ ruta: location.pathname, titulo: document.title, canonica: document.querySelector('link[rel=canonical]')?.href ?? null, og: document.querySelector('meta[property="og:url"]')?.content ?? null, robots: [...document.querySelectorAll('meta[name=robots]')].map((m) => m.content), tienda: document.querySelector('.navbar-links a')?.className, pie: !!document.querySelector('footer') }));
+  await page.goto(inst.origin + '/?utm_source=x', { waitUntil: 'networkidle' });
+  console.log(await meta());
+  await page.getByRole('link', { name: 'Crew', exact: true }).first().click();
+  await page.waitForURL('**/crew'); await page.waitForTimeout(800);
+  console.log(await meta());
+  await page.goto(inst.origin + '/product/rocky-racing', { waitUntil: 'networkidle' });
+  console.log(await meta());
+  await page.goto(inst.origin + '/product/no-existe', { waitUntil: 'networkidle' });
+  console.log(await meta());
+  await page.goto(inst.origin + '/products/no-existe', { waitUntil: 'networkidle' });
+  console.log(await meta());
+  await page.goto(inst.origin + '/loquesea', { waitUntil: 'networkidle' });
+  console.log(await meta());
+  await page.getByRole('link', { name: 'Volver a la tienda' }).click();
+  await page.waitForTimeout(800);
+  console.log(await meta());
+  const names = await page.evaluate(() => [...new Set([...document.querySelectorAll('.product-card')].map((c) => c.querySelector('h2')?.textContent))].slice(0, 3));
+  console.log('errores:', errors, names);
+  await browser.close();
+} finally { inst.stop(); }

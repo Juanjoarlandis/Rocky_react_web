@@ -3,6 +3,7 @@ import NotFound from '../../components/NotFound';
 import { INSTAGRAM_HANDLE, INSTAGRAM_URL } from '../../config/links';
 import { LEGAL_ENTITY, LEGAL_PAGES, legalPath } from '../../config/legal';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
+import { useNotFound } from '../../hooks/usePageMetadata.js';
 import '../../styles/pages/legal.css';
 
 /* Las cuatro páginas legales de la tienda. Texto plano y honesto, sin humo:
@@ -276,6 +277,9 @@ export default function Legal() {
   const { page } = useParams();
   const pagina = LEGAL_PAGES.find((candidate) => candidate.slug === page);
   useDocumentTitle(pagina?.title);
+  // Después del título de arriba: una página legal que no existe se titula
+  // «No encontrado» aunque el 404 que se pinta dentro ya lo haya dicho antes.
+  useNotFound(!pagina);
   if (!pagina) return <NotFound />;
   const Contenido = CONTENIDO[pagina.slug];
 

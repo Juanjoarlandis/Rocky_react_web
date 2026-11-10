@@ -1,0 +1,14 @@
+// node curl-base.mjs <snapshot> <puerto> [puerta]   → estado y cabeceras de las rutas de seo-y-cache
+import crypto from 'node:crypto';
+process.env.ROCKY_REPO = process.argv[2];
+const { startInstance } = await import('./instancia.mjs');
+const gate = process.argv[4] === 'puerta';
+const inst = await startInstance(Number(process.argv[3]), gate ? { SITE_ACCESS_ENABLED: 'true', SITE_ACCESS_PASSWORD: crypto.randomUUID(), PUBLIC_ORIGIN: 'https://rocky035.com' } : { SITE_ACCESS_ENABLED: 'false', PUBLIC_ORIGIN: 'https://rocky035.com' });
+const paths = gate ? ['/', '/loquesea', '/access-gate/style.css', '/access-gate/media/grafitero', '/access-gate/media/no-esta'] : ['/', '/cart', '/products', '/crew/', '/product/rocky-racing?utm_source=x', '/loquesea', '/legal/loquesea', '/legal/privacidad', '/sitemap.xml', '/music/no-existe.m4a'];
+try {
+  for (const p of paths) {
+    const r = await fetch(inst.origin + p, { redirect: 'manual', headers: { 'Accept-Encoding': 'br' } });
+    const h = (n) => r.headers.get(n) ?? '—';
+    console.log(p.padEnd(36), r.status, '|', h('content-type').split(';')[0], '| cache:', h('cache-control'), '| cdn:', h('cloudflare-cdn-cache-control'), '| robots:', h('x-robots-tag'), '| link:', h('link'), '| loc:', h('location'), '| enc:', h('content-encoding'));
+  }
+} finally { inst.stop(); }

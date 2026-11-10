@@ -132,6 +132,156 @@ describe('static delivery boundary', () => {
   });
 });
 
+/* seo-y-cache: el servidor conoce las rutas de la aplicación (shared/routes.mjs)
+   y solo a esas responde 200. */
+describe('rutas de la aplicación: estado y URL canónica', () => {
+  it('a una ruta que la aplicación no conoce responde 404 con su documento y noindex', async () => {
+    const staticDirectory = await createStaticTestDirectory();
+    const baseUrl = await startTestServer({ staticDirectory });
+
+    for (const route of ['/loquesea', '/legal/loquesea', '/cart/extra', '/product']) {
+      const response = await fetch(`${baseUrl}${route}`);
+      expect(response.status, route).toBe(404);
+      expect(response.headers.get('content-type')).toContain('text/html');
+      expect(response.headers.get('x-robots-tag')).toBe('noindex');
+      expect(response.headers.get('link')).toBeNull();
+      // El visitante ve la página 404 de la aplicación, que nunca se guarda de más
+      expect(response.headers.get('cache-control')).toBe('public, max-age=0, must-revalidate');
+      expect(response.headers.get('cloudflare-cdn-cache-control')).toBe('no-store');
+      expect(await response.text()).toContain('ROCKY TEST APP');
+    }
+  });
+
+  it('a algo que parece un fichero y no existe responde 404 de texto, sin caché', async () => {
+    const staticDirectory = await createStaticTestDirectory();
+    const baseUrl = await startTestServer({ staticDirectory });
+
+    for (const route of [
+      '/sitemap.xml',
+      '/music/no-existe.m4a',
+      '/.env',
+      '/legal/privacidad.php',
+    ]) {
+      const response = await fetch(`${baseUrl}${route}`);
+      expect(response.status, route).toBe(404);
+      expect(response.headers.get('content-type')).toContain('text/plain');
+      expect(response.headers.get('cache-control')).toBe('no-store');
+      expect(response.headers.get('cloudflare-cdn-cache-control')).toBe('no-store');
+      expect(response.headers.get('x-robots-tag')).toBe('noindex');
+      expect(await response.text()).not.toContain('ROCKY TEST APP');
+    }
+  });
+
+  it('una petición de rango a una ruta desconocida sigue siendo un 404 entero', async () => {
+    const staticDirectory = await createStaticTestDirectory();
+    const baseUrl = await startTestServer({ staticDirectory });
+
+    for (const range of ['bytes=0-9', 'bytes=99999-']) {
+      const response = await fetch(`${baseUrl}/loquesea`, { headers: { Range: range } });
+      expect(response.status, range).toBe(404);
+      expect(response.headers.get('content-range')).toBeNull();
+      expect(await response.text()).toContain('ROCKY TEST APP');
+    }
+  });
+
+  it('/index.html, pedido por su nombre, declara que es la portada', async () => {
+    const staticDirectory = await createStaticTestDirectory();
+    const baseUrl = await startTestServer({ staticDirectory });
+
+    const response = await fetch(`${baseUrl}/index.html`);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('link')).toBe('<https://rocky.test/>; rel="canonical"');
+    expect(response.headers.get('cache-control')).toBe('public, max-age=0, must-revalidate');
+  });
+
+  it('las rutas de la aplicación siguen en 200, sin noindex y con su canónica en Link', async () => {
+    const staticDirectory = await createStaticTestDirectory();
+    const baseUrl = await startTestServer({ staticDirectory });
+    const canonical = {
+      '/': 'https://rocky.test/',
+      '/cart': 'https://rocky.test/cart',
+      '/estudio': 'https://rocky.test/estudio',
+      '/legal/privacidad': 'https://rocky.test/legal/privacidad',
+      '/product/rocky-racing?utm_source=x': 'https://rocky.test/product/rocky-racing',
+      '/products/rocky-drop-4': 'https://rocky.test/products/rocky-drop-4',
+      '/crew/': 'https://rocky.test/crew',
+      '/products': 'https://rocky.test/',
+      '/CART': 'https://rocky.test/cart',
+    };
+
+    for (const [route, url] of Object.entries(canonical)) {
+      const response = await fetch(`${baseUrl}${route}`, { redirect: 'manual' });
+      expect(response.status, route).toBe(200);
+      expect(response.headers.get('x-robots-tag')).toBeNull();
+      expect(response.headers.get('link'), route).toBe(`<${url}>; rel="canonical"`);
+      expect(await response.text()).toContain('ROCKY TEST APP');
+    }
+  });
+
+  it('una categoría abierta por su nombre responde 200 sin canónica: la sustituye el cliente', async () => {
+    const staticDirectory = await createStaticTestDirectory();
+    const baseUrl = await startTestServer({ staticDirectory });
+
+    const response = await fetch(`${baseUrl}/products/ROCKY%20DROP%204`);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('link')).toBeNull();
+    expect(response.headers.get('x-robots-tag')).toBeNull();
+  });
+
+  it('/products ya no redirige a la carpeta de estáticos', async () => {
+    const staticDirectory = await createStaticTestDirectory();
+    const baseUrl = await startTestServer({ staticDirectory });
+
+    const response = await fetch(`${baseUrl}/products`, { redirect: 'manual' });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('location')).toBeNull();
+    expect(response.headers.get('cache-control')).toBe('public, max-age=0, must-revalidate');
+    expect(await response.text()).toContain('ROCKY TEST APP');
+  });
+
+  it('nada de la petición llega crudo a la cabecera Link', async () => {
+    const staticDirectory = await createStaticTestDirectory();
+    const baseUrl = await startTestServer({ staticDirectory });
+
+    const response = await fetch(`${baseUrl}/product/a%3E%3B%20rel%3Dx%0D%0AX-Evil%3A%201`);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('x-evil')).toBeNull();
+    expect(response.headers.get('link')).toBe(
+      '<https://rocky.test/product/a%3E%3B%20rel%3Dx%0D%0AX-Evil%3A%201>; rel="canonical"'
+    );
+  });
+
+  it('con la puerta activa, quien tiene acceso recibe el 404 con cabeceras privadas y sin canónica pública', async () => {
+    const staticDirectory = await createStaticTestDirectory();
+    const baseUrl = await startTestServer({ env: ACCESS_GATE_ENV, staticDirectory });
+    const login = await fetch(`${baseUrl}/access-gate`, {
+      method: 'POST',
+      redirect: 'manual',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Origin: 'https://rocky.test',
+      },
+      body: new URLSearchParams({ password: ACCESS_PASSWORD }),
+    });
+    const cookie = cookieFrom(login);
+    expect(login.status).toBe(303);
+
+    const unknown = await fetch(`${baseUrl}/loquesea`, { headers: { Cookie: cookie } });
+    const known = await fetch(`${baseUrl}/cart`, { headers: { Cookie: cookie } });
+
+    expect(unknown.status).toBe(404);
+    expect(unknown.headers.get('cache-control')).toBe('private, no-store');
+    expect(unknown.headers.get('x-robots-tag')).toBe('noindex');
+    expect(await unknown.text()).toContain('ROCKY TEST APP');
+    expect(known.status).toBe(200);
+    expect(known.headers.get('cache-control')).toBe('private, no-store');
+  });
+});
+
 describe('private coming-soon access boundary', () => {
   it('recognizes only the loopback addresses used by the internal healthcheck', () => {
     expect(isLoopbackAddress('127.0.0.1')).toBe(true);
@@ -205,13 +355,53 @@ describe('private coming-soon access boundary', () => {
     const character = await fetch(`${baseUrl}/access-gate/media/grafitero`);
     const unknown = await fetch(`${baseUrl}/access-gate/media/app-test`);
 
+    // seo-y-cache: los recursos visuales de la puerta se guardan en el
+    // navegador (una hora la hoja, un día lo demás); nunca en la caché de
+    // borde y siempre sin indexar. Antes iban con `no-store`.
     expect(stylesheet.status).toBe(200);
     expect(stylesheet.headers.get('content-type')).toContain('text/css');
-    expect(stylesheet.headers.get('cache-control')).toBe('no-store');
+    expect(stylesheet.headers.get('cache-control')).toBe('private, max-age=3600');
+    expect(stylesheet.headers.get('cloudflare-cdn-cache-control')).toBe('no-store');
+    expect(stylesheet.headers.get('x-robots-tag')).toBe('noindex, nofollow, noarchive');
     expect(character.status).toBe(200);
     expect(character.headers.get('content-type')).toContain('image/webp');
-    expect(character.headers.get('cache-control')).toBe('no-store');
+    expect(character.headers.get('cache-control')).toBe('private, max-age=86400');
+    expect(character.headers.get('cloudflare-cdn-cache-control')).toBe('no-store');
+    expect(character.headers.get('x-robots-tag')).toBe('noindex, nofollow, noarchive');
+    // Lo que no está en la lista sigue oculto y sin guardarse
     expect(unknown.status).toBe(404);
+    expect(unknown.headers.get('cache-control')).toBe('no-store');
+    expect(unknown.headers.get('cloudflare-cdn-cache-control')).toBe('no-store');
+  });
+
+  it('keeps the gate document and its answers out of every cache', async () => {
+    const staticDirectory = await createStaticTestDirectory();
+    const baseUrl = await startTestServer({
+      env: ACCESS_GATE_ENV,
+      staticDirectory,
+    });
+
+    const page = await fetch(`${baseUrl}/`);
+    const wrongPassword = await fetch(`${baseUrl}/access-gate`, {
+      method: 'POST',
+      redirect: 'manual',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Origin: 'https://rocky.test',
+      },
+      body: new URLSearchParams({ password: ACCESS_PASSWORD.split('').reverse().join('') }),
+    });
+    const font = await fetch(`${baseUrl}/access-gate/media/font-hand`);
+
+    for (const response of [page, wrongPassword]) {
+      expect(response.headers.get('content-type')).toContain('text/html');
+      expect(response.headers.get('cache-control')).toBe('no-store');
+      expect(response.headers.get('cloudflare-cdn-cache-control')).toBe('no-store');
+      expect(response.headers.get('x-robots-tag')).toBe('noindex, nofollow, noarchive');
+    }
+    // Las fuentes de la puerta, como sus ilustraciones: un día en el navegador
+    expect(font.status).toBe(200);
+    expect(font.headers.get('cache-control')).toBe('private, max-age=86400');
   });
 
   it('keeps failed attempts on the branded page and rate-limits repeated guesses', async () => {

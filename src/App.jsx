@@ -9,11 +9,12 @@ import SplashIntro from './components/SplashIntro';
 import ProductPage from './features/catalog/ProductPage';
 import { listenForSecret } from './features/estampida/secret.js';
 import { lazyPiece, preloadPieces, usePiecesReady } from './utils/pieces.jsx';
+import { useCanonicalUrl } from './hooks/usePageMetadata.js';
 import { useStorefront } from './features/storefront/useStorefront';
 import { useDrops } from './features/drops/useDrops.js';
 import { STORAGE_KEYS } from './config/storageKeys.js';
 import { readStorage, writeStorage } from './utils/storage.js';
-import { ROUTES } from './config/routes.js';
+import { ROUTE_PATHS, ROUTES } from './config/routes.js';
 
 // Piezas opcionales: no hacen falta para pintar la página, así que su código
 // y su CSS se piden con la página en reposo o al primer gesto.
@@ -43,6 +44,8 @@ const SPLASH_MS = 3000;
 const loadDemoCatalog = () => import('./data/demoProducts.js').then((module) => module.default);
 
 function App() {
+  // La URL canónica y el og:url de la ruta en curso (seo-y-cache).
+  useCanonicalUrl();
   const [showSplash, setShowSplash] = useState(
     () => !readStorage(STORAGE_KEYS.splashSeen, { kind: 'session' })
   );
@@ -174,10 +177,10 @@ function App() {
             <Routes>
               {/* La portada y las categorías son la misma página; /products/:category?
                   cubre la lista con y sin categoría, y / es la portada. */}
-              <Route path="/" element={catalogPage} />
-              <Route path="/products/:category?" element={catalogPage} />
+              <Route path={ROUTE_PATHS.home} element={catalogPage} />
+              <Route path={ROUTE_PATHS.catalog} element={catalogPage} />
               <Route
-                path="/menudrop"
+                path={ROUTE_PATHS.drops}
                 element={
                   <Muro
                     drops={drops.drops}
@@ -190,7 +193,7 @@ function App() {
                 }
               />
               <Route
-                path="/cart"
+                path={ROUTE_PATHS.cart}
                 element={
                   <Cart
                     cart={commerce.cartItems}
@@ -207,7 +210,7 @@ function App() {
                 }
               />
               <Route
-                path="/product/:productId"
+                path={ROUTE_PATHS.product}
                 element={
                   <ProductDetail
                     products={commerce.products}
@@ -225,7 +228,7 @@ function App() {
                 }
               />
               <Route
-                path="/rockyIA"
+                path={ROUTE_PATHS.chat}
                 element={
                   <ChatComponent
                     addToCart={addToCart}
@@ -235,10 +238,10 @@ function App() {
                   />
                 }
               />
-              <Route path="/estudio" element={<Studio />} />
-              <Route path="/crew" element={<Crew />} />
+              <Route path={ROUTE_PATHS.studio} element={<Studio />} />
+              <Route path={ROUTE_PATHS.crew} element={<Crew />} />
               <Route
-                path="/mi-crew"
+                path={ROUTE_PATHS.myCrew}
                 element={
                   <CrewProfile
                     accountEnabled={commerce.capabilities.customerAccounts}
@@ -249,8 +252,8 @@ function App() {
                   />
                 }
               />
-              <Route path="/legal/:page" element={<Legal />} />
-              <Route path="/taller" element={<Taller />} />
+              <Route path={ROUTE_PATHS.legal} element={<Legal />} />
+              <Route path={ROUTE_PATHS.taller} element={<Taller />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

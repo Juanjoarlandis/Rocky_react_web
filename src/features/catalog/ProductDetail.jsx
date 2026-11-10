@@ -16,6 +16,7 @@ import { PLACEHOLDER_IMAGE } from '../../config/commerce.js';
 import { PURCHASE_STATES, purchaseLabel, purchaseState } from '../storefront/availability.js';
 import '../../styles/components/product-media.css';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
+import { useNotFound } from '../../hooks/usePageMetadata.js';
 import { prefersReducedMotion } from '../../utils/media.js';
 import '../../styles/pages/product-detail.css';
 import { useNightArt } from '../night/nightArt.js';
@@ -53,6 +54,8 @@ function ProductDetail({
           ? 'Producto no disponible'
           : 'Producto no encontrado')
   );
+  // Con el catálogo ya cargado y sin fallo, lo que no está es que no existe.
+  useNotFound(!product && !loading && !catalogError);
   const [selectedVariantId, setSelectedVariantId] = useState(
     () => product?.defaultVariantId || product?.variants?.[0]?.id || null
   );

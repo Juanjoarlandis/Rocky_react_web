@@ -275,3 +275,34 @@ test('una ruta que no existe sigue pintando la página 404', async () => {
   expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument();
   expect(screen.getByTestId('ruta')).toHaveTextContent('/no-existe');
 });
+
+/* seo-y-cache: App mantiene la URL canónica de cada ruta, y una ruta que no
+   existe lo dice y pide que no se indexe. */
+const canonical = () => document.head.querySelector('link[rel="canonical"]')?.href ?? null;
+const robots = () =>
+  [...document.head.querySelectorAll('meta[name="robots"]')].map((meta) => meta.content);
+
+test('cada ruta declara su URL canónica y su og:url', async () => {
+  renderEn('/crew?utm_source=x');
+
+  expect(canonical()).toBe('https://rocky035.com/crew');
+  expect(document.head.querySelector('meta[property="og:url"]').content).toBe(
+    'https://rocky035.com/crew'
+  );
+  expect(robots()).toEqual([]);
+});
+
+test('una ruta que no existe se titula «No encontrado», no se indexa y no declara canónica; al volver a la tienda, sí', async () => {
+  renderEn('/no-existe');
+  await screen.findByRole('heading', { level: 1 });
+
+  expect(document.title).toBe('No encontrado · ROCKY 035');
+  expect(robots()).toEqual(['noindex']);
+  expect(canonical()).toBeNull();
+
+  fireEvent.click(screen.getByRole('link', { name: 'Volver a la tienda' }));
+  await waitFor(() => expect(screen.getByTestId('ruta')).toHaveTextContent(/^\/$/));
+  expect(robots()).toEqual([]);
+  expect(canonical()).toBe('https://rocky035.com/');
+  expect(document.title).not.toMatch(/No encontrado/);
+});

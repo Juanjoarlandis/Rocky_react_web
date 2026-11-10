@@ -51,6 +51,33 @@ describe('ProductDetail', () => {
     rerender(view({ products: [product] }));
     expect(screen.getByRole('heading', { name: 'Rocky Tee' })).toBeInTheDocument();
   });
+  it('un producto que no existe se titula «No encontrado» y no se indexa, pero solo con el catálogo ya cargado', () => {
+    const robots = () =>
+      [...document.head.querySelectorAll('meta[name="robots"]')].map((meta) => meta.content);
+    const view = (props) => (
+      <MemoryRouter initialEntries={['/product/rocky-tee']}>
+        <Routes>
+          <Route path="/product/:productId" element={<ProductDetail products={[]} {...props} />} />
+        </Routes>
+      </MemoryRouter>
+    );
+    const { rerender, unmount } = render(view({ loading: true }));
+    expect(robots()).toEqual([]);
+    expect(document.title).toBe('Cargando producto · ROCKY 035');
+    // Un fallo del catálogo no es un producto que no existe
+    rerender(view({ catalogError: 'Sin conexión' }));
+    expect(robots()).toEqual([]);
+
+    rerender(view({}));
+    expect(document.title).toBe('No encontrado · ROCKY 035');
+    expect(robots()).toEqual(['noindex']);
+
+    rerender(view({ products: [product] }));
+    expect(document.title).toBe('Rocky Tee · ROCKY 035');
+    expect(robots()).toEqual([]);
+    unmount();
+  });
+
   it('changes the trusted variant price and adds the selected variant ID', async () => {
     const addToCart = vi.fn().mockResolvedValue(null);
     render(

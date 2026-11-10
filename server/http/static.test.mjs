@@ -304,9 +304,12 @@ describe('si una variante desaparece con el servidor en marcha', () => {
       headers: { 'Accept-Encoding': 'br' },
     });
 
-    // La variante ya no está: cae al documento de la aplicación, sin comprimir.
+    // La variante ya no está: lo que responde en su lugar no hereda nada de
+    // ella. Desde seo-y-cache ya no es el documento de la aplicación (eso es
+    // solo para rutas que la aplicación conoce) sino el 404 de un fichero.
     expect(response.headers).not.toHaveProperty('content-encoding');
-    expect(response.headers['content-type']).toMatch(/^text\/html/);
-    expect(response.body.toString()).toBe(INDEX_HTML);
+    expect(response.status).toBe(404);
+    expect(response.headers['content-type']).toMatch(/^text\/plain/);
+    expect(response.body.toString()).toBe('Not found.');
   });
 });

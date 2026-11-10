@@ -1,6 +1,6 @@
 import ProductPhoto from '../../components/ProductPhoto.jsx';
-import { useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { lazyPiece } from '../../utils/pieces.jsx';
 import AddToCartButton from '../cart/AddToCartButton';
 import EyeIcon from '../../components/icons/EyeIcon';
@@ -23,6 +23,7 @@ import { formatPrice } from '../../utils/price';
 import '../../styles/components/product-media.css';
 import { ROUTES } from '../../config/routes.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
+import { NOT_FOUND_TITLE, useNotFound } from '../../hooks/usePageMetadata.js';
 import '../../styles/pages/home.css';
 import { useNightArt } from '../night/nightArt.js';
 
@@ -122,12 +123,29 @@ function ProductPage({
   const pageTitle = category
     ? categoryDrop?.title || visibleProducts[0]?.drop || category
     : 'ROCKY 035';
-  useDocumentTitle(isHome ? '' : pageTitle);
-
   // Una página de drop espera también a los drops: si no, la de un anunciado
   // (la que se comparte antes del lanzamiento) diría «Volaron» un instante.
   const waiting = loading || (dropsLoading && isDropHandle(category ?? ''));
-  if (category && !categoryDrop && visibleProducts.length === 0 && !waiting) {
+  const notFound = Boolean(category) && !categoryDrop && visibleProducts.length === 0 && !waiting;
+  // Una categoría que no existe se titula «No encontrado», nunca con el slug
+  // que se pidió (tampoco al saltar de una inexistente a otra), y no se indexa.
+  useDocumentTitle(isHome ? '' : notFound ? NOT_FOUND_TITLE : pageTitle);
+  useNotFound(notFound);
+
+  // Una categoría tiene una sola URL, la de su handle. Abierta por su nombre
+  // (/products/ROCKY%20DROP%204) se sustituye, sin dejar la otra en el historial.
+  const navigate = useNavigate();
+  const { search, hash } = useLocation();
+  const handleOfName =
+    category && !categoryDrop && !visibleProducts.some((product) => product.dropHandle === category)
+      ? (visibleProducts.find((product) => product.drop === category)?.dropHandle ?? null)
+      : null;
+  useEffect(() => {
+    if (!handleOfName) return;
+    navigate({ pathname: ROUTES.category(handleOfName), search, hash }, { replace: true });
+  }, [handleOfName, navigate, search, hash]);
+
+  if (notFound) {
     return (
       <div className="product-empty">
         {/* Se lo han llevado todo corriendo */}

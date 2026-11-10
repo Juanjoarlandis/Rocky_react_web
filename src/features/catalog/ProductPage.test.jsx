@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import ProductPage from './ProductPage.jsx';
@@ -703,6 +703,134 @@ describe('ProductPage: drops en la portada y página de drop', () => {
     }
     expect(photo(4)).toHaveAttribute('loading', 'lazy');
     expect(photo(5)).toHaveAttribute('loading', 'lazy');
+  });
+
+  describe('categorías que no existen o que llegan por su nombre', () => {
+    const robots = () =>
+      [...document.head.querySelectorAll('meta[name="robots"]')].map((meta) => meta.content);
+    function Ruta() {
+      const location = useLocation();
+      return (
+        <output data-testid="ruta" data-key={location.key}>
+          {location.pathname}
+        </output>
+      );
+    }
+
+    it('una categoría que no existe se titula «No encontrado», no usa el slug y no se indexa', () => {
+      const { unmount } = render(catalogo('/products/no-existe'));
+
+      expect(screen.getByText('Nada por aquí')).toBeInTheDocument();
+      expect(document.title).toBe('No encontrado · ROCKY 035');
+      expect(robots()).toEqual(['noindex']);
+      unmount();
+      expect(robots()).toEqual([]);
+    });
+
+    it('al pasar de una categoría que no existe a otra, el título sigue sin ser el slug', async () => {
+      function Salto() {
+        const navigate = useNavigate();
+        return (
+          <button type="button" onClick={() => navigate('/products/tampoco')}>
+            Otra
+          </button>
+        );
+      }
+      render(
+        <MemoryRouter initialEntries={['/products/no-existe']}>
+          <Routes>
+            <Route
+              path="/products/:category"
+              element={
+                <ProductPage
+                  products={[airwave, congelado]}
+                  addToCart={vi.fn()}
+                  commerceMode="shopify"
+                  canAddToCart
+                  drops={drops}
+                  featured={announced}
+                  serverNow={now}
+                />
+              }
+            />
+          </Routes>
+          <Salto />
+        </MemoryRouter>
+      );
+      expect(document.title).toBe('No encontrado · ROCKY 035');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Otra' }));
+
+      await waitFor(() => expect(screen.getByText(/«tampoco»/)).toBeInTheDocument());
+      expect(document.title).toBe('No encontrado · ROCKY 035');
+      expect(robots()).toEqual(['noindex']);
+    });
+
+    it('mientras el catálogo o los drops cargan no se marca como no encontrada', () => {
+      const { rerender } = render(catalogo('/products/rocky-drop-9', { loading: true }));
+      expect(robots()).toEqual([]);
+      rerender(catalogo('/products/rocky-drop-9', { dropsLoading: true }));
+      expect(robots()).toEqual([]);
+      expect(document.title).not.toMatch(/No encontrado/);
+    });
+
+    it('una categoría que sí existe no lleva noindex', () => {
+      render(catalogo('/products/rocky-drop-5'));
+      expect(robots()).toEqual([]);
+      expect(document.title).toBe('ROCKY DROP 5 · ROCKY 035');
+    });
+
+    function Atras() {
+      const navigate = useNavigate();
+      return (
+        <button type="button" onClick={() => navigate(-1)}>
+          Atrás
+        </button>
+      );
+    }
+    const conRuta = (entries) =>
+      render(
+        <MemoryRouter initialEntries={entries} initialIndex={entries.length - 1}>
+          <Routes>
+            <Route
+              path="/products/:category"
+              element={
+                <ProductPage
+                  products={[airwave, congelado]}
+                  addToCart={vi.fn()}
+                  commerceMode="shopify"
+                  canAddToCart
+                  drops={drops}
+                  featured={announced}
+                  serverNow={now}
+                />
+              }
+            />
+            <Route path="/" element={<p>Portada</p>} />
+          </Routes>
+          <Ruta />
+          <Atras />
+        </MemoryRouter>
+      );
+
+    it('abierta por su nombre, la URL pasa a la del handle sin añadir una entrada al historial', async () => {
+      conRuta(['/', '/products/ROCKY%20DROP%205']);
+
+      await waitFor(() =>
+        expect(screen.getByTestId('ruta')).toHaveTextContent('/products/rocky-drop-5')
+      );
+      expect(screen.getByRole('heading', { level: 2, name: 'Airwave' })).toBeInTheDocument();
+      // «Atrás» vuelve a la portada, no a la URL por nombre
+      fireEvent.click(screen.getByRole('button', { name: 'Atrás' }));
+      await waitFor(() => expect(screen.getByTestId('ruta')).toHaveTextContent(/^\/$/));
+    });
+
+    it('un nombre que no es de ninguna categoría no se sustituye', () => {
+      conRuta(['/products/NO%20EXISTE']);
+
+      expect(screen.getByTestId('ruta')).toHaveTextContent('/products/NO%20EXISTE');
+      expect(robots()).toEqual(['noindex']);
+    });
   });
 
   it('el catálogo sigue el orden del muro: teaser, en la calle y archivo', () => {

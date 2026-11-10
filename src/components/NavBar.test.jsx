@@ -238,3 +238,43 @@ describe('NavBar: la bombilla trae la música del descontrol', () => {
     expect(audio).toHaveAttribute('src', '/music/barro.m4a');
   });
 });
+
+/* seo-y-cache: la portada, los listados por categoría y las fichas son la
+   tienda; «Tienda» queda marcada en las tres, en la barra y en el menú. */
+describe('NavBar: «Tienda» activa en todo el catálogo', () => {
+  const en = (ruta) =>
+    render(
+      <MemoryRouter initialEntries={[ruta]}>
+        <NavBar
+          totalItems={0}
+          accountEnabled={false}
+          account={{ loggedIn: false, customer: null }}
+        />
+      </MemoryRouter>
+    );
+  const tienda = () => {
+    const barra = screen.getAllByRole('link', { name: 'Tienda' })[0];
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir el menú' }));
+    const menu = within(screen.getByRole('dialog')).getByRole('link', { name: 'Tienda' });
+    return [barra, menu];
+  };
+
+  it.each(['/', '/products', '/products/rocky-drop-4', '/product/rocky-racing'])(
+    'en %s está activa en la barra y en el menú móvil',
+    (ruta) => {
+      en(ruta);
+      for (const enlace of tienda()) {
+        expect(enlace).toHaveClass('is-active');
+        expect(enlace).toHaveAttribute('aria-current', 'page');
+      }
+    }
+  );
+
+  it.each(['/crew', '/menudrop', '/cart', '/productos-falsos'])('en %s no lo está', (ruta) => {
+    en(ruta);
+    for (const enlace of tienda()) {
+      expect(enlace).not.toHaveClass('is-active');
+      expect(enlace).not.toHaveAttribute('aria-current');
+    }
+  });
+});

@@ -250,7 +250,11 @@ export function createApp({
     res.status(404).json({ message: 'Ruta no encontrada.' });
   });
 
-  mountStaticApp(app, { staticDirectory, isPrivate: config.siteAccess.enabled });
+  mountStaticApp(app, {
+    staticDirectory,
+    isPrivate: config.siteAccess.enabled,
+    publicOrigin: config.publicOrigin,
+  });
 
   app.use(errorHandler({ logger }));
 

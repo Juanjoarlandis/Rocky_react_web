@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import express from 'express';
 import { setPrivateAccessHeaders } from './access-gate.mjs';
+import { canonicalUrl, matchRoute } from '../../shared/routes.mjs';
 
 const IMMUTABLE_ASSET_CACHE = 'public, max-age=31536000, immutable';
 const IMMUTABLE_EDGE_CACHE = 'public, max-age=31536000';
@@ -127,10 +128,23 @@ function setUncachedHeaders(res) {
   res.setHeader('Cloudflare-CDN-Cache-Control', 'no-store');
 }
 
+// Lo que parece un fichero y no existe: 404 de texto, sin caché y sin indexar.
+function sendMissingFile(res) {
+  res.setHeader('X-Robots-Tag', 'noindex');
+  setUncachedHeaders(res);
+  return res.status(404).type('text/plain').send('Not found.');
+}
+
+// El último tramo lleva extensión («sitemap.xml», «tema.m4a», «.env»): quien
+// lo pide espera un fichero, no la página 404 de la aplicación.
+const LOOKS_LIKE_FILE = /\.[a-z0-9]+$/i;
+
 // Sirve dist/: assets con hash inmutables, ficheros públicos estables con
-// revalidación, y el index.html como fallback de la SPA. Un asset o mockup
-// que no existe termina en 404 sin caché en lugar de caer al index.
-export function mountStaticApp(app, { staticDirectory, isPrivate = false }) {
+// revalidación, y el index.html como documento de las rutas de la aplicación.
+// Lo que no existe termina en 404: de texto si parece un fichero (un asset, un
+// mockup, un sitemap) y con el documento de la aplicación, que pinta su página
+// de no encontrado, si parece una dirección mal escrita.
+export function mountStaticApp(app, { staticDirectory, isPrivate = false, publicOrigin = '' }) {
   const indexPath = path.join(staticDirectory, 'index.html');
   if (!fs.existsSync(indexPath)) return false;
   const variants = indexVariants(staticDirectory);
@@ -164,9 +178,17 @@ export function mountStaticApp(app, { staticDirectory, isPrivate = false }) {
     express.static(staticDirectory, {
       index: false,
       fallthrough: true,
+      // Una ruta de la aplicación que se llama como una carpeta de dist/
+      // (/products) no recibe el 301 a «/products/»: la sirve el fallback.
+      redirect: false,
       setHeaders(res, filePath) {
         if (isIndexFile(filePath)) {
           setSpaDocumentHeaders(res, isPrivate);
+          // Pedido por su nombre de fichero (/index.html) es el mismo
+          // documento que la portada: lo dice, para que no cuente como otra.
+          if (publicOrigin) {
+            res.setHeader('Link', `<${canonicalUrl(publicOrigin, '/')}>; rel="canonical"`);
+          }
           return;
         }
         setStablePublicHeaders(res, isPrivate);
@@ -180,18 +202,37 @@ export function mountStaticApp(app, { staticDirectory, isPrivate = false }) {
     return res.status(404).type('text/plain').send('Product asset not found.');
   });
   const indexVariantsAvailable = variants.get('/index.html');
-  app.get('*', (req, res) => {
+  // `options` va a res.sendFile: el 404 lo usa para no atender rangos, que
+  // convertirían la respuesta en un 206 o un 416.
+  const sendDocument = (req, res, options = {}) => {
     setSpaDocumentHeaders(res, isPrivate);
-    if (!indexVariantsAvailable) return res.sendFile(indexPath);
+    if (!indexVariantsAvailable) return res.sendFile(indexPath, options);
     res.vary('Accept-Encoding');
     const encoding = preferredEncoding(req.headers['accept-encoding'], indexVariantsAvailable);
-    if (!encoding) return res.sendFile(indexPath);
+    if (!encoding) return res.sendFile(indexPath, options);
     setEncodedHeaders(res, indexPath, encoding);
-    return res.sendFile(`${indexPath}${suffixOf(encoding)}`, (error) => {
+    return res.sendFile(`${indexPath}${suffixOf(encoding)}`, options, (error) => {
       if (!error || res.headersSent) return;
       res.removeHeader('Content-Encoding');
-      res.sendFile(indexPath);
+      res.sendFile(indexPath, options);
     });
+  };
+  /* El documento es el mismo para todas las rutas (y va precomprimido), así
+     que lo que cada una dice de sí misma viaja en cabeceras: 200 y su URL
+     canónica si la aplicación la conoce (shared/routes.mjs, la misma tabla
+     que usa el cliente), 404 y `noindex` si no. */
+  app.get('*', (req, res) => {
+    if (matchRoute(req.path)) {
+      // Sale de la tabla, con sus parámetros vueltos a codificar: nada de la
+      // petición llega crudo a la cabecera.
+      const canonical = publicOrigin ? canonicalUrl(publicOrigin, req.path) : null;
+      if (canonical) res.setHeader('Link', `<${canonical}>; rel="canonical"`);
+      return sendDocument(req, res);
+    }
+    if (LOOKS_LIKE_FILE.test(req.path)) return sendMissingFile(res);
+    res.setHeader('X-Robots-Tag', 'noindex');
+    res.status(404);
+    return sendDocument(req, res, { acceptRanges: false });
   });
   return true;
 }

@@ -26,6 +26,19 @@ function setGateHeaders(res) {
   res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
 }
 
+/* Los recursos visuales de la puerta (su hoja de estilos y la lista cerrada
+   de ilustraciones y fuentes) no llevan nada privado: se guardan en el
+   navegador de quien la visita para no bajarlos en cada visita. Nunca en la
+   caché de borde, y sin indexar, como todo lo de la puerta. */
+const GATE_STYLESHEET_MAX_AGE = 60 * 60;
+const GATE_MEDIA_MAX_AGE = 24 * 60 * 60;
+
+function setGateAssetHeaders(res, maxAge) {
+  res.setHeader('Cache-Control', `private, max-age=${maxAge}`);
+  res.setHeader('Cloudflare-CDN-Cache-Control', 'no-store');
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
+}
+
 export function setPrivateAccessHeaders(res) {
   res.setHeader('Cache-Control', 'private, no-store');
   res.setHeader('Cloudflare-CDN-Cache-Control', 'no-store');
@@ -172,14 +185,14 @@ export function createAccessGate({
   });
 
   router.get('/style.css', (req, res) => {
-    setGateHeaders(res);
+    setGateAssetHeaders(res, GATE_STYLESHEET_MAX_AGE);
     return res.type('css').sendFile(stylesheetPath);
   });
 
   router.get('/media/:name', (req, res) => {
     const filePath = media.get(req.params.name);
     if (!filePath) return renderHidden(res);
-    setGateHeaders(res);
+    setGateAssetHeaders(res, GATE_MEDIA_MAX_AGE);
     return res.sendFile(filePath);
   });
 
