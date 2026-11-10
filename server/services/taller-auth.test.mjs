@@ -197,6 +197,22 @@ describe('entrada al Taller', () => {
     expect((await sessions.read(b.req())).record.cartId).toBe('cart-9');
   });
 
+  it('salir queda escrito antes de responder: un cierre no puede deshacerse solo', async () => {
+    const { auth, store, now } = await setup();
+    const b = browser();
+    await auth.login(b.req(), b.res(), { password: PASSWORD, code: code(now()) });
+    const durabilities = [];
+    const set = store.set.bind(store);
+    store.set = (...args) => {
+      durabilities.push(args[3]?.durability ?? 'confirmed');
+      return set(...args);
+    };
+
+    await auth.logout(b.req());
+
+    expect(durabilities).toEqual(['confirmed']);
+  });
+
   it('un permiso de otro proceso (servidor reiniciado) no vale', async () => {
     const first = await setup();
     const b = browser();

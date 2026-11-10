@@ -52,3 +52,20 @@ describe('avisos: lista, envío y borrado', () => {
     expect(await store.get(AVISOS_NAMESPACE, AVISOS_INDICE)).toEqual(['otro']);
   });
 });
+
+describe('avisos: escritura confirmada', () => {
+  it('un alta de aviso queda escrita antes de responder', async () => {
+    const { store, avisos } = servicio();
+    const durabilities = [];
+    const set = store.set.bind(store);
+    store.set = (...args) => {
+      durabilities.push(args[3]?.durability ?? 'confirmed');
+      return set(...args);
+    };
+
+    await avisos.register({ product: '35-red', email: 'a@b.cd' });
+
+    expect(durabilities.length).toBeGreaterThan(0);
+    expect(new Set(durabilities)).toEqual(new Set(['confirmed']));
+  });
+});

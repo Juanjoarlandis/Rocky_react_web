@@ -279,8 +279,10 @@ export function createCrewRewardsService({ store, clock = () => Date.now() }) {
     const nextName = String(displayName || '')
       .trim()
       .slice(0, 80);
-    if (nextName && nextName !== profile.displayName) profile.displayName = nextName;
-    return { key, profile };
+    const renamed = Boolean(nextName && nextName !== profile.displayName);
+    if (renamed) profile.displayName = nextName;
+    // `dirty`: hay algo que guardar aunque nadie toque el saldo.
+    return { key, profile, dirty: !stored || renamed };
   }
 
   async function saveProfile(key, profile) {
@@ -293,8 +295,9 @@ export function createCrewRewardsService({ store, clock = () => Date.now() }) {
     async getProfile(customerId, options = {}) {
       const key = profileKey(validateCustomerId(customerId));
       return withCustomerLock(key, async () => {
-        const { profile } = await readPrivateProfile(customerId, options);
-        return saveProfile(key, profile);
+        // Leer no escribe: solo se guarda un perfil nuevo o un nombre que cambia.
+        const { profile, dirty } = await readPrivateProfile(customerId, options);
+        return dirty ? saveProfile(key, profile) : publicProfile(profile);
       });
     },
 

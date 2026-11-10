@@ -158,3 +158,94 @@ describe('venta blindada por estado del drop', () => {
     });
   });
 });
+
+describe('idempotencia del carrito: no espera al disco y dura lo justo', () => {
+  function setup() {
+    let now = 1_000_000;
+    const store = new MemoryStore({ clock: () => now });
+    const writes = [];
+    for (const method of ['set', 'setIfAbsent', 'delete']) {
+      const original = store[method].bind(store);
+      store[method] = (...args) => {
+        const options = method === 'delete' ? args[2] : args[3];
+        writes.push({
+          call: `${method}:${args[0]}:${options?.durability ?? 'confirmed'}`,
+          value: args[2],
+          expiresAt: options?.expiresAt,
+        });
+        return original(...args);
+      };
+    }
+    const sessions = createSessionManager({ store, isProduction: false, clock: () => now });
+    const storefront = {
+      createCartForSession: vi.fn(async () => ({
+        fullCartId: 'cart-1',
+        cart: { lines: [] },
+        warnings: [],
+      })),
+      addLines: vi.fn(async () => {
+        throw Object.assign(new Error('rechazado'), { status: 400 });
+      }),
+    };
+    const carts = createCartOperations({
+      store,
+      sessions,
+      storefront,
+      checkoutHosts: new Set(),
+      clock: () => now,
+    });
+    return {
+      store,
+      writes,
+      sessions,
+      carts,
+      storefront,
+      advance: (ms) => (now += ms),
+      now: () => now,
+    };
+  }
+
+  it('un alta con sesión nueva no espera a ningún volcado', async () => {
+    const { writes, sessions, carts } = setup();
+    const session = await sessions.open({ get: () => '' }, { append() {} });
+
+    await carts.addLine(session, { variantId: 'variant-A', quantity: 1, operationId: 'op-1' });
+
+    expect(writes.map(({ call }) => call)).toEqual([
+      'set:sessions:deferred',
+      'setIfAbsent:cartOperations:deferred',
+      'set:sessions:deferred',
+      'set:cartOperations:deferred',
+    ]);
+  });
+
+  it('una operación completada se recuerda 15 minutos, no un día', async () => {
+    const { writes, sessions, carts, now } = setup();
+    const session = await sessions.open({ get: () => '' }, { append() {} });
+
+    await carts.addLine(session, { variantId: 'variant-A', quantity: 1, operationId: 'op-1' });
+
+    const completed = writes.find(({ value }) => value?.status === 'completed');
+    expect(completed.expiresAt - now()).toBe(15 * 60 * 1_000);
+  });
+
+  it('repetir la operación dentro de ese plazo devuelve la misma respuesta sin tocar Shopify', async () => {
+    const { sessions, carts, storefront, advance } = setup();
+    const session = await sessions.open({ get: () => '' }, { append() {} });
+    const first = await carts.addLine(session, {
+      variantId: 'variant-A',
+      quantity: 1,
+      operationId: 'op-1',
+    });
+    advance(14 * 60 * 1_000);
+
+    const again = await carts.addLine(session, {
+      variantId: 'variant-A',
+      quantity: 1,
+      operationId: 'op-1',
+    });
+
+    expect(again).toEqual(first);
+    expect(storefront.createCartForSession).toHaveBeenCalledTimes(1);
+  });
+});

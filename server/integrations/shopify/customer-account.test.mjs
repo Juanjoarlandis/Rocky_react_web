@@ -50,6 +50,16 @@ describe('Customer Account OAuth', () => {
     };
     const fetchImpl = vi.fn().mockResolvedValueOnce(response(discovery));
     const store = new MemoryStore({ clock: () => 1_000_000 });
+    // Con qué durabilidad escribe cada paso del login (almacen-escritura-agrupada).
+    const writes = [];
+    for (const method of ['set', 'consume']) {
+      const original = store[method].bind(store);
+      store[method] = (...args) => {
+        const options = method === 'set' ? args[3] : args[2];
+        writes.push(`${method}:${args[0]}:${options?.durability ?? 'confirmed'}`);
+        return original(...args);
+      };
+    }
     const client = createCustomerAccountClient({
       config,
       store,
@@ -109,6 +119,13 @@ describe('Customer Account OAuth', () => {
     });
     expect(fetchImpl.mock.calls[1][1].signal).toBeInstanceOf(AbortSignal);
     expect(fetchImpl.mock.calls[2][1].signal).toBeInstanceOf(AbortSignal);
+    // Empezar el login puede perderse en una caída; consumir la transacción
+    // (un solo uso) y guardar los tokens quedan escritos antes de seguir.
+    expect(writes).toEqual([
+      'set:oauthTransactions:deferred',
+      'consume:oauthTransactions:confirmed',
+      'set:customerTokens:confirmed',
+    ]);
     await expect(
       client.completeAuthentication({
         state,

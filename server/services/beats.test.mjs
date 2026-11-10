@@ -153,3 +153,64 @@ describe('El ranking de La Colmena', () => {
     expect(await beats.list()).toEqual([]);
   });
 });
+
+describe('clase de escritura de los beats', () => {
+  function recording() {
+    const store = new MemoryStore();
+    const writes = [];
+    for (const method of ['set', 'delete']) {
+      const original = store[method].bind(store);
+      store[method] = (...args) => {
+        const options = method === 'set' ? args[3] : args[2];
+        writes.push(`${method}:${options?.durability ?? 'confirmed'}`);
+        return original(...args);
+      };
+    }
+    const now = { t: 1_800_000_000_000 };
+    return { beats: createBeatsService({ store, clock: () => now.t }), writes };
+  }
+
+  it('publicar y retirar un beat quedan escritos antes de responder', async () => {
+    const { beats, writes } = recording();
+
+    const published = await beats.publish(checkSubmission(submission()).beat, 'voter-1');
+    await beats.remove(published.beat.id);
+
+    expect(writes.length).toBeGreaterThanOrEqual(3);
+    expect(new Set(writes)).toEqual(new Set(['set:confirmed', 'delete:confirmed']));
+  });
+
+  it('un «me mola» y un reporte no esperan al disco', async () => {
+    const { beats, writes } = recording();
+    const published = await beats.publish(checkSubmission(submission()).beat, 'voter-1');
+    writes.length = 0;
+
+    await beats.toggleLike(published.beat.id, 'voter-2');
+    await beats.report(published.beat.id, 'voter-3');
+
+    expect(writes).toEqual(['set:deferred', 'set:deferred']);
+  });
+});
+
+describe('moderación de beats', () => {
+  it('el reporte que oculta un beat queda escrito antes de responder', async () => {
+    const store = new MemoryStore();
+    const now = { t: 1_800_000_000_000 };
+    const beats = createBeatsService({ store, clock: () => now.t });
+    const published = await beats.publish(checkSubmission(submission()).beat, 'voter-1');
+    const durabilities = [];
+    const set = store.set.bind(store);
+    store.set = (...args) => {
+      durabilities.push(args[3]?.durability ?? 'confirmed');
+      return set(...args);
+    };
+
+    const results = [];
+    for (const voter of ['v2', 'v3', 'v4']) {
+      results.push(await beats.report(published.beat.id, voter));
+    }
+
+    expect(results.at(-1)).toEqual({ hidden: true });
+    expect(durabilities).toEqual(['deferred', 'deferred', 'confirmed']);
+  });
+});

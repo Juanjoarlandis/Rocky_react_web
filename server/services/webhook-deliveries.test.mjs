@@ -222,3 +222,37 @@ describe('Shopify webhooks', () => {
     });
   });
 });
+
+describe('webhooks: deduplicación confirmada', () => {
+  it('la entrega aceptada queda escrita antes de responder', async () => {
+    const store = new MemoryStore();
+    const durabilities = [];
+    const setIfAbsent = store.setIfAbsent.bind(store);
+    store.setIfAbsent = (...args) => {
+      durabilities.push(args[3]?.durability ?? 'confirmed');
+      return setIfAbsent(...args);
+    };
+    const body = Buffer.from('{"id":1}', 'utf8');
+
+    await processWebhookDelivery({
+      input: {
+        rawBody: body,
+        hmac: sign(body),
+        webhookId: 'delivery-confirmada',
+        eventId: 'event-1',
+        topic: 'orders/paid',
+        shopDomain: 'rocky-dev.myshopify.com',
+        apiVersion: '2026-07',
+      },
+      config: {
+        storeDomain: 'rocky-dev.myshopify.com',
+        apiVersion: '2026-07',
+        clientSecret: secret,
+        webhookTopics: new Set(['orders/paid']),
+      },
+      store,
+    });
+
+    expect(durabilities).toEqual(['confirmed']);
+  });
+});

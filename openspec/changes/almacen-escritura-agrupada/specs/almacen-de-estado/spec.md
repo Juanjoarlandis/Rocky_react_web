@@ -47,11 +47,12 @@ de volcados depende del tiempo transcurrido y no del número de escrituras.
 - **THEN** al terminar la confirmada, las diferidas anteriores también están en disco
 
 ### Requirement: Solo lo inocuo es diferido
-SHALL ser confirmadas: el abono, el canje y el equipado de créditos Crew, el alta de un
-aviso, guardar y borrar tokens de cliente, publicar y retirar un beat, y cerrar o rotar
-una sesión. SHALL ser diferidas: crear una sesión y refrescar su última visita, guardar
-en ella el carrito o el historial del chat, la idempotencia del carrito, las
-transacciones de inicio de sesión y los «me mola» y reportes de beats.
+SHALL ser diferido solo lo que se puede volver a crear: abrir y refrescar una sesión,
+guardar en ella el carrito o el historial del chat, la idempotencia del carrito, abrir una
+transacción de inicio de sesión y los votos y reportes de beats. Todo lo demás SHALL ser
+confirmado; en particular, créditos Crew, avisos, tokens de cliente, publicar, retirar u
+ocultar un beat, consumir una transacción de inicio de sesión, y cerrar o rotar una sesión
+o retirarle un permiso.
 
 #### Scenario: Pedido pagado
 - **WHEN** llega un webhook `orders/paid` válido y el servidor responde 200
@@ -60,6 +61,14 @@ transacciones de inicio de sesión y los «me mola» y reportes de beats.
 #### Scenario: Cierre de sesión
 - **WHEN** un cliente cierra sesión y el servidor responde
 - **THEN** la sesión y su token ya no están en el fichero
+
+#### Scenario: Salir del Taller
+- **WHEN** alguien sale del Taller y el servidor responde
+- **THEN** la retirada del permiso ya está en disco, y un volcado fallido posterior no la deshace
+
+#### Scenario: Reporte que oculta un beat
+- **WHEN** llega el reporte que hace que un beat se oculte
+- **THEN** el beat oculto ya está en disco al responder
 
 #### Scenario: Añadir al carrito
 - **WHEN** un visitante nuevo añade una camiseta y el servidor responde 200

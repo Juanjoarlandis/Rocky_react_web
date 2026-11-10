@@ -1,7 +1,14 @@
 import { HttpError, ShopifyGraphqlError, isHttpError } from '../http/errors.mjs';
 import { createKeyedLock } from '../lib/keyed-lock.mjs';
 
-const IDEMPOTENCY_RETENTION_MS = 24 * 60 * 60 * 1_000;
+// Cuánto se recuerda una operación completada. El cliente genera un
+// identificador nuevo por llamada, así que solo protege de una entrega
+// duplicada en segundos; cada registro lleva la respuesta entera del carrito y
+// era lo que más engordaba el almacén (antes, 24 h).
+const IDEMPOTENCY_RETENTION_MS = 15 * 60 * 1_000;
+// La idempotencia del carrito no espera al disco: si una caída la pierde, el
+// cliente no reutiliza identificadores.
+const DEFERRED = Object.freeze({ durability: 'deferred' });
 const AMBIGUOUS_RETENTION_MS = 10 * 60 * 1_000;
 
 function validateCheckoutUrl(value, allowedHosts) {
@@ -74,7 +81,7 @@ export function createCartOperations({
         'cartOperations',
         idempotencyKey,
         { status: 'pending', createdAt: now },
-        { expiresAt: now + IDEMPOTENCY_RETENTION_MS }
+        { expiresAt: now + IDEMPOTENCY_RETENTION_MS, ...DEFERRED }
       );
       try {
         const response = await action();
@@ -82,7 +89,7 @@ export function createCartOperations({
           'cartOperations',
           idempotencyKey,
           { status: 'completed', response, completedAt: clock() },
-          { expiresAt: clock() + IDEMPOTENCY_RETENTION_MS }
+          { expiresAt: clock() + IDEMPOTENCY_RETENTION_MS, ...DEFERRED }
         );
         return response;
       } catch (error) {
@@ -90,13 +97,13 @@ export function createCartOperations({
         // operación para que el cliente pueda corregir y reintentar con el
         // mismo operationId. Sólo un fallo ambiguo (red, 5xx) queda marcado.
         if (isHttpError(error) && error.status < 500) {
-          await store.delete('cartOperations', idempotencyKey);
+          await store.delete('cartOperations', idempotencyKey, DEFERRED);
         } else {
           await store.set(
             'cartOperations',
             idempotencyKey,
             { status: 'ambiguous', failedAt: clock() },
-            { expiresAt: clock() + AMBIGUOUS_RETENTION_MS }
+            { expiresAt: clock() + AMBIGUOUS_RETENTION_MS, ...DEFERRED }
           );
         }
         throw error;

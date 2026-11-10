@@ -575,6 +575,25 @@ Ejecutar además un script con `docker exec` (exportar avisos) arranca otro Node
 contenedor y con 128 MB lo mata: el límite de memoria de producción se fija en
 `despliegue-ligero` contando con ese segundo proceso.
 
+### Tras `almacen-escritura-agrupada`
+
+Medido el 2026-11-10 con `fase4/contar-escrituras.mjs.txt`, que ahora espera a la ventana
+de volcado antes de contar (`datos/fase4/escrituras-agrupadas.json`).
+
+| Métrica | Línea base | Ahora | Presupuesto |
+| --- | ---: | ---: | ---: |
+| Volcados por alta de carrito con sesión nueva | 4 | 1, compartido con lo que llegue en 5 s | — |
+| Volcados en 1.000 altas de carrito seguidas | 4.000 | 1 | — |
+| Escrito a disco en esas 1.000 altas | 2,75 GB | 1,37 MB | ≤ 30 MB |
+| Tiempo de un alta: primeras 50 → últimas 50 | 2,0 → 22,7 ms | 0,7 → 0,3 ms | no crece |
+| Alta de aviso (confirmada) | 2 volcados | 2 volcados, con `fsync` | — |
+| Lecturas que escriben | 0 (el perfil Crew, 1 por lectura) | 0 | 0 |
+
+Los volcados dejan de depender del número de escrituras: dependen del tiempo. Lo que se
+puede perder si el proceso muere sin apagado ordenado son las escrituras diferidas de
+los últimos 5 segundos (sesiones, carritos, votos); nunca un crédito, un aviso ni un
+cierre de sesión.
+
 ### Orden de los cambios
 
 Cada uno es un cambio OpenSpec en `openspec/changes/`, propuesto el 2026-11-10.

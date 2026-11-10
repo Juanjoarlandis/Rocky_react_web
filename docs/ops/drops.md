@@ -75,6 +75,14 @@ npm run avisos:enviar -- --drop rocky-drop-6          # simulacro
 npm run avisos:enviar -- --drop rocky-drop-6 --apply  # envía y borra las listas
 ```
 
+**Con `--apply`, el servidor tiene que estar parado.** El script escribe en el mismo
+fichero cifrado que el servidor, y el servidor guarda su estado en memoria: no vuelve a
+leer el disco, así que su siguiente volcado desharía las marcas y los borrados del
+script (y se volvería a escribir a los mismos correos la próxima vez). El simulacro,
+sin `--apply`, solo lee y se puede lanzar con el servidor en marcha. Para lanzarlo en
+la Raspberry: `docker stop rocky035`, ejecutar el script en un contenedor aparte con el
+mismo volumen y fichero de entorno, y `docker start rocky035`.
+
 El script junta la lista del drop con las de sus diseños, quita repetidos, manda un
 correo por persona con el título del drop y enlaza a `/products/rocky-drop-6`.
 

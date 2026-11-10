@@ -154,3 +154,67 @@ describe('opaque application sessions', () => {
     expect(store.state.namespaces.sessions).toBeUndefined();
   });
 });
+
+// Qué escrituras de sesión esperan al disco (almacen-escritura-agrupada).
+describe('clase de escritura de las sesiones', () => {
+  // Anota con qué durabilidad se llama a cada escritura del almacén.
+  function recordingStore(clock) {
+    const store = new MemoryStore(clock ? { clock } : {});
+    const writes = [];
+    for (const method of ['set', 'delete']) {
+      const original = store[method].bind(store);
+      store[method] = (...args) => {
+        const options = method === 'set' ? args[3] : args[2];
+        writes.push(`${method}:${options?.durability ?? 'confirmed'}`);
+        return original(...args);
+      };
+    }
+    return { store, writes };
+  }
+
+  it('crear una sesión, refrescar su última visita y guardar en ella no esperan al disco', async () => {
+    let now = 1_000_000;
+    const { store, writes } = recordingStore(() => now);
+    const sessions = createSessionManager({ store, isProduction: false, clock: () => now });
+
+    const session = await sessions.open(requestDouble(), responseDouble());
+    now += 10 * 60 * 1_000;
+    await sessions.open(requestDouble(`rocky_session=${session.id}`), responseDouble());
+    await sessions.save(session, { cartId: 'gid://shopify/Cart/1', chatHistory: [] });
+
+    expect(writes).toEqual(['set:deferred', 'set:deferred', 'set:deferred']);
+  });
+
+  it('rotar la sesión (login, puerta, Taller) queda escrito antes de responder', async () => {
+    const { store, writes } = recordingStore();
+    const sessions = createSessionManager({ store, isProduction: false });
+    const session = await sessions.open(requestDouble(), responseDouble());
+    writes.length = 0;
+
+    await sessions.rotate(requestDouble(`rocky_session=${session.id}`), responseDouble(), {
+      customerTokenId: 'token-1',
+    });
+
+    expect(writes).toEqual(['delete:confirmed', 'set:confirmed']);
+  });
+
+  it('rotar sin sesión previa también crea la nueva de forma confirmada', async () => {
+    const { store, writes } = recordingStore();
+    const sessions = createSessionManager({ store, isProduction: false });
+
+    await sessions.rotate(requestDouble(), responseDouble(), { acceso: true });
+
+    expect(writes).toEqual(['set:confirmed']);
+  });
+
+  it('cerrar la sesión queda escrito antes de responder', async () => {
+    const { store, writes } = recordingStore();
+    const sessions = createSessionManager({ store, isProduction: false });
+    const session = await sessions.open(requestDouble(), responseDouble());
+    writes.length = 0;
+
+    await sessions.destroy(requestDouble(`rocky_session=${session.id}`), responseDouble());
+
+    expect(writes).toEqual(['delete:confirmed']);
+  });
+});

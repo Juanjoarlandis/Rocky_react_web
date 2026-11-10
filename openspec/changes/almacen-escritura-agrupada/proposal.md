@@ -77,7 +77,7 @@ Ninguna (`openspec/specs/` está vacío).
 
 `server/storage/` (almacén cifrado, almacén en memoria y sus pruebas),
 `server/services/sessions.mjs`, `cart-operations.mjs`, `beats.mjs`, `crew/rewards.mjs`,
-`chat/orchestrator.mjs`, `server/integrations/shopify/customer-account.mjs`,
+`server/services/taller-auth.mjs`, `server/shutdown.mjs`, `server/integrations/shopify/customer-account.mjs`,
 `server/index.mjs` (apagado), y `README.md`, `SECURITY.md` y `docs/ops/` donde describen
 el estado cifrado. Sin cambios en la API ni en el cliente. Sin dependencias nuevas. Sin
 migración de datos: el fichero de hoy sirve tal cual y la versión anterior del servidor

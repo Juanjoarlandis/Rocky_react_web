@@ -404,7 +404,9 @@ export function createCustomerAccountClient({
         'oauthTransactions',
         sha256Base64Url(state),
         { nonce, verifier, returnPath: safeReturnPath, sessionBindingHash },
-        { expiresAt: clock() + OAUTH_TRANSACTION_MS }
+        // Si una caída pierde el inicio de sesión en curso, se repite. El
+        // consumo de la transacción sí es confirmado: es de un solo uso.
+        { expiresAt: clock() + OAUTH_TRANSACTION_MS, durability: 'deferred' }
       );
 
       const url = new URL(discovery.authorization_endpoint);

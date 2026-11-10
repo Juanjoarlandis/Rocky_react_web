@@ -202,7 +202,8 @@ export function createBeatsService({ store, clock = () => Date.now(), maxBeats =
         if (likes[voterKey]) delete likes[voterKey];
         else likes[voterKey] = clock();
         const updated = { ...record, likes };
-        await store.set(BEATS_NAMESPACE, id, updated);
+        // Un voto no espera al disco: si una caída lo pierde, no consta y ya.
+        await store.set(BEATS_NAMESPACE, id, updated, { durability: 'deferred' });
         return { liked: Boolean(likes[voterKey]), likes: totalLikes(updated) };
       });
     },
@@ -215,7 +216,15 @@ export function createBeatsService({ store, clock = () => Date.now(), maxBeats =
         if (!record) return null;
         const reports = { ...(record.reports || {}), [voterKey]: clock() };
         const hidden = record.hidden || Object.keys(reports).length >= REPORTS_TO_HIDE;
-        await store.set(BEATS_NAMESPACE, id, { ...record, reports, hidden });
+        // Un reporte suelto no espera al disco; el que oculta el beat sí: una
+        // caída no puede volver a enseñar algo ya retirado por moderación.
+        const hides = hidden && !record.hidden;
+        await store.set(
+          BEATS_NAMESPACE,
+          id,
+          { ...record, reports, hidden },
+          { durability: hides ? 'confirmed' : 'deferred' }
+        );
         return { hidden };
       });
     },

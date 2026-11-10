@@ -94,6 +94,10 @@ y falla si algo supera los límites de `scripts/performance-budget.json`.
   de navegador clásico que no debe tratarse como módulo. Se queda como está.
 - **Un solo proceso, un solo fichero cifrado.** `EncryptedFileStore` no
   soporta varias réplicas; antes de escalar hay que cambiar el adaptador.
+  Agrupa las escrituras en volcados: toda escritura es confirmada (espera a
+  su volcado) salvo que se pida `{ durability: 'deferred' }`, que solo vale
+  para lo que se puede volver a crear si el proceso muere. Ante la duda,
+  confirmada.
 - **`posters/` y `prompts-munecos/`** son material de marketing y saldrán del
   repo siguiendo `docs/marketing/README.md`. No añadas más binarios ahí.
 

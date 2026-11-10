@@ -7,6 +7,7 @@
 - No se aceptan documentos GraphQL arbitrarios desde HTTP; las operaciones públicas están fijadas en el servidor.
 - Una variante comprimida (`.br`, `.gz`) solo se sirve si la ruta pedida está en el índice que el servidor lee de `dist/` al arrancar; nada de la petición se concatena a una ruta de fichero.
 - Toda mutación de carrito exige un `Origin` exacto permitido, una sesión opaca y un identificador idempotente.
+- El almacén cifrado tiene dos clases de escritura. Son **confirmadas** (están en disco, con `fsync`, antes de responder) los créditos y canjes Crew, las altas de aviso, los tokens de cliente, la deduplicación de webhooks, publicar y retirar un beat, y rotar o cerrar una sesión: un cierre de sesión nunca se «deshace» en una caída. Son **diferidas** (llegan al disco en 5 s como mucho, y una muerte brusca del proceso puede perderlas) la creación y el refresco de sesiones, el carrito y el historial del chat que guardan, la idempotencia del carrito, el inicio de una transacción de login y los votos de beats. Un volcado que falla descarta la memoria y deja una línea de error sin datos del estado.
 - Los callbacks y checkout solo usan HTTPS; los redirects de checkout se limitan por hostname.
 - El cuerpo de webhook se verifica antes de parsear JSON.
 - Las cuentas de cliente usan PKCE, state de un uso ligado a sesión, nonce, verificación de firma/claims y rotación de cookie.
@@ -57,7 +58,7 @@ El repositorio tuvo archivos `.env`/`.env.enc` en commits anteriores. Borrarlos 
 
 El catálogo y el carrito consultan Shopify en tiempo real; no existe una copia local de stock susceptible de quedarse desactualizada. El cliente Admin adquiere tokens mediante client credentials, pero no hay un endpoint Admin público ni un sincronizador de inventario activado. Cuando se añada un proceso de stock, debe usar consultas fijas, permisos de solo lectura, cursores, reintentos acotados y webhooks como señal de refresco, manteniendo Shopify como autoridad.
 
-Las credenciales Customer Account y el ID del carrito se conservan como máximo durante la vida de la sesión y dentro del almacén cifrado. Los estados OAuth expiran en diez minutos; la idempotencia de carrito en 24 horas y la deduplicación de webhooks en 90 días. Los registros caducados se purgan durante las mutaciones posteriores.
+Las credenciales Customer Account y el ID del carrito se conservan como máximo durante la vida de la sesión y dentro del almacén cifrado. Los estados OAuth expiran en diez minutos; la idempotencia de carrito en 15 minutos y la deduplicación de webhooks en 90 días. Los registros caducados dejan de leerse al caducar y se purgan del fichero en el siguiente volcado.
 
 Los perfiles Crew conservan XP, saldo, recompensas y un historial acotado. El
 identificador de Customer no aparece en la proyección pública ni se usa como

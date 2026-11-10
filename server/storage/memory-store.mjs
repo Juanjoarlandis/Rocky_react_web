@@ -1,8 +1,18 @@
 import { createSerialQueue } from '../lib/serial-queue.mjs';
+import { DURABILITIES } from './encrypted-file-store.mjs';
 import { clone, emptyState, pruneExpiredRecords, readRecord } from './records.mjs';
 
+// La misma validación que el almacén cifrado: un valor mal escrito tiene que
+// fallar en las pruebas, no en producción.
+function checkDurability({ durability = 'confirmed' } = {}) {
+  if (!DURABILITIES.has(durability)) {
+    throw new Error(`durability desconocida: ${durability}. Usa "confirmed" o "deferred".`);
+  }
+}
+
 // Almacén en memoria: el que se usa sin APP_ENCRYPTION_KEY y en los tests.
-// Misma interfaz que el cifrado; se pierde al reiniciar.
+// Misma interfaz que el cifrado; se pierde al reiniciar. Acepta la opción
+// `durability` del cifrado y la ignora: aquí no hay disco al que esperar.
 export class MemoryStore {
   constructor({ clock = () => Date.now() } = {}) {
     this.clock = clock;
@@ -14,6 +24,9 @@ export class MemoryStore {
     return true;
   }
 
+  // No hay nada pendiente de volcar.
+  async flush() {}
+
   async get(namespace, key) {
     return this.withLock(() => {
       pruneExpiredRecords(this.state, this.clock());
@@ -21,7 +34,9 @@ export class MemoryStore {
     });
   }
 
-  async set(namespace, key, value, { expiresAt = null } = {}) {
+  async set(namespace, key, value, options = {}) {
+    checkDurability(options);
+    const { expiresAt = null } = options;
     return this.withLock(() => {
       pruneExpiredRecords(this.state, this.clock());
       this.state.namespaces[namespace] ??= {};
@@ -30,7 +45,8 @@ export class MemoryStore {
     });
   }
 
-  async delete(namespace, key) {
+  async delete(namespace, key, options) {
+    checkDurability(options);
     return this.withLock(() => {
       pruneExpiredRecords(this.state, this.clock());
       const existed = Boolean(this.state.namespaces[namespace]?.[key]);
@@ -39,7 +55,8 @@ export class MemoryStore {
     });
   }
 
-  async consume(namespace, key) {
+  async consume(namespace, key, options) {
+    checkDurability(options);
     return this.withLock(() => {
       pruneExpiredRecords(this.state, this.clock());
       const record = readRecord(this.state, namespace, key, this.clock());
@@ -48,7 +65,9 @@ export class MemoryStore {
     });
   }
 
-  async setIfAbsent(namespace, key, value, { expiresAt = null } = {}) {
+  async setIfAbsent(namespace, key, value, options = {}) {
+    checkDurability(options);
+    const { expiresAt = null } = options;
     return this.withLock(() => {
       pruneExpiredRecords(this.state, this.clock());
       const current = readRecord(this.state, namespace, key, this.clock());

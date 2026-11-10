@@ -88,6 +88,11 @@ firmas» a quien llegue nuevo). Con la puerta puesta hace falta su clave.
 
 ## Copia y restauración
 
+El almacén de sesiones y créditos (`rocky-state.enc`) agrupa sus escrituras: una copia
+hecha con el servidor en marcha puede no llevar los últimos 5 segundos de escrituras
+diferidas (sesiones, carritos, votos), nunca un crédito, un aviso ni un cierre de sesión,
+que se escriben antes de responder. El fichero copiado siempre es un estado completo.
+
 `scripts/backup-estado.sh` copia un solo fichero. Para la pared, en otra carpeta
 (la rotación conserva las 30 últimas y nombra las copias `rocky-state-<fecha>.enc`
 aunque sean de la pared):

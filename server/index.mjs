@@ -2,6 +2,7 @@ import { pathToFileURL } from 'node:url';
 import dotenv from 'dotenv';
 import { createApp } from './app.mjs';
 import { describeError } from './http/errors.mjs';
+import { closeGracefully } from './shutdown.mjs';
 
 dotenv.config({ quiet: true });
 
@@ -36,14 +37,11 @@ export async function startServer() {
 
   const shutdown = (signal) => {
     logger.info('Closing HTTP server', { signal });
-    // La pared guarda en disco con retraso: lo pendiente se escribe al salir,
-    // después de cerrar, para que no se cuele ningún cambio tras el volcado.
-    server.close((error) => {
-      Promise.resolve(app.locals.pared?.volcar())
-        .catch((flushError) => logger.error('Wall flush failed', describeError(flushError)))
-        .finally(() => {
-          process.exitCode = error ? 1 : 0;
-        });
+    // La pared y el almacén guardan en disco con retraso: lo pendiente se
+    // escribe al salir, después de cerrar, para que no se cuele ningún cambio
+    // tras el volcado.
+    closeGracefully({ server, pared: app.locals.pared, store, logger }).then((exitCode) => {
+      process.exitCode = exitCode;
     });
     setTimeout(() => {
       process.exitCode = 1;

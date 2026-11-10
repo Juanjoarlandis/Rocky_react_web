@@ -267,3 +267,50 @@ describe('Crew reward profiles', () => {
     ).rejects.toMatchObject({ code: 'INSUFFICIENT_TICKETS' });
   });
 });
+
+describe('leer el perfil Crew no escribe', () => {
+  function setup() {
+    const store = new MemoryStore();
+    const set = vi.spyOn(store, 'set');
+    const service = createCrewRewardsService({
+      store,
+      clock: () => Date.parse('2026-08-07T18:00:00Z'),
+    });
+    return { service, set };
+  }
+
+  it('la primera lectura guarda el perfil y la segunda, sin cambios, no', async () => {
+    const { service, set } = setup();
+
+    const first = await service.getProfile('gid://shopify/Customer/1', { displayName: 'Juanjo' });
+    const second = await service.getProfile('gid://shopify/Customer/1', { displayName: 'Juanjo' });
+    const third = await service.getProfile('gid://shopify/Customer/1');
+
+    expect(set).toHaveBeenCalledTimes(1);
+    expect(second).toEqual(first);
+    expect(third).toEqual(first);
+  });
+
+  it('un nombre nuevo sí se guarda, una vez', async () => {
+    const { service, set } = setup();
+    await service.getProfile('gid://shopify/Customer/1', { displayName: 'Juanjo' });
+
+    const renamed = await service.getProfile('gid://shopify/Customer/1', { displayName: 'JJ' });
+    await service.getProfile('gid://shopify/Customer/1', { displayName: 'JJ' });
+
+    expect(renamed.displayName).toBe('JJ');
+    expect(set).toHaveBeenCalledTimes(2);
+  });
+
+  it('abonar un pedido es una escritura confirmada', async () => {
+    const { service, set } = setup();
+
+    await service.creditPaidOrder(paidOrder({ amount: '40.00' }));
+
+    expect(set.mock.calls.length).toBeGreaterThan(0);
+    for (const [namespace, , , options] of set.mock.calls) {
+      expect(namespace).toBe('crewProfiles');
+      expect(options?.durability ?? 'confirmed').toBe('confirmed');
+    }
+  });
+});

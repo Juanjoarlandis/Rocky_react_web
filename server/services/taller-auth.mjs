@@ -131,7 +131,15 @@ export function createTallerAuth({
 
     async logout(req) {
       const session = await sessions.read(req);
-      if (session) await sessions.save(session, { tallerGrant: null, tallerExpiresAt: 0 });
+      // Confirmada: si un volcado fallara justo después, una salida diferida se
+      // desharía sola al releer el disco.
+      if (session) {
+        await sessions.save(
+          session,
+          { tallerGrant: null, tallerExpiresAt: 0 },
+          { durability: 'confirmed' }
+        );
+      }
       log.info('Salida del Taller', {});
     },
 

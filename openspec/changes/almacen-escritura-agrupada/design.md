@@ -102,8 +102,11 @@ diferida, termina al actualizar la memoria.
 | `sessions`: alta, `lastSeenAt`, `save` (`cartId`, `chatHistory`) | diferida | Sesión o carrito que se vuelven a crear; historial de chat que no consta |
 | `sessions`: `rotate` y `destroy` | confirmada | — (un cierre de sesión no puede «deshacerse» en una caída) |
 | `cartOperations`: todas | diferida | Nada: el cliente no reutiliza identificadores |
-| `oauthTransactions` | diferida | El inicio de sesión en curso falla y se repite |
+| `oauthTransactions`: alta | diferida | El inicio de sesión en curso falla y se repite |
+| `oauthTransactions`: consumo | confirmada | — (es de un solo uso) |
 | `beats`: «me mola» y reporte | diferida | Un voto que no consta |
+| `beats`: el reporte que oculta el beat | confirmada | — (algo retirado por moderación no reaparece) |
+| Salir del Taller (`sessions.save` con `confirmed`) | confirmada | — |
 | `beats`: publicar y retirar | confirmada | — |
 | `crewProfiles`, `avisos`, `customerTokens`, `webhooks`, `shopifyLifecycle` | confirmada | — |
 
@@ -134,7 +137,12 @@ que la siguiente operación relee el fichero. La escritura confirmada que espera
 recibe el error; si no esperaba nadie, se registra con el logger, sin datos del estado.
 
 - *Por qué*: mantiene el invariante «la memoria nunca va por delante del disco tras un
-  fallo». Las escrituras diferidas pendientes se pierden, que es justo lo que su clase
+  fallo». Por eso mismo retirar un permiso no puede ser diferido: si un volcado falla
+  en los 5 s siguientes, al releer el disco el permiso volvería. La revisión lo encontró
+  en la salida del Taller, que usaba `sessions.save`; ahora pide escritura confirmada.
+- Un volcado fallido queda siempre registrado (`store_flush_failed`), lo esperara alguien
+  o no. Si lo único que falla es el `fsync` del directorio, el fichero nuevo ya está en
+  su sitio y la escritura se da por hecha. Las escrituras diferidas pendientes se pierden, que es justo lo que su clase
   admite.
 - *Alternativa descartada: conservar la memoria y reintentar.* Quien recibió el error
   no sabría si su dato acabará escrito; hoy todos los llamantes asumen que un error
@@ -150,7 +158,10 @@ margen de 10 s que ya existe. `MemoryStore.flush()` no hace nada.
 
 Cada volcado sincroniza el temporal antes de renombrarlo y el directorio después. Al
 cargar, el almacén borra los temporales huérfanos de su propio fichero
-(`<fichero>.<pid>.<uuid>.tmp`).
+(`<fichero>.<pid>.<uuid>.tmp`) que tengan más de diez minutos. La antigüedad importa:
+un temporal reciente puede ser el volcado en curso de otro proceso (el servidor, si
+quien abre el fichero es `exportar-avisos.mjs`), y borrárselo le haría fallar una
+escritura confirmada.
 
 - *Por qué*: hoy un corte de luz puede dejar un fichero vacío o viejo aunque la
   operación se diera por buena, y una caída en mitad de un volcado deja un temporal del

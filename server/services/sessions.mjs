@@ -74,12 +74,16 @@ export function createSessionManager({ store, isProduction, clock = () => Date.n
     return isValidSessionId(value) ? value : null;
   }
 
-  async function create(res, extra = {}) {
+  /* Clase de escritura (ver EncryptedFileStore): una sesión nueva, su última
+     visita y lo que se guarda en ella (carrito, historial del chat) son
+     diferidas: si una caída las pierde, se vuelven a crear. Rotar y cerrar una
+     sesión son confirmadas: un cierre de sesión no puede deshacerse solo. */
+  async function create(res, extra = {}, { durability = 'deferred' } = {}) {
     const id = crypto.randomBytes(32).toString('base64url');
     const key = hashSessionId(id);
     const now = clock();
     const record = { createdAt: now, lastSeenAt: now, ...extra };
-    await store.set('sessions', key, record, { expiresAt: now + SESSION_LIFETIME_MS });
+    await store.set('sessions', key, record, { expiresAt: now + SESSION_LIFETIME_MS, durability });
     res.append('Set-Cookie', sessionCookie(cookieName, id, isProduction));
     return { id, key, record };
   }
@@ -110,7 +114,10 @@ export function createSessionManager({ store, isProduction, clock = () => Date.n
           return { id, key, record };
         }
         const updated = { ...record, lastSeenAt: now };
-        await store.set('sessions', key, updated, { expiresAt: now + SESSION_LIFETIME_MS });
+        await store.set('sessions', key, updated, {
+          expiresAt: now + SESSION_LIFETIME_MS,
+          durability: 'deferred',
+        });
         return { id, key, record: updated };
       });
     },
@@ -122,12 +129,14 @@ export function createSessionManager({ store, isProduction, clock = () => Date.n
       });
     },
 
-    async save(session, updates) {
+    // Por defecto no espera al disco; quien retira un permiso pide `confirmed`.
+    async save(session, updates, { durability = 'deferred' } = {}) {
       return withSessionLock(session.key, async () => {
         const current = await requireRecord(session.key);
         const record = { ...current, ...updates, lastSeenAt: clock() };
         await store.set('sessions', session.key, record, {
           expiresAt: clock() + SESSION_LIFETIME_MS,
+          durability,
         });
         session.record = record;
         return session;
@@ -136,7 +145,7 @@ export function createSessionManager({ store, isProduction, clock = () => Date.n
 
     async rotate(req, res, extra = {}, { preserve = [] } = {}) {
       const id = readId(req);
-      if (!id) return create(res, extra);
+      if (!id) return create(res, extra, { durability: 'confirmed' });
       const key = hashSessionId(id);
       return withSessionLock(key, async () => {
         const current = await store.get('sessions', key);
@@ -145,7 +154,7 @@ export function createSessionManager({ store, isProduction, clock = () => Date.n
           if (current && Object.hasOwn(current, field)) retained[field] = current[field];
         }
         await store.delete('sessions', key);
-        return create(res, { ...retained, ...extra });
+        return create(res, { ...retained, ...extra }, { durability: 'confirmed' });
       });
     },
 

@@ -311,8 +311,9 @@ Tareas de operación:
   con `write_products` y `write_publications`.
 - `npm run avisos:exportar` vuelca a CSV la lista de avisos del drop desde el
   almacén cifrado (hay que ejecutarlo donde viva el servidor, con
-  `APP_ENCRYPTION_KEY` y `STATE_STORE_PATH`); `-- --vaciar <handle>` borra la
-  lista de un producto una vez enviado el aviso.
+  `APP_ENCRYPTION_KEY` y `STATE_STORE_PATH`). Solo lee. Las listas se borran al
+  enviar el aviso con `npm run avisos:enviar -- --apply`, que escribe en el
+  almacén y por eso exige el servidor parado (ver `docs/ops/drops.md`).
 - `npm run images:optimize` regenera `src/images/optimized/**` desde una
   carpeta maestra (`assets-master/`, ignorada por git, o `--source <ruta>`),
   conservando carpetas y anchos existentes. Usa `sharp`, que no es dependencia

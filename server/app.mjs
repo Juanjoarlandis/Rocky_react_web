@@ -63,7 +63,7 @@ export function createApp({
   const storageConfig = createStorageConfig(env);
   const shopifyConfig = createShopifyConfig(env, config, storageConfig);
 
-  const stateStore = store || createStateStore(storageConfig);
+  const stateStore = store || createStateStore(storageConfig, { logger });
   const sessions = createSessionManager({
     store: stateStore,
     isProduction: config.isProduction,
