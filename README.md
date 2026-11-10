@@ -133,8 +133,9 @@ npm run lint            # ESLint
 npm run lint:css        # Stylelint
 npm run format          # Prettier sobre todo el repo
 npm run build           # frontend de producción en dist/
+npm run budget:check    # presupuesto de rendimiento sobre dist/ (después de build)
 npm run security:check  # secretos locales y bundle
-npm run check           # pruebas + lint + stylelint + build + secret scan
+npm run check           # pruebas + lint + stylelint + build + presupuesto + secret scan
 npm start               # node server/index.mjs: sirve /api y dist/
 npm run seed:drop4      # crea los productos del DROP 4 en Shopify (simulacro sin --apply)
 npm run avisos:exportar # CSV de la lista de avisos desde el almacén cifrado

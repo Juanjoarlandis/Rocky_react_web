@@ -3,6 +3,10 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  // El cliente no usa ninguna variable de entorno, así que Vite no lee `.env`:
+  // ese fichero es del servidor (lleva sus secretos) y un `NODE_ENV=development`
+  // local convertía `npm run build` en un build con React de desarrollo.
+  envDir: false,
   server: {
     port: 3000,
     proxy: {

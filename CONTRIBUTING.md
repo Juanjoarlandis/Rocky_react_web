@@ -54,11 +54,30 @@ filtro. Ahora se resuelve contra PUBLIC_ORIGIN y sólo vale si sigue en él.
 ## Tests
 
 - `npm run test:run` ejecuta los dos proyectos de Vitest: `server` (Node,
-  `server/**` y `shared/**`) y `client` (jsdom, `src/**`).
+  `server/**`, `shared/**` y `scripts/**`) y `client` (jsdom, `src/**`).
 - `npm run test:coverage` mide `server/` y `shared/` y falla por debajo del
   80 % de líneas. No forma parte de `check`; úsalo al tocar el servidor.
 - Los tests HTTP levantan la app real con `createApp` y un `MemoryStore`;
   las llamadas a Shopify y OpenRouter se simulan con `fetchImpl`.
+
+## Presupuesto de rendimiento
+
+`npm run check` ejecuta `npm run budget:check` después del build: mide el
+`dist/` recién construido (JavaScript y CSS iniciales en gzip, el mayor chunk
+diferido, las fuentes precargadas y el tamaño y el peso de imágenes y audio)
+y falla si algo supera los límites de `scripts/performance-budget.json`.
+
+- Los límites sólo bajan. Si tu cambio deja una medida más de un 10 % por
+  debajo de su límite, la comprobación pide bajarlo y dice a cuánto: hazlo en
+  el mismo commit.
+- Si te pasas, lo primero es recortar. Subir un límite o añadir una excepción
+  se explica en el cuerpo del commit; una excepción nombra un fichero, su
+  motivo y su propio techo, y se retira cuando deja de hacer falta.
+- Un tipo de fichero nuevo en `dist/` (JPEG, AVIF, un vídeo…) hace fallar la
+  comprobación hasta que `scripts/check-budget.mjs` tenga una regla para él.
+- El cliente no lee `.env`: Vite tiene `envDir: false`, así que
+  `npm run build` genera el mismo `dist/` de producción en cualquier equipo.
+  No añadas variables `VITE_*`; el `.env` es del servidor.
 
 ## Decisiones que conviene conocer
 

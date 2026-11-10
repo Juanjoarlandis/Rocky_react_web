@@ -15,8 +15,9 @@ npm run lint            # ESLint (flat config en eslint.config.mjs)
 npm run lint:css        # Stylelint sobre src/**/*.css
 npm run format          # Prettier sobre todo el repo (100 columnas, comillas simples)
 npm run build           # dist/ de producción
+npm run budget:check    # presupuesto de rendimiento sobre dist/ (después de build)
 npm run security:check  # secretos en el árbol y nombres de secretos en el bundle
-npm run check           # test:run + lint + lint:css + build + security:check
+npm run check           # test:run + lint + lint:css + build + budget:check + security:check
 npm start               # node server/index.mjs (sirve /api y dist/)
 ```
 
@@ -74,6 +75,12 @@ docs/                design/, ops/, marketing/, archive/ (ver docs/README.md)
   cookies, tokens ni emails en los logs.
 - **Secretos**: sólo en el entorno del servidor; nada `VITE_*` con secretos y
   nada de `.env` en Git.
+- **El cliente no lee `.env`**: Vite tiene `envDir: false`, así que el build no
+  depende del entorno local. Si algún día el cliente necesita un valor, se le
+  pasa de forma explícita, nunca desde el `.env` del servidor.
+- **Presupuesto de rendimiento**: los límites están en
+  `scripts/performance-budget.json` y sólo bajan. Si `budget:check` pide bajar
+  uno, se baja en el mismo commit; una excepción lleva fichero, motivo y techo.
 - Rocky IA sólo puede usar modelos OpenRouter `:free`; no se toca esa regla.
 
 ## Lo que no se hace sin acuerdo previo

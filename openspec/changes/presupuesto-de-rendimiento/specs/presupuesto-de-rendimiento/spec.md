@@ -22,8 +22,8 @@ raíz del repo y diga lo que diga ese fichero sobre `NODE_ENV`.
 
 ### Requirement: El JavaScript inicial tiene un límite
 La comprobación SHALL medir, comprimido con gzip, todo el JavaScript que `dist/index.html`
-carga al abrir cualquier página (el script de entrada y los módulos que precarga) y SHALL
-fallar si la suma supera su límite.
+carga al abrir cualquier página (sus scripts, los módulos que precarga y lo que unos y
+otros importan de forma estática) y SHALL fallar si la suma supera su límite.
 
 #### Scenario: Se supera el límite
 - **WHEN** el JavaScript inicial mide más que su límite
@@ -37,12 +37,24 @@ fallar si la suma supera su límite.
 - **WHEN** el build añade a `index.html` un módulo precargado que antes no estaba
 - **THEN** su peso cuenta en el JavaScript inicial
 
+#### Scenario: Un módulo importado sin precarga
+- **WHEN** el script de entrada importa de forma estática un chunk que `index.html` no precarga
+- **THEN** su peso cuenta igual en el JavaScript inicial, y un chunk que solo se importa de forma dinámica no cuenta
+
 ### Requirement: El CSS inicial tiene un límite
 La comprobación SHALL medir, comprimidas con gzip, las hojas de estilo que enlaza
 `dist/index.html` y SHALL fallar si la suma supera su límite.
 
 #### Scenario: Se supera el límite
 - **WHEN** el CSS inicial mide más que su límite
+- **THEN** la comprobación termina con error y dice la métrica, lo medido y el límite
+
+### Requirement: Las fuentes precargadas tienen un límite
+La comprobación SHALL sumar el peso de las fuentes que `dist/index.html` precarga y SHALL
+fallar si la suma supera su límite.
+
+#### Scenario: Se precarga una fuente de más
+- **WHEN** las fuentes precargadas pesan más que su límite
 - **THEN** la comprobación termina con error y dice la métrica, lo medido y el límite
 
 ### Requirement: Los chunks diferidos tienen un límite
@@ -56,7 +68,8 @@ inicial supera, comprimido con gzip, el límite de chunk diferido.
 ### Requirement: Cada imagen tiene un límite de tamaño y de peso
 La comprobación SHALL fallar si alguna imagen de `dist/` tiene un lado mayor que el
 límite de píxeles o pesa más que el límite de bytes, salvo que esté declarada como
-excepción. Una imagen cuyo formato no se sabe medir SHALL tratarse como error.
+excepción. Las imágenes sin tamaño en píxeles (SVG e ICO) solo SHALL pesarse. Una imagen
+cuyo formato no se sabe medir SHALL tratarse como error.
 
 #### Scenario: Entra una imagen enorme
 - **WHEN** se añade una imagen de 5906 × 5906 px que no está entre las excepciones
@@ -69,6 +82,24 @@ excepción. Una imagen cuyo formato no se sabe medir SHALL tratarse como error.
 #### Scenario: Formato desconocido
 - **WHEN** aparece en `dist/` una imagen de un formato que la comprobación no sabe medir
 - **THEN** la comprobación termina con error y no la da por buena
+
+#### Scenario: SVG enorme
+- **WHEN** se añade un SVG que pesa más que el límite de peso por imagen
+- **THEN** la comprobación termina con error y nombra el fichero y su peso
+
+### Requirement: Un tipo de fichero sin regla es un error
+La comprobación SHALL fallar si `dist/` contiene un fichero de un tipo para el que no
+tiene regla, y SHALL nombrarlo con su tipo y su peso. Los tipos que la web ya publica
+(HTML, CSS, JavaScript, JSON, texto, fuentes WOFF2, imágenes y audio) tienen regla; los
+ficheros ocultos no se miran.
+
+#### Scenario: Entra un vídeo
+- **WHEN** se añade a `dist/` un `.mp4`
+- **THEN** la comprobación termina con error y nombra el fichero, su tipo y su peso
+
+#### Scenario: Ficheros que la web ya publica
+- **WHEN** `dist/` contiene `robots.txt`, `manifest.json` y un `.gitkeep`
+- **THEN** ninguno produce error
 
 ### Requirement: El audio y el peso total por tipo tienen un límite
 La comprobación SHALL fallar si una pista de audio supera su límite de peso, salvo
@@ -84,9 +115,14 @@ límite de su tipo.
 - **THEN** la comprobación termina con error por el total
 
 ### Requirement: Las excepciones tienen techo propio y caducan
-Una excepción SHALL nombrar un recurso concreto, el hallazgo o cambio que la justifica y
-su propio techo. La comprobación SHALL fallar si el recurso supera ese techo, si ya
-cumple los límites generales o si ya no existe.
+Una excepción SHALL nombrar un recurso concreto, la métrica que le perdona, el hallazgo o
+cambio que la justifica y su propio techo, mayor que el límite general. La comprobación
+SHALL fallar si el recurso supera ese techo, si ya cumple los límites generales, si ya no
+existe o si la excepción casa con más de un fichero.
+
+#### Scenario: Excepción dentro de su techo
+- **WHEN** un recurso declarado como excepción supera el límite general pero no su techo
+- **THEN** esa métrica no produce error para ese recurso, y sus demás métricas siguen sujetas a los límites generales
 
 #### Scenario: La excepción crece
 - **WHEN** un recurso declarado como excepción supera el techo de su excepción
@@ -99,6 +135,14 @@ cumple los límites generales o si ya no existe.
 #### Scenario: El recurso se ha borrado o renombrado
 - **WHEN** una excepción nombra un recurso que ya no está en `dist/`
 - **THEN** la comprobación termina con error y pide retirar la excepción
+
+#### Scenario: La excepción casa con dos ficheros
+- **WHEN** dos ficheros de `dist/` comparten el nombre que declara una excepción
+- **THEN** la comprobación termina con error, los nombra y no perdona a ninguno
+
+#### Scenario: Excepción mal declarada
+- **WHEN** una excepción no tiene recurso, motivo o techo, su techo no supera el límite general, nombra una métrica que no va por fichero o está repetida
+- **THEN** la comprobación termina con un error de configuración
 
 ### Requirement: Los límites solo bajan
 Cada límite SHALL declarar el objetivo de la fase 4 hacia el que tiende y no SHALL quedar
@@ -133,3 +177,11 @@ límite y su objetivo, y SHALL terminar con código distinto de cero si algo fal
 #### Scenario: No hay build o es de desarrollo
 - **WHEN** falta `dist/index.html` o el bundle lleva el runtime de desarrollo de React
 - **THEN** la comprobación termina con error y dice cuál de las dos cosas pasa, sin medir nada
+
+#### Scenario: `index.html` carga algo que no se puede pesar
+- **WHEN** `dist/index.html` no carga ningún script, o carga un recurso que no existe, que no se puede leer, que es de otro origen o que queda fuera de `dist/`
+- **THEN** la comprobación termina con error, dice qué recurso es y no mide nada
+
+#### Scenario: Se ejecuta a través de un enlace simbólico
+- **WHEN** se lanza el script por una ruta que pasa por un enlace simbólico
+- **THEN** hace la comprobación igual; nunca termina bien sin haber medido

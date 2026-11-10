@@ -503,6 +503,38 @@ Cuatro cifras cambian respecto a la propuesta inicial, por lo que se ha medido:
 - **Las lecturas ya no escribían.** El presupuesto del almacén pasa a ser lo que escriben
   las mutaciones, que es donde está el coste.
 
+### Lo que ya vigila `npm run check`
+
+Desde el cambio `presupuesto-de-rendimiento`, `npm run check` (y con él el CI) ejecuta
+`npm run budget:check` sobre el `dist/` recién construido y falla si algo supera los
+límites de `scripts/performance-budget.json`. Mide con el gzip de `node:zlib` a nivel 9,
+que da cifras un 1 % menores que las de Vite de la tabla anterior, y cuenta como
+JavaScript inicial todo lo que `index.html` hace descargar al abrir: sus scripts (también
+`theme-init.js`), los módulos que precarga y lo que importan de forma estática.
+
+| Métrica | Hoy | Límite | Objetivo |
+| --- | ---: | ---: | ---: |
+| JavaScript inicial (gzip) | 122,18 kB | 123 kB | 100 kB |
+| CSS inicial (gzip) | 18,52 kB | 19 kB | 15 kB |
+| Mayor chunk diferido (gzip) | 20,36 kB | 21 kB | 21 kB |
+| Fuentes precargadas | 81,76 kB | 82 kB | 82 kB |
+| Mayor lado de imagen | 1.598 px | 1.600 px | 1.600 px |
+| Imagen más pesada | 199,16 kB | 200 kB | 200 kB |
+| Total de imágenes (WebP, PNG, SVG e ICO) | 5.123,41 kB | 5.200 kB | 5.200 kB |
+| Pista de audio más pesada | 1.021,43 kB | 1.100 kB | 1.100 kB |
+| Total de audio | 3.701,30 kB | 3.750 kB | 3.750 kB |
+
+- Las dos fotos de 5.906 px, las dos animaciones del pie y `barro.m4a` quedan fuera de
+  los límites generales como excepciones con techo propio. Cada una se retira en el
+  cambio que la resuelve; si deja de hacer falta y sigue declarada, la comprobación falla.
+- Los límites solo bajan: cuando una medida queda más de un 10 % por debajo de su límite,
+  la comprobación pide bajarlo, hasta llegar al objetivo.
+- Un fichero de un tipo para el que no hay regla (un JPEG, un vídeo) también hace fallar
+  la comprobación: nada entra en `dist/` sin que alguien decida cuánto puede pesar.
+- El resto de la tabla de presupuestos (Lighthouse, navegador, contenedor y almacén) no
+  entra en `check`: tarda minutos y depende del equipo. Se repite con las herramientas
+  del apartado 9 al cerrar cada cambio.
+
 ### Orden de los cambios
 
 Cada uno es un cambio OpenSpec en `openspec/changes/`, propuesto el 2026-11-10.

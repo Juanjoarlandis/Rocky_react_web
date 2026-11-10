@@ -22,11 +22,14 @@ Es el primer cambio de la fase 4 y es de nivel 2.
   ninguna variable de entorno, así que Vite deja de leer ese fichero.
 - **Nuevo `npm run budget:check`**, que mide el `dist/` recién construido y falla, con un
   informe en castellano, si se supera algún límite:
-  - JavaScript inicial (script de entrada más módulos precargados, gzip).
+  - JavaScript inicial (los scripts de `index.html`, los módulos que precarga y lo que
+    importan de forma estática, en gzip).
   - CSS inicial (gzip).
   - Mayor chunk diferido de JavaScript (gzip).
+  - Fuentes que precarga `index.html`.
   - Lado mayor y peso de cada imagen, y peso de cada pista de audio.
   - Peso total de imágenes y de audio.
+  - Cualquier fichero de un tipo para el que no hay regla (un vídeo, un JPEG) es un fallo.
 - **Los límites viven en un fichero versionado**, cada uno con su objetivo de la fase 4.
   Arrancan en la cifra de hoy y solo bajan: cuando una medida queda claramente por debajo
   de su límite, la comprobación falla y pide bajarlo.
@@ -66,6 +69,7 @@ Ninguna (`openspec/specs/` está vacío).
 ## Impact
 
 `vite.config.mjs`, `package.json` (scripts `budget:check` y `check`), un script y su
-fichero de límites nuevos en `scripts/`, con sus pruebas, y `CLAUDE.md` y
-`CONTRIBUTING.md` (lista de comandos). Sin cambios en `src/`, `server/` ni `shared/`, ni
+fichero de límites nuevos en `scripts/`, con sus pruebas, `CLAUDE.md`, `CONTRIBUTING.md`
+y `README.md` (lista de comandos), y `docs/auditoria/2026-11/linea-base-fase-4.md` (qué
+vigila ya `check`). Sin cambios en `src/`, `server/` ni `shared/`, ni
 en el comportamiento de la web. Sin dependencias nuevas.

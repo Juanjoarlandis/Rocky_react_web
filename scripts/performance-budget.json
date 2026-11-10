@@ -1,0 +1,82 @@
+{
+  "about": "Presupuesto de rendimiento que comprueba `npm run budget:check` sobre dist/. Pesos en kB (1.000 bytes) y lados en píxeles. Cada límite tiende a su objetivo (target) y solo baja: si una medida queda más de un 10 % por debajo de su límite, la comprobación pide bajarlo. Una excepción perdona una métrica a un fichero concreto hasta su propio techo y hay que retirarla en cuanto el fichero cumple o desaparece; los ficheros de assets/ se nombran sin el hash de Vite.",
+  "metrics": {
+    "initialJs": {
+      "limit": 123,
+      "target": 100,
+      "note": "gzip de los scripts de index.html, de los módulos que precarga y de lo que importan de forma estática. Lo baja carga-y-estabilidad."
+    },
+    "initialCss": {
+      "limit": 19,
+      "target": 15,
+      "note": "gzip de las hojas de estilo que enlaza index.html. Lo baja carga-y-estabilidad."
+    },
+    "deferredChunk": {
+      "limit": 21,
+      "target": 21,
+      "note": "gzip del mayor JavaScript de dist/ que no es inicial (hoy, Studio)."
+    },
+    "preloadedFonts": {
+      "limit": 82,
+      "target": 82,
+      "note": "Fuentes con <link rel=\"preload\"> en index.html. Lo baja carga-y-estabilidad."
+    },
+    "imageSide": {
+      "limit": 1600,
+      "target": 1600,
+      "note": "Lado mayor de cualquier WebP o PNG de dist/ (SVG e ICO no tienen píxeles)."
+    },
+    "imageWeight": {
+      "limit": 200,
+      "target": 200,
+      "note": "Peso de cualquier imagen de dist/: WebP, PNG, SVG o ICO."
+    },
+    "imagesTotal": {
+      "limit": 5200,
+      "target": 5200,
+      "note": "Suma de todas las imágenes de dist/. Lo baja imagenes-y-medios."
+    },
+    "audioTrack": {
+      "limit": 1100,
+      "target": 1100,
+      "note": "Peso de cualquier pista de audio de dist/."
+    },
+    "audioTotal": {
+      "limit": 3750,
+      "target": 3750,
+      "note": "Suma de todas las pistas de audio de dist/."
+    }
+  },
+  "exceptions": [
+    {
+      "file": "products/rocky35-camel.webp",
+      "metric": "imageSide",
+      "limit": 5906,
+      "reason": "H-003: foto de 5906 px; la sustituye imagenes-y-medios."
+    },
+    {
+      "file": "products/rockydz-boyz.webp",
+      "metric": "imageSide",
+      "limit": 5906,
+      "reason": "H-003: foto de 5906 px; la sustituye imagenes-y-medios."
+    },
+    {
+      "file": "assets/toxico-paseo-224.webp",
+      "metric": "imageWeight",
+      "limit": 710,
+      "reason": "H-169: animación del pie; imagenes-y-medios la sirve por alturas."
+    },
+    {
+      "file": "assets/lata-spray-walk-seedance-224.webp",
+      "metric": "imageWeight",
+      "limit": 665,
+      "reason": "H-169: animación del pie; imagenes-y-medios la sirve por alturas."
+    },
+    {
+      "file": "music/barro.m4a",
+      "metric": "audioTrack",
+      "limit": 2700,
+      "reason": "H-145: pista sin máster sin pérdida; no se recodifica."
+    }
+  ]
+}
