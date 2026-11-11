@@ -742,8 +742,8 @@ verdad.
   verificada en 58 s y promovida con resultado `ok`. El primer intento lo paró la
   verificación: la Raspberry leía dañado el binario de Node (su caché de páginas, otra
   vez); se arregló vaciándola. En producción el contenedor usa 49–50 MiB en reposo con un
-  tope de 192 MiB (antes, 68,8 MiB sin tope) y 95 ms de CPU por minuto en reposo (0,16 %;
-  el presupuesto de 0,05 % no se alcanza en la Raspberry). Lo de detrás de la puerta de
+  tope de 192 MiB (antes, 68,8 MiB sin tope) y 254 ms de CPU en cinco minutos de reposo
+  (0,085 %; el presupuesto de 0,05 % no se alcanza en la Raspberry). Lo de detrás de la puerta de
   acceso no se ha podido comprobar desde fuera.
 
 ### Orden de los cambios

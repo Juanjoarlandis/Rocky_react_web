@@ -230,7 +230,8 @@ const DOCKER_ARCH = Object.freeze({
 });
 
 export function dockerArch(machine) {
-  const arch = DOCKER_ARCH[String(machine).trim()];
+  const name = String(machine).trim();
+  const arch = Object.hasOwn(DOCKER_ARCH, name) ? DOCKER_ARCH[name] : null;
   if (!arch) {
     throw new Error(
       `No se reconoce la arquitectura de la máquina de producción («${String(machine).trim()}»): se esperaba aarch64 o x86_64.`

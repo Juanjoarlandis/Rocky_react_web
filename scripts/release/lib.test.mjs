@@ -287,7 +287,7 @@ describe('arquitectura e identidad de la imagen', () => {
     expect(dockerArch('arm64')).toBe('arm64');
   });
 
-  it.each(['riscv64', 'armv7l', '', 'aarch64; reboot', '$(reboot)'])(
+  it.each(['riscv64', 'armv7l', '', 'aarch64; reboot', '$(reboot)', 'constructor', '__proto__'])(
     'no acepta «%s» como arquitectura',
     (machine) => {
       expect(() => dockerArch(machine)).toThrow(/arquitectura/);

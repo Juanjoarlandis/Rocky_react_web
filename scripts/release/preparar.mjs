@@ -268,9 +268,12 @@ export async function prepareRelease(
             `${transferSum}  ${IMAGE_FILE}\n`
           );
         }
-        // El fichero de la imagen (unos 100 MB) no se queda en la Raspberry pase
-        // lo que pase: se borra tras cargarlo y también si algo falla antes.
+        // El fichero de la imagen (unos 100 MB) no se queda en la Raspberry: se
+        // borra tras cargarlo y también si algo falla antes. Si el propio borrado
+        // falla (la conexión se ha caído), manda el error original, con la ruta
+        // donde puede haber quedado.
         let transferLeft = false;
+        let failure = null;
         try {
           transferLeft = !buildInProduction;
           await remote.upload(dir, remoteDir);
@@ -287,9 +290,18 @@ export async function prepareRelease(
             }
             await remote.run(load);
           }
-        } finally {
-          if (transferLeft) await remote.run(dropTransfer);
+        } catch (error) {
+          failure = error;
         }
+        if (transferLeft) {
+          try {
+            await remote.run(dropTransfer);
+          } catch (dropError) {
+            if (!failure) throw dropError;
+            failure.message += ` Además no se ha podido borrar el fichero de la imagen: puede seguir en ${remoteDir}/${IMAGE_FILE}.`;
+          }
+        }
+        if (failure) throw failure;
         verified = await verifyImage(remote, {
           tag,
           architecture,

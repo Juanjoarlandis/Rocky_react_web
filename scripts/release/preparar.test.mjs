@@ -438,6 +438,34 @@ describe('preparar: construir fuera, enviar y verificar', () => {
     expect(commands.some((command) => command.includes('imagen-verificada'))).toBe(false);
   });
 
+  it('si además falla el borrado (se ha caído la conexión), el error que se ve es el original y dice dónde puede quedar el fichero', async () => {
+    const remote = fakeRemote({ failOn: 'docker load' });
+    const run = remote.run.bind(remote);
+    remote.run = async (command) => {
+      if (command.startsWith('rm -f')) {
+        remote.calls.push({ kind: 'run', command });
+        throw new Error('Falló en prueba: rm (sin conexión)');
+      }
+      return run(command);
+    };
+
+    const failure = await prepare(remote, fakeDocker(remote)).catch((error) => error);
+    expect(failure.message).toMatch(/Falló en prueba: docker load/);
+    expect(failure.message).toMatch(
+      /puede seguir en \/opt\/rocky035\/releases\/[^ ]+\/imagen\.tar\.gz/
+    );
+    expect(failure.message).not.toMatch(/rm \(sin conexión\)/);
+  });
+
+  it('si todo va bien y lo único que falla es el borrado, lo dice y no marca la release', async () => {
+    const remote = fakeRemote({ failOn: 'rm -f' });
+
+    await expect(prepare(remote, fakeDocker(remote))).rejects.toThrow(/Falló en prueba: rm -f/);
+    expect(remote.calls.some((call) => (call.command ?? '').includes('imagen-verificada'))).toBe(
+      false
+    );
+  });
+
   it('el fichero de la imagen se borra una sola vez cuando todo va bien', async () => {
     const remote = fakeRemote();
     await prepare(remote, fakeDocker(remote));
