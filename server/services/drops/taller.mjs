@@ -9,6 +9,7 @@ import {
 } from '../../../shared/drops.mjs';
 import { HttpError } from '../../http/errors.mjs';
 import { ensureLogger } from '../../lib/logger.mjs';
+import { countPending } from '../avisos.mjs';
 
 // Las operaciones del Taller (taller-de-drops, design.md D4 y D8). Aquí viven
 // las reglas: validación del calendario, número y handle únicos, slug fijo, «un
@@ -139,15 +140,13 @@ export function createTallerService({
     }
   }
 
+  // La misma regla que el número público del cartel (esquina-de-la-espera).
   async function countNotices(source) {
     if (!avisos) return 0;
-    const pending = new Set();
-    for (const key of [source.handle, ...source.products.map((product) => product.handle)]) {
-      for (const entry of await avisos.list(key)) {
-        if (!entry.enviado) pending.add(entry.email);
-      }
-    }
-    return pending.size;
+    return countPending(avisos, [
+      source.handle,
+      ...source.products.map((product) => product.handle),
+    ]);
   }
 
   async function freeProductHandle(title) {

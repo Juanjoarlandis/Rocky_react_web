@@ -2,6 +2,10 @@ import express from 'express';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createDropsRouter } from './drops.mjs';
 import { errorHandler } from '../middleware/error-handler.mjs';
+import { MemoryStore } from '../../storage/memory-store.mjs';
+import { silentLogger } from '../../lib/logger.mjs';
+import { createAvisosService } from '../../services/avisos.mjs';
+import { createEsquina } from '../../services/esquina.mjs';
 
 const running = new Set();
 afterEach(async () => {
@@ -26,7 +30,7 @@ const D3 = {
   designs: ['rocky-congelado'],
 };
 
-async function arranca() {
+async function arranca({ esquina } = {}) {
   const app = express();
   const drops = {
     publicPayload: async () => ({ now: '2026-11-09T12:00:00.000Z', featured: D6, drops: [D6, D3] }),
@@ -34,7 +38,7 @@ async function arranca() {
   };
   app.use(
     '/api/drops',
-    createDropsRouter({ config: { publicOrigin: 'https://rocky035.com' }, drops })
+    createDropsRouter({ config: { publicOrigin: 'https://rocky035.com' }, drops, esquina })
   );
   app.use(errorHandler({ logger: { error() {}, warn() {}, info() {} } }));
   const server = await new Promise((resolve) => {
@@ -50,6 +54,46 @@ describe('/api/drops', () => {
     const response = await fetch(`${base}/api/drops`);
     expect(response.status).toBe(200);
     expect(response.headers.get('cache-control')).toBe('no-cache');
+    expect(await response.json()).toEqual({
+      now: '2026-11-09T12:00:00.000Z',
+      featured: D6,
+      drops: [D6, D3],
+    });
+  });
+
+  // La esquina de la espera (esquina-de-la-espera): el anunciado dice cuántos
+  // esperan, en decenas, y de la lista de avisos no sale nada más.
+  it('el drop anunciado dice cuántos esperan, en decenas y sin ningún email', async () => {
+    const avisos = createAvisosService({ store: new MemoryStore(), logger: silentLogger });
+    for (let i = 0; i < 23; i += 1) {
+      await avisos.register({ product: 'rocky-drop-6', email: `crew${i}@esquina.test` });
+    }
+    const dropsModel = { sources: async () => [{ handle: 'rocky-drop-6', products: [] }] };
+    const base = await arranca({
+      esquina: createEsquina({ avisos, dropsModel, logger: silentLogger }),
+    });
+
+    const body = await (await fetch(`${base}/api/drops`)).json();
+
+    expect(body.featured).toEqual({ ...D6, waiting: 20 });
+    expect(body.drops).toEqual([{ ...D6, waiting: 20 }, D3]);
+    expect(JSON.stringify(body)).not.toContain('@');
+  });
+
+  it('si la cuenta de la esquina falla, /api/drops responde igual, sin el número', async () => {
+    const avisos = {
+      list: async () => {
+        throw Object.assign(new Error('roto'), { code: 'STORE_LOCKED' });
+      },
+    };
+    const dropsModel = { sources: async () => [{ handle: 'rocky-drop-6', products: [] }] };
+    const base = await arranca({
+      esquina: createEsquina({ avisos, dropsModel, logger: silentLogger }),
+    });
+
+    const response = await fetch(`${base}/api/drops`);
+
+    expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       now: '2026-11-09T12:00:00.000Z',
       featured: D6,

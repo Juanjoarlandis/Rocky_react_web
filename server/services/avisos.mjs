@@ -31,6 +31,20 @@ export function celdaCsvSegura(value) {
   return `"${neutralizado.replaceAll('"', '""')}"`;
 }
 
+/* Cuántos esperan (esquina-de-la-espera): emails distintos con un aviso sin
+   enviar en cualquiera de esas claves (un drop y sus diseños). Es la única regla
+   para contar, la de El Taller y la del cartel. Solo usa `list`, y de aquí no
+   sale más que el número. */
+export async function countPending(avisos, keys) {
+  const pending = new Set();
+  for (const key of keys) {
+    for (const entry of await avisos.list(key)) {
+      if (!entry.enviado) pending.add(entry.email);
+    }
+  }
+  return pending.size;
+}
+
 export function createAvisosService({
   store,
   knownProducts = null,

@@ -300,3 +300,39 @@ describe('Pestañas de aviso del cartel', () => {
     }
   });
 });
+
+/* La esquina de la espera (esquina-de-la-espera): el anunciado dice cuántos se
+   han apuntado, si el servidor lo manda. */
+describe('Cartel: la esquina de la espera', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(NOW);
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it('con waiting, dice cuántos esperan en la esquina, como texto', () => {
+    renderCartel({ ...base, waiting: 140 });
+
+    const esquina = screen.getByText('Ya son 140 apuntados esperando en la esquina');
+    expect(esquina).toHaveClass('cartel-espera');
+    expect(esquina).not.toHaveAttribute('aria-live');
+  });
+
+  it('sin waiting, el cartel se ve como siempre', () => {
+    const { container } = renderCartel(base);
+
+    expect(container.querySelector('.cartel-espera')).toBeNull();
+  });
+
+  it('en un drop a la venta no sale, aunque llegue el número', () => {
+    const { container } = renderCartel({
+      ...base,
+      state: 'en-la-calle',
+      launchAt: '2026-11-08T19:00:00Z',
+      designs: ['rocky-sin-frenos'],
+      waiting: 140,
+    });
+
+    expect(container.querySelector('.cartel-espera')).toBeNull();
+  });
+});

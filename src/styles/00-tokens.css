@@ -204,6 +204,11 @@
        máscara (solo cuenta la forma), así que el color lo pone quien la usa. */
     --tachon-trazo: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='80' height='14' viewBox='0 0 80 14' preserveAspectRatio='none'><path d='M2 8 Q 22 4 42 7 T 78 5 M76 9 Q 50 7 30 10 T 4 9' fill='none' stroke='%23000' stroke-width='3.4' stroke-linecap='round'/></svg>");
 
+    /* Una cabecita de la crew para la esquina de la espera: la cabeza y las gafas
+       de diana de la familia. Es una máscara (cuenta la forma); el color lo pone
+       quien la usa. */
+    --cabecita: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'><circle cx='7' cy='8' r='6' fill='none' stroke='%23000' stroke-width='1.4'/><circle cx='4.8' cy='8.4' r='1.7' fill='none' stroke='%23000' stroke-width='1'/><circle cx='9.2' cy='8.4' r='1.7' fill='none' stroke='%23000' stroke-width='1'/><path d='M4.8 6.7v3.4M3.1 8.4h3.4M9.2 6.7v3.4M7.5 8.4h3.4' stroke='%23000' stroke-width='0.7'/></svg>");
+
     /* Retícula de puntos del cuaderno: color y opacidad por defecto. Se usa
      como rgba(var(--dot-rgb), α) en cada sitio, no como imagen precocinada,
      para que cada bloque pueda subir o bajar su α. */

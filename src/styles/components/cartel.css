@@ -348,6 +348,30 @@
     color: var(--accent);
   }
 
+  /* ---------- La esquina de la espera ----------
+     Cuántos se han apuntado al anunciado (el servidor lo manda desde 10 y en
+     decenas). Delante, cinco cabecitas de la crew como decoración: un ::before
+     sin texto, que no se anuncia y sigue el color del tema. */
+  .cartel-espera {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 10px 0 0;
+    font-family: var(--font-hand);
+    font-size: var(--text-sm);
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .cartel-espera::before {
+    content: '';
+    flex: none;
+    width: 80px;
+    height: 16px;
+    background-color: currentColor;
+    mask: var(--cabecita) left center / 16px 16px repeat-x;
+  }
+
   /* ---------- Siluetas de lo que viene ---------- */
 
   .cartel-siluetas {

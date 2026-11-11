@@ -35,6 +35,7 @@ import { createDropsAdmin } from './integrations/shopify/drops-admin.mjs';
 import { createStorefrontClient } from './integrations/shopify/storefront.mjs';
 import { createLogger, ensureLogger } from './lib/logger.mjs';
 import { createAvisosService } from './services/avisos.mjs';
+import { createEsquina } from './services/esquina.mjs';
 import { createBeatsService } from './services/beats.mjs';
 import { createCartOperations } from './services/cart-operations.mjs';
 import { createCrewRewardsService } from './services/crew/rewards.mjs';
@@ -113,6 +114,9 @@ export function createApp({
     logger,
   });
   const avisos = createAvisosService({ store: stateStore, knownProducts, logger });
+  // Cuántos esperan a un drop anunciado: fuera del modelo de drops, que no
+  // puede depender de los avisos (ellos ya dependen de él).
+  const esquina = createEsquina({ avisos, dropsModel, logger });
   const beats = createBeatsService({ store: stateStore });
   // El Taller (taller-de-drops): apagado si falta alguna pieza; el arranque
   // dice cuál, sin secretos.
@@ -242,7 +246,7 @@ export function createApp({
   );
 
   app.use('/api/pared', createWallRouter({ pared, sessions, requireOrigin }));
-  app.use('/api/drops', createDropsRouter({ config, drops: dropsModel }));
+  app.use('/api/drops', createDropsRouter({ config, drops: dropsModel, esquina }));
   app.use('/api/taller', createTallerRouter({ taller, pared, requireOrigin, logger }));
   app.use('/api/drop', createDropRouter({ config, drops: dropsModel }));
 

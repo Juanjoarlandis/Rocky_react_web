@@ -19,7 +19,7 @@ export function sendIcs(res, drop, ics) {
 const notFound = () =>
   new HttpError('Ese drop no existe.', { status: 404, code: 'DROP_NOT_FOUND' });
 
-export function createDropsRouter({ config, drops, clock = () => new Date() }) {
+export function createDropsRouter({ config, drops, esquina = null, clock = () => new Date() }) {
   const router = express.Router();
 
   router.get(
@@ -27,7 +27,10 @@ export function createDropsRouter({ config, drops, clock = () => new Date() }) {
     asyncRoute(async (req, res) => {
       // El estado depende de la hora: nada de cachés compartidas.
       res.setHeader('Cache-Control', 'no-cache');
-      return res.json(await drops.publicPayload());
+      // La esquina de la espera añade cuántos esperan al anunciado; si falla,
+      // devuelve el payload tal cual (esquina-de-la-espera).
+      const payload = await drops.publicPayload();
+      return res.json(esquina ? await esquina.decorate(payload) : payload);
     })
   );
 

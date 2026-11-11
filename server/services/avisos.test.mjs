@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MemoryStore } from '../storage/memory-store.mjs';
 import { silentLogger } from '../lib/logger.mjs';
-import { AVISOS_INDICE, AVISOS_NAMESPACE, createAvisosService } from './avisos.mjs';
+import { AVISOS_INDICE, AVISOS_NAMESPACE, countPending, createAvisosService } from './avisos.mjs';
 
 function servicio() {
   const store = new MemoryStore();
@@ -67,5 +67,33 @@ describe('avisos: escritura confirmada', () => {
 
     expect(durabilities.length).toBeGreaterThan(0);
     expect(new Set(durabilities)).toEqual(new Set(['confirmed']));
+  });
+});
+
+/* La esquina de la espera (esquina-de-la-espera): una sola regla para contar
+   los avisos de un drop, la que usan El Taller y el cartel. */
+describe('avisos: cuántos esperan', () => {
+  it('cuenta emails distintos entre varias claves y no cuenta los ya enviados', async () => {
+    const { avisos } = servicio();
+    await avisos.register({ product: 'rocky-drop-7', email: 'a@x.test' });
+    await avisos.register({ product: 'rocky-drop-7', email: 'b@x.test' });
+    await avisos.register({ product: 'rocky-el-jefe', email: 'a@x.test' });
+    await avisos.register({ product: 'rocky-el-jefe', email: 'c@x.test' });
+    await avisos.markSent('rocky-drop-7', ['b@x.test']);
+
+    expect(await countPending(avisos, ['rocky-drop-7', 'rocky-el-jefe'])).toBe(2);
+  });
+
+  it('una clave sin lista cuenta cero', async () => {
+    const { avisos } = servicio();
+
+    expect(await countPending(avisos, ['no-existe'])).toBe(0);
+    expect(await countPending(avisos, [])).toBe(0);
+  });
+
+  it('solo necesita leer las listas: sirve con cualquier cosa que tenga list', async () => {
+    const lists = { a: [{ email: 'x@y.test' }], b: [{ email: 'x@y.test' }, { email: 'z@y.test' }] };
+
+    expect(await countPending({ list: async (key) => lists[key] ?? [] }, ['a', 'b'])).toBe(2);
   });
 });
