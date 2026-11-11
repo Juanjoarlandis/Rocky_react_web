@@ -321,6 +321,14 @@ Una build que termina bien también puede llevar un fichero dañado. Para descar
   a la primera sin caché (1287 pruebas dentro de la imagen), la imagen coincidió con una
   build limpia (1310 ficheros iguales, con las dos diferencias esperadas) y la promoción
   acabó con resultado `ok`.
+- 2026-11-11, primer uso del proceso de `despliegue-ligero` (imagen construida en el
+  equipo del operador): `20261111T071438Z-fase-4-6fd830cd`. Construcción, exportación,
+  subida y carga en 63 s. La comprobación de contenido **no dejó marcar la release**: el
+  binario de Node de la imagen base se leía en la Raspberry con `51400f37…` y del disco,
+  directo, con `3e53e5ff…` (38.902 bytes distintos en doce páginas de 4 KiB seguidas). La
+  caché de páginas había vuelto a dañarse 21 horas después del reinicio del día 10, con
+  otra huella, y el contenedor de producción usaba ese mismo fichero. Con una avería que
+  vuelve en un día, hay que mirar la tarjeta y la memoria de la Raspberry.
 - Para verificar en la Raspberry, pregunta al contenedor, no al puerto 3001 del host (ese
   es de Uptime Kuma; ROCKY se publica en `127.0.0.1:3100`):
   `docker exec rocky035 bash scripts/healthcheck.sh && echo sano` (la misma sonda que usa
