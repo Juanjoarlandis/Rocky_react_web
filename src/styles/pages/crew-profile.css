@@ -337,9 +337,11 @@
       box-shadow var(--dur-fast) ease;
   }
 
-  .crew-reward-card:hover {
-    transform: translateY(-3px) rotate(-0.4deg);
-    box-shadow: var(--shadow-ink-sm);
+  @media (hover: hover) {
+    .crew-reward-card:hover {
+      transform: translateY(-3px) rotate(-0.4deg);
+      box-shadow: var(--shadow-ink-sm);
+    }
   }
 
   .crew-reward-card--locked {

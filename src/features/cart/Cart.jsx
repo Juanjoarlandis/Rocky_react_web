@@ -86,7 +86,13 @@ function Cart({
             className="doodle cart-empty-idea neon-art al-ritmo"
             style={{ '--fase': '0.6' }}
           />
-          <h1 className="page-title">Tu carrito está vacío</h1>
+          <h1 className="page-title">
+            Tu carrito está{' '}
+            <s className="tachon" aria-hidden="true">
+              lleno
+            </s>{' '}
+            vacío
+          </h1>
           <p>Échale un ojo al último drop.</p>
           <Link to={ROUTES.home} className="btn btn--primary">
             Ver la tienda

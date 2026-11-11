@@ -245,11 +245,13 @@
     font-size: var(--text-sm);
   }
 
-  .mesa-play:hover,
-  .mesa-rec:hover,
-  .mesa-tap:hover {
-    transform: translate(-1px, -1px);
-    box-shadow: 4px 4px 0 rgba(var(--black-rgb), 0.55);
+  @media (hover: hover) {
+    .mesa-play:hover,
+    .mesa-rec:hover,
+    .mesa-tap:hover {
+      transform: translate(-1px, -1px);
+      box-shadow: 4px 4px 0 rgba(var(--black-rgb), 0.55);
+    }
   }
 
   .mesa-play:active,
@@ -343,9 +345,11 @@
       color var(--dur-fast) ease;
   }
 
-  .chip:hover {
-    transform: translateY(-1px);
-    border-color: var(--gold);
+  @media (hover: hover) {
+    .chip:hover {
+      transform: translateY(-1px);
+      border-color: var(--gold);
+    }
   }
 
   .chip.is-on {
@@ -509,12 +513,19 @@
     border-color: rgba(var(--card-rgb), 0.3);
   }
 
+  /* El borde dorado no mueve nada y puede quedarse en cualquier pantalla; el
+     salto de la celda, solo con puntero (en táctil el :hover se queda pegado). */
   .celda:hover {
-    transform: translateY(-2px);
     border-color: var(--gold);
     transition:
       transform 0.08s ease,
       border-color var(--dur-fast) ease;
+  }
+
+  @media (hover: hover) {
+    .celda:hover {
+      transform: translateY(-2px);
+    }
   }
 
   .celda-luz {

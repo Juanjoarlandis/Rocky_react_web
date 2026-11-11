@@ -319,8 +319,10 @@
       transition: transform var(--dur-base) var(--ease-out);
     }
 
-    .muro-hueco:hover {
-      transform: translateY(-4px);
+    @media (hover: hover) {
+      .muro-hueco:hover {
+        transform: translateY(-4px);
+      }
     }
   }
 }

@@ -89,3 +89,26 @@ describe('Cart', () => {
     expect(handlers.removeFromCart).toHaveBeenCalledWith(line);
   });
 });
+
+/* Tachones con intención (vida-a-la-vista): el carrito vacío se corrige a la
+   vista y el lector de pantalla solo oye la frase buena. */
+describe('Cart vacío con tachón', () => {
+  it('«lleno» va tachado y oculto: el título se lee «Tu carrito está vacío»', () => {
+    render(
+      <MemoryRouter>
+        <Cart
+          cart={[]}
+          checkout={vi.fn()}
+          removeFromCart={vi.fn()}
+          incrementQuantity={vi.fn()}
+          decrementQuantity={vi.fn()}
+        />
+      </MemoryRouter>
+    );
+    const titulo = screen.getByRole('heading', { level: 1, name: 'Tu carrito está vacío' });
+    const tachado = titulo.querySelector('s.tachon');
+
+    expect(tachado).toHaveTextContent('lleno');
+    expect(tachado).toHaveAttribute('aria-hidden', 'true');
+  });
+});

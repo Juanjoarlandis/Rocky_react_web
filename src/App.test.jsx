@@ -269,6 +269,20 @@ test('teclear 035 suelta la estampida aunque su pieza aún no estuviera cargada'
   }
 });
 
+test('llamar a la crew desde el pie suelta la estampida, como teclear 035', async () => {
+  vi.stubGlobal('requestIdleCallback', () => 1);
+  vi.stubGlobal('cancelIdleCallback', () => {});
+  try {
+    renderEn('/');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Llamar a la crew' }));
+
+    expect(await screen.findByTestId('estampida')).toBeInTheDocument();
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
 test('una ruta que no existe sigue pintando la página 404', async () => {
   renderEn('/no-existe');
 

@@ -28,8 +28,10 @@
     transition: transform var(--dur-fast) ease;
   }
 
-  .navbar-brand:hover {
-    transform: rotate(-2deg) scale(1.04);
+  @media (hover: hover) {
+    .navbar-brand:hover {
+      transform: rotate(-2deg) scale(1.04);
+    }
   }
 
   .navbar-logo {
@@ -143,10 +145,18 @@
       box-shadow var(--dur-fast) ease;
   }
 
-  .navbar-account--avatar:hover,
+  /* La página activa se marca en cualquier pantalla; el :hover, solo con
+     puntero (en táctil se queda pegado tras el toque). */
   .navbar-account--avatar.is-active {
     transform: rotate(-4deg) scale(1.06);
     box-shadow: var(--shadow-accent-sm);
+  }
+
+  @media (hover: hover) {
+    .navbar-account--avatar:hover {
+      transform: rotate(-4deg) scale(1.06);
+      box-shadow: var(--shadow-accent-sm);
+    }
   }
 
   .navbar-account-avatar {
@@ -176,8 +186,10 @@
     border-radius: var(--wobble-sm);
   }
 
-  .navbar-cart:hover {
-    transform: rotate(4deg) scale(1.08);
+  @media (hover: hover) {
+    .navbar-cart:hover {
+      transform: rotate(4deg) scale(1.08);
+    }
   }
 
   .navbar-cart-icon {
@@ -225,8 +237,10 @@
       color var(--dur-base) ease;
   }
 
-  .navbar-theme:hover {
-    transform: rotate(-6deg) scale(1.1);
+  @media (hover: hover) {
+    .navbar-theme:hover {
+      transform: rotate(-6deg) scale(1.1);
+    }
   }
 
   .navbar-theme:focus-visible {

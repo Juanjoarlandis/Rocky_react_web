@@ -88,6 +88,31 @@ describe('Estampida lanzada desde fuera', () => {
     expect(screen.getByTestId('estampida')).toBeInTheDocument();
   });
 
+  // Llamar otra vez (vida-a-la-vista): el pie y la caída de un drop suben la
+  // misma señal que «035». Con el azar fijo la carrera dura ~4,6 s: si la
+  // segunda señal la relanzara, seguiría en pantalla hasta los ~6,6 s.
+  it('una señal mientras la crew cruza no la relanza; una posterior, sí', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    try {
+      const { rerender } = render(<Estampida listen={false} launchSignal={1} />);
+      await act(async () => {});
+      expect(screen.getByTestId('estampida')).toBeInTheDocument();
+
+      act(() => vi.advanceTimersByTime(2000));
+      rerender(<Estampida listen={false} launchSignal={2} />);
+      await act(async () => {});
+      act(() => vi.advanceTimersByTime(2700));
+      expect(screen.queryByTestId('estampida')).not.toBeInTheDocument();
+
+      rerender(<Estampida listen={false} launchSignal={3} />);
+      await act(async () => {});
+      expect(screen.getByTestId('estampida')).toBeInTheDocument();
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
   it('si se monta con la señal ya dada, arranca', async () => {
     render(<Estampida listen={false} launchSignal={1} />);
     await act(async () => {});

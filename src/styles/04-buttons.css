@@ -26,9 +26,13 @@
       color var(--dur-base) ease;
   }
 
-  .btn:hover:not(:disabled) {
-    transform: translate(-1px, -1px);
-    box-shadow: var(--shadow-ink-md);
+  /* En táctil el :hover se queda pegado tras el toque: allí el botón solo se
+     hunde al pulsarlo. */
+  @media (hover: hover) {
+    .btn:hover:not(:disabled) {
+      transform: translate(-1px, -1px);
+      box-shadow: var(--shadow-ink-md);
+    }
   }
 
   .btn:active:not(:disabled) {

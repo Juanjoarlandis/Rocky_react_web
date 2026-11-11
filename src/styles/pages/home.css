@@ -92,8 +92,10 @@
     transition: transform var(--dur-base) ease;
   }
 
-  .product-page-hero-cta:hover .product-page-hero-cta-arrow {
-    transform: translateX(4px) rotate(4deg);
+  @media (hover: hover) {
+    .product-page-hero-cta:hover .product-page-hero-cta-arrow {
+      transform: translateX(4px) rotate(4deg);
+    }
   }
 
   /* El grafitero pinta la línea del encabezado. No se mueve del sitio: el dibujo
@@ -264,6 +266,16 @@
     }
   }
 
+  /* En la primera visita la intro tapa la portada 3 s: la escena espera en su
+     primer fotograma (con su retardo, que en pausa tampoco corre) y arranca
+     cuando la intro se va. Sin :has(), se ve como antes. El :where() no suma
+     especificidad: gana por ir después de las reglas que la animan. */
+  :where(:root:has(.splash-intro)) .spray-line path,
+  :where(:root:has(.splash-intro)) .spray-chorro i,
+  :where(:root:has(.splash-intro)) .spray-cruiser {
+    animation-play-state: paused;
+  }
+
   .product-page-head--home .spray-line-wrap {
     --spray-guy-alto: clamp(190px, 17vw, 224px);
 
@@ -379,14 +391,18 @@
     transform: rotate(0.3deg);
   }
 
-  /* Un agotado no se levanta: se queda pegado a la farola. */
-  .product-card:not(:where(.is-sold-out)):hover {
-    transform: rotate(0deg) translate(-3px, -3px);
-    box-shadow: var(--shadow-ink-lg);
-  }
+  /* Un agotado no se levanta: se queda pegado a la farola. Solo con puntero:
+     en táctil el :hover se queda pegado tras el toque y la tarjeta volvía
+     levantada al regresar de la ficha. */
+  @media (hover: hover) {
+    .product-card:not(:where(.is-sold-out)):hover {
+      transform: rotate(0deg) translate(-3px, -3px);
+      box-shadow: var(--shadow-ink-lg);
+    }
 
-  .product-card:not(:where(.is-sold-out)):hover .product-image {
-    transform: scale(1.04) rotate(-0.5deg);
+    .product-card:not(:where(.is-sold-out)):hover .product-image {
+      transform: scale(1.04) rotate(-0.5deg);
+    }
   }
 
   /* ---------- La pegatina arrancada (idea 7 de dirección artística) ----------
@@ -525,8 +541,10 @@
       transform: rotate(-0.25deg);
     }
 
-    .product-card--locked.product-card:hover {
-      transform: rotate(0deg) translate(-3px, -3px);
+    @media (hover: hover) {
+      .product-card--locked.product-card:hover {
+        transform: rotate(0deg) translate(-3px, -3px);
+      }
     }
 
     .product-card--locked .product-media--locked {

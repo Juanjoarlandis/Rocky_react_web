@@ -36,13 +36,15 @@ function nextBoundary(drops) {
 
 const loadDemoDrops = () => import('../../../shared/demo-drops.mjs');
 
-export function useDrops({ mode, products = EMPTY, onLaunch } = {}) {
+export function useDrops({ mode, products = EMPTY, onLaunch, onFall } = {}) {
   const [payload, setPayload] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const offsetRef = useRef(0);
   const onLaunchRef = useRef(onLaunch);
   onLaunchRef.current = onLaunch;
+  const onFallRef = useRef(onFall);
+  onFallRef.current = onFall;
   const catalogTimers = useRef([]);
 
   const serverNow = useCallback(() => Date.now() + offsetRef.current, []);
@@ -109,8 +111,13 @@ export function useDrops({ mode, products = EMPTY, onLaunch } = {}) {
     return undefined;
   }, [isDemo, mode, products]);
 
-  // La próxima frontera: se vuelve a pedir al llegar su hora.
+  // La próxima frontera: se vuelve a pedir al llegar su hora. Si es la caída de
+  // un anunciado y el servidor ya lo da a la venta, se avisa además con onFall,
+  // una sola vez: ni los repasos del catálogo, ni un cierre, ni un aplazamiento.
   const boundary = payload ? nextBoundary(payload.drops) : null;
+  const falling = payload?.drops.find(
+    (drop) => drop.state === DROP_STATES.ANNOUNCED && Date.parse(drop.launchAt) === boundary
+  )?.handle;
   useEffect(() => {
     if (mode !== 'shopify' || boundary === null) return undefined;
     const timers = [];
@@ -120,6 +127,9 @@ export function useDrops({ mode, products = EMPTY, onLaunch } = {}) {
       const next = await load();
       if (next && nextBoundary(next.drops) !== boundary) {
         announce();
+        if (falling && next.drops.some((d) => d.handle === falling && isOnSale(d.state))) {
+          onFallRef.current?.();
+        }
         return;
       }
       if (cancelled) return;
@@ -139,7 +149,7 @@ export function useDrops({ mode, products = EMPTY, onLaunch } = {}) {
       cancelled = true;
       timers.forEach(clearTimeout);
     };
-  }, [mode, boundary, load, serverNow, announce]);
+  }, [mode, boundary, falling, load, serverNow, announce]);
 
   return useMemo(
     () => ({

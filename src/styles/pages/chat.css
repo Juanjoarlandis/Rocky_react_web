@@ -281,7 +281,15 @@
       transform 120ms ease;
   }
 
-  .chat-quick-prompt:hover:not(:disabled),
+  /* Partida: el foco de teclado se levanta siempre; el hover, solo con ratón. */
+  @media (hover: hover) {
+    .chat-quick-prompt:hover:not(:disabled) {
+      background: var(--ink-block);
+      color: var(--white);
+      transform: translateY(-2px) rotate(-1deg);
+    }
+  }
+
   .chat-quick-prompt:focus-visible {
     background: var(--ink-block);
     color: var(--white);
@@ -502,7 +510,15 @@
     stroke-width: 2;
   }
 
-  .chat-send:hover:not(:disabled),
+  /* Partida: el foco de teclado se levanta siempre; el hover, solo con ratón. */
+  @media (hover: hover) {
+    .chat-send:hover:not(:disabled) {
+      background: var(--ink-block);
+      transform: translate(-1px, -1px);
+      box-shadow: var(--shadow-accent);
+    }
+  }
+
   .chat-send:focus-visible {
     background: var(--ink-block);
     transform: translate(-1px, -1px);

@@ -84,7 +84,13 @@ export default function Muro({
               No hemos podido leer el muro. Prueba a recargar en un momento.
             </p>
           ) : (
-            <p className="muro-vacio-texto">Todavía no hay nada pegado. El Pegador está en ello.</p>
+            <p className="muro-vacio-texto">
+              Todavía no hay nada pegado. El Pegador está{' '}
+              <s className="tachon" aria-hidden="true">
+                durmiendo
+              </s>{' '}
+              en ello.
+            </p>
           )}
         </div>
       )}

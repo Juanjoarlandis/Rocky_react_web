@@ -307,10 +307,12 @@
     transform: rotate(-0.6deg);
   }
 
-  /* Tilt 3D: la carta se inclina siguiendo el ratón */
-  .crew-card:hover .crew-card-inner {
-    transform: translate(-3px, -3px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
-    box-shadow: var(--shadow-ink-lg);
+  @media (hover: hover) {
+    /* Tilt 3D: la carta se inclina siguiendo el ratón */
+    .crew-card:hover .crew-card-inner {
+      transform: translate(-3px, -3px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+      box-shadow: var(--shadow-ink-lg);
+    }
   }
 
   .is-tilting .crew-card-inner {

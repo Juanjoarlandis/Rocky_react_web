@@ -54,13 +54,33 @@
     text-align: center;
   }
 
-  /* Los tres chicos se sientan sobre el borde superior del marco */
-  .footer-illustration {
+  /* Los tres chicos se sientan sobre el borde superior del marco. Son un
+     botón («Llamar a la crew»): el botón se queda con el sitio que tenía el
+     dibujo y no pinta nada suyo salvo el anillo de foco. Sigue siendo un
+     .doodle para el Curioso, pero este dibujo sí se puede pulsar. */
+  .footer-llamada {
+    position: absolute;
+    pointer-events: auto;
     bottom: calc(100% - 14px);
     left: 50%;
+    z-index: var(--z-doodle);
     transform: translateX(-50%);
     width: min(60vw, 430px);
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--wobble-md);
+    background: none;
+    line-height: 0;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .footer-illustration {
+    display: block;
+    width: 100%;
     height: auto;
+    user-select: none;
   }
 
   .footer-social {
@@ -81,9 +101,11 @@
       background-color var(--dur-base) ease;
   }
 
-  .footer-social:hover {
-    background-color: rgba(var(--white-rgb), 0.1);
-    transform: rotate(-2deg) scale(1.04);
+  @media (hover: hover) {
+    .footer-social:hover {
+      background-color: rgba(var(--white-rgb), 0.1);
+      transform: rotate(-2deg) scale(1.04);
+    }
   }
 
   .footer-social-icon {

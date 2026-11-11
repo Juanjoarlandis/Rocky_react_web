@@ -204,3 +204,135 @@ describe('useDrops', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+/* La crew celebra la caída (vida-a-la-vista): onFall avisa una sola vez cuando
+   un drop anunciado sale a la venta y el servidor lo confirma. Ni los repasos
+   del catálogo ni el cierre de un drop lo llaman. */
+describe('useDrops: aviso de caída', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(SERVER_NOW + 10 * 60_000);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  const avanzar = (ms) =>
+    act(async () => {
+      await vi.advanceTimersByTimeAsync(ms);
+    });
+
+  it('al caer un drop anunciado y confirmarlo el servidor, avisa una vez; los repasos no repiten', async () => {
+    vi.spyOn(globalThis, 'fetch')
+      .mockImplementationOnce(() => respond(payload('anunciado')))
+      .mockImplementation(() => respond(payload('en-la-calle', SERVER_NOW + 61_000)));
+    const onFall = vi.fn();
+    const onLaunch = vi.fn();
+    const { result } = renderHook(() =>
+      useDrops({ mode: 'shopify', products: [], onLaunch, onFall })
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(onFall).not.toHaveBeenCalled();
+
+    await avanzar(62_000);
+    expect(onFall).toHaveBeenCalledTimes(1);
+
+    await avanzar(40_000);
+    expect(onLaunch).toHaveBeenCalledTimes(4);
+    expect(onFall).toHaveBeenCalledTimes(1);
+  });
+
+  it('el cierre de un drop a la venta recarga, pero no avisa de ninguna caída', async () => {
+    const ENDS = new Date(SERVER_NOW + 60_000).toISOString();
+    const live = (state, now) => ({
+      now: new Date(now).toISOString(),
+      featured: null,
+      drops: [
+        { ...payload(state).drops[0], state, launchAt: '2026-11-01T20:00:00+01:00', endsAt: ENDS },
+      ],
+    });
+    vi.spyOn(globalThis, 'fetch')
+      .mockImplementationOnce(() => respond(live('ultimas-horas', SERVER_NOW)))
+      .mockImplementation(() => respond(live('archivo', SERVER_NOW + 61_000)));
+    const onFall = vi.fn();
+    const onLaunch = vi.fn();
+    const { result } = renderHook(() =>
+      useDrops({ mode: 'shopify', products: [], onLaunch, onFall })
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await avanzar(62_000);
+    await waitFor(() => expect(result.current.drops[0].state).toBe('archivo'));
+    expect(onLaunch).toHaveBeenCalled();
+    expect(onFall).not.toHaveBeenCalled();
+  });
+
+  it('si el drop anunciado se aplaza, recarga como siempre pero no avisa de una caída que no ha habido', async () => {
+    const LATER = '2026-11-14T20:00:00+01:00';
+    const aplazado = {
+      ...payload('anunciado', SERVER_NOW + 61_000),
+      drops: [{ ...payload('anunciado').drops[0], launchAt: LATER }],
+    };
+    vi.spyOn(globalThis, 'fetch')
+      .mockImplementationOnce(() => respond(payload('anunciado')))
+      .mockImplementation(() => respond(aplazado));
+    const onFall = vi.fn();
+    const onLaunch = vi.fn();
+    const { result } = renderHook(() =>
+      useDrops({ mode: 'shopify', products: [], onLaunch, onFall })
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await avanzar(62_000);
+    await waitFor(() => expect(result.current.drops[0].launchAt).toBe(LATER));
+    expect(onLaunch).toHaveBeenCalled();
+    expect(onFall).not.toHaveBeenCalled();
+  });
+
+  it('si el drop anunciado se retira, tampoco avisa de ninguna caída', async () => {
+    vi.spyOn(globalThis, 'fetch')
+      .mockImplementationOnce(() => respond(payload('anunciado')))
+      .mockImplementation(() =>
+        respond({
+          now: new Date(SERVER_NOW + 61_000).toISOString(),
+          featured: null,
+          drops: [],
+        })
+      );
+    const onFall = vi.fn();
+    const onLaunch = vi.fn();
+    const { result } = renderHook(() =>
+      useDrops({ mode: 'shopify', products: [], onLaunch, onFall })
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await avanzar(62_000);
+    await waitFor(() => expect(result.current.drops).toEqual([]));
+    expect(onLaunch).toHaveBeenCalled();
+    expect(onFall).not.toHaveBeenCalled();
+  });
+
+  it('si el servidor tarda, avisa una sola vez, cuando por fin confirma la caída', async () => {
+    vi.spyOn(globalThis, 'fetch')
+      .mockImplementationOnce(() => respond(payload('anunciado')))
+      .mockImplementationOnce(() => respond(payload('anunciado', SERVER_NOW + 61_000)))
+      .mockImplementationOnce(() => respond(payload('anunciado', SERVER_NOW + 66_000)))
+      .mockImplementation(() => respond(payload('en-la-calle', SERVER_NOW + 81_000)));
+    const onFall = vi.fn();
+    const { result } = renderHook(() => useDrops({ mode: 'shopify', products: [], onFall }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await avanzar(62_000);
+    await avanzar(5_000);
+    expect(onFall).not.toHaveBeenCalled();
+
+    await avanzar(15_000);
+    await waitFor(() => expect(result.current.drops[0].state).toBe('en-la-calle'));
+    expect(onFall).toHaveBeenCalledTimes(1);
+
+    await avanzar(60_000);
+    expect(onFall).toHaveBeenCalledTimes(1);
+  });
+});

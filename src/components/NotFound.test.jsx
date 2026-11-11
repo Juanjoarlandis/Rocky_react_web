@@ -47,3 +47,29 @@ describe('404', () => {
     expect(robots()).toEqual([]);
   });
 });
+
+// Lo que oye un lector de pantalla: el texto sin lo oculto con aria-hidden.
+const leido = (element) => {
+  const copia = element.cloneNode(true);
+  copia.querySelectorAll('[aria-hidden="true"]').forEach((node) => node.remove());
+  return copia.textContent.replace(/\s+/g, ' ').trim();
+};
+
+describe('404 con tachón (vida-a-la-vista)', () => {
+  it('de día, «está aquí» va tachado y oculto: se lee «La página que buscas no existe.»', () => {
+    const { container } = renderNotFound();
+    const texto = container.querySelector('.notfound-text');
+    const tachado = texto.querySelector('s.tachon');
+
+    expect(tachado).toHaveTextContent('está aquí');
+    expect(tachado).toHaveAttribute('aria-hidden', 'true');
+    expect(leido(texto)).toBe('La página que buscas no existe.');
+  });
+
+  it('de noche el texto es el de siempre, sin tachón', () => {
+    document.documentElement.dataset.theme = 'neon';
+    const { container } = renderNotFound();
+
+    expect(container.querySelector('.notfound-text s.tachon')).toBeNull();
+  });
+});

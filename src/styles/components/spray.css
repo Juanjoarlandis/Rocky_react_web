@@ -46,8 +46,10 @@
     transition: transform var(--dur-fast) ease;
   }
 
-  .spray-fab:hover {
-    transform: rotate(0deg) translateY(-2px);
+  @media (hover: hover) {
+    .spray-fab:hover {
+      transform: rotate(0deg) translateY(-2px);
+    }
   }
 
   /* ---------- La caja de herramientas ---------- */

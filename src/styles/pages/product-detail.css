@@ -16,9 +16,11 @@
       transform var(--dur-fast) ease;
   }
 
-  .detail-back:hover {
-    color: var(--accent);
-    transform: translateX(-3px);
+  @media (hover: hover) {
+    .detail-back:hover {
+      color: var(--accent);
+      transform: translateX(-3px);
+    }
   }
 
   .detail-grid {
@@ -95,9 +97,11 @@
       box-shadow var(--dur-base) ease;
   }
 
-  .detail-media:hover {
-    transform: rotate(0deg) translate(-2px, -2px);
-    box-shadow: var(--shadow-ink-lg);
+  @media (hover: hover) {
+    .detail-media:hover {
+      transform: rotate(0deg) translate(-2px, -2px);
+      box-shadow: var(--shadow-ink-lg);
+    }
   }
 
   .detail-media:disabled {

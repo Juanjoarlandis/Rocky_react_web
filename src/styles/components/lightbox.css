@@ -73,10 +73,12 @@
       color var(--dur-base) ease;
   }
 
-  .lightbox-close:hover {
-    background-color: var(--accent);
-    color: var(--white);
-    transform: rotate(8deg) scale(1.06);
+  @media (hover: hover) {
+    .lightbox-close:hover {
+      background-color: var(--accent);
+      color: var(--white);
+      transform: rotate(8deg) scale(1.06);
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {

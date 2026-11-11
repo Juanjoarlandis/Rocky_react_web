@@ -200,6 +200,9 @@
     /* ---------- Texturas ---------- */
     /* Subrayado garabateado reutilizable */
     --squiggle: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='8' viewBox='0 0 48 8'><path d='M2 5 Q 8 1 14 5 T 26 5 T 38 5 T 47 4' fill='none' stroke='%23e63946' stroke-width='3' stroke-linecap='round'/></svg>");
+    /* El trazo del tachón: dos pasadas de rotulador, ida y vuelta. Es una
+       máscara (solo cuenta la forma), así que el color lo pone quien la usa. */
+    --tachon-trazo: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='80' height='14' viewBox='0 0 80 14' preserveAspectRatio='none'><path d='M2 8 Q 22 4 42 7 T 78 5 M76 9 Q 50 7 30 10 T 4 9' fill='none' stroke='%23000' stroke-width='3.4' stroke-linecap='round'/></svg>");
 
     /* Retícula de puntos del cuaderno: color y opacidad por defecto. Se usa
      como rgba(var(--dot-rgb), α) en cada sitio, no como imagen precocinada,

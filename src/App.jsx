@@ -52,12 +52,15 @@ function App() {
   const commerce = useStorefront({
     demoProducts: loadDemoCatalog,
   });
+  const [estampidas, setEstampidas] = useState(0);
+  const llamarALaCrew = useCallback(() => setEstampidas((n) => n + 1), []);
   // Los drops (calendario-de-drops): al caer uno se recarga el catálogo, que
-  // es cuando sus diseños empiezan a salir.
+  // es cuando sus diseños empiezan a salir, y la crew sale a celebrarlo.
   const drops = useDrops({
     mode: commerce.mode,
     products: commerce.products,
     onLaunch: commerce.refreshCatalog,
+    onFall: llamarALaCrew,
   });
   const [carreras, setCarreras] = useState(0);
   // Las piezas opcionales esperan al catálogo: antes, la red es de la tienda.
@@ -68,12 +71,12 @@ function App() {
     if (piecesReady) preloadPieces();
   }, [piecesReady]);
   // La escucha de «035» se queda aquí, en dos líneas: la Estampida (y con ella
-  // toda la crew) solo se carga si alguien la teclea.
-  const [estampidas, setEstampidas] = useState(0);
+  // toda la crew) solo se carga si alguien la llama: tecleándolo, desde el pie
+  // o porque acaba de caer un drop.
   useEffect(() => {
     if (showSplash) return undefined;
-    return listenForSecret(() => setEstampidas((n) => n + 1));
-  }, [showSplash]);
+    return listenForSecret(llamarALaCrew);
+  }, [showSplash, llamarALaCrew]);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -262,7 +265,7 @@ function App() {
             imágenes le quitarían red a lo que sí se ve. */}
         {!esChat && (piecesReady || !commerce.loading) && (
           <Suspense fallback={null}>
-            <Footer featuredDrop={drops.featured} />
+            <Footer featuredDrop={drops.featured} onLlamada={llamarALaCrew} />
           </Suspense>
         )}
       </div>

@@ -193,10 +193,12 @@
     transform: rotate(2.2deg);
   }
 
-  .street-photo:hover {
-    transform: rotate(0deg) translateY(-4px);
-    box-shadow: var(--shadow-ink-lg);
-    z-index: 2;
+  @media (hover: hover) {
+    .street-photo:hover {
+      transform: rotate(0deg) translateY(-4px);
+      box-shadow: var(--shadow-ink-lg);
+      z-index: 2;
+    }
   }
 
   /* Un solo trozo de celo, arriba y centrado */

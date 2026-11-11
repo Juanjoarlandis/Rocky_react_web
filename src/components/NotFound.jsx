@@ -63,7 +63,17 @@ const NotFound = () => {
         {night ? 'No deberías estar aquí' : 'Te has salido del mapa'}
       </h1>
       <p className="notfound-text">
-        {night ? 'Se ha ido la luz. Busca la salida.' : 'La página que buscas no existe.'}
+        {night ? (
+          'Se ha ido la luz. Busca la salida.'
+        ) : (
+          <>
+            La página que buscas{' '}
+            <s className="tachon" aria-hidden="true">
+              está aquí
+            </s>{' '}
+            no existe.
+          </>
+        )}
       </p>
       <Link
         to="/"

@@ -291,8 +291,10 @@
     transform: rotate(0.9deg);
   }
 
-  .ep-card:hover {
-    transform: rotate(0deg) translate(-3px, -3px);
+  @media (hover: hover) {
+    .ep-card:hover {
+      transform: rotate(0deg) translate(-3px, -3px);
+    }
   }
 
   .ep-cover {

@@ -94,6 +94,21 @@ describe('El muro', () => {
     expect(screen.queryAllByRole('article')).toHaveLength(0);
   });
 
+  // Tachones con intención (vida-a-la-vista): el lector solo oye la frase buena.
+  it('sin drops, «durmiendo» va tachado y oculto: el Pegador está en ello', () => {
+    renderMuro({ drops: [], featured: null });
+    const texto = screen.getByText(/todavía no hay nada pegado/i);
+    const tachado = texto.querySelector('s.tachon');
+    const copia = texto.cloneNode(true);
+    copia.querySelectorAll('[aria-hidden="true"]').forEach((node) => node.remove());
+
+    expect(tachado).toHaveTextContent('durmiendo');
+    expect(tachado).toHaveAttribute('aria-hidden', 'true');
+    expect(copia.textContent.replace(/\s+/g, ' ').trim()).toBe(
+      'Todavía no hay nada pegado. El Pegador está en ello.'
+    );
+  });
+
   it('si no ha podido leer los drops lo dice, en vez de dar el muro por vacío', () => {
     renderMuro({ drops: [], featured: null, error: 'Sin conexión.' });
     expect(screen.getByRole('alert')).toHaveTextContent('No hemos podido leer el muro');

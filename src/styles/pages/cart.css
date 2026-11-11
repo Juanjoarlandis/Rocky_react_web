@@ -58,8 +58,10 @@
     transition: transform var(--dur-fast) ease;
   }
 
-  .cart-item-media:hover {
-    transform: rotate(0deg) scale(1.04);
+  @media (hover: hover) {
+    .cart-item-media:hover {
+      transform: rotate(0deg) scale(1.04);
+    }
   }
 
   .cart-item-image {
@@ -184,12 +186,14 @@
       transform var(--dur-fast) ease;
   }
 
-  .cart-item-remove:hover {
-    border-color: var(--ink);
-    background-color: var(--accent);
-    color: var(--white);
-    box-shadow: var(--shadow-ink-xs);
-    transform: rotate(6deg);
+  @media (hover: hover) {
+    .cart-item-remove:hover {
+      border-color: var(--ink);
+      background-color: var(--accent);
+      color: var(--white);
+      box-shadow: var(--shadow-ink-xs);
+      transform: rotate(6deg);
+    }
   }
 
   /* Resumen tipo ticket de compra, con el dormilón esperando encima */

@@ -118,9 +118,11 @@
       color var(--dur-base) ease;
   }
 
-  .player-btn:hover {
-    transform: translate(-1px, -1px) rotate(-2deg);
-    box-shadow: var(--shadow-ink-md);
+  @media (hover: hover) {
+    .player-btn:hover {
+      transform: translate(-1px, -1px) rotate(-2deg);
+      box-shadow: var(--shadow-ink-md);
+    }
   }
 
   .player-btn:active {

@@ -188,4 +188,46 @@
       }
     }
   }
+
+  /* En táctil no hay puntero que apunte: la mira barre el catálogo. Se cierra
+     sobre la foto de la tarjeta que cruza el centro de la pantalla y se abre al
+     alejarse. La línea de tiempo la da la tarjeta, porque la retícula es un
+     elemento de SVG (sin caja propia) y su foto recorta lo que sobresale. El
+     agotado no cuenta con :where() para que el disparo al añadir, más
+     específico, siga mandando. Sin animaciones ligadas al scroll, como antes. */
+  @media (hover: none) and (prefers-reduced-motion: no-preference) {
+    @supports (animation-timeline: view()) {
+      .product-card {
+        view-timeline: --tarjeta block;
+      }
+
+      .product-card:not(:where(.is-sold-out)) .product-reticle-aim {
+        animation: mira-barre linear both;
+        animation-timeline: --tarjeta;
+        animation-range: cover 20% cover 80%;
+      }
+
+      /* Con el foco de teclado (una tableta con teclado), la mira del foco:
+         la animación ganaría a su regla y la dejaría a cero lejos del centro.
+         Con :where() empata con el barrido y gana por ir después, pero pierde
+         con el disparo al añadir, que tiene que seguir mandando. */
+      .product-media:where(:focus-visible) .product-reticle-aim {
+        animation: none;
+      }
+
+      @keyframes mira-barre {
+        0%,
+        100% {
+          opacity: 0;
+          transform: scale(1.3) rotate(-14deg);
+        }
+
+        40%,
+        60% {
+          opacity: 1;
+          transform: none;
+        }
+      }
+    }
+  }
 }

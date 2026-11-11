@@ -73,7 +73,7 @@ const paseoSrcSet = (h112, h168, h224) => `${h112} 83w, ${h168} 125w, ${h224} 16
 // Sin movimiento, o con el ahorro de datos puesto, la cinta se queda en el póster.
 const quiereAhorrar = () => globalThis.navigator?.connection?.saveData === true;
 
-const Footer = ({ featuredDrop = null }) => {
+const Footer = ({ featuredDrop = null, onLlamada }) => {
   const guysSittingArt = useNightArt(guysSittingImage);
   const night = useNightMode();
   // De noche patrulla El Tóxico, con el mismo paseo.
@@ -155,16 +155,25 @@ const Footer = ({ featuredDrop = null }) => {
           ロッキースリーファイブ
         </span>
         <div className="footer-inner">
-          <img
-            src={guysSittingArt}
-            width="860"
-            height="538"
-            loading="lazy"
-            decoding="async"
-            alt="Ilustración de tres chicos sentados con ropa ROCKY"
-            className="doodle footer-illustration neon-art al-ritmo al-ritmo--suave"
-            style={{ '--fase': '0.2' }}
-          />
+          {/* Los del Banco llaman a la crew: es la Estampida para quien no
+              teclea «035» (el móvil, el ratón). El nombre lo da el botón. */}
+          <button
+            type="button"
+            className="doodle footer-llamada"
+            aria-label="Llamar a la crew"
+            onClick={() => onLlamada?.()}
+          >
+            <img
+              src={guysSittingArt}
+              width="860"
+              height="538"
+              loading="lazy"
+              decoding="async"
+              alt=""
+              className="footer-illustration neon-art al-ritmo al-ritmo--suave"
+              style={{ '--fase': '0.2' }}
+            />
+          </button>
           <a
             href={INSTAGRAM_URL}
             target="_blank"

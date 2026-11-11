@@ -25,6 +25,66 @@
     margin: 0;
     position: relative;
     display: inline-block;
+    /* La segunda tinta de una risografía: una pasada en el azul de la casa que
+       no acaba de casar con la negra. Dura, sin desenfoque. */
+    text-shadow: 0.05em 0.045em 0 rgba(var(--blue-rgb), 0.9);
+  }
+
+  /* Al llegar, la segunda pasada entra en registro: empieza más corrida y se
+     asienta. Una vez. Bajo la intro espera (ver la pausa tras el tachón). */
+  @media (prefers-reduced-motion: no-preference) {
+    .page-title {
+      animation: tinta-registro 0.6s var(--ease-out) 1 both;
+    }
+  }
+
+  @keyframes tinta-registro {
+    from {
+      text-shadow: 0.14em -0.05em 0 rgba(var(--blue-rgb), 0.9);
+    }
+  }
+
+  /* ---------- Tachón ----------
+     Una palabra corregida a la vista, como en un cuaderno: «Tu carrito está
+     ~~lleno~~ vacío». Va en un <s aria-hidden>, así que el lector de pantalla
+     solo lee la frase buena. El trazo es de rotulador en el acento del tema
+     (del color del texto no se distinguía de la palabra tachada); se traza
+     una vez al aparecer. */
+  .tachon {
+    position: relative;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .tachon::after {
+    content: '';
+    position: absolute;
+    inset: 30% -6% auto;
+    height: 0.36em;
+    background-color: var(--accent);
+    mask: var(--tachon-trazo) center / 100% 100% no-repeat;
+    pointer-events: none;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .tachon::after {
+      animation: tachon-traza 0.45s var(--ease-out) 0.4s both;
+    }
+  }
+
+  @keyframes tachon-traza {
+    from {
+      clip-path: inset(0 100% 0 0);
+    }
+  }
+
+  /* La intro de la primera visita sale en cualquier ruta y tapa la pantalla
+     3 s: la tinta del rótulo y el tachón esperan a que se vaya, como la escena
+     de la portada. El :where() no suma especificidad: gana por ir después de
+     sus animaciones, y el neón de noche, más específico, sigue como siempre. */
+  :where(:root:has(.splash-intro)) .page-title,
+  :where(:root:has(.splash-intro)) .tachon::after {
+    animation-play-state: paused;
   }
 
   /* El subrayado garabateado, como pseudo-elemento bajo cualquier rótulo. */

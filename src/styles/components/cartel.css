@@ -755,9 +755,11 @@
         transform var(--dur-fast) var(--ease-out);
     }
 
-    /* Al pasar por encima, la pestaña se separa un poco, como si tiraras. */
-    .pestana:hover {
-      transform: rotate(-3deg);
+    @media (hover: hover) {
+      /* Al pasar por encima, la pestaña se separa un poco, como si tiraras. */
+      .pestana:hover {
+        transform: rotate(-3deg);
+      }
     }
 
     /* La pestaña arrancada cae girando antes de desaparecer. */
@@ -776,12 +778,14 @@
       transition: transform var(--dur-slow) var(--ease-bounce);
     }
 
-    .cartel--anunciado:hover .cartel-cinta--a {
-      transform: rotate(-14deg) translateY(-3px);
-    }
+    @media (hover: hover) {
+      .cartel--anunciado:hover .cartel-cinta--a {
+        transform: rotate(-14deg) translateY(-3px);
+      }
 
-    .cartel--anunciado:hover .cartel-cinta--b {
-      transform: rotate(9deg) translateY(3px);
+      .cartel--anunciado:hover .cartel-cinta--b {
+        transform: rotate(9deg) translateY(3px);
+      }
     }
   }
 

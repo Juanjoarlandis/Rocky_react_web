@@ -34,8 +34,10 @@
     transition: transform 180ms ease;
   }
 
-  .chat-product-media:hover > img {
-    transform: scale(1.035) rotate(-0.5deg);
+  @media (hover: hover) {
+    .chat-product-media:hover > img {
+      transform: scale(1.035) rotate(-0.5deg);
+    }
   }
 
   .chat-product-media .placeholder-tee {

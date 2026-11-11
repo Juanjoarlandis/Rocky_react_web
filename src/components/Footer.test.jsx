@@ -1,4 +1,5 @@
-import { act, render } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -245,5 +246,65 @@ describe('Footer: patrulla de El Lata', () => {
       </MemoryRouter>
     );
     expect(container.querySelector('.ticker').textContent).not.toMatch(/DROP \d/);
+  });
+});
+
+/* La Estampida también sale del pie (vida-a-la-vista): Los del Banco son un
+   botón que llama a la crew con ratón, dedo o teclado. */
+describe('Footer: llamar a la crew', () => {
+  beforeEach(() => {
+    observers = [];
+    setReducedMotion(false);
+    vi.stubGlobal('IntersectionObserver', ObserverFalso);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const pie = (props = {}) =>
+    render(
+      <MemoryRouter>
+        <Footer {...props} />
+      </MemoryRouter>
+    );
+
+  it('Los del Banco son un botón «Llamar a la crew» con su dibujo dentro', () => {
+    pie();
+    const boton = screen.getByRole('button', { name: 'Llamar a la crew' });
+
+    expect(boton).toHaveAttribute('type', 'button');
+    expect(boton.querySelector('img.footer-illustration')).not.toBeNull();
+    // Sigue siendo un dibujo suelto para el Curioso, que no se asoma por un canto tapado.
+    expect(boton).toHaveClass('doodle');
+  });
+
+  it('al pulsarlo con el ratón o el dedo llama a la crew', async () => {
+    const onLlamada = vi.fn();
+    pie({ onLlamada });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Llamar a la crew' }));
+
+    expect(onLlamada).toHaveBeenCalledTimes(1);
+  });
+
+  it('con el teclado también, y el foco se queda en el botón', async () => {
+    const onLlamada = vi.fn();
+    pie({ onLlamada });
+    const boton = screen.getByRole('button', { name: 'Llamar a la crew' });
+
+    boton.focus();
+    await userEvent.keyboard('{Enter}');
+
+    expect(onLlamada).toHaveBeenCalledTimes(1);
+    expect(boton).toHaveFocus();
+  });
+
+  it('sin nadie que escuche, pulsarlo no rompe nada', async () => {
+    pie();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Llamar a la crew' }));
+
+    expect(screen.getByRole('button', { name: 'Llamar a la crew' })).toBeInTheDocument();
   });
 });

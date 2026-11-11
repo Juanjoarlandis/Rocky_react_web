@@ -78,10 +78,12 @@
       background-color var(--dur-base) ease;
   }
 
-  .mini-player-btn:hover {
-    background-color: var(--accent);
-    box-shadow: var(--shadow-ink-md);
-    transform: translate(-1px, -1px) rotate(3deg);
+  @media (hover: hover) {
+    .mini-player-btn:hover {
+      background-color: var(--accent);
+      box-shadow: var(--shadow-ink-md);
+      transform: translate(-1px, -1px) rotate(3deg);
+    }
   }
 
   .mini-player-btn:active {
