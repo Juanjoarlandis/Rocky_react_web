@@ -72,11 +72,20 @@
 ## 9. Primer uso real (2026-11-11)
 
 - [x] 9.1 Simulacro contra la Raspberry (por su IP local): release `20261111T071427Z-fase-4-6fd830cd`, 785 ficheros, arquitectura `linux/arm64`, 21,7 GB libres, 50 releases. Solo lecturas.
-- [ ] 9.2 Preparar con `--aplicar` y promover.
+- [x] 9.2 Preparar con `--aplicar` y promover.
   - Primer intento, `20261111T071438Z-fase-4-6fd830cd` (commit `9b52723`): construcción en este equipo con sus pruebas, exportación, subida, verificación de la transferencia y `docker load`, todo bien, en 63 s. **La verificación de contenido paró la release**: «no coincide /usr/local/bin/node». Los 1.192 ficheros de `/app` coincidían.
   - Diagnóstico, solo lectura: dentro de la imagen, en la Raspberry, la lectura normal del binario da `51400f37…` y la directa del disco (`dd iflag=direct`) da `3e53e5ff…`, que es la de este equipo y la oficial de nodejs.org. La imagen de la release activa (`pulido-artistico`) lee también `51400f37…`: es la misma capa base, y **el servidor de producción corre con ese fichero**. Difieren 38.902 bytes en doce páginas de 4 KiB seguidas (48 KiB a partir del byte 91.832.321). `dmesg` no registra errores de tarjeta ni de memoria.
   - Es la misma avería del 9 y el 10 de noviembre, de vuelta 21 horas después de reiniciar la Raspberry y con otra huella (el día 10 era `d18f6217…`). Es el fallo que añadió la revisión independiente (I4): sin la huella del binario de Node, esta release se habría marcado como verificada.
-  - Sin marca, la release no se puede promover, y no se ha promovido. Vaciar la caché de páginas o reiniciar la Raspberry es un cambio en la máquina de producción: se ha pedido autorización.
+  - Sin marca, la release no se pudo promover. Vaciar la caché de páginas o reiniciar la Raspberry es un cambio en la máquina de producción: se pidió autorización.
+  - Con autorización del usuario («Vacía la caché»): `sync && sudo sysctl vm.drop_caches=3`. La caché bajó de 3.474 a 1.355 MB, las dos lecturas del binario pasaron a dar `3e53e5ff…`, los 26 contenedores siguieron en marcha y ROCKY sano. No hizo falta reiniciar. Se borraron la carpeta y la imagen de la release sin marca.
+  - Segundo intento, `20261111T073408Z-fase-4-c5a28004` (commit `18d9d29`): preparada y **verificada** en 58 s (arm64, 1.193 huellas, marca escrita; el fichero de la imagen, borrado).
+  - Promoción (`promover-20261111T073522Z`): resultado `ok`, contenedor `healthy`, `anterior.txt` apunta a `pulido-artistico` y el resto de contenedores, igual antes y después.
+- [x] 9.3 Comprobar en producción.
+  - El contenedor corre la imagen de la marca; `Memory` y `MemorySwap` valen 201326592 (192 MiB); 0 reinicios, sin OOM. Dentro: el binario de Node da `3e53e5ff…`, `node_modules` ocupa 4.836 kB y no lleva React, y hay 56 variantes Brotli en `dist/assets`.
+  - Memoria: 49–50 MiB en reposo, pico de 65 MiB (la release anterior estaba en 68,8 MiB sin tope). CPU en 60 s de reposo: 95 ms (0,16 %), con la sonda de bash.
+  - Cabeceras por `127.0.0.1:3100`, con la puerta activa: `/` 200 `no-store`, `/loquesea` y `/sitemap.xml` 404 (la puerta los oculta, como antes), `/access-gate/style.css` 200 `private, max-age=3600`. Desde fuera, `https://rocky035.com/` responde 200 (la puerta) y su hoja de estilos llega con `private, max-age=3600` y `cf-cache-status: BYPASS`: no se guarda en el borde.
+  - No comprobado: la web de detrás de la puerta (hace falta su clave), así que el 404 de la aplicación, la cabecera `Link` y los metadatos solo están verificados en local. El camino de respaldo (`--construir-en-produccion`) no se ha usado de verdad.
+  - Observación: `docker image ls` da 559 MB a la imagen cargada frente a 387 MB de la anterior, construida allí. Con el almacén de containerd, lo cargado desde un `docker save` del almacén clásico guarda sus capas sin comprimir y no comparte las de la imagen base que ya había. Es un coste de una vez (las siguientes releases comparten esas capas), pero conviene confirmarlo en la próxima.
 
 ## Workflow follow-up
 

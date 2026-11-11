@@ -228,8 +228,10 @@ autorización explícita.
 - Antes de reiniciar, apunta lo que está en marcha (`docker ps --format '{{.Names}}'`) y
   compáralo después: los contenedores sin política de reinicio no vuelven solos y hay que
   arrancarlos con `docker start`, las bases de datos primero.
-- Vaciar solo la caché (`sync && sudo sysctl vm.drop_caches=3`) no corta nada, pero no
-  está probado aquí y puede no bastar si algún proceso tiene esas páginas en uso.
+- Vaciar solo la caché (`sync && sudo sysctl vm.drop_caches=3`) no corta nada. Bastó el
+  11 de noviembre de 2026, con el servidor en marcha usando ese fichero; puede no bastar
+  si las páginas dañadas son justo las que algún proceso tiene en uso. Pruébalo primero y
+  repite la comprobación.
 
 Después:
 
@@ -328,7 +330,12 @@ Una build que termina bien también puede llevar un fichero dañado. Para descar
   directo, con `3e53e5ff…` (38.902 bytes distintos en doce páginas de 4 KiB seguidas). La
   caché de páginas había vuelto a dañarse 21 horas después del reinicio del día 10, con
   otra huella, y el contenedor de producción usaba ese mismo fichero. Con una avería que
-  vuelve en un día, hay que mirar la tarjeta y la memoria de la Raspberry.
+  vuelve en un día, hay que mirar la tarjeta y la memoria de la Raspberry. Con
+  autorización, `sync && sudo sysctl vm.drop_caches=3` bastó esta vez (sin reiniciar y sin
+  cortar nada): las dos lecturas volvieron a coincidir. Segunda preparación,
+  `20261111T073408Z-fase-4-c5a28004`, verificada en 58 s y promovida con resultado `ok`
+  sobre `20261110T101102Z-pulido-artistico-13f7cc99`. En producción: contenedor sano con
+  192 MiB de tope, 49 MiB en reposo y la imagen de la marca.
 - Para verificar en la Raspberry, pregunta al contenedor, no al puerto 3001 del host (ese
   es de Uptime Kuma; ROCKY se publica en `127.0.0.1:3100`):
   `docker exec rocky035 bash scripts/healthcheck.sh && echo sano` (la misma sonda que usa
