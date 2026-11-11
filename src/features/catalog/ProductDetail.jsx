@@ -19,9 +19,11 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useNotFound } from '../../hooks/usePageMetadata.js';
 import { prefersReducedMotion } from '../../utils/media.js';
 import '../../styles/pages/product-detail.css';
-import { useNightArt } from '../night/nightArt.js';
+import { useNightArt, useNightArtResolver } from '../night/nightArt.js';
 import { DROP_STATES } from '../../../shared/drops.mjs';
 import { ROUTES } from '../../config/routes.js';
+import { NOMBRES_DE_LA_CREW, VOCES } from '../../data/voces.js';
+import { leerFirma } from './firma.js';
 
 // La foto a lo grande solo hace falta cuando alguien la abre.
 const Lightbox = lazyPiece(() => import('./Lightbox'));
@@ -36,6 +38,7 @@ function ProductDetail({
   drops = [],
 }) {
   const vigiaArt = useNightArt(sentadoBordeBlanco);
+  const nightArtFor = useNightArtResolver();
   const { productId } = useParams();
   const { hash } = useLocation();
   const [zoomOpen, setZoomOpen] = useState(false);
@@ -120,6 +123,10 @@ function ProductDetail({
   const productSoldOut =
     purchaseState(product, defaultVariant, { mode: commerceMode, cartEnabled: canAddToCart }) ===
     PURCHASE_STATES.SOLD_OUT;
+  // La voz de la crew: si la descripción la firma un muñeco, el texto va sin la
+  // firma y la firma va debajo, con su cabeza.
+  const { texto: descripcion, firma } = leerFirma(product.description, NOMBRES_DE_LA_CREW);
+  const voz = firma ? VOCES[firma] : null;
 
   return (
     <div className="page-container detail">
@@ -183,10 +190,35 @@ function ProductDetail({
               </span>
             )}
           </button>
+          {/* El muñeco que firma grita mientras el botón dice «Añadido ✓» */}
+          {voz && (
+            <span className="detail-grito" aria-hidden="true">
+              {voz.grito}
+            </span>
+          )}
         </div>
 
         <div className="detail-info">
-          {product.description && <p className="detail-description">{product.description}</p>}
+          {descripcion && <p className="detail-description">{descripcion}</p>}
+          {voz && (
+            <p className="detail-firma">
+              <span
+                className={`detail-firma-cabeza${voz.oscuro ? ' detail-firma-cabeza--oscura' : ''}`}
+                style={voz.foco ? { '--foco': voz.foco } : undefined}
+              >
+                <img
+                  {...artSources(nightArtFor(voz.img), 100)}
+                  width="56"
+                  height="56"
+                  loading="lazy"
+                  decoding="async"
+                  alt=""
+                  className="neon-art"
+                />
+              </span>
+              <span>{firma}, de la crew</span>
+            </p>
+          )}
           {product.specifications?.length > 0 && (
             <ul className="detail-specs">
               {product.specifications.map((spec, index) => (

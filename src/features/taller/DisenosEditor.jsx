@@ -1,5 +1,5 @@
 import ProductPhoto from '../../components/ProductPhoto.jsx';
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import * as api from '../../api/taller.js';
 import BotonConfirmar from './BotonConfirmar';
 
@@ -26,6 +26,7 @@ function tallasDe(sizes = []) {
 function DisenoForm({ inicial, nombre, boton, exigirFoto, onEnviar, onFallo }) {
   const [titulo, setTitulo] = useState(inicial?.title ?? '');
   const [descripcion, setDescripcion] = useState(inicial?.description ?? '');
+  const ayudaFirmaId = useId();
   const [precio, setPrecio] = useState(inicial?.price ?? '');
   const [tallas, setTallas] = useState(() => tallasDe(inicial?.sizes));
   const [foto, setFoto] = useState(null);
@@ -122,8 +123,13 @@ function DisenoForm({ inicial, nombre, boton, exigirFoto, onEnviar, onFallo }) {
           onChange={(e) => setDescripcion(e.target.value)}
           maxLength={1000}
           rows={2}
+          aria-describedby={ayudaFirmaId}
         />
       </label>
+      {/* La voz de la crew: la ficha la firma el muñeco cuyo nombre cierra el texto. */}
+      <p id={ayudaFirmaId} className="taller-ayuda">
+        Para que la firme un muñeco, termina con «— El Paquetes» (un nombre de la crew).
+      </p>
       <fieldset className="taller-tallas">
         <legend>Tallas y unidades</legend>
         {TALLAS.map((talla) => {

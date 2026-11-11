@@ -269,6 +269,16 @@ describe('El Taller: drops', () => {
 });
 
 describe('El Taller: diseños', () => {
+  // La voz de la crew (voz-de-la-crew): el campo explica cómo firma un muñeco.
+  it('bajo la descripción dice cómo firmarla con un muñeco de la crew', async () => {
+    const editor = await abrirDrop();
+    const form = within(editor).getByRole('form', { name: 'Nuevo diseño' });
+
+    expect(within(form).getByLabelText('Descripción')).toHaveAccessibleDescription(
+      /termina con «— El Paquetes»/
+    );
+  });
+
   it('crea un diseño completo con foto, precio y tallas', async () => {
     const editor = await abrirDrop();
     api.uploadImage.mockResolvedValue({

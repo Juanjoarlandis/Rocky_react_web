@@ -336,3 +336,129 @@ describe('ProductDetail', () => {
     expect(JSON.parse(fetchSpy.mock.calls[0][1].body).producto).toBe(String(product.handle));
   });
 });
+
+/* La voz de la crew (voz-de-la-crew): si la descripción termina en «— Nombre»
+   con el nombre de alguien de la crew, la ficha la firma ese muñeco. */
+describe('ProductDetail: la ficha firmada por la crew', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete document.documentElement.dataset.theme;
+  });
+
+  const ficha = (description, addToCart = vi.fn()) =>
+    render(
+      <MemoryRouter initialEntries={['/product/rocky-tee']}>
+        <Routes>
+          <Route
+            path="/product/:productId"
+            element={
+              <ProductDetail
+                products={[{ ...product, description }]}
+                addToCart={addToCart}
+                commerceMode="shopify"
+                canAddToCart
+              />
+            }
+          />
+        </Routes>
+      </MemoryRouter>
+    );
+
+  it('enseña el texto sin la firma y, debajo, la firma con la cabeza decorativa', () => {
+    const { container } = ficha('No la suelto ni en la lavadora. — El Paquetes');
+
+    expect(container.querySelector('.detail-description')).toHaveTextContent(
+      /^No la suelto ni en la lavadora\.$/
+    );
+    const firma = container.querySelector('.detail-firma');
+    expect(firma).toHaveTextContent('El Paquetes, de la crew');
+    expect(firma.querySelector('img')).toHaveAttribute('alt', '');
+    // La cabeza es un recorte ampliado con el foco de su voz.
+    expect(firma.querySelector('.detail-firma-cabeza').style.getPropertyValue('--foco')).toBe(
+      '10% 16%'
+    );
+  });
+
+  it('Los Fundadores firman sobre un círculo oscuro: su dibujo es de línea blanca', () => {
+    const { container } = ficha('Desde el banco lo vimos todo. — Los Fundadores');
+
+    expect(container.querySelector('.detail-firma-cabeza')).toHaveClass(
+      'detail-firma-cabeza--oscura'
+    );
+  });
+
+  it('sin firma, la ficha se ve como siempre', () => {
+    const { container } = ficha('Camiseta de prueba');
+
+    expect(container.querySelector('.detail-description')).toHaveTextContent('Camiseta de prueba');
+    expect(container.querySelector('.detail-firma')).toBeNull();
+  });
+
+  it('un nombre que no es de la crew no firma: el texto se ve entero', () => {
+    const { container } = ficha('Camiseta negra. — Juan');
+
+    expect(container.querySelector('.detail-description')).toHaveTextContent(
+      'Camiseta negra. — Juan'
+    );
+    expect(container.querySelector('.detail-firma')).toBeNull();
+  });
+
+  it('solo la firma no deja un párrafo vacío', () => {
+    const { container } = ficha('— El Paquetes');
+
+    expect(container.querySelector('.detail-description')).toBeNull();
+    expect(container.querySelector('.detail-firma')).toBeNull();
+  });
+
+  it('el muñeco que firma tiene su grito junto a la foto, oculto a los lectores', () => {
+    const firmada = ficha('Lo estoy hablando con mi abogado. — Rocky');
+    const grito = firmada.container.querySelector('.detail-media-wrap .detail-grito');
+
+    expect(grito).toHaveTextContent('¡GUAU!');
+    expect(grito).toHaveAttribute('aria-hidden', 'true');
+    firmada.unmount();
+
+    const sinFirma = ficha('Camiseta de prueba');
+    expect(sinFirma.container.querySelector('.detail-grito')).toBeNull();
+  });
+
+  // El grito se ve bajo .detail-grid:has(.btn--added) (contrato en
+  // voz-de-la-crew.test.js): aquí, que el botón y el grito comparten ficha y que
+  // solo un añadido con éxito pone esa marca.
+  it('al añadir con éxito, el botón marca el «Añadido ✓» en la misma ficha que el grito', async () => {
+    const addToCart = vi.fn().mockResolvedValue({ added: true, warnings: [] });
+    const { container } = ficha('Mientras tanto, guau. — Rocky', addToCart);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Añadir al carrito' }));
+
+    const anadido = await screen.findByRole('button', { name: 'Añadido ✓' });
+    expect(anadido).toHaveClass('btn--added');
+    const grid = container.querySelector('.detail-grid');
+    expect(grid.contains(anadido)).toBe(true);
+    expect(grid.querySelector('.detail-grito')).toHaveTextContent('¡GUAU!');
+  });
+
+  it('si el añadido falla, no hay «Añadido ✓» y el grito no tiene ventana', async () => {
+    const addToCart = vi.fn().mockResolvedValue({ added: false, warnings: [] });
+    const { container } = ficha('Mientras tanto, guau. — Rocky', addToCart);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Añadir al carrito' }));
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(container.querySelector('.btn--added')).toBeNull();
+  });
+
+  it('de noche firma el mismo muñeco con su dibujo de noche y su nombre de día', () => {
+    const cabeza = (view) => view.container.querySelector('.detail-firma img').getAttribute('src');
+    const dia = ficha('Pinto la marquesina y no me pagan. — El Lata');
+    const deDia = cabeza(dia);
+    dia.unmount();
+
+    document.documentElement.dataset.theme = 'neon';
+    const noche = ficha('Pinto la marquesina y no me pagan. — El Lata');
+
+    expect(deDia).toMatch(/lata-spray/);
+    expect(cabeza(noche)).toMatch(/toxico/);
+    expect(noche.container.querySelector('.detail-firma')).toHaveTextContent('El Lata, de la crew');
+  });
+});
