@@ -11,7 +11,7 @@
 - [x] 2.1 `server/app.pared.test.mjs` pasa repetido muchas veces con la CPU cargada, donde antes
   fallaba.
 - [x] 2.2 `npm run check` en verde.
-- [ ] 2.3 La CI de GitHub en verde en la rama del arreglo antes de llevar `main` hasta ella.
+- [x] 2.3 La CI de GitHub en verde en la rama del arreglo antes de llevar `main` hasta ella.
 - [x] 2.4 Revisión independiente con Fable y contexto limpio; corregir lo válido.
 
 ## Evidencia (12-nov)
@@ -23,8 +23,9 @@
   tiempo de espera, que la petición ya llegó a la comprobación de la pared.
 - **Bajo carga de CPU,** `server/app.pared.test.mjs` fallaba en 2 de 12 ejecuciones sin el
   arreglo y en 0 de 20 con él.
-- **CI de GitHub:** verde dos veces en la rama del arreglo con el primer commit; en `main` fallaba
-  en todas las ejecuciones desde el 11-nov.
+- **CI de GitHub:** verde en la rama del arreglo, dos veces con el primer commit (`15f84bd`) y
+  otra con el de la revisión (`0b51112`); en `main` fallaba en todas las ejecuciones desde el
+  11-nov.
 - **Revisión (Fable, contexto limpio, una ronda):** sin bloqueantes. Dos importantes, los dos en
   la prueba (una espera de 50 ms que no garantizaba nada y casos sin cubrir), corregidos. De los
   cuatro menores: se quita una espera que sobraba en `POST /trazos`, dos quedan como riesgos
