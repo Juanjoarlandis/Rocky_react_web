@@ -331,9 +331,14 @@
     }
   }
 
+  /* Cada cara aísla sus capas (cromos-en-cualquier-navegador): el multiply y el
+     z-index del sello «FICHADO», y el z-index del brillo, se quedan dentro de la
+     cara. Sin esto, Firefox aplana la carta que gira (la enseña en espejo) y el
+     sello y el brillo se transparentan por el reverso. */
   .crew-card-face {
     position: absolute;
     inset: 0;
+    isolation: isolate;
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
     display: flex;
