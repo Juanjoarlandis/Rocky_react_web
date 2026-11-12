@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lacoma en un mapa · ROCKY 035</title>
+    <!-- Prototipo de aprobación del cambio OpenSpec `barrio-en-mapa`, segunda versión: el
+         plano real de Lacoma (OpenStreetMap) con los cuatro sitios que dio el usuario.
+         Usa las hojas reales de la web (tokens, base, mapa y cabeza) y los dibujos de la crew,
+         así que lo que se ve aquí es lo que se verá en la tienda. Ábrelo servido desde la raíz
+         del repo (por ejemplo el Vite de desarrollo en /docs/design/…). La geometría la saca
+         del extracto de OpenStreetMap un script del prototipo; en la web irá horneada.
+         Aprobado el 2026-11-11. Después, la revisión cambió tres cosas en la web que los
+         estilos de esta página aún pisan: la M del metro va en el color del papel (de noche no
+         se leía en blanco sobre lima), las guías van debajo de los rótulos y la lista del móvil
+         usa minmax(min(260px, 100%), 1fr) sin límite de ancho en el texto. La referencia es
+         src/styles/components/mapa.css. -->
+    <link rel="stylesheet" href="../../src/styles/index.css" />
+    <link rel="stylesheet" href="../../src/styles/components/cabeza-muneco.css" />
+    <link rel="stylesheet" href="../../src/styles/components/mapa.css" />
+    <style>
+      /* ---------- Página del prototipo (no va a la web) ---------- */
+      .preview {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 32px 16px 80px;
+      }
+      .preview-kicker {
+        font-family: var(--font-hand);
+        font-weight: 700;
+        color: var(--muted);
+      }
+
+      /* ---------- Lo nuevo del mapa (irá a mapa.css y a los tokens) ---------- */
+      :root {
+        --park: #c9e3b0;
+      }
+      [data-theme='neon'] {
+        --park: #1d3a2c;
+      }
+      .mapa-hoja {
+        fill: rgba(var(--gold-rgb), 0.14);
+      }
+      .mapa-parque {
+        fill: var(--park);
+        stroke: var(--ink);
+        stroke-width: 1.5;
+        stroke-linejoin: round;
+      }
+      .mapa-ancha-borde,
+      .mapa-calle-borde,
+      .mapa-ancha,
+      .mapa-calle {
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .mapa-ancha-borde {
+        stroke: var(--ink);
+        stroke-width: 15;
+      }
+      .mapa-ancha {
+        stroke: var(--card);
+        stroke-width: 11;
+      }
+      .mapa-calle-borde {
+        stroke: var(--ink);
+        stroke-width: 7.5;
+      }
+      .mapa-calle {
+        stroke: var(--card);
+        stroke-width: 4.5;
+      }
+      .mapa-mano {
+        font-size: 15px;
+        paint-order: stroke;
+        stroke: var(--card);
+        stroke-width: 4;
+      }
+      .mapa-metro circle {
+        fill: var(--accent);
+        stroke: var(--ink);
+        stroke-width: 2.5;
+      }
+      .mapa-metro text {
+        font-family: var(--font-display);
+        font-size: 15px;
+        text-anchor: middle;
+        fill: var(--white);
+      }
+      .mapa-metro .mapa-metro-nombre {
+        text-anchor: start;
+        fill: var(--accent);
+        font-family: var(--font-hand);
+        font-size: 19px;
+      }
+      .mapa-guia {
+        fill: none;
+        stroke: var(--ink);
+        stroke-width: 2.5;
+        stroke-dasharray: 2 6;
+        stroke-linecap: round;
+      }
+      .mapa-punto circle {
+        fill: var(--ink);
+        stroke: var(--card);
+        stroke-width: 3;
+      }
+      .mapa-punto text {
+        font-family: var(--font-display);
+        font-size: 15px;
+        text-anchor: middle;
+        fill: var(--card);
+      }
+      .mapa-num {
+        display: none;
+        flex: none;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background-color: var(--ink);
+        color: var(--card);
+        font-family: var(--font-display);
+        font-size: var(--text-sm);
+        line-height: 24px;
+        text-align: center;
+      }
+      .mapa-lugar {
+        width: max-content;
+      }
+      .mapa-lugar small b {
+        color: var(--accent);
+        font-weight: 700;
+      }
+      .mapa-credito {
+        margin: 4px 0 0;
+        font-size: var(--text-xs);
+        color: var(--ink-soft);
+        text-align: right;
+      }
+      .mapa-credito a {
+        color: inherit;
+      }
+      @media (max-width: 900px) {
+        .mapa-lugar {
+          width: auto;
+        }
+        .mapa-num {
+          display: block;
+        }
+        .mapa-guia {
+          display: none;
+        }
+        .mapa-punto,
+        .mapa-metro {
+          scale: 2;
+        }
+        .mapa-lugares {
+          grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        }
+        .mapa-credito {
+          text-align: left;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="preview">
+      <p class="preview-kicker">Prototipo · cambio OpenSpec «barrio-en-mapa» · segunda versión</p>
+      <h1 class="page-title">Lacoma en un mapa</h1>
+      <p>
+        El plano de verdad de Lacoma, con los cuatro sitios del barrio. Cada uno abre una parte de
+        la web, y quien vive allí sale del «visto en» de su cromo. Así se ve en el 404 de día; el
+        diálogo del pie es el mismo mapa sin «tú estás aquí».
+      </p>
+
+      <section class="mapa" aria-labelledby="mapa-titulo">
+        <h2 id="mapa-titulo" class="mapa-titulo">Lacoma</h2>
+        <p class="mapa-lema">Dónde vive cada uno de la crew en Lacoma.</p>
+        <div class="mapa-lienzo">
+          <svg class="mapa-dibujo" viewBox="0 0 1000 620" aria-hidden="true" focusable="false">
+            <defs>
+              <clipPath id="hoja-lacoma">
+                <path
+                  d="M18 22 Q 260 10 520 18 T 982 16 L 986 470 Q 930 486 905 520 Q 880 560 852 604 Q 600 610 340 606 T 16 600 Z"
+                />
+              </clipPath>
+            </defs>
+            <path
+              class="mapa-hoja mapa-tinta"
+              d="M18 22 Q 260 10 520 18 T 982 16 L 986 470 Q 930 486 905 520 Q 880 560 852 604 Q 600 610 340 606 T 16 600 Z"
+            />
+            <g clip-path="url(#hoja-lacoma)">
+              <path
+                class="mapa-parque"
+                d="M973 633 949 671 965 700 968 698 984 730 978 733 983 741 987 742 1003 734 999 715 984 691 988 688 973 633Z M680 190 876 182 893 201 900 230 916 273 932 300 970 355 1003 377 1019 394 1030 411 1030 422 1003 435 896 465 909 433 899 429 879 371 843 366 835 330 840 268 785 263 791 217 755 206 736 203 719 196 680 193 680 190Z M717 -49 717 -15 662 -15 662 -88 355 -90 354 -143 350 -147 377 -173 388 -192 396 -216 425 -186 459 -169 509 -154 612 -153 611 -172 615 -172 697 -88 699 -71 703 -64 717 -49Z M326 -24 450 -22 450 4 325 3 326 -24Z M461 5 461 -23 593 -21 592 6 461 5Z M790 628 837 604 818 569 772 594 790 628Z M-373 199 -372 192 -366 189 -208 143 -156 125 -129 130 -92 118 -12 157 -3 203 16 263 -36 252 -36 240 -30 229 -70 210 -78 223 -98 212 -167 335 -203 314 -174 263 -264 206 -299 254 -373 199Z M677 641 615 674 628 698 689 665 677 641Z M988 517 951 533 958 547 955 554 975 596 1064 555 1046 513 1043 514 1035 495 998 512 993 501 983 505 988 517Z M916 605 940 606 949 593 939 573 935 575 934 572 906 587 916 605Z M50 428 86 365 36 335 31 343 23 339 -10 394 50 428Z M182 -50 208 -24 253 -24 253 2 197 2 164 -31 182 -50Z M187 199 441 200 445 202 451 240 456 306 447 308 443 304 431 275 424 277 433 300 415 289 417 286 411 283 414 277 408 274 406 280 403 277 403 263 412 251 395 210 284 205 282 262 387 276 400 282 191 284 159 289 65 271 75 261 101 245 117 242 123 244 117 223 134 219 131 207 117 210 113 198 187 199Z"
+              />
+              <path
+                class="mapa-calle-borde"
+                d="M866 542 920 515 1047 459 M821 503 839 509 M974 616 957 619 M1077 111 909 73 M488 -299 468 -299 453 -295 441 -290 425 -281 414 -271 392 -235 383 -199 379 -188 368 -174 356 -161 327 -146 313 -143 278 -140 264 -137 250 -129 87 32 76 49 72 61 71 131 M17 63 72 64 M885 171 871 171 M801 67 800 175 M721 -56 724 -48 724 -7 M650 -81 655 -78 653 182 M638 275 642 183 M639 254 453 253 M453 273 638 275 M454 -82 453 63 M260 191 262 115 M317 -10 318 4 324 9 590 11 597 9 600 4 600 -20 598 -24 590 -27 329 -29 324 -28 320 -25 317 -10 M262 -10 317 -10 M600 -8 724 -7 M653 119 453 117 M289 -196 260 -194 225 -180 44 -4 23 31 19 55 M-51 387 11 281 23 273 34 270 160 292 400 288 460 324 M101 190 90 185 84 177 78 173 70 172 54 177 39 172 M463 355 496 362 530 373 554 392 M488 676 485 664 469 454 M392 715 370 682 359 655 M13 526 38 471 M-24 507 -64 576 M91 660 65 649 -64 576 -111 552 M242 812 238 810 234 804 171 600 M249 649 240 625 233 621 171 600 103 567 51 549 -24 507 M140 585 181 743 208 830 M268 707 249 649 M243 595 253 582 307 494 M301 505 265 483 313 404 M4 155 -6 163 31 244 47 260 69 265 M66 264 39 202 27 183 M64 276 69 265 101 245 117 242 123 244 M731 178 731 67 M-16 786 65 649 93 593 103 567 M-108 747 -88 706 13 526 M471 813 889 585 M682 554 682 509 679 507 646 507 M767 688 766 681 767 675 788 663 789 657 782 644 M460 324 462 341 469 454 465 472 374 619 M452 191 260 191 M452 191 453 284 460 324 M39 172 62 183 88 190 101 190 M262 62 262 115 M262 115 72 114 M262 115 453 117 M262 62 262 -83 264 -85 M453 63 262 62 M453 63 723 64 M453 117 452 191 M453 117 453 63 M731 67 890 68 903 71 M723 64 722 178 M731 67 732 -7 M974 616 961 630 M859 530 854 500 M1089 564 974 616 M909 618 889 585 M847 495 836 491 M848 607 820 557 763 587 757 596 763 609 735 624 716 613 679 633 707 684 M581 464 548 464 M634 424 678 425 M597 604 599 490 581 490 M473 507 468 501 462 498 449 499 M545 386 547 316 496 316 496 362 M437 705 412 660 408 651 408 645 M289 443 232 408 M549 449 548 509 M242 392 220 429 M646 507 648 424 M532 640 532 547 M474 512 510 512 518 506 522 370 M974 616 1012 742 M957 619 909 618 M620 622 623 616 622 613 616 605 608 599 600 601 597 604 596 612 601 621 607 624 618 623 M563 642 581 637 603 633 M585 185 585 274 580 506 599 506 M415 738 618 623 M620 622 805 523 832 512 M844 513 859 530 M1041 416 1028 431 1011 441 M843 508 854 500 M800 175 452 191 M938 673 909 618 M866 542 859 530 M646 507 599 506 M582 392 554 392 M307 494 324 466 312 458 294 486 307 494 M909 73 904 63 731 62 723 64 M412 660 473 630 M-24 507 -39 498 M837 173 800 175 M732 -7 734 -56 M724 -7 723 64 M889 585 866 542 M220 429 276 464 M299 426 242 392 M80 496 -34 701 M64 55 66 45 73 32 87 16 245 -139 250 -143 261 -147 274 -151 289 -152 M73 55 19 55 M72 61 262 62 M71 131 67 166 58 173 39 172 M78 173 73 165 73 141 71 131 M39 172 -88 109 -113 103 M260 191 101 190 M71 131 70 172 76 187 M871 171 837 173 M961 630 942 663 938 673 M532 640 529 654 M685 566 682 554 M554 392 582 408 M91 660 154 643 M76 187 78 185 78 173 M374 619 365 634"
+              />
+              <path
+                class="mapa-ancha-borde"
+                d="M903 71 899 151 M902 189 918 242 926 262 938 285 957 316 987 351 M899 151 889 157 886 163 885 171 M365 634 351 648 M-44 421 328 646 M995 344 965 311 938 267 926 239 913 188 M987 351 1037 399 1057 424 1136 614 M1152 609 1082 438 1073 418 1067 411 995 344 M750 530 708 553 M351 648 348 652 347 661 M821 503 847 495 M836 491 799 505 750 530 M847 495 861 491 M945 467 1001 451 M-110 84 -88 72 -50 41 -8 -2 82 -124 116 -158 142 -179 234 -239 260 -260 288 -286 371 -383 379 -390 387 -396 M1055 403 1039 395 1024 381 1012 357 1000 337 972 306 951 275 941 256 926 214 921 196 924 178 M414 724 621 610 M598 615 408 720 M1011 441 836 491 M1001 451 1045 438 M861 491 945 467 M632 604 661 587 M661 587 776 524 821 503 M328 646 347 661 M359 655 365 634 M359 655 355 650 351 648 M360 674 358 665 359 655 M902 189 901 204 912 245 930 286 951 321 971 347 1027 393 1041 414 M902 189 917 186 924 178 M885 171 887 180 893 186 902 189 M909 73 919 -76 M913 188 908 150 M908 150 906 126 909 73 M899 151 902 189 M908 150 899 151 M924 178 926 169 924 161 919 154 908 150 M913 -74 903 71 M1043 432 1011 441 M708 553 598 615 M621 610 632 604 M38 -91 -17 -16 -46 15 M351 648 328 646"
+              />
+              <path
+                class="mapa-calle"
+                d="M866 542 920 515 1047 459 M821 503 839 509 M974 616 957 619 M1077 111 909 73 M488 -299 468 -299 453 -295 441 -290 425 -281 414 -271 392 -235 383 -199 379 -188 368 -174 356 -161 327 -146 313 -143 278 -140 264 -137 250 -129 87 32 76 49 72 61 71 131 M17 63 72 64 M885 171 871 171 M801 67 800 175 M721 -56 724 -48 724 -7 M650 -81 655 -78 653 182 M638 275 642 183 M639 254 453 253 M453 273 638 275 M454 -82 453 63 M260 191 262 115 M317 -10 318 4 324 9 590 11 597 9 600 4 600 -20 598 -24 590 -27 329 -29 324 -28 320 -25 317 -10 M262 -10 317 -10 M600 -8 724 -7 M653 119 453 117 M289 -196 260 -194 225 -180 44 -4 23 31 19 55 M-51 387 11 281 23 273 34 270 160 292 400 288 460 324 M101 190 90 185 84 177 78 173 70 172 54 177 39 172 M463 355 496 362 530 373 554 392 M488 676 485 664 469 454 M392 715 370 682 359 655 M13 526 38 471 M-24 507 -64 576 M91 660 65 649 -64 576 -111 552 M242 812 238 810 234 804 171 600 M249 649 240 625 233 621 171 600 103 567 51 549 -24 507 M140 585 181 743 208 830 M268 707 249 649 M243 595 253 582 307 494 M301 505 265 483 313 404 M4 155 -6 163 31 244 47 260 69 265 M66 264 39 202 27 183 M64 276 69 265 101 245 117 242 123 244 M731 178 731 67 M-16 786 65 649 93 593 103 567 M-108 747 -88 706 13 526 M471 813 889 585 M682 554 682 509 679 507 646 507 M767 688 766 681 767 675 788 663 789 657 782 644 M460 324 462 341 469 454 465 472 374 619 M452 191 260 191 M452 191 453 284 460 324 M39 172 62 183 88 190 101 190 M262 62 262 115 M262 115 72 114 M262 115 453 117 M262 62 262 -83 264 -85 M453 63 262 62 M453 63 723 64 M453 117 452 191 M453 117 453 63 M731 67 890 68 903 71 M723 64 722 178 M731 67 732 -7 M974 616 961 630 M859 530 854 500 M1089 564 974 616 M909 618 889 585 M847 495 836 491 M848 607 820 557 763 587 757 596 763 609 735 624 716 613 679 633 707 684 M581 464 548 464 M634 424 678 425 M597 604 599 490 581 490 M473 507 468 501 462 498 449 499 M545 386 547 316 496 316 496 362 M437 705 412 660 408 651 408 645 M289 443 232 408 M549 449 548 509 M242 392 220 429 M646 507 648 424 M532 640 532 547 M474 512 510 512 518 506 522 370 M974 616 1012 742 M957 619 909 618 M620 622 623 616 622 613 616 605 608 599 600 601 597 604 596 612 601 621 607 624 618 623 M563 642 581 637 603 633 M585 185 585 274 580 506 599 506 M415 738 618 623 M620 622 805 523 832 512 M844 513 859 530 M1041 416 1028 431 1011 441 M843 508 854 500 M800 175 452 191 M938 673 909 618 M866 542 859 530 M646 507 599 506 M582 392 554 392 M307 494 324 466 312 458 294 486 307 494 M909 73 904 63 731 62 723 64 M412 660 473 630 M-24 507 -39 498 M837 173 800 175 M732 -7 734 -56 M724 -7 723 64 M889 585 866 542 M220 429 276 464 M299 426 242 392 M80 496 -34 701 M64 55 66 45 73 32 87 16 245 -139 250 -143 261 -147 274 -151 289 -152 M73 55 19 55 M72 61 262 62 M71 131 67 166 58 173 39 172 M78 173 73 165 73 141 71 131 M39 172 -88 109 -113 103 M260 191 101 190 M71 131 70 172 76 187 M871 171 837 173 M961 630 942 663 938 673 M532 640 529 654 M685 566 682 554 M554 392 582 408 M91 660 154 643 M76 187 78 185 78 173 M374 619 365 634"
+              />
+              <path
+                class="mapa-ancha"
+                d="M903 71 899 151 M902 189 918 242 926 262 938 285 957 316 987 351 M899 151 889 157 886 163 885 171 M365 634 351 648 M-44 421 328 646 M995 344 965 311 938 267 926 239 913 188 M987 351 1037 399 1057 424 1136 614 M1152 609 1082 438 1073 418 1067 411 995 344 M750 530 708 553 M351 648 348 652 347 661 M821 503 847 495 M836 491 799 505 750 530 M847 495 861 491 M945 467 1001 451 M-110 84 -88 72 -50 41 -8 -2 82 -124 116 -158 142 -179 234 -239 260 -260 288 -286 371 -383 379 -390 387 -396 M1055 403 1039 395 1024 381 1012 357 1000 337 972 306 951 275 941 256 926 214 921 196 924 178 M414 724 621 610 M598 615 408 720 M1011 441 836 491 M1001 451 1045 438 M861 491 945 467 M632 604 661 587 M661 587 776 524 821 503 M328 646 347 661 M359 655 365 634 M359 655 355 650 351 648 M360 674 358 665 359 655 M902 189 901 204 912 245 930 286 951 321 971 347 1027 393 1041 414 M902 189 917 186 924 178 M885 171 887 180 893 186 902 189 M909 73 919 -76 M913 188 908 150 M908 150 906 126 909 73 M899 151 902 189 M908 150 899 151 M924 178 926 169 924 161 919 154 908 150 M913 -74 903 71 M1043 432 1011 441 M708 553 598 615 M621 610 632 604 M38 -91 -17 -16 -46 15 M351 648 328 646"
+              />
+              <text
+                class="mapa-mano"
+                x="790"
+                y="517"
+                dy="-9"
+                text-anchor="middle"
+                transform="rotate(-27 790 517)"
+              >
+                Herrera Oria
+              </text>
+              <text
+                class="mapa-mano"
+                x="676"
+                y="180"
+                dy="-9"
+                text-anchor="middle"
+                transform="rotate(-4 676 180)"
+              >
+                Valle de Pinares Llanos
+              </text>
+              <text
+                class="mapa-mano"
+                x="227"
+                y="291"
+                dy="-9"
+                text-anchor="middle"
+                transform="rotate(-1 227 291)"
+              >
+                Ramón Gómez de la Serna
+              </text>
+              <text
+                class="mapa-mano"
+                x="582"
+                y="392"
+                dy="-9"
+                text-anchor="middle"
+                transform="rotate(-89 582 392)"
+              >
+                Pico Balaitus
+              </text>
+            </g>
+            <path class="mapa-tinta mapa-canto" d="M905 520 Q 880 560 852 604" />
+            <g transform="translate(423 231)">
+              <g class="mapa-metro">
+                <circle r="13" />
+                <text dy="5">M</text>
+                <text class="mapa-mano mapa-metro-nombre" x="20" dy="6">Lacoma</text>
+              </g>
+            </g>
+            <path class="mapa-guia" d="M869 320 L846 244" />
+            <path class="mapa-guia" d="M613 247 L690 110" />
+            <path class="mapa-guia" d="M606 348 L700 452" />
+            <path class="mapa-guia" d="M130 373 L230 488" />
+            <g transform="translate(869 320)">
+              <g class="mapa-punto">
+                <circle r="13" />
+                <text dy="5">1</text>
+              </g>
+            </g>
+            <g transform="translate(613 247)">
+              <g class="mapa-punto">
+                <circle r="13" />
+                <text dy="5">2</text>
+              </g>
+            </g>
+            <g transform="translate(606 348)">
+              <g class="mapa-punto">
+                <circle r="13" />
+                <text dy="5">3</text>
+              </g>
+            </g>
+            <g transform="translate(130 373)">
+              <g class="mapa-punto">
+                <circle r="13" />
+                <text dy="5">4</text>
+              </g>
+            </g>
+            <g class="mapa-chincheta" transform="translate(946 560)">
+              <path
+                class="mapa-rojo mapa-tinta"
+                d="M0 -34 C -22 -34 -22 -6 0 18 C 22 -6 22 -34 0 -34 Z"
+              />
+              <circle class="mapa-blanco" cy="-20" r="7" />
+            </g>
+          </svg>
+          <nav aria-label="El mapa de Lacoma">
+            <ul class="mapa-lugares">
+              <li class="mapa-lugar" style="--x: 84.6%; --y: 39.4%; --giro: 1.5deg">
+                <a href="/">
+                  <span class="mapa-num" aria-hidden="true">1</span>
+                  <span
+                    class="cabeza-muneco cabeza-muneco--oscura"
+                    style="--tamano: 44px; --foco: 50% 20%"
+                    aria-hidden="true"
+                  >
+                    <img
+                      src="../../src/images/optimized/shell/sentado-860.webp"
+                      width="44"
+                      height="44"
+                      alt=""
+                      class="neon-art"
+                    />
+                  </span>
+                  <span
+                    ><strong>Los bancos de La Salle</strong
+                    ><small><b>La Tienda</b> · Los Fundadores, El Spray y 7 más</small></span
+                  >
+                </a>
+              </li>
+              <li class="mapa-lugar" style="--x: 69%; --y: 17.7%; --giro: -1.5deg">
+                <a href="/rockyIA">
+                  <span class="mapa-num" aria-hidden="true">2</span>
+                  <span class="cabeza-muneco" style="--tamano: 44px" aria-hidden="true">
+                    <img
+                      src="../../src/images/optimized/characters/sentado-borde-rojo-h320.webp"
+                      width="44"
+                      height="44"
+                      alt=""
+                      class="neon-art"
+                    />
+                  </span>
+                  <span
+                    ><strong>Bar Mundus</strong
+                    ><small><b>Rocky IA</b> · El Portero y El Estrella</small></span
+                  >
+                </a>
+              </li>
+              <li class="mapa-lugar" style="--x: 70%; --y: 72.9%; --giro: -1deg">
+                <a href="/menudrop">
+                  <span class="mapa-num" aria-hidden="true">3</span>
+                  <span
+                    class="cabeza-muneco"
+                    style="--tamano: 44px; --foco: 52% 2%"
+                    aria-hidden="true"
+                  >
+                    <img
+                      src="../../src/images/optimized/characters/skater-ollie-h320.webp"
+                      width="44"
+                      height="44"
+                      alt=""
+                      class="neon-art"
+                    />
+                  </span>
+                  <span
+                    ><strong>El callejón</strong
+                    ><small><b>Los Drops</b> · El Tumbao, El Ollie y El Dado</small></span
+                  >
+                </a>
+              </li>
+              <li class="mapa-lugar" style="--x: 23%; --y: 78.7%; --giro: 1deg">
+                <a href="/cart">
+                  <span class="mapa-num" aria-hidden="true">4</span>
+                  <span
+                    class="cabeza-muneco"
+                    style="--tamano: 44px; --foco: 10% 16%"
+                    aria-hidden="true"
+                  >
+                    <img
+                      src="../../src/images/optimized/characters/abrazando-paquete-h320.webp"
+                      width="44"
+                      height="44"
+                      alt=""
+                      class="neon-art"
+                    />
+                  </span>
+                  <span
+                    ><strong>El kebab</strong
+                    ><small><b>El carrito</b> · El Curioso, El Dormilón y 2 más</small></span
+                  >
+                </a>
+              </li>
+            </ul>
+          </nav>
+        </div>
+        <p class="mapa-credito">
+          Plano: ©
+          <a href="https://www.openstreetmap.org/copyright">colaboradores de OpenStreetMap</a>
+        </p>
+        <p class="mapa-fuera">
+          <strong>Tú estás aquí:</strong> fuera del mapa, con El Turista y Rocky, que viven en el
+          404.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

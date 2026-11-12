@@ -5,6 +5,7 @@ import { DROP_STATES } from '../../shared/drops.mjs';
 import { fechaCorta, horaDeMadrid } from '../features/drops/fecha.js';
 import { LEGAL_PAGES, legalPath } from '../config/legal';
 import { REDUCED_MOTION, prefersReducedMotion } from '../utils/media.js';
+import { lazyPiece } from '../utils/pieces.jsx';
 import '../styles/components/ticker.css';
 import '../styles/components/footer.css';
 
@@ -73,6 +74,9 @@ const paseoSrcSet = (h112, h168, h224) => `${h112} 83w, ${h168} 125w, ${h224} 16
 // Sin movimiento, o con el ahorro de datos puesto, la cinta se queda en el póster.
 const quiereAhorrar = () => globalThis.navigator?.connection?.saveData === true;
 
+// Lacoma (barrio-en-mapa): el mapa solo se descarga al abrirlo, no en reposo.
+const MapaDialogo = lazyPiece(() => import('../features/mapa/MapaDialogo.jsx'), { idle: false });
+
 const Footer = ({ featuredDrop = null, onLlamada }) => {
   const guysSittingArt = useNightArt(guysSittingImage);
   const night = useNightMode();
@@ -88,6 +92,8 @@ const Footer = ({ featuredDrop = null, onLlamada }) => {
   const year = new Date().getFullYear();
   const tickerRef = useRef(null);
   const [lataAnimada, setLataAnimada] = useState(false);
+  const [mapaAbierto, setMapaAbierto] = useState(false);
+  const botonMapaRef = useRef(null);
 
   useEffect(() => {
     const ticker = tickerRef.current;
@@ -193,6 +199,17 @@ const Footer = ({ featuredDrop = null, onLlamada }) => {
             <span>@rocky035</span>
           </a>
           <p className="footer-brand">ROCKY 035 — www.rocky035.com</p>
+          <button
+            type="button"
+            ref={botonMapaRef}
+            className="footer-mapa"
+            onClick={() => setMapaAbierto(true)}
+          >
+            El mapa de Lacoma
+          </button>
+          {mapaAbierto && (
+            <MapaDialogo vuelveA={botonMapaRef} onClose={() => setMapaAbierto(false)} />
+          )}
           <nav className="footer-links" aria-label="Información legal">
             {LEGAL_PAGES.map((page) => (
               <Link key={page.slug} to={legalPath(page.slug)}>

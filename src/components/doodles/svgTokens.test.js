@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 // Los SVG inline se tiñen con los tokens del tema: un hex incrustado se
 // quedaría del color de día en el modo neón (html[data-theme='neon']).
 const SVG_SOURCES = [
+  'src/features/mapa/MapaDelBarrio.jsx',
   'src/features/music/Boombox.jsx',
   'src/components/doodles/CrosshairSpinner.jsx',
   'src/components/icons/EyeIcon.jsx',

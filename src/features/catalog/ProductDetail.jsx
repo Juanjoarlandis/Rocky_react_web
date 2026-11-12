@@ -19,7 +19,8 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useNotFound } from '../../hooks/usePageMetadata.js';
 import { prefersReducedMotion } from '../../utils/media.js';
 import '../../styles/pages/product-detail.css';
-import { useNightArt, useNightArtResolver } from '../night/nightArt.js';
+import { useNightArt } from '../night/nightArt.js';
+import CabezaMuneco from '../../components/CabezaMuneco.jsx';
 import { DROP_STATES } from '../../../shared/drops.mjs';
 import { ROUTES } from '../../config/routes.js';
 import { NOMBRES_DE_LA_CREW, VOCES } from '../../data/voces.js';
@@ -38,7 +39,6 @@ function ProductDetail({
   drops = [],
 }) {
   const vigiaArt = useNightArt(sentadoBordeBlanco);
-  const nightArtFor = useNightArtResolver();
   const { productId } = useParams();
   const { hash } = useLocation();
   const [zoomOpen, setZoomOpen] = useState(false);
@@ -202,20 +202,7 @@ function ProductDetail({
           {descripcion && <p className="detail-description">{descripcion}</p>}
           {voz && (
             <p className="detail-firma">
-              <span
-                className={`detail-firma-cabeza${voz.oscuro ? ' detail-firma-cabeza--oscura' : ''}`}
-                style={voz.foco ? { '--foco': voz.foco } : undefined}
-              >
-                <img
-                  {...artSources(nightArtFor(voz.img), 100)}
-                  width="56"
-                  height="56"
-                  loading="lazy"
-                  decoding="async"
-                  alt=""
-                  className="neon-art"
-                />
-              </span>
+              <CabezaMuneco voz={voz} clase="detail-firma-cabeza" />
               <span>{firma}, de la crew</span>
             </p>
           )}

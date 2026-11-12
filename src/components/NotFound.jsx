@@ -7,7 +7,14 @@ import { useNightMode } from '../features/night/useNightMode.js';
 import { useNightArt } from '../features/night/nightArt.js';
 import { subscribeTorch } from '../features/night/torch.js';
 import { useNotFound } from '../hooks/usePageMetadata.js';
+import { lazyPiece } from '../utils/pieces.jsx';
 import '../styles/pages/not-found.css';
+
+// Lacoma (barrio-en-mapa) va en su propia pieza: si se importara aquí, la lista
+// de precarga del 404, que vive en el JavaScript inicial, crecería con el mapa.
+const MapaDelBarrio = lazyPiece(() => import('../features/mapa/MapaDelBarrio.jsx'), {
+  idle: false,
+});
 
 // De noche la salida se esconde en otro sitio cada vez: siempre por debajo
 // de la navbar y lejos de los cantos.
@@ -82,6 +89,8 @@ const NotFound = () => {
       >
         {night ? 'Salir de aquí' : 'Volver a la tienda'}
       </Link>
+      {/* De día, Lacoma: tú estás fuera del mapa. De noche no, que delataría la salida. */}
+      {!night && <MapaDelBarrio tuEstasAqui />}
       {night && (
         <>
           <Oscuridad />

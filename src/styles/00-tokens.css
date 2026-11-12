@@ -29,6 +29,8 @@
     --blue: #2f6fdb;
     --white: #fff;
     --gold: #f4b942;
+    /* Los parques del mapa de Lacoma (barrio-en-mapa). */
+    --park: #c9e3b0;
     --neon-yellow: #ffd60a;
     /* Tinta a fuego: no cambia con el tema. Para lo que sigue siendo claro de
      noche (la polaroid, el dorado, la miel de la mesa) y pide trazo oscuro. */
@@ -245,6 +247,7 @@
     --paper: #0c0917;
     --card: #171129;
     --line: #453d6b;
+    --park: #1d3a2c;
     --muted: #9d97c4;
     --accent: var(--uv-lime);
     --accent-dark: var(--uv-lime-soft);

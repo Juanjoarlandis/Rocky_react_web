@@ -9,6 +9,11 @@
     gap: 14px;
   }
 
+  /* Lacoma (barrio-en-mapa): el mapa necesita más que los 560 px del 404. */
+  .notfound .mapa {
+    width: min(1040px, calc(100vw - 32px));
+  }
+
   .notfound-figures {
     display: flex;
     align-items: flex-end;

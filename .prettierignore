@@ -14,3 +14,6 @@ docs/design/cotilla-esquina-preview.html
 *.png
 *.json
 .claude/worktrees
+
+# Generado por scripts/plano-lacoma.mjs: no se edita a mano.
+src/features/mapa/plano.js

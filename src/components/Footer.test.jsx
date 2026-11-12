@@ -1,6 +1,6 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Footer from './Footer';
@@ -306,5 +306,92 @@ describe('Footer: llamar a la crew', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Llamar a la crew' }));
 
     expect(screen.getByRole('button', { name: 'Llamar a la crew' })).toBeInTheDocument();
+  });
+});
+
+/* Lacoma (barrio-en-mapa): el pie abre el mapa del barrio en un diálogo. */
+describe('Footer: el mapa de Lacoma', () => {
+  beforeEach(() => {
+    observers = [];
+    setReducedMotion(false);
+    vi.stubGlobal('IntersectionObserver', ObserverFalso);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const pie = () =>
+    render(
+      <MemoryRouter>
+        <Footer />
+      </MemoryRouter>
+    );
+
+  it('el botón abre el mapa en un diálogo, sin «tú estás aquí»', async () => {
+    pie();
+
+    await userEvent.click(screen.getByRole('button', { name: 'El mapa de Lacoma' }));
+
+    const dialogo = await screen.findByRole('dialog', { name: 'El mapa de Lacoma' });
+    expect(
+      within(dialogo).getByRole('navigation', { name: 'El mapa de Lacoma' })
+    ).toBeInTheDocument();
+    expect(within(dialogo).queryByText(/Tú estás aquí/)).not.toBeInTheDocument();
+  });
+
+  it('«Cerrar el mapa» lo cierra y el foco vuelve al botón del pie', async () => {
+    pie();
+    const boton = screen.getByRole('button', { name: 'El mapa de Lacoma' });
+    await userEvent.click(boton);
+    const dialogo = await screen.findByRole('dialog', { name: 'El mapa de Lacoma' });
+
+    await userEvent.click(within(dialogo).getByRole('button', { name: 'Cerrar el mapa' }));
+
+    expect(screen.queryByRole('dialog', { name: 'El mapa de Lacoma' })).not.toBeInTheDocument();
+    expect(boton).toHaveFocus();
+  });
+
+  it('Escape también lo cierra y el foco vuelve al botón', async () => {
+    pie();
+    const boton = screen.getByRole('button', { name: 'El mapa de Lacoma' });
+    await userEvent.click(boton);
+    const dialogo = await screen.findByRole('dialog', { name: 'El mapa de Lacoma' });
+
+    fireEvent(dialogo, new Event('cancel', { cancelable: true }));
+
+    expect(screen.queryByRole('dialog', { name: 'El mapa de Lacoma' })).not.toBeInTheDocument();
+    expect(boton).toHaveFocus();
+  });
+
+  // Safari no enfoca un botón al pulsarlo con el ratón: el foco vuelve igual.
+  it('el foco vuelve al botón aunque el clic no lo enfocara', async () => {
+    pie();
+    const boton = screen.getByRole('button', { name: 'El mapa de Lacoma' });
+    fireEvent.click(boton);
+    const dialogo = await screen.findByRole('dialog', { name: 'El mapa de Lacoma' });
+
+    fireEvent.click(within(dialogo).getByRole('button', { name: 'Cerrar el mapa' }));
+
+    expect(boton).toHaveFocus();
+  });
+
+  it('pulsar un sitio cierra el mapa y abre su sección, sin devolver el foco al pie', async () => {
+    const Ruta = () => <p data-testid="ruta">{useLocation().pathname}</p>;
+    render(
+      <MemoryRouter>
+        <Footer />
+        <Ruta />
+      </MemoryRouter>
+    );
+    const boton = screen.getByRole('button', { name: 'El mapa de Lacoma' });
+    await userEvent.click(boton);
+    const dialogo = await screen.findByRole('dialog', { name: 'El mapa de Lacoma' });
+
+    await userEvent.click(within(dialogo).getByRole('link', { name: /El callejón/ }));
+
+    expect(screen.queryByRole('dialog', { name: 'El mapa de Lacoma' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('ruta')).toHaveTextContent('/menudrop');
+    expect(boton).not.toHaveFocus();
   });
 });

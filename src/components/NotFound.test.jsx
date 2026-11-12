@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 import NotFound from './NotFound';
@@ -71,5 +71,24 @@ describe('404 con tachón (vida-a-la-vista)', () => {
     const { container } = renderNotFound();
 
     expect(container.querySelector('.notfound-text s.tachon')).toBeNull();
+  });
+});
+
+describe('404 con el mapa de Lacoma (barrio-en-mapa)', () => {
+  it('de día enseña el mapa, con «tú estás aquí» fuera de él', async () => {
+    renderNotFound();
+
+    expect(
+      await screen.findByRole('navigation', { name: 'El mapa de Lacoma' })
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Tú estás aquí:/)).toBeInTheDocument();
+  });
+
+  it('de noche no hay mapa: la salida sigue escondida', async () => {
+    document.documentElement.dataset.theme = 'neon';
+    renderNotFound();
+    await act(async () => {});
+
+    expect(screen.queryByRole('navigation', { name: 'El mapa de Lacoma' })).not.toBeInTheDocument();
   });
 });

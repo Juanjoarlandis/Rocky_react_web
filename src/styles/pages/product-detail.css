@@ -162,9 +162,7 @@
   }
 
   /* ---------- La voz de la crew ----------
-     La firma del muñeco que habla en la descripción. La cabeza es un recorte
-     ampliado del dibujo pequeño, hacia --foco (arriba en el centro si la voz
-     no dice otra cosa: en el canon la cabeza ocupa el 35-40 % de arriba). */
+     La firma del muñeco que habla en la descripción, con su cabeza. */
   .detail-firma {
     display: flex;
     align-items: center;
@@ -176,32 +174,10 @@
     color: var(--ink);
   }
 
+  /* La cabeza va en src/components/CabezaMuneco.jsx (cabeza-muneco.css); aquí,
+     solo lo propio de la firma. */
   .detail-firma-cabeza {
-    --foco: 50% 0%;
-
-    flex: none;
-    width: 56px;
-    height: 56px;
-    overflow: hidden;
-    border: 2px solid var(--ink);
-    border-radius: 50%;
-    background-color: var(--card);
     box-shadow: var(--shadow-ink-xs);
-  }
-
-  /* Los Fundadores son el dibujo del pie, en línea blanca. */
-  .detail-firma-cabeza--oscura {
-    background-color: var(--ink-block);
-  }
-
-  .detail-firma-cabeza img {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: var(--foco);
-    transform: scale(1.7);
-    transform-origin: var(--foco);
   }
 
   /* El grito del muñeco que firma: una pegatina de cómic que salta junto a la
