@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import App from './App.jsx';
@@ -319,4 +319,22 @@ test('una ruta que no existe se titula «No encontrado», no se indexa y no decl
   expect(robots()).toEqual([]);
   expect(canonical()).toBe('https://rocky035.com/');
   expect(document.title).not.toMatch(/No encontrado/);
+});
+
+// album-sin-enlaces-rotos: el álbum recibe el catálogo cargado y El Vigía abre una ficha que existe.
+test('en el álbum, «Las fichas de producto» abre la primera ficha del catálogo', async () => {
+  useStorefront.mockReturnValue(
+    storefront({
+      mode: 'shopify',
+      products: [{ id: 'tee', handle: 'tee', title: 'Tee', image: '/tee.webp', price: '35' }],
+    })
+  );
+  renderEn('/crew');
+
+  const cromo = await screen.findByRole('article', { name: 'Cromo de El Vigía' });
+  fireEvent.click(within(cromo).getByRole('button', { name: '↻ expediente' }));
+  expect(within(cromo).getByRole('link', { name: /Las fichas de producto/ })).toHaveAttribute(
+    'href',
+    '/product/tee'
+  );
 });

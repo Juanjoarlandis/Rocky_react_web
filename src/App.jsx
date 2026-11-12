@@ -242,7 +242,7 @@ function App() {
                 }
               />
               <Route path={ROUTE_PATHS.studio} element={<Studio />} />
-              <Route path={ROUTE_PATHS.crew} element={<Crew />} />
+              <Route path={ROUTE_PATHS.crew} element={<Crew products={commerce.products} />} />
               <Route
                 path={ROUTE_PATHS.myCrew}
                 element={

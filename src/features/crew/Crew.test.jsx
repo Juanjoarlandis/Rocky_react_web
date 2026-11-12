@@ -3,12 +3,19 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Crew from './Crew.jsx';
 
-function renderCrew(entry = '/crew') {
+function renderCrew(entry = '/crew', props = {}) {
   return render(
     <MemoryRouter initialEntries={[entry]}>
-      <Crew />
+      <Crew {...props} />
     </MemoryRouter>
   );
+}
+
+// El enlace del reverso, con el cromo ya girado.
+function vistoEnDe(nombre) {
+  const cromo = screen.getByRole('article', { name: `Cromo de ${nombre}` });
+  fireEvent.click(within(cromo).getByRole('button', { name: '↻ expediente' }));
+  return within(cromo).getByRole('link', { name: /→$/ });
 }
 
 describe('La Crew', () => {
@@ -84,5 +91,23 @@ describe('La Crew', () => {
     fireEvent.click(within(cromo).getByRole('button', { name: /compartir cromo/ }));
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('/crew#ollie'));
     expect(await within(cromo).findByText('¡Enlace copiado!')).toBeInTheDocument();
+  });
+
+  // album-sin-enlaces-rotos: El Vigía y El Nube viven en todas las fichas; ningún handle a mano.
+  it('«Las fichas de producto» abre la primera ficha del catálogo', () => {
+    renderCrew('/crew', {
+      products: [{ handle: 'rocky-ya-llego' }, { handle: 'rocky-modo-luna' }],
+    });
+
+    expect(vistoEnDe('El Vigía')).toHaveAttribute('href', '/product/rocky-ya-llego');
+    expect(vistoEnDe('El Nube')).toHaveAttribute('href', '/product/rocky-ya-llego');
+    expect(vistoEnDe('El Recadero')).toHaveAttribute('href', '/products/agotado');
+  });
+
+  it('sin catálogo, «Las fichas de producto» lleva a la tienda', () => {
+    renderCrew();
+
+    expect(vistoEnDe('El Vigía')).toHaveAttribute('href', '/');
+    expect(vistoEnDe('El Recadero')).toHaveAttribute('href', '/products/agotado');
   });
 });

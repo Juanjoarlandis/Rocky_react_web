@@ -11,6 +11,9 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useRevealOnScroll } from '../../hooks/useRevealOnScroll.js';
 import { useNightArt, useNightArtResolver } from '../night/nightArt.js';
 import { useNightFicha } from '../night/nightCrew.js';
+import { vistoEnTo } from './vistoEn.js';
+
+const SIN_PRODUCTOS = Object.freeze([]);
 
 const TOTAL_CROMOS = CREW.length + POR_FICHAR.length;
 const CLAVE_ABIERTOS = STORAGE_KEYS.albumOpened;
@@ -134,6 +137,7 @@ export function CrewCard({
   onAbrir,
   reveal = 'static',
   orden = 0,
+  products = SIN_PRODUCTOS,
 }) {
   const memberArt = useNightArt(miembro.img);
   const ficha = useNightFicha(miembro);
@@ -310,7 +314,7 @@ export function CrewCard({
               <dd>
                 {linkEnabled ? (
                   <Link
-                    to={miembro.vistoEn.to}
+                    to={vistoEnTo(miembro.vistoEn, products)}
                     className="expediente-enlace"
                     onClick={(e) => e.stopPropagation()}
                   >
@@ -362,7 +366,7 @@ function LaminaSep({ numero, titulo, nota, cuenta }) {
   );
 }
 
-function Crew() {
+function Crew({ products = SIN_PRODUCTOS }) {
   const artFor = useNightArtResolver();
   const albumRef = useRef(null);
   const { hash } = useLocation();
@@ -487,6 +491,7 @@ function Crew() {
                   orden={indice % 6}
                   abierto={abiertos.has(miembro.id)}
                   onAbrir={abrirExpediente}
+                  products={products}
                 />
               ))}
             </div>
@@ -511,6 +516,7 @@ function Crew() {
                 orden={indice % 6}
                 abierto={abiertos.has(miembro.id)}
                 onAbrir={abrirExpediente}
+                products={products}
               />
             ))}
           </div>

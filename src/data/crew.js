@@ -1,6 +1,8 @@
 // LA CREW — el álbum de cromos de la casa.
 // Cada cromo: nombre de guerra, oficio, stats (0-5, medidos en dianas),
 // y el expediente del reverso con la página donde vive cada uno.
+// Quien vive en las fichas no guarda ningún handle, que caduca con cada drop:
+// lleva `anyProductPage` y el álbum elige una ficha que exista (crew/vistoEn.js).
 
 import { INSTAGRAM_URL } from '../config/links';
 import tumbado from '../images/optimized/shell/tumbado-800.webp';
@@ -91,7 +93,7 @@ export const CREW = [
       { label: 'Charla', valor: 2 },
     ],
     frase: 'De este marco no pasa nadie.',
-    vistoEn: { label: 'Las fichas de producto', to: '/product/rockyracing' },
+    vistoEn: { label: 'Las fichas de producto', to: '/', anyProductPage: true },
   },
   {
     id: 'portero',
@@ -333,7 +335,7 @@ export const CREW = [
       { label: 'Lluvia personal', valor: 3 },
     ],
     frase: 'Yo traigo mi propio clima.',
-    vistoEn: { label: 'Las fichas de producto', to: '/product/rockyracing' },
+    vistoEn: { label: 'Las fichas de producto', to: '/', anyProductPage: true },
   },
   {
     id: 'tele',
