@@ -100,7 +100,6 @@ export function createWallRouter({ pared, sessions, requireOrigin }) {
     validateBody({ ...PARED, trazo }),
     activa,
     asyncRoute(async (req, res) => {
-      await pared.listo;
       const sesion = await sessions.open(req, res);
       const { pagina: p, ancho: a, trazo: t } = req.body;
       const pintado = pared.pintar({ pagina: p, ancho: a, sesion, trazo: t });

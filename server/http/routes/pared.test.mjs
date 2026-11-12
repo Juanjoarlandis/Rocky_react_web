@@ -21,14 +21,14 @@ afterEach(async () => {
 // Un estado guardado: lo que había en el fichero antes de arrancar.
 function estadoGuardado({ encendida = true } = {}) {
   const previo = createWallService({ config: { enabled: true }, persistencia: discoInmediato() });
-  const { firma } = previo.pintar({
+  const { id, firma } = previo.pintar({
     pagina: '/crew',
     ancho: 'ancha',
     sesion: { key: 'sesion-de-antes' },
     trazo,
   });
   if (!encendida) previo.encender(false);
-  return { estado: previo.snapshot(), firma };
+  return { estado: previo.snapshot(), id, firma };
 }
 
 function discoInmediato(estado = null) {
@@ -41,40 +41,56 @@ function discoInmediato(estado = null) {
   };
 }
 
-// Una carga que espera a `soltar()`, como un fichero que tarda en leerse.
-function discoLento(estado = null) {
+// Una carga que espera a `soltar()`, como un fichero que tarda en leerse. Con `corrupto`, el
+// fichero resulta ilegible al terminar.
+function discoLento(estado = null, { corrupto = false } = {}) {
   let soltar;
   const leido = new Promise((resolve) => {
     soltar = resolve;
   });
-  return {
+  const disco = {
     soltar: () => soltar(),
     corrupto: false,
     cargar: async () => {
       await leido;
-      return { estado, corrupto: false };
+      disco.corrupto = corrupto;
+      return { estado: corrupto ? null : estado, corrupto };
     },
     programar: () => {},
     volcar: async () => {},
     apartarCorrupto: async () => {},
   };
+  return disco;
 }
 
+/* Arranca la pared con su disco y avisa de cada petición que entra en el router. Lo que va de
+   `requireOrigin` a la comprobación de la pared es síncrono (límite, validación), así que cuando
+   `llegadas(n)` se cumple, esas n peticiones ya han pasado por ella: o esperan a la carga o ya se
+   han rechazado. Nada depende de cuánto tarde la máquina. */
 async function arrancar(disco) {
   const pared = createWallService({ config: { enabled: true }, persistencia: disco });
   const sessions = createSessionManager({ store: new MemoryStore(), isProduction: false });
+  let entradas = 0;
+  const esperas = [];
+  const requireOrigin = (req, res, next) => {
+    next();
+    entradas += 1;
+    for (const espera of esperas.filter((e) => e.n <= entradas)) espera.resolve();
+  };
+  const llegadas = (n) =>
+    new Promise((resolve) => {
+      if (entradas >= n) resolve();
+      else esperas.push({ n, resolve });
+    });
   const app = express();
   app.use(express.json());
-  app.use(
-    '/api/pared',
-    createWallRouter({ pared, sessions, requireOrigin: (q, s, next) => next() })
-  );
+  app.use('/api/pared', createWallRouter({ pared, sessions, requireOrigin }));
   app.use(errorHandler({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
   const server = await new Promise((resolve) => {
     const listener = app.listen(0, '127.0.0.1', () => resolve(listener));
   });
   running.add(server);
-  return { pared, base: `http://127.0.0.1:${server.address().port}/api/pared` };
+  return { pared, llegadas, base: `http://127.0.0.1:${server.address().port}/api/pared` };
 }
 
 const enviar = (url, { method = 'POST', body } = {}) =>
@@ -84,18 +100,16 @@ const enviar = (url, { method = 'POST', body } = {}) =>
     body: body ? JSON.stringify(body) : undefined,
   });
 
-// Da tiempo a que la petición llegue al servidor y se quede esperando (o se rechace).
-const unRato = () => new Promise((resolve) => setTimeout(resolve, 50));
-
 describe('las rutas de la pared mientras se carga su fichero', () => {
-  it('un trazo enviado durante la carga espera y queda en la pared', async () => {
-    const disco = discoLento();
-    const { pared, base } = await arrancar(disco);
+  it('un trazo enviado durante la carga espera y se suma a lo que había en el fichero', async () => {
+    const { estado, id: previo } = estadoGuardado();
+    const disco = discoLento(estado);
+    const { pared, llegadas, base } = await arrancar(disco);
 
     const pintando = enviar(`${base}/trazos`, {
       body: { pagina: '/crew', ancho: 'ancha', trazo },
     });
-    await unRato();
+    await llegadas(1);
     expect(pared.activa()).toBe(false);
     disco.soltar();
     const respuesta = await pintando;
@@ -103,39 +117,62 @@ describe('las rutas de la pared mientras se carga su fichero', () => {
     expect(respuesta.status).toBe(201);
     const { id } = await respuesta.json();
     const vista = await (await fetch(`${base}?${Q}`)).json();
-    expect(vista.strokes.map((s) => s.id)).toEqual([id]);
+    expect(vista.strokes.map((s) => s.id)).toEqual([previo, id]);
   });
 
-  it('un reporte y un borrado durante la carga responden como con la pared cargada', async () => {
-    const { estado, firma } = estadoGuardado();
+  it('deshacer, borrar y reportar durante la carga responden como con la pared cargada', async () => {
+    const { estado, id: previo, firma } = estadoGuardado();
     const disco = discoLento(estado);
-    const { base } = await arrancar(disco);
+    const { llegadas, base } = await arrancar(disco);
 
+    // Sin sesión, el trazo de otro no es suyo (403), y borrar lo propio no borra nada (204).
+    const deshaciendo = enviar(`${base}/trazos/${previo}?${Q}`, { method: 'DELETE' });
+    const borrando = enviar(`${base}/mios?${Q}`, { method: 'DELETE' });
     const reportando = enviar(`${base}/reportes`, {
       body: { pagina: '/crew', ancho: 'ancha', firma },
     });
-    const borrando = enviar(`${base}/mios?${Q}`, { method: 'DELETE' });
-    await unRato();
+    await llegadas(3);
     disco.soltar();
 
-    expect((await reportando).status).toBe(202);
+    const deshecho = await deshaciendo;
+    expect(deshecho.status).toBe(403);
+    expect((await deshecho.json()).code).toBe('WALL_NOT_YOURS');
     expect((await borrando).status).toBe(204);
+    expect((await reportando).status).toBe(202);
   });
 
+  // También pasaba antes del arreglo (se rechazaba al momento): fija que esperar no deja entrar
+  // nada en una pared que resulta apagada.
   it('si tras cargar la pared está apagada, el trazo no entra', async () => {
     const { estado } = estadoGuardado({ encendida: false });
     const disco = discoLento(estado);
-    const { pared, base } = await arrancar(disco);
+    const { pared, llegadas, base } = await arrancar(disco);
 
     const pintando = enviar(`${base}/trazos`, {
       body: { pagina: '/crew', ancho: 'ancha', trazo },
     });
-    await unRato();
+    await llegadas(1);
     disco.soltar();
     const respuesta = await pintando;
 
     expect(respuesta.status).toBe(404);
     expect((await respuesta.json()).code).toBe('WALL_DISABLED');
     expect(pared.snapshot()).toEqual(estado);
+  });
+
+  it('si tras cargar el fichero resulta corrupto, el trazo no entra', async () => {
+    const disco = discoLento(null, { corrupto: true });
+    const { pared, llegadas, base } = await arrancar(disco);
+
+    const pintando = enviar(`${base}/trazos`, {
+      body: { pagina: '/crew', ancho: 'ancha', trazo },
+    });
+    await llegadas(1);
+    disco.soltar();
+    const respuesta = await pintando;
+
+    expect(respuesta.status).toBe(404);
+    expect((await respuesta.json()).code).toBe('WALL_DISABLED');
+    expect(pared.leer({ pagina: '/crew', ancho: 'ancha', sesion: null }).strokes).toEqual([]);
   });
 });

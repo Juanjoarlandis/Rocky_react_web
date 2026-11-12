@@ -57,3 +57,13 @@ publicada.
   cliente a reintentar algo que el servidor puede resolver esperando unos milisegundos.
 - **Esperar en las pruebas antes de la primera escritura**. Taparía el fallo y lo dejaría en
   producción.
+
+## Riesgos aceptados
+
+- **La espera no tiene límite de tiempo.** Si la lectura del fichero no terminara nunca, las
+  escrituras se quedarían esperando en vez de recibir un 404 rápido. Es una lectura local de un
+  fichero pequeño, y la ruta de leer ya esperaba igual sin límite.
+- **Una carga que falle de verdad da 500 en las escrituras, no 404.** La persistencia real recoge
+  sus errores y marca el fichero como corrupto (y entonces se responde 404), así que solo pasaría
+  con una persistencia que lance. Es lo mismo que ya hacía la ruta de leer.
+

@@ -10,9 +10,11 @@ fichero, y ninguna SHALL aplicarse antes de leerlo.
 - **WHEN** alguien pinta mientras la pared aún está leyendo su fichero, y la pared está encendida
 - **THEN** la petición espera a la carga y responde 201 con el trazo, que queda en la pared
 
-#### Scenario: Un reporte y un borrado durante la carga
-- **WHEN** alguien reporta una firma o borra lo suyo mientras la pared aún está leyendo su fichero
-- **THEN** la petición espera a la carga y responde como con la pared ya cargada (202 y 204)
+#### Scenario: Deshacer, borrar y reportar durante la carga
+- **WHEN** alguien deshace un trazo, borra lo suyo o reporta una firma mientras la pared aún está
+  leyendo su fichero
+- **THEN** la petición espera a la carga y responde como con la pared ya cargada (por ejemplo, 403
+  si el trazo no es suyo, 204 y 202)
 
 #### Scenario: La pared resulta apagada tras cargar
 - **WHEN** alguien pinta durante la carga y, al terminar, la pared está apagada o su fichero corrupto
