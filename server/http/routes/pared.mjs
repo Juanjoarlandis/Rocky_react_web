@@ -70,7 +70,12 @@ export function createWallRouter({ pared, sessions, requireOrigin }) {
     next();
   });
 
-  const activa = (req, res, next) => (pared.activa() ? next() : next(apagada()));
+  // Lo que llega mientras se lee el fichero espera a la carga y después decide
+  // (pared-espera-a-cargar): antes de leerlo, la pared aún no está activa, pero
+  // eso no quiere decir que esté apagada.
+  const activa = (req, res, next) => {
+    pared.listo.then(() => (pared.activa() ? next() : next(apagada())), next);
+  };
 
   router.get(
     '/',
